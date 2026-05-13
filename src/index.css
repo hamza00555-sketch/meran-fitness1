@@ -3,6 +3,8 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 :root {
@@ -41,8 +43,24 @@ html, body {
   direction: rtl;
   font-family: var(--font-ar);
   -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
   overscroll-behavior: none;
+  touch-action: manipulation;
 }
+
+/* ── User-select: allow text in inputs only ───────────────── */
+button, input, select, textarea { -webkit-user-select: text; user-select: text; }
+button { -webkit-user-select: none; user-select: none; }
+
+/* ── Images ────────────────────────────────────────────────── */
+img {
+  max-width: 100%;
+  height: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
+[loading="lazy"] { background: var(--bg3); }
 
 #root {
   min-height: 100vh;
