@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    
+    <!-- ── VIEWPORT: Disable zoom & horizontal scroll ────────── -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no, email=no, address=no" />
+    
+    <!-- ── PWA Setup ────────────────────────────────────────── -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HamzaFit" />
+    <meta name="theme-color" content="#0a0a0a" />
+    
+    <!-- ── SEO & Description ────────────────────────────────── -->
+    <meta name="description" content="HamzaFit - تطبيق تتبع التمارين الرياضية الاحترافي لحمزة" />
+    <meta name="keywords" content="workout, fitness, tracker, تمرين, جيم, صحة" />
+    <meta name="color-scheme" content="dark light" />
+    
+    <!-- ── PWA Manifest ────────────────────────────────────── -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- ── Icons ────────────────────────────────────────────── -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='75' font-size='75'>💪</text></svg>" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230a0a0a' width='180' height='180' rx='40'/><text x='90' y='100' font-size='100' fill='%23FF6B35' text-anchor='middle' dominant-baseline='middle'>💪</text></svg>" />
+    
+    <!-- ── Fonts (Preload) ──────────────────────────────────── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet" />
+    
+    <!-- ── Prevent zoom on input focus ───────────────────────── -->
+    <style>
+      input, select, textarea { font-size: 16px !important; }
+      body { overflow-x: hidden !important; }
+    </style>
+    
+    <title>HamzaFit 💪</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
