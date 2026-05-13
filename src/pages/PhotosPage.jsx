@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ls } from '../utils.js'
 import { Btn, PillTabs } from '../components/ui.jsx'
 import { fmtDate } from '../utils.js'
+import TimeLapseModal from '../components/TimeLapseModal.jsx'
 
 const ANGLES = ['Front', 'Side', 'Back']
 
@@ -9,6 +10,7 @@ export default function PhotosPage() {
   const [photos, setPhotos] = useState(() => ls.get('hf_photos', []))
   const [angle, setAngle] = useState('Front')
   const [lightbox, setLightbox] = useState(null)
+  const [showTimeLapse, setShowTimeLapse] = useState(false)
   const fileRef = useRef()
 
   useEffect(() => { ls.set('hf_photos', photos) }, [photos])
@@ -47,6 +49,15 @@ export default function PhotosPage() {
             style={{ display: 'none' }} onChange={addPhoto}
             capture="environment"
           />
+          {filtered.length >= 2 && (
+            <Btn
+              onClick={() => setShowTimeLapse(true)}
+              variant="secondary"
+              style={{ fontSize: 13, padding: '8px 16px' }}
+            >
+              🎬 Time-lapse
+            </Btn>
+          )}
           <Btn onClick={() => fileRef.current?.click()} style={{ fontSize: 13, padding: '8px 16px' }}>
             📸 إضافة
           </Btn>
@@ -118,6 +129,15 @@ export default function PhotosPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Time-lapse */}
+      {showTimeLapse && (
+        <TimeLapseModal
+          photos={filtered}
+          angle={angle}
+          onClose={() => setShowTimeLapse(false)}
+        />
       )}
 
       {/* Lightbox */}

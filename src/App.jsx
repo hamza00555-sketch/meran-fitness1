@@ -70,7 +70,7 @@ export default function App() {
         muscle: ex.muscle,
         name:   ex.name,
         emoji:  ex.emoji || MUSCLE_GROUPS[ex.muscle]?.exercises.find(e => e.name === ex.name)?.emoji || '🏋️',
-        numSets: ex.defaultSets || 3,
+        numSets: ex.defaultSets || 1,
       })
     )
     startSession(exercises)
@@ -84,7 +84,7 @@ export default function App() {
         muscle:  ex.muscle,
         name:    ex.name,
         emoji:   ex.emoji || '🏋️',
-        numSets: ex.sets || 3,
+        numSets: ex.sets || 1,
       })
     )
     if (!active) {
@@ -106,9 +106,11 @@ export default function App() {
       minHeight: '100vh', minHeight: '100dvh',
       background: 'var(--bg)',
       color: 'var(--text)',
+      width: '100%',
       maxWidth: 560,
       margin: '0 auto',
       position: 'relative',
+      overflowX: 'hidden',
     }}>
 
       {/* ── Top bar ─────────────────────────────────────────────── */}

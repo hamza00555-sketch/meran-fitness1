@@ -51,87 +51,64 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
           >×</button>
         </div>
 
-        {/* Sets header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '22px 1fr 1fr 1fr 1fr 32px',
-          gap: 4, marginBottom: 6,
-        }}>
-          {['#', 'Weight', 'Rep 1', 'Rep 2', 'Rep 3', '✓'].map(h => (
-            <div key={h} style={{
-              fontFamily: 'var(--font-mono)', fontSize: 9,
-              color: 'var(--text4)', textAlign: 'center',
-            }}>{h}</div>
-          ))}
-        </div>
-
-        {/* Sets rows */}
-        {ex.sets.map((s, si) => {
-          const allFilled = s.weight && s.r1
-          return (
-            <div
-              key={si}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '22px 1fr 1fr 1fr 1fr 32px',
-                gap: 4, marginBottom: 5,
-                opacity: s.done ? 0.45 : 1,
-                transition: 'opacity 0.25s',
-              }}
-            >
-              {/* Set number */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text4)',
-              }}>{si + 1}</div>
-
-              {/* Weight + Reps inputs */}
-              {['weight', 'r1', 'r2', 'r3'].map(field => (
-                <input
-                  key={field}
-                  type="number"
-                  inputMode="decimal"
-                  value={s[field]}
-                  onChange={e => onUpdateSet(si, field, e.target.value)}
-                  placeholder={field === 'weight' ? 'kg' : '—'}
-                  disabled={s.done}
-                  style={{
-                    background: s.done ? 'var(--bg)' : '#0d0d0d',
-                    border: `1px solid ${s.done ? 'var(--border)' : (s[field] ? color + '44' : 'var(--border)')}`,
-                    borderRadius: 6,
-                    padding: '7px 2px',
-                    color: s.done ? 'var(--text3)' : 'var(--text)',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    textAlign: 'center',
-                    outline: 'none',
-                    width: '100%',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={e => !s.done && (e.target.style.borderColor = color)}
-                  onBlur={e => e.target.style.borderColor = s[field] ? color + '44' : 'var(--border)'}
-                />
-              ))}
-
-              {/* Done toggle */}
-              <button
-                onClick={() => onDoneSet(si, !s.done)}
+        {/* Sets rows — no header, no set-number column: [Weight][R1][R2][R3][✓] */}
+        {ex.sets.map((s, si) => (
+          <div
+            key={si}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr 1fr 32px',
+              gap: 4, marginBottom: 5,
+              opacity: s.done ? 0.45 : 1,
+              transition: 'opacity 0.25s',
+            }}
+          >
+            {/* Weight + Reps inputs */}
+            {['weight', 'r1', 'r2', 'r3'].map(field => (
+              <input
+                key={field}
+                type="number"
+                inputMode="decimal"
+                value={s[field]}
+                onChange={e => onUpdateSet(si, field, e.target.value)}
+                placeholder={field === 'weight' ? 'kg' : '—'}
+                disabled={s.done}
                 style={{
-                  width: 32, height: 32,
-                  borderRadius: '50%',
-                  border: `2px solid ${s.done ? 'var(--green)' : 'var(--border2)'}`,
-                  background: s.done ? 'var(--green)' : 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: s.done ? 14 : 0,
-                  color: '#0a0a0a',
-                  transition: 'all 0.2s',
-                  flexShrink: 0,
+                  background: s.done ? 'var(--bg)' : '#0d0d0d',
+                  border: `1px solid ${s.done ? 'var(--border)' : (s[field] ? color + '44' : 'var(--border)')}`,
+                  borderRadius: 6,
+                  padding: '7px 2px',
+                  color: s.done ? 'var(--text3)' : 'var(--text)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 12,
+                  textAlign: 'center',
+                  outline: 'none',
+                  width: '100%',
+                  transition: 'border-color 0.2s',
                 }}
-              >{s.done ? '✓' : ''}</button>
-            </div>
-          )
-        })}
+                onFocus={e => !s.done && (e.target.style.borderColor = color)}
+                onBlur={e => e.target.style.borderColor = s[field] ? color + '44' : 'var(--border)'}
+              />
+            ))}
+
+            {/* Done toggle */}
+            <button
+              onClick={() => onDoneSet(si, !s.done)}
+              style={{
+                width: 32, height: 32,
+                borderRadius: '50%',
+                border: `2px solid ${s.done ? 'var(--green)' : 'var(--border2)'}`,
+                background: s.done ? 'var(--green)' : 'transparent',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: s.done ? 14 : 0,
+                color: '#0a0a0a',
+                transition: 'all 0.2s',
+                flexShrink: 0,
+              }}
+            >{s.done ? '✓' : ''}</button>
+          </div>
+        ))}
 
         {/* Footer actions */}
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

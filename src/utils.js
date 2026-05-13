@@ -76,7 +76,7 @@ export const blankSet = (prevWeight = '') => ({
 })
 
 // ── Build exercise object ─────────────────────────────────────
-export const buildExercise = ({ muscle, name, emoji, numSets = 3, prevWeight = '' }) => ({
+export const buildExercise = ({ muscle, name, emoji, numSets = 1, prevWeight = '' }) => ({
   id: uid(),
   muscle,
   name,
