@@ -1,11 +1,20 @@
 import { useState } from 'react'
 import { Card, SectionTitle, ProgressBar, RankBadge } from '../components/ui.jsx'
+import { AgeIcon, WeightIcon, HeightIcon, BodyFatIcon, TargetIcon, SystemIcon } from '../components/Icons.jsx'
 import {
   xpProgress, getRank, getCommitmentLevel,
   calcBMI, bmiCategory, calcAge, fmtDuration,
   sessionVolume, calcStreak,
 } from '../utils.js'
 import { GOALS, WEEK_DAYS_SHORT } from '../constants.js'
+
+const TRAINING_SYSTEMS = [
+  { id: 'ppl',        label: 'PPL',               desc: 'Push / Pull / Legs' },
+  { id: 'upper-lower',label: 'Upper-Lower',        desc: 'أعلى / أسفل الجسم' },
+  { id: 'full-body',  label: 'Full Body',          desc: 'الجسم كامل' },
+  { id: 'bro-split',  label: 'Bro Split',          desc: 'تقسيم كلاسيكي' },
+  { id: 'custom',     label: 'مخصص',               desc: 'حسب الجدول الشخصي' },
+]
 
 export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile }) {
   const [editField, setEditField] = useState(null)
@@ -18,6 +27,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
   const bmi        = calcBMI(profile?.weight, profile?.height)
   const bmiCat     = bmiCategory(bmi)
   const goal       = GOALS.find(g => g.id === profile?.goal) || GOALS[0]
+  const trainingSystem = TRAINING_SYSTEMS.find(s => s.id === profile?.trainingSystem) || null
 
   // Weight update reminder
   const lastUpdate  = profile?.lastWeightUpdate
@@ -27,7 +37,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
   // Lifetime stats
   const totalSessions = sessions.length
   const totalVolume   = sessions.reduce((t, s) => t + sessionVolume(s), 0)
-  const bestStreak    = streak // simplified - current streak
+  const bestStreak    = streak
 
   const startEdit = (field, current) => {
     setEditField(field)
@@ -44,45 +54,28 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
 
   const cancelEdit = () => setEditField(null)
 
-  const StatRow = ({ label, value, field, current, unit = '' }) => (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '12px 0', borderBottom: '1px solid var(--border)',
-    }}>
-      <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text2)' }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700 }}>
-          {value || '—'}{unit}
-        </span>
-        {field && (
-          <button
-            onClick={() => startEdit(field, current)}
-            style={{
-              background: 'var(--bg3)', border: '1px solid var(--border2)',
-              borderRadius: 8, padding: '4px 10px',
-              color: 'var(--cyan)', fontFamily: 'var(--font-ar)',
-              fontSize: 11, cursor: 'pointer',
-            }}
-          >تعديل</button>
-        )}
-      </div>
-    </div>
-  )
+  // BMI color
+  const bmiColor = !bmi ? 'var(--text2)'
+    : bmi < 18.5 ? 'var(--blue)'
+    : bmi < 25   ? 'var(--green)'
+    : bmi < 30   ? 'var(--orange)'
+    : 'var(--red)'
 
   return (
     <div style={{ paddingBottom: 100 }}>
+
       {/* ── Weight Update Banner ──────────────────────────────── */}
       {needsUpdate && (
         <div style={{
           background: 'var(--orange-lo)', border: '1px solid var(--orange)',
-          borderRadius: 12, padding: '10px 14px', marginBottom: 12,
+          borderRadius: 12, padding: '12px 16px', marginBottom: 14,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--orange)' }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: 'var(--orange)' }}>
               ⚠️ تذكير تحديث الوزن
             </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>
               {daysSince ? `آخر تحديث منذ ${daysSince} يوم` : 'لم تسجل وزنك بعد'}
             </div>
           </div>
@@ -90,194 +83,217 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
             onClick={() => startEdit('weight', profile?.weight)}
             style={{
               background: 'var(--orange)', border: 'none',
-              borderRadius: 8, padding: '6px 12px',
+              borderRadius: 8, padding: '8px 14px',
               color: '#0A0A0A', fontFamily: 'var(--font-ar)',
-              fontWeight: 700, fontSize: 12, cursor: 'pointer',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer',
             }}
           >تحديث</button>
         </div>
       )}
 
       {/* ── Player Card ───────────────────────────────────────── */}
-      <Card style={{ padding: 20, marginBottom: 14 }} topColor="var(--cyan)">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
-          {/* Avatar */}
+      <Card style={{ padding: 22, marginBottom: 14 }} topColor="var(--cyan)">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
           <div className="glow-pulse" style={{
-            width: 64, height: 64, borderRadius: '50%',
+            width: 68, height: 68, borderRadius: '50%',
             background: 'linear-gradient(135deg, var(--cyan), #00B0A6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 28, fontWeight: 900, color: '#0A0A0A',
+            fontSize: 30, fontWeight: 900, color: '#0A0A0A',
             flexShrink: 0,
           }}>
             {(profile?.name || 'H')[0]}
           </div>
           <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 900 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900 }}>
               {profile?.name || 'حمزة'}
             </div>
-            <div style={{ marginTop: 4 }}>
+            <div style={{ marginTop: 5 }}>
               <RankBadge rank={rank} />
             </div>
           </div>
         </div>
 
-        {/* XP + Level */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+        {/* XP + Level badges */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           <div style={{
             background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-            borderRadius: 12, padding: '4px 12px',
-            fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)', fontWeight: 700,
+            borderRadius: 20, padding: '5px 14px',
+            fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 700,
           }}>
             ⭐ {xp.toLocaleString()} XP
           </div>
           <div style={{
             background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.3)',
-            borderRadius: 12, padding: '4px 12px',
-            fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F59E0B', fontWeight: 700,
+            borderRadius: 20, padding: '5px 14px',
+            fontFamily: 'var(--font-mono)', fontSize: 13, color: '#F59E0B', fontWeight: 700,
           }}>
             LVL {level}
           </div>
         </div>
 
-        {/* XP Bar */}
-        <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={6} />
+        <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={8} />
         <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)',
-          marginTop: 5,
+          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
+          marginTop: 6,
         }}>
           {currentXP} / {neededXP} XP للمستوى التالي
         </div>
       </Card>
 
-      {/* ── Goal Card ─────────────────────────────────────────── */}
-      <Card style={{ padding: 16, marginBottom: 12 }} topColor="var(--purple)">
-        <SectionTitle>الهدف التدريبي</SectionTitle>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 32 }}>{goal.icon}</span>
-          <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>{goal.label}</div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>{goal.desc}</div>
-          </div>
-          <button
-            onClick={() => startEdit('goal', profile?.goal)}
-            style={{
-              marginRight: 'auto',
-              background: 'var(--bg3)', border: '1px solid var(--border2)',
-              borderRadius: 8, padding: '5px 12px',
-              color: 'var(--purple)', fontFamily: 'var(--font-ar)',
-              fontSize: 12, cursor: 'pointer',
-            }}
-          >تغيير</button>
-        </div>
-      </Card>
-
-      {/* ── Commitment Card ───────────────────────────────────── */}
-      <Card style={{ padding: 16, marginBottom: 12, background: 'var(--purple-lo)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>
-              الالتزام
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800,
-              color: commitment.color,
-            }}>
-              {commitment.label}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 3 }}>
-            {Array.from({ length: 5 }, (_, i) => (
-              <span key={i} style={{
-                fontSize: 18,
-                opacity: i < commitment.flames ? 1 : 0.15,
-              }}>🔥</span>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* ── Body Stats ────────────────────────────────────────── */}
-      <Card style={{ padding: 20, marginBottom: 12 }}>
-        <SectionTitle>العلامات الحيوية</SectionTitle>
-
-        {/* Grid of vital stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-          <VitalBox
-            label="العمر"
-            value={age ? age : '—'}
-            unit="سنة"
-            color="var(--cyan)"
-            icon="🎂"
-            onEdit={() => startEdit('birthday', profile?.birthday)}
-          />
-          <VitalBox
-            label="الطول"
-            value={profile?.height || '—'}
-            unit="سم"
-            color="var(--green)"
-            icon="📏"
-            onEdit={() => startEdit('height', profile?.height)}
-          />
-          <VitalBox
-            label="الوزن"
-            value={profile?.weight || '—'}
-            unit="كغ"
-            color="var(--gold)"
-            icon="⚖️"
-            onEdit={() => startEdit('weight', profile?.weight)}
-          />
-          <VitalBox
-            label="دهون الجسم"
-            value={profile?.bodyFat || '—'}
-            unit="%"
-            color="var(--orange)"
-            icon="🔥"
-            onEdit={() => startEdit('bodyFat', profile?.bodyFat)}
-          />
-        </div>
-
-        {/* BMI row */}
-        {bmi > 0 && (
+      {/* ════════════════════════════════════════════════════════ */}
+      {/* ══ VITALS SECTION — THE MAIN FEATURE ══════════════════ */}
+      {/* ════════════════════════════════════════════════════════ */}
+      <div style={{
+        background: 'var(--bg1)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', marginBottom: 14,
+        overflow: 'hidden',
+      }}>
+        {/* Section header with cyan left bar */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '18px 20px 14px',
+          borderBottom: '1px solid var(--border)',
+        }}>
           <div style={{
-            background: 'var(--bg3)', borderRadius: 12,
-            padding: '12px 16px',
+            width: 4, height: 24, background: 'var(--cyan)',
+            borderRadius: 3, flexShrink: 0,
+          }} />
+          <span style={{
+            fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800,
+            color: 'var(--text)',
+          }}>العلامات الحيوية</span>
+        </div>
+
+        <div style={{ padding: '16px 20px 20px' }}>
+          {/* 2×2 Vital Cards Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <VitalCard
+              label="العمر"
+              value={age || null}
+              unit="سنة"
+              color="var(--cyan)"
+              Icon={AgeIcon}
+              onEdit={() => startEdit('birthday', profile?.birthday)}
+            />
+            <VitalCard
+              label="الوزن"
+              value={profile?.weight || null}
+              unit="كغ"
+              color="var(--gold)"
+              Icon={WeightIcon}
+              onEdit={() => startEdit('weight', profile?.weight)}
+            />
+            <VitalCard
+              label="الطول"
+              value={profile?.height || null}
+              unit="سم"
+              color="var(--green)"
+              Icon={HeightIcon}
+              onEdit={() => startEdit('height', profile?.height)}
+            />
+            <VitalCard
+              label="دهون الجسم"
+              value={profile?.bodyFat || null}
+              unit="%"
+              color="var(--orange)"
+              Icon={BodyFatIcon}
+              onEdit={() => startEdit('bodyFat', profile?.bodyFat)}
+            />
+          </div>
+
+          {/* BMI — full-width prominent card */}
+          <div style={{
+            background: 'var(--bg2)',
+            border: `2px solid ${bmiColor}40`,
+            borderRadius: 14,
+            padding: '16px 20px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 12,
           }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 3 }}>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>
                 مؤشر كتلة الجسم (BMI)
               </div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700, color: 'var(--text2)' }}>
-                {bmiCat}
+              <div style={{
+                fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800,
+                color: bmiColor,
+              }}>
+                {bmi > 0 ? bmiCat : 'أدخل الوزن والطول'}
               </div>
             </div>
             <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 800,
-              color: bmi < 18.5 ? 'var(--blue)' : bmi < 25 ? 'var(--green)' : bmi < 30 ? 'var(--orange)' : 'var(--red)',
+              fontFamily: 'var(--font-mono)', fontSize: 40, fontWeight: 900,
+              color: bmiColor, lineHeight: 1,
             }}>
-              {bmi}
+              {bmi > 0 ? bmi : '—'}
             </div>
           </div>
-        )}
-      </Card>
+
+          {/* Goal row */}
+          <div
+            onClick={() => startEdit('goal', profile?.goal)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: 'var(--bg2)', border: '1px solid var(--border2)',
+              borderRadius: 14, padding: '14px 16px',
+              cursor: 'pointer', marginBottom: 10,
+              transition: 'border-color 0.15s',
+            }}
+          >
+            <TargetIcon size={22} color="var(--purple)" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>الهدف</div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
+                {goal.icon} {goal.label}
+              </div>
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)' }}>تغيير</div>
+          </div>
+
+          {/* Training System row */}
+          <div
+            onClick={() => startEdit('trainingSystem', profile?.trainingSystem)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              background: 'var(--bg2)', border: '1px solid var(--border2)',
+              borderRadius: 14, padding: '14px 16px',
+              cursor: 'pointer',
+              transition: 'border-color 0.15s',
+            }}
+          >
+            <SystemIcon size={22} color="var(--blue)" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>نظام التمرين</div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
+                {trainingSystem ? trainingSystem.label : (
+                  <span style={{ color: 'var(--text3)', fontWeight: 400 }}>اضغط للاختيار</span>
+                )}
+              </div>
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)' }}>تغيير</div>
+          </div>
+        </div>
+      </div>
+      {/* ════════════════════════════════════════════════════════ */}
 
       {/* ── Training Schedule ─────────────────────────────────── */}
-      <Card style={{ padding: 16, marginBottom: 12 }}>
+      <Card style={{ padding: 20, marginBottom: 14 }}>
         <SectionTitle>جدول التدريب</SectionTitle>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between', marginBottom: 12 }}>
           {WEEK_DAYS_SHORT.map((day, idx) => {
             const isTraining = (profile?.trainingDays || []).includes(idx)
             return (
               <div key={idx} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
               }}>
                 <div style={{
-                  width: 34, height: 34, borderRadius: '50%',
+                  width: 38, height: 38, borderRadius: '50%',
                   background: isTraining ? 'var(--cyan-lo)' : 'var(--bg3)',
                   border: `2px solid ${isTraining ? 'var(--cyan)' : 'var(--border)'}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13,
+                  fontSize: 14,
                   color: isTraining ? 'var(--cyan)' : 'var(--text3)',
+                  boxShadow: isTraining ? '0 0 8px var(--cyan-glow)' : 'none',
                 }}>
                   {isTraining ? '⚔️' : day}
                 </div>
@@ -286,18 +302,16 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           })}
         </div>
         {profile?.workoutTime && (
-          <div style={{
-            fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
-          }}>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
             وقت التدريب المفضل: {profile.workoutTime}
           </div>
         )}
       </Card>
 
       {/* ── Lifetime Stats ────────────────────────────────────── */}
-      <Card style={{ padding: 16, marginBottom: 12 }}>
+      <Card style={{ padding: 20, marginBottom: 14 }}>
         <SectionTitle>إحصائيات كاملة</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <StatBox label="إجمالي الجلسات" value={totalSessions} color="var(--cyan)" />
           <StatBox label="الحجم (طن)" value={`${(totalVolume / 1000).toFixed(1)}`} color="var(--gold)" />
           <StatBox label="أفضل streak" value={`${bestStreak} 🔥`} color="var(--orange)" />
@@ -320,36 +334,51 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
   )
 }
 
-// ── Vital Box ─────────────────────────────────────────────────
-function VitalBox({ label, value, unit, color, icon, onEdit }) {
+// ── Vital Card ────────────────────────────────────────────────
+function VitalCard({ label, value, unit, color, Icon, onEdit }) {
+  const hasValue = value !== null && value !== undefined && value !== ''
   return (
     <div style={{
-      background: 'var(--bg3)', border: `1px solid var(--border)`,
-      borderRadius: 14, padding: '14px 14px',
+      background: 'var(--bg2)',
+      border: `1px solid var(--border)`,
+      borderTop: `3px solid ${color}`,
+      borderRadius: 14,
+      padding: '16px 14px',
       position: 'relative',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={{ fontSize: 20 }}>{icon}</span>
-        <button
-          onClick={onEdit}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text3)', fontSize: 12, padding: 0, lineHeight: 1,
-          }}
-        >✏️</button>
+      cursor: 'pointer',
+    }} onClick={onEdit}>
+      {/* Icon + edit pencil row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+        <Icon size={22} color={color} />
+        <div style={{
+          background: 'var(--bg3)', border: '1px solid var(--border2)',
+          borderRadius: 7, padding: '3px 6px',
+          color: 'var(--text3)', fontSize: 13, lineHeight: 1,
+        }}>✏️</div>
       </div>
-      <div style={{
-        fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 800,
-        color, marginTop: 8, lineHeight: 1,
-      }}>
-        {value}
-        {value !== '—' && (
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text3)', marginRight: 4 }}>
+
+      {/* Value */}
+      {hasValue ? (
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 900,
+          color, lineHeight: 1, marginBottom: 4,
+        }}>
+          {value}
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text3)', marginRight: 4 }}>
             {unit}
           </span>
-        )}
-      </div>
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>
+        </div>
+      ) : (
+        <div style={{
+          fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)',
+          lineHeight: 1, marginBottom: 4, marginTop: 4,
+        }}>
+          اضغط للإضافة
+        </div>
+      )}
+
+      {/* Label */}
+      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
         {label}
       </div>
     </div>
@@ -361,13 +390,13 @@ function StatBox({ label, value, color }) {
   return (
     <div style={{
       background: 'var(--bg2)', border: '1px solid var(--border)',
-      borderRadius: 12, padding: '14px 12px', textAlign: 'center',
+      borderRadius: 12, padding: '16px 14px', textAlign: 'center',
     }}>
       <div style={{
-        fontFamily: 'var(--font-mono)', fontSize: 22,
-        fontWeight: 800, color, marginBottom: 4,
+        fontFamily: 'var(--font-mono)', fontSize: 24,
+        fontWeight: 800, color, marginBottom: 6,
       }}>{value}</div>
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>{label}</div>
     </div>
   )
 }
@@ -375,26 +404,27 @@ function StatBox({ label, value, color }) {
 // ── Edit Modal ────────────────────────────────────────────────
 function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
   const FIELD_LABELS = {
-    name:     'الاسم',
-    birthday: 'تاريخ الميلاد',
-    height:   'الطول (سم)',
-    weight:   'الوزن (كجم)',
-    bodyFat:  'نسبة الدهون (%)',
-    goal:     'الهدف',
+    name:           'الاسم',
+    birthday:       'تاريخ الميلاد',
+    height:         'الطول (سم)',
+    weight:         'الوزن (كجم)',
+    bodyFat:        'نسبة الدهون (%)',
+    goal:           'الهدف',
+    trainingSystem: 'نظام التمرين',
   }
 
   const FIELD_TYPES = {
-    name:     'text',
-    birthday: 'date',
-    height:   'number',
-    weight:   'number',
-    bodyFat:  'number',
-    goal:     'select',
+    name:           'text',
+    birthday:       'date',
+    height:         'number',
+    weight:         'number',
+    bodyFat:        'number',
+    goal:           'select',
+    trainingSystem: 'select-system',
   }
 
   const label    = FIELD_LABELS[field] || field
   const type     = FIELD_TYPES[field]  || 'text'
-  const isSelect = type === 'select'
 
   return (
     <div
@@ -415,24 +445,40 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
           borderRadius: 16, padding: 24, width: '100%', maxWidth: 400,
         }}
       >
-        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800, marginBottom: 16 }}>
+        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800, marginBottom: 18 }}>
           تعديل {label}
         </div>
 
-        {isSelect ? (
+        {type === 'select' ? (
           <select
             value={value}
             onChange={e => onChange(e.target.value)}
             style={{
               width: '100%', background: 'var(--bg3)',
               border: '1px solid var(--border2)', borderRadius: 10,
-              padding: '10px 12px', color: 'var(--text)',
-              fontFamily: 'var(--font-ar)', fontSize: 14, outline: 'none',
-              marginBottom: 16, cursor: 'pointer',
+              padding: '12px 14px', color: 'var(--text)',
+              fontFamily: 'var(--font-ar)', fontSize: 15, outline: 'none',
+              marginBottom: 18, cursor: 'pointer',
             }}
           >
             {GOALS.map(g => (
               <option key={g.id} value={g.id}>{g.icon} {g.label}</option>
+            ))}
+          </select>
+        ) : type === 'select-system' ? (
+          <select
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            style={{
+              width: '100%', background: 'var(--bg3)',
+              border: '1px solid var(--border2)', borderRadius: 10,
+              padding: '12px 14px', color: 'var(--text)',
+              fontFamily: 'var(--font-ar)', fontSize: 15, outline: 'none',
+              marginBottom: 18, cursor: 'pointer',
+            }}
+          >
+            {TRAINING_SYSTEMS.map(s => (
+              <option key={s.id} value={s.id}>{s.label} — {s.desc}</option>
             ))}
           </select>
         ) : (
@@ -445,9 +491,9 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
             style={{
               width: '100%', background: 'var(--bg3)',
               border: '1px solid var(--cyan)', borderRadius: 10,
-              padding: '12px', color: 'var(--text)',
+              padding: '14px', color: 'var(--text)',
               fontFamily: type === 'text' ? 'var(--font-ar)' : 'var(--font-mono)',
-              fontSize: 14, outline: 'none', marginBottom: 16,
+              fontSize: 16, outline: 'none', marginBottom: 18,
             }}
           />
         )}
@@ -456,7 +502,7 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
           <button
             onClick={onSave}
             className="btn-cyan"
-            style={{ flex: 1, fontSize: 14 }}
+            style={{ flex: 1, fontSize: 15 }}
           >
             حفظ
           </button>
@@ -465,9 +511,9 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
             style={{
               flex: 1, background: 'var(--bg2)',
               border: '1px solid var(--border2)', borderRadius: 10,
-              padding: '12px', color: 'var(--text2)',
+              padding: '14px', color: 'var(--text2)',
               fontFamily: 'var(--font-ar)', fontWeight: 700,
-              fontSize: 14, cursor: 'pointer',
+              fontSize: 15, cursor: 'pointer',
             }}
           >
             إلغاء
