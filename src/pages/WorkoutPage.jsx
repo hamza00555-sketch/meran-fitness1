@@ -269,7 +269,10 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {muscles.map(m => (
                     <Badge key={m} color={MUSCLE_GROUPS[m]?.color || 'var(--cyan)'}>
-                      {MUSCLE_GROUPS[m]?.emoji} {MUSCLE_GROUPS[m]?.label || m}
+                      {MUSCLE_GROUPS[m]?.img
+                        ? <img src={MUSCLE_GROUPS[m].img} style={{ width: 14, height: 14, objectFit: 'contain', borderRadius: 3 }} alt="" />
+                        : MUSCLE_GROUPS[m]?.emoji
+                      } {MUSCLE_GROUPS[m]?.label || m}
                     </Badge>
                   ))}
                 </div>

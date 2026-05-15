@@ -93,9 +93,9 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
   const isDone = isCompleted || pct >= 100
 
   const typeConfig = {
-    daily: { color: '#22C55E',  icon: '⚡', label: 'يومي' },
-    weekly:{ color: '#00D4C8', icon: '📅', label: 'أسبوعي' },
-    boss:  { color: '#EF4444', icon: '👹', label: 'الزعيم' },
+    daily: { color: '#22C55E',  icon: '⚡', label: 'يومي',    img: '/assets/challenge_daily.png' },
+    weekly:{ color: '#00D4C8', icon: '📅', label: 'أسبوعي',  img: '/assets/challenge_weekly.png' },
+    boss:  { color: '#EF4444', icon: '👹', label: 'الزعيم',  img: '/assets/challenge_boss.png' },
   }
   const cfg = typeConfig[c.type] || typeConfig.daily
 
@@ -112,10 +112,14 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
         <div style={{ flex: 1 }}>
           {/* Type badge + icon */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{
-              fontSize: c.type === 'boss' ? 22 : 18,
-              filter: isDone ? 'grayscale(1)' : 'none',
-            }}>{c.icon}</span>
+            <img
+              src={cfg.img}
+              alt={cfg.label}
+              style={{
+                width: 44, height: 44, objectFit: 'contain',
+                filter: isDone ? 'grayscale(1)' : 'none',
+              }}
+            />
             <span style={{
               background: cfg.color + '20', color: cfg.color,
               border: `1px solid ${cfg.color}38`,

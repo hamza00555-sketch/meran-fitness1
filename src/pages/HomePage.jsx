@@ -3,67 +3,34 @@ import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
 import { xpProgress, getRank, getCommitmentLevel } from '../utils.js'
 import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.js'
 
-// Animated SVG illustration of a dumbbell lifting - decorative
-function DumbbellIllustration({ isTraining }) {
-  if (!isTraining) return (
-    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-      <circle cx="28" cy="28" r="28" fill="rgba(155,89,182,0.08)"/>
-      <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fontSize="28">😴</text>
-    </svg>
-  )
+// Hero illustration using custom artwork
+function HeroIllustration({ isTraining }) {
   return (
-    <div style={{ animation: 'floatUp 3s ease-in-out infinite' }}>
-      <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-        <circle cx="28" cy="28" r="28" fill="rgba(155,89,182,0.12)"/>
-        {/* Dumbbell bar */}
-        <rect x="16" y="26" width="24" height="4" rx="2" fill="#9B59B6"/>
-        {/* Left plates */}
-        <rect x="10" y="20" width="6" height="16" rx="2" fill="#7D3C98"/>
-        <rect x="6" y="22" width="5" height="12" rx="2" fill="#9B59B6"/>
-        {/* Right plates */}
-        <rect x="40" y="20" width="6" height="16" rx="2" fill="#7D3C98"/>
-        <rect x="45" y="22" width="5" height="12" rx="2" fill="#9B59B6"/>
-        {/* Glow */}
-        <ellipse cx="28" cy="46" rx="12" ry="3" fill="rgba(155,89,182,0.2)"/>
-      </svg>
-    </div>
+    <img
+      src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'}
+      alt=""
+      style={{ width: 80, height: 80, objectFit: 'contain' }}
+    />
   )
 }
 
-// Rank ring with rotating gradient border
+// Rank display using custom rank badge artwork
 function RankRing({ rank, level }) {
   return (
     <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-      {/* Rotating glow ring */}
+      {rank.img && (
+        <img src={rank.img} alt={rank.label}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+      )}
+      {/* Level number overlay */}
       <div style={{
-        position: 'absolute', inset: -3,
-        borderRadius: '50%',
-        background: `conic-gradient(${rank.color}, transparent 60%, ${rank.color})`,
-        animation: 'spin 4s linear infinite',
-        opacity: 0.6,
-      }} />
-      {/* Inner circle */}
-      <div style={{
-        position: 'absolute', inset: 3,
-        borderRadius: '50%',
-        background: 'var(--bg2)',
-        border: `2px solid ${rank.color}50`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexDirection: 'column', gap: 0,
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 900,
-          color: rank.color, lineHeight: 1,
-        }}>
-          {level}
-        </div>
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 9,
-          color: rank.color, opacity: 0.7, letterSpacing: 1,
-        }}>
-          LVL
-        </div>
-      </div>
+        position: 'absolute', bottom: -6, left: '50%',
+        transform: 'translateX(-50%)',
+        background: rank.color, borderRadius: 10,
+        padding: '1px 7px',
+        fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800,
+        color: '#0A0A0A', whiteSpace: 'nowrap',
+      }}>LV{level}</div>
     </div>
   )
 }
@@ -211,7 +178,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         }} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <DumbbellIllustration isTraining={isTodayTraining} />
+          <HeroIllustration isTraining={isTodayTraining} />
           <div style={{ flex: 1 }}>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900,

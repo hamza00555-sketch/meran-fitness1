@@ -32,13 +32,13 @@ export const GREETINGS = [
 
 // ── Ranks ─────────────────────────────────────────────────────
 export const RANKS = [
-  { label: 'المبتدئ',  tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20' },
-  { label: 'الجاد',    tier: 'D',  minLevel: 5,  color: '#22C55E', bg: '#22C55E20' },
-  { label: 'الحديدي',  tier: 'C',  minLevel: 10, color: '#3B82F6', bg: '#3B82F620' },
-  { label: 'المتمرس',  tier: 'B',  minLevel: 20, color: '#9B59B6', bg: '#9B59B620' },
-  { label: 'النخبة',   tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620' },
-  { label: 'الأسطورة', tier: 'S',  minLevel: 50, color: '#EAB308', bg: '#EAB30820' },
-  { label: 'الظاهرة',  tier: 'S+', minLevel: 75, color: '#C39BD3', bg: '#C39BD320' },
+  { label: 'المبتدئ',  tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20', img: '/assets/rank_e.png' },
+  { label: 'الجاد',    tier: 'D',  minLevel: 5,  color: '#22C55E', bg: '#22C55E20', img: '/assets/rank_d.png' },
+  { label: 'الحديدي',  tier: 'C',  minLevel: 10, color: '#3B82F6', bg: '#3B82F620', img: '/assets/rank_c.png' },
+  { label: 'المتمرس',  tier: 'B',  minLevel: 20, color: '#9B59B6', bg: '#9B59B620', img: '/assets/rank_b.png' },
+  { label: 'النخبة',   tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620', img: '/assets/rank_a.png' },
+  { label: 'الأسطورة', tier: 'S',  minLevel: 50, color: '#EAB308', bg: '#EAB30820', img: '/assets/rank_s.png' },
+  { label: 'الظاهرة',  tier: 'S+', minLevel: 75, color: '#C39BD3', bg: '#C39BD320', img: '/assets/rank_s_plus.png' },
 ]
 
 // ── Commitment Levels (0-5 flames based on streak) ───────────
@@ -53,12 +53,12 @@ export const COMMITMENT_LEVELS = [
 
 // ── Goals ─────────────────────────────────────────────────────
 export const GOALS = [
-  { id: 'muscle',   label: 'بناء العضلات',    icon: '💪', desc: 'زيادة الكتلة العضلية والقوة' },
-  { id: 'fat_loss', label: 'حرق الدهون',      icon: '🔥', desc: 'تقليل نسبة الدهون وتحسين الجسم' },
-  { id: 'strength', label: 'زيادة القوة',     icon: '⚔️', desc: 'رفع أوزان أثقل وتحسين الأداء' },
-  { id: 'endurance',label: 'التحمل واللياقة', icon: '🏃', desc: 'تحسين اللياقة والقدرة على التحمل' },
-  { id: 'recomp',   label: 'إعادة التشكيل',   icon: '⚡', desc: 'بناء العضل وحرق الدهون معاً' },
-  { id: 'maintain', label: 'المحافظة',         icon: '🛡️', desc: 'الحفاظ على مستوى اللياقة الحالي' },
+  { id: 'muscle',   label: 'بناء العضلات',    icon: '💪', desc: 'زيادة الكتلة العضلية والقوة',          img: '/assets/goalc_muscle.png' },
+  { id: 'fat_loss', label: 'حرق الدهون',      icon: '🔥', desc: 'تقليل نسبة الدهون وتحسين الجسم',      img: '/assets/goalc_fatloss.png' },
+  { id: 'strength', label: 'زيادة القوة',     icon: '⚔️', desc: 'رفع أوزان أثقل وتحسين الأداء',        img: '/assets/goalc_strength.png' },
+  { id: 'endurance',label: 'التحمل واللياقة', icon: '🏃', desc: 'تحسين اللياقة والقدرة على التحمل',    img: '/assets/goalc_endurance.png' },
+  { id: 'recomp',   label: 'إعادة التشكيل',   icon: '⚡', desc: 'بناء العضل وحرق الدهون معاً',         img: '/assets/goalc_recomp.png' },
+  { id: 'maintain', label: 'المحافظة',         icon: '🛡️', desc: 'الحفاظ على مستوى اللياقة الحالي',    img: '/assets/goalc_muscle.png' },
 ]
 
 // ── Gym Types ─────────────────────────────────────────────────
@@ -85,7 +85,7 @@ export const WEEK_DAYS_SHORT = ['ح', 'ن', 'ث', 'أ', 'خ', 'ج', 'س']
 // ── Muscle Groups ─────────────────────────────────────────────
 export const MUSCLE_GROUPS = {
   Chest: {
-    label: 'الصدر', emoji: '🫁', color: '#FF6B35',
+    label: 'الصدر', emoji: '🫁', color: '#FF6B35', img: '/assets/muscle_chest.png',
     exercises: [
       { name: 'Bench Press' }, { name: 'Incline Bench Press' },
       { name: 'Decline Bench Press' }, { name: 'Cable Fly' },
@@ -95,7 +95,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Back: {
-    label: 'الظهر', emoji: '🗂️', color: '#3B82F6',
+    label: 'الظهر', emoji: '🗂️', color: '#3B82F6', img: '/assets/muscle_back.png',
     exercises: [
       { name: 'Deadlift' }, { name: 'Pull-Up' },
       { name: 'Barbell Row' }, { name: 'Cable Row' },
@@ -105,7 +105,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Shoulders: {
-    label: 'الأكتاف', emoji: '🦾', color: '#A855F7',
+    label: 'الأكتاف', emoji: '🦾', color: '#A855F7', img: '/assets/muscle_shoulders.png',
     exercises: [
       { name: 'Overhead Press' }, { name: 'Dumbbell OHP' },
       { name: 'Lateral Raise' }, { name: 'Front Raise' },
@@ -115,7 +115,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Legs: {
-    label: 'الأرجل', emoji: '🦵', color: '#22C55E',
+    label: 'الأرجل', emoji: '🦵', color: '#22C55E', img: '/assets/muscle_legs.png',
     exercises: [
       { name: 'Barbell Squat' }, { name: 'Leg Press' },
       { name: 'Romanian Deadlift' }, { name: 'Leg Extension' },
@@ -125,7 +125,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Biceps: {
-    label: 'البايسبس', emoji: '💪', color: '#EAB308',
+    label: 'البايسبس', emoji: '💪', color: '#EAB308', img: '/assets/muscle_biceps.png',
     exercises: [
       { name: 'Barbell Curl' }, { name: 'Dumbbell Curl' },
       { name: 'Hammer Curl' }, { name: 'Preacher Curl' },
@@ -134,7 +134,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Triceps: {
-    label: 'الترايسبس', emoji: '🔱', color: '#F97316',
+    label: 'الترايسبس', emoji: '🔱', color: '#F97316', img: '/assets/muscle_triceps.png',
     exercises: [
       { name: 'Triceps Pushdown' }, { name: 'Skull Crusher' },
       { name: 'Overhead Triceps' }, { name: 'Diamond Push-Up' },
@@ -143,7 +143,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Core: {
-    label: 'الكور', emoji: '🎯', color: '#EC4899',
+    label: 'الكور', emoji: '🎯', color: '#EC4899', img: '/assets/muscle_core.png',
     exercises: [
       { name: 'Plank' }, { name: 'Crunches' },
       { name: 'Leg Raise' }, { name: 'Russian Twist' },
@@ -152,7 +152,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Cardio: {
-    label: 'الكارديو', emoji: '❤️', color: '#EF4444',
+    label: 'الكارديو', emoji: '❤️', color: '#EF4444', img: '/assets/cardio.png',
     exercises: [
       { name: 'Treadmill Run' }, { name: 'Rowing Machine' },
       { name: 'Jump Rope' }, { name: 'Stationary Bike' },

@@ -251,11 +251,14 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
               transition: 'border-color 0.15s',
             }}
           >
-            <TargetIcon size={22} color="var(--purple)" />
+            {goal.img
+              ? <img src={goal.img} alt={goal.label} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+              : <TargetIcon size={22} color="var(--purple)" />
+            }
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>الهدف</div>
               <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
-                {goal.icon} {goal.label}
+                {goal.label}
               </div>
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)' }}>تغيير</div>

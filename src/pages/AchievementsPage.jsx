@@ -41,21 +41,36 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
 
       {/* ── Category Filter ───────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
-        {ACHIEVEMENT_CATS.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => setCatFilter(cat.id)}
-            style={{
-              background: catFilter === cat.id ? 'var(--gold-lo)' : 'var(--bg2)',
-              border: `1px solid ${catFilter === cat.id ? 'var(--gold)' : 'var(--border)'}`,
-              borderRadius: 20, padding: '6px 16px',
-              color: catFilter === cat.id ? 'var(--gold)' : 'var(--text3)',
-              fontFamily: 'var(--font-ar)', fontSize: 13,
-              cursor: 'pointer', whiteSpace: 'nowrap',
-              transition: 'all 0.15s', flexShrink: 0,
-            }}
-          >{cat.label}</button>
-        ))}
+        {ACHIEVEMENT_CATS.map(cat => {
+          const CAT_IMGS = {
+            sessions: '/assets/ach_consistency.png',
+            strength: '/assets/ach_strength.png',
+            streak:   '/assets/ach_master.png',
+            volume:   '/assets/ach_volume.png',
+          }
+          const catImg = CAT_IMGS[cat.id]
+          return (
+            <button
+              key={cat.id}
+              onClick={() => setCatFilter(cat.id)}
+              style={{
+                background: catFilter === cat.id ? 'var(--gold-lo)' : 'var(--bg2)',
+                border: `1px solid ${catFilter === cat.id ? 'var(--gold)' : 'var(--border)'}`,
+                borderRadius: 20, padding: '6px 16px',
+                color: catFilter === cat.id ? 'var(--gold)' : 'var(--text3)',
+                fontFamily: 'var(--font-ar)', fontSize: 13,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'all 0.15s', flexShrink: 0,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              {catImg && (
+                <img src={catImg} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+              )}
+              {cat.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Achievement Cards ─────────────────────────────────── */}
