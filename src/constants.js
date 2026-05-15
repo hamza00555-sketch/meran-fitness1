@@ -38,7 +38,7 @@ export const RANKS = [
   { label: 'المتمرس',  tier: 'B',  minLevel: 20, color: '#9B59B6', bg: '#9B59B620' },
   { label: 'النخبة',   tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620' },
   { label: 'الأسطورة', tier: 'S',  minLevel: 50, color: '#EAB308', bg: '#EAB30820' },
-  { label: 'الظاهرة',  tier: 'S+', minLevel: 75, color: '#00D4C8', bg: '#00D4C820' },
+  { label: 'الظاهرة',  tier: 'S+', minLevel: 75, color: '#C39BD3', bg: '#C39BD320' },
 ]
 
 // ── Commitment Levels (0-5 flames based on streak) ───────────
@@ -710,6 +710,7 @@ export const NAV_TABS = [
   { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
   { id: 'home',         label: 'الرئيسية', icon: '🏠' },
 ]
+// Settings accessible via gear icon in header (not a nav tab)
 
 // ── XP Rates ──────────────────────────────────────────────────
 export const XP_RATES = {

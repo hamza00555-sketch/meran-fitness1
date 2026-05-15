@@ -21,10 +21,10 @@ export function Card({ children, style = {}, topColor, onClick }) {
 // Button variants
 const BTN_VARIANTS = {
   primary: {
-    background: 'linear-gradient(135deg, var(--cyan), #00B0A6)',
-    color: '#0A0A0A',
+    background: 'linear-gradient(135deg, var(--cyan), #7D3C98)',
+    color: '#F0F4FF',
     border: 'none',
-    boxShadow: '0 4px 20px rgba(0,212,200,0.28)',
+    boxShadow: '0 4px 20px rgba(155,89,182,0.35)',
   },
   secondary: {
     background: 'var(--bg2)',
