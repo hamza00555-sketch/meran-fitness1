@@ -156,13 +156,14 @@ export function RankBadge({ rank }) {
   if (!rank) return null
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
+      display: 'inline-flex', alignItems: 'center', gap: 6,
       background: rank.bg || rank.color + '20',
       color: rank.color,
       border: `1px solid ${rank.color}50`,
       borderRadius: 20, padding: '3px 10px',
       fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700,
     }}>
+      {rank.img && <img src={rank.img} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />}
       {rank.tier} · {rank.label}
     </span>
   )
