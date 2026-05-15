@@ -8,6 +8,23 @@ import {
 } from '../utils.js'
 import { GOALS, WEEK_DAYS_SHORT } from '../constants.js'
 
+const ACTIVITY_LEVELS = [
+  { id: 'sedentary',   label: 'قليل الحركة',   mult: 1.2,   desc: 'مكتب / لا رياضة' },
+  { id: 'light',       label: 'خفيف',           mult: 1.375, desc: '1-3 أيام/أسبوع' },
+  { id: 'moderate',    label: 'متوسط',          mult: 1.55,  desc: '3-5 أيام/أسبوع' },
+  { id: 'active',      label: 'نشيط',           mult: 1.725, desc: '6-7 أيام/أسبوع' },
+]
+
+const PROTEIN_FACTORS = {
+  muscle: 2.0, fat_loss: 2.2, strength: 1.8,
+  endurance: 1.6, recomp: 2.2, maintain: 1.6,
+}
+
+const CALORIE_ADJUST = {
+  muscle: 350, fat_loss: -400, strength: 200,
+  endurance: 150, recomp: 0, maintain: 0,
+}
+
 const TRAINING_SYSTEMS = [
   { id: 'ppl',        label: 'PPL',               desc: 'Push / Pull / Legs' },
   { id: 'upper-lower',label: 'Upper-Lower',        desc: 'أعلى / أسفل الجسم' },
@@ -17,8 +34,9 @@ const TRAINING_SYSTEMS = [
 ]
 
 export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile }) {
-  const [editField, setEditField] = useState(null)
-  const [editValue, setEditValue] = useState('')
+  const [editField,  setEditField]  = useState(null)
+  const [editValue,  setEditValue]  = useState('')
+  const [activity,   setActivity]   = useState('moderate')
 
   const { currentXP, neededXP, pct } = xpProgress(xp)
   const rank       = getRank(level)
@@ -333,6 +351,9 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         </div>
       </Card>
 
+      {/* ── Protein Calculator ───────────────────────────────── */}
+      <ProteinCalc profile={profile} activity={activity} setActivity={setActivity} />
+
       {/* ── Edit Modal ────────────────────────────────────────── */}
       {editField && (
         <EditModal
@@ -344,6 +365,142 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           profile={profile}
         />
       )}
+    </div>
+  )
+}
+
+// ── Protein Calculator ────────────────────────────────────────
+function ProteinCalc({ profile, activity, setActivity }) {
+  const weight = parseFloat(profile?.weight) || null
+  const height = parseFloat(profile?.height) || null
+  const age    = calcAge(profile?.birthday)  || null
+  const goal   = profile?.goal || 'muscle'
+
+  const protein = weight ? Math.round(weight * (PROTEIN_FACTORS[goal] || 2.0)) : null
+
+  let calories = null, fatG = null, carbG = null
+  if (weight && height && age) {
+    const bmr   = 88.36 + 13.4 * weight + 4.8 * height - 5.7 * age
+    const mult  = ACTIVITY_LEVELS.find(a => a.id === activity)?.mult || 1.55
+    const tdee  = bmr * mult
+    calories    = Math.round(tdee + (CALORIE_ADJUST[goal] || 0))
+    const protCals = (protein || 0) * 4
+    const fatCals  = Math.round(calories * 0.27)
+    fatG           = Math.round(fatCals / 9)
+    carbG          = Math.round((calories - protCals - fatCals) / 4)
+  }
+
+  const missing = !weight || !height || !age
+
+  return (
+    <Card style={{ padding: 20, marginBottom: 14 }} topColor="var(--cyan)">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <div style={{ fontSize: 24 }}>🥩</div>
+        <div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800 }}>
+            حاسبة البروتين
+          </div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+            احتياجاتك اليومية حسب هدفك
+          </div>
+        </div>
+      </div>
+
+      {missing ? (
+        <div style={{
+          background: 'var(--bg2)', borderRadius: 12, padding: '14px 16px',
+          fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
+          textAlign: 'center',
+        }}>
+          أدخل وزنك وطولك وتاريخ ميلادك من العلامات الحيوية لحساب احتياجاتك
+        </div>
+      ) : (
+        <>
+          {/* Activity selector */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 8 }}>
+              مستوى النشاط
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {ACTIVITY_LEVELS.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => setActivity(a.id)}
+                  style={{
+                    background: activity === a.id ? 'var(--cyan-lo)' : 'var(--bg2)',
+                    border: `1px solid ${activity === a.id ? 'var(--cyan)' : 'var(--border)'}`,
+                    borderRadius: 10, padding: '8px 10px', cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700,
+                    color: activity === a.id ? 'var(--cyan)' : 'var(--text2)' }}>
+                    {a.label}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>
+                    {a.desc}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Main protein stat */}
+          <div style={{
+            background: 'linear-gradient(135deg, var(--cyan-lo), var(--bg2))',
+            border: '1px solid var(--cyan-md)',
+            borderRadius: 14, padding: '18px 20px', marginBottom: 10,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>
+                البروتين اليومي
+              </div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
+                {(PROTEIN_FACTORS[goal] || 2.0)}g × {weight}كغ
+              </div>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 44, fontWeight: 900, color: 'var(--cyan)', lineHeight: 1 }}>
+                {protein}
+              </div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
+                جرام / يوم
+              </div>
+            </div>
+          </div>
+
+          {/* Calories + macros */}
+          {calories && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <MacroBox label="سعرات" value={calories} unit="kcal" color="var(--gold)" />
+              <MacroBox label="دهون" value={fatG} unit="g" color="var(--orange)" />
+              <MacroBox label="كارب" value={carbG} unit="g" color="var(--green)" />
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  )
+}
+
+function MacroBox({ label, value, unit, color }) {
+  return (
+    <div style={{
+      background: 'var(--bg2)', border: `1px solid ${color}30`,
+      borderTop: `3px solid ${color}`,
+      borderRadius: 12, padding: '12px 10px', textAlign: 'center',
+    }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 800, color }}>
+        {value}
+      </div>
+      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+        {unit}
+      </div>
+      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+        {label}
+      </div>
     </div>
   )
 }
@@ -514,6 +671,8 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
               padding: '14px', color: 'var(--text)',
               fontFamily: type === 'text' ? 'var(--font-ar)' : 'var(--font-mono)',
               fontSize: 16, outline: 'none', marginBottom: 18,
+              direction: type === 'number' || type === 'date' ? 'ltr' : 'rtl',
+              textAlign: type === 'number' || type === 'date' ? 'left' : 'right',
             }}
           />
         )}

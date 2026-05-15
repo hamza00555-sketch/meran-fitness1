@@ -96,6 +96,7 @@ export default function SettingsPage({ profile, onUpdateProfile, onClose, sessio
                   border: '1px solid var(--border2)', borderRadius: 10,
                   padding: '12px 14px', color: 'var(--text)',
                   fontFamily: 'var(--font-ar)', fontSize: 16, outline: 'none',
+                  direction: 'rtl', textAlign: 'right',
                 }}
               />
             </div>
