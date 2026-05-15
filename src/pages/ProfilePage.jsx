@@ -94,14 +94,25 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
       {/* ── Player Card ───────────────────────────────────────── */}
       <Card style={{ padding: 22, marginBottom: 14 }} topColor="var(--cyan)">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          <div className="glow-pulse" style={{
-            width: 68, height: 68, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--cyan), #00B0A6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 30, fontWeight: 900, color: '#0A0A0A',
-            flexShrink: 0,
-          }}>
-            {(profile?.name || 'H')[0]}
+          {/* Avatar with pulsing ring */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {/* Pulse ring */}
+            <div style={{
+              position: 'absolute', inset: -4,
+              borderRadius: '50%',
+              border: `2px solid ${rank.color}`,
+              animation: 'ringExpand 2.5s ease-out infinite',
+              pointerEvents: 'none',
+            }} />
+            <div style={{
+              width: 68, height: 68, borderRadius: '50%',
+              background: `linear-gradient(135deg, ${rank.color}, ${rank.color}80)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 30, fontWeight: 900, color: '#F0F4FF',
+              boxShadow: `0 0 20px ${rank.color}40`,
+            }}>
+              {(profile?.name || 'H')[0]}
+            </div>
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900 }}>
@@ -148,14 +159,14 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         borderRadius: 'var(--radius)', marginBottom: 14,
         overflow: 'hidden',
       }}>
-        {/* Section header with cyan left bar */}
+        {/* Section header with rank color left bar */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12,
           padding: '18px 20px 14px',
           borderBottom: '1px solid var(--border)',
         }}>
           <div style={{
-            width: 4, height: 24, background: 'var(--cyan)',
+            width: 4, height: 24, background: rank.color,
             borderRadius: 3, flexShrink: 0,
           }} />
           <span style={{
@@ -346,7 +357,13 @@ function VitalCard({ label, value, unit, color, Icon, onEdit }) {
       padding: '16px 14px',
       position: 'relative',
       cursor: 'pointer',
-    }} onClick={onEdit}>
+      transition: 'transform 0.15s',
+    }}
+    onClick={onEdit}
+    onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.97)' }}
+    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+    >
       {/* Icon + edit pencil row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <Icon size={22} color={color} />

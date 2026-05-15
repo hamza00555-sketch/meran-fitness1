@@ -7,7 +7,7 @@ import {
   GREETINGS, NAV_TABS, ACHIEVEMENTS,
   DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
 } from './constants.js'
-import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon } from './components/Icons.jsx'
+import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 
 const NAV_ICONS = {
   profile:      PersonIcon,
@@ -23,6 +23,7 @@ import WorkoutPage     from './pages/WorkoutPage.jsx'
 import ChallengesPage  from './pages/ChallengesPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
 import ProfilePage     from './pages/ProfilePage.jsx'
+import SettingsPage   from './pages/SettingsPage.jsx'
 
 // Components
 import RestTimer        from './components/RestTimer.jsx'
@@ -58,11 +59,12 @@ export default function App() {
   const [challengeState,      setChallengeState]      = useState(() => ls.get('hf_challenges', null))
 
   // ── UI state ──────────────────────────────────────────────────
-  const [tab,         setTab]         = useState('home')
-  const [showRest,    setShowRest]    = useState(false)
-  const [showLevelUp, setShowLevelUp] = useState(false)
-  const [levelUpNum,  setLevelUpNum]  = useState(1)
-  const [alerts,      setAlerts]      = useState([])
+  const [tab,          setTab]          = useState('home')
+  const [showRest,     setShowRest]     = useState(false)
+  const [showLevelUp,  setShowLevelUp]  = useState(false)
+  const [levelUpNum,   setLevelUpNum]   = useState(1)
+  const [alerts,       setAlerts]       = useState([])
+  const [showSettings, setShowSettings] = useState(false)
 
   const prevLevelRef = useRef(levelFromXP(xp))
 
@@ -254,6 +256,18 @@ export default function App() {
               }}>🔥 {streak}</div>
             )}
             <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                background: 'var(--bg2)', border: '1px solid var(--border)',
+                borderRadius: 8, width: 36, height: 36,
+                color: 'var(--text2)', cursor: 'pointer',
+                fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
+              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            ><SettingsIcon size={18} color="var(--text2)" /></button>
+            <button
               onClick={() => setShowRest(true)}
               style={{
                 background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -393,6 +407,16 @@ export default function App() {
       {/* ── Overlays ─────────────────────────────────────────────── */}
       {showRest    && <RestTimer    onClose={() => setShowRest(false)} />}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
+      {showSettings && (
+        <SettingsPage
+          profile={profile}
+          onUpdateProfile={handleUpdateProfile}
+          onClose={() => setShowSettings(false)}
+          sessions={sessions}
+          xp={xp}
+          unlockedAchievements={unlockedAchievements}
+        />
+      )}
       <SystemAlert alerts={alerts} onRemove={removeAlert} />
     </div>
   )
