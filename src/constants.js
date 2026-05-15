@@ -282,9 +282,9 @@ export const DAILY_CHALLENGE_POOL = [
   },
   {
     id: 'dc5', type: 'daily',
-    title: '500 كجم حجم',
-    desc: 'ارفع 500 كيلوغرام إجمالي في جلسة واحدة',
-    icon: '💪', xp: 65, target: 500,
+    title: '2000 كجم حجم',
+    desc: 'ارفع 2000 كجم إجمالي وزن×تكرارات في جلسة واحدة',
+    icon: '💪', xp: 65, target: 2000,
     check: (sessions) => {
       const today = new Date().toISOString().split('T')[0]
       const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
@@ -355,9 +355,9 @@ export const WEEKLY_CHALLENGE_POOL = [
   },
   {
     id: 'wc2', type: 'weekly',
-    title: 'حجم 5000 كجم أسبوعي',
-    desc: 'ارفع 5000 كيلوغرام إجمالي خلال الأسبوع',
-    icon: '🏋️', xp: 200, target: 5000,
+    title: 'حجم 15,000 كجم أسبوعي',
+    desc: 'ارفع 15,000 كجم إجمالي وزن×تكرارات خلال الأسبوع',
+    icon: '🏋️', xp: 200, target: 15000,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo)
@@ -404,13 +404,14 @@ export const BOSS_CHALLENGES = [
   },
   {
     id: 'bc2', type: 'boss',
-    title: 'تحدي الأسطورة: 10 طن',
-    desc: 'ارفع 10,000 كيلوغرام في جلسة واحدة — إنجاز الأبطال!',
-    icon: '🏔️', xp: 750, target: 10000,
+    title: 'تحدي الأسطورة: 50 طن',
+    desc: 'اجمع 50,000 كجم إجمالي خلال الشهر (وزن×تكرارات) — إنجاز الأبطال!',
+    icon: '🏔️', xp: 750, target: 50000,
     check: (sessions) => {
-      return Math.max(0, ...sessions.map(s =>
-        s.exercises.flatMap(e => e.sets)
-          .reduce((t, ss) => ss.done ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0)))
+      const monthAgo = Date.now() - 30 * 86400000
+      return sessions.filter(s => new Date(s.date) > monthAgo)
+        .reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
+          .reduce((tt, ss) => ss.done ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0)
     },
   },
 ]
@@ -704,13 +705,13 @@ export const REST_PRESETS = [45, 60, 90, 120, 180]
 
 // ── Nav Tabs (RTL order: Profile | Achievements | Challenges | Workout | Home) ─
 export const NAV_TABS = [
-  { id: 'profile',      label: 'الملف',    icon: '👤' },
-  { id: 'achievements', label: 'جوائز',    icon: '🏆' },
-  { id: 'challenges',   label: 'تحديات',   icon: '🏳️' },
-  { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
   { id: 'home',         label: 'الرئيسية', icon: '🏠' },
+  { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
+  { id: 'challenges',   label: 'تحديات',   icon: '🏳️' },
+  { id: 'achievements', label: 'جوائز',    icon: '🏆' },
+  { id: 'profile',      label: 'الملف',    icon: '👤' },
+  { id: 'settings',     label: 'إعدادات',  icon: '⚙️' },
 ]
-// Settings accessible via gear icon in header (not a nav tab)
 
 // ── XP Rates ──────────────────────────────────────────────────
 export const XP_RATES = {

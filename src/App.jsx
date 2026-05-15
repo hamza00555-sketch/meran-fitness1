@@ -10,11 +10,12 @@ import {
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 
 const NAV_ICONS = {
-  profile:      PersonIcon,
-  achievements: TrophyIcon,
-  challenges:   FlagIcon,
-  workout:      DumbbellIcon,
   home:         HomeIcon,
+  workout:      DumbbellIcon,
+  challenges:   FlagIcon,
+  achievements: TrophyIcon,
+  profile:      PersonIcon,
+  settings:     SettingsIcon,
 }
 
 // Pages
@@ -23,7 +24,8 @@ import WorkoutPage     from './pages/WorkoutPage.jsx'
 import ChallengesPage  from './pages/ChallengesPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
 import ProfilePage     from './pages/ProfilePage.jsx'
-import SettingsPage   from './pages/SettingsPage.jsx'
+import SettingsPage    from './pages/SettingsPage.jsx'
+import PhotosPage      from './pages/PhotosPage.jsx'
 
 // Components
 import RestTimer        from './components/RestTimer.jsx'
@@ -59,12 +61,12 @@ export default function App() {
   const [challengeState,      setChallengeState]      = useState(() => ls.get('hf_challenges', null))
 
   // ── UI state ──────────────────────────────────────────────────
-  const [tab,          setTab]          = useState('home')
-  const [showRest,     setShowRest]     = useState(false)
-  const [showLevelUp,  setShowLevelUp]  = useState(false)
-  const [levelUpNum,   setLevelUpNum]   = useState(1)
-  const [alerts,       setAlerts]       = useState([])
-  const [showSettings, setShowSettings] = useState(false)
+  const [tab,        setTab]        = useState('home')
+  const [showRest,   setShowRest]   = useState(false)
+  const [showLevelUp,setShowLevelUp]= useState(false)
+  const [levelUpNum, setLevelUpNum] = useState(1)
+  const [alerts,     setAlerts]     = useState([])
+  const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
 
   const prevLevelRef = useRef(levelFromXP(xp))
 
@@ -75,6 +77,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_profile',  profile)  },             [profile])
   useEffect(() => { ls.set('hf_unlocked', unlockedAchievements) }, [unlockedAchievements])
   useEffect(() => { ls.set('hf_challenges', challengeState) },     [challengeState])
+  useEffect(() => { ls.set('hf_photos',    photos) },              [photos])
 
   // ── Initialize / refresh challenge state ──────────────────────
   useEffect(() => {
@@ -255,18 +258,6 @@ export default function App() {
               }}>🔥 {streak}</div>
             )}
             <button
-              onClick={() => setShowSettings(true)}
-              style={{
-                background: 'var(--bg2)', border: '1px solid var(--border)',
-                borderRadius: 8, width: 36, height: 36,
-                color: 'var(--text2)', cursor: 'pointer',
-                fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'border-color 0.15s',
-              }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
-            ><SettingsIcon size={18} color="var(--text2)" /></button>
-            <button
               onClick={() => setShowRest(true)}
               style={{
                 background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -334,6 +325,23 @@ export default function App() {
             streak={streak}
             level={level}
             onUpdateProfile={handleUpdateProfile}
+            onGoToPhotos={() => setTab('photos')}
+          />
+        )}
+        {tab === 'settings' && (
+          <SettingsPage
+            profile={profile}
+            onUpdateProfile={handleUpdateProfile}
+            sessions={sessions}
+            xp={xp}
+            unlockedAchievements={unlockedAchievements}
+          />
+        )}
+        {tab === 'photos' && (
+          <PhotosPage
+            photos={photos}
+            setPhotos={setPhotos}
+            onBack={() => setTab('profile')}
           />
         )}
       </main>
@@ -377,15 +385,15 @@ export default function App() {
               )}
 
               <div style={{
-                width: 44, height: 32,
+                width: 38, height: 28,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: 10,
+                borderRadius: 8,
                 background: isActive ? 'var(--cyan-lo)' : 'transparent',
                 transition: 'background 0.2s',
               }}>
                 {IconComp && (
                   <IconComp
-                    size={22}
+                    size={19}
                     color={isActive ? 'var(--cyan)' : '#4B5563'}
                     filled={isActive}
                   />
@@ -393,7 +401,7 @@ export default function App() {
               </div>
 
               <span style={{
-                fontFamily: 'var(--font-ar)', fontSize: 10,
+                fontFamily: 'var(--font-ar)', fontSize: 9,
                 color: isActive ? 'var(--cyan)' : '#4B5563',
                 fontWeight: isActive ? 700 : 500,
                 transition: 'color 0.15s',
@@ -406,16 +414,6 @@ export default function App() {
       {/* ── Overlays ─────────────────────────────────────────────── */}
       {showRest    && <RestTimer    onClose={() => setShowRest(false)} />}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
-      {showSettings && (
-        <SettingsPage
-          profile={profile}
-          onUpdateProfile={handleUpdateProfile}
-          onClose={() => setShowSettings(false)}
-          sessions={sessions}
-          xp={xp}
-          unlockedAchievements={unlockedAchievements}
-        />
-      )}
       <SystemAlert alerts={alerts} onRemove={removeAlert} />
     </div>
   )

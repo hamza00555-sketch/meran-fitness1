@@ -5,7 +5,7 @@ import { WEEK_DAYS_SHORT, GYM_TYPES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, onClose, sessions, xp, unlockedAchievements }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [saved, setSaved] = useState(false)
   const [nameInput, setNameInput] = useState(profile?.name || 'حمزة')
@@ -48,31 +48,12 @@ export default function SettingsPage({ profile, onUpdateProfile, onClose, sessio
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 200,
-      background: 'var(--bg)',
-      overflowY: 'auto',
-      paddingBottom: 40,
-    }}>
+    <div style={{ paddingBottom: 100 }}>
       {/* Header */}
-      <div style={{
-        background: 'var(--bg1)',
-        borderBottom: '1px solid var(--border)',
-        padding: 'calc(var(--safe-top) + 14px) 18px 14px',
-        position: 'sticky', top: 0, zIndex: 10,
-        backdropFilter: 'blur(16px)',
-        display: 'flex', alignItems: 'center', gap: 14,
-      }}>
-        <button onClick={onClose} style={{
-          background: 'var(--bg2)', border: '1px solid var(--border)',
-          borderRadius: 8, width: 36, height: 36,
-          color: 'var(--text2)', cursor: 'pointer', fontSize: 18,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>×</button>
-        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800 }}>الإعدادات</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 800 }}>الإعدادات</div>
         {saved && (
           <div style={{
-            marginRight: 'auto',
             fontFamily: 'var(--font-ar)', fontSize: 13,
             color: 'var(--green)', fontWeight: 700,
             animation: 'fadeIn 0.2s ease',
@@ -80,7 +61,7 @@ export default function SettingsPage({ profile, onUpdateProfile, onClose, sessio
         )}
       </div>
 
-      <div style={{ padding: '16px 14px', maxWidth: 560, margin: '0 auto' }}>
+      <div>
 
         {/* ── Player Name ─────────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>

@@ -33,7 +33,7 @@ const TRAINING_SYSTEMS = [
   { id: 'custom',     label: 'مخصص',               desc: 'حسب الجدول الشخصي' },
 ]
 
-export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile }) {
+export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile, onGoToPhotos }) {
   const [editField,  setEditField]  = useState(null)
   const [editValue,  setEditValue]  = useState('')
   const [activity,   setActivity]   = useState('moderate')
@@ -350,6 +350,30 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           <StatBox label="إجمالي XP" value={xp.toLocaleString()} color="var(--purple)" />
         </div>
       </Card>
+
+      {/* ── Photo Progress ────────────────────────────────────── */}
+      {onGoToPhotos && (
+        <button
+          onClick={onGoToPhotos}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+            background: 'var(--bg1)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)', padding: '16px 20px',
+            cursor: 'pointer', marginBottom: 14, transition: 'border-color 0.15s',
+          }}
+          onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
+          onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
+        >
+          <div style={{ fontSize: 28 }}>📸</div>
+          <div style={{ flex: 1, textAlign: 'right' }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>صور التقدم</div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+              صوّر يومياً وقارن قبل وبعد
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--cyan)' }}>←</div>
+        </button>
+      )}
 
       {/* ── Protein Calculator ───────────────────────────────── */}
       <ProteinCalc profile={profile} activity={activity} setActivity={setActivity} />
