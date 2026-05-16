@@ -4,9 +4,12 @@ import Onboarding from './pages/Onboarding.jsx';
 import SalaryDay from './pages/SalaryDay.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Commitments from './pages/Commitments.jsx';
+import Banks from './pages/Banks.jsx';
 import Goals from './pages/Goals.jsx';
 import Expenses from './pages/Expenses.jsx';
 import Settings from './pages/Settings.jsx';
+
+const NAV_PAGES = ['dashboard', 'commitments', 'banks', 'goals', 'expenses', 'settings'];
 
 function AppRouter() {
   const { page, loading } = useApp();
@@ -31,16 +34,15 @@ function AppRouter() {
   if (page === 'onboarding') return <Onboarding />;
   if (page === 'salaryDay') return <SalaryDay />;
 
-  const showNav = ['dashboard', 'commitments', 'goals', 'expenses', 'settings'].includes(page);
-
   return (
     <>
-      {page === 'dashboard' && <Dashboard />}
+      {page === 'dashboard'   && <Dashboard />}
       {page === 'commitments' && <Commitments />}
-      {page === 'goals' && <Goals />}
-      {page === 'expenses' && <Expenses />}
-      {page === 'settings' && <Settings />}
-      {showNav && <BottomNav />}
+      {page === 'banks'       && <Banks />}
+      {page === 'goals'       && <Goals />}
+      {page === 'expenses'    && <Expenses />}
+      {page === 'settings'    && <Settings />}
+      {NAV_PAGES.includes(page) && <BottomNav />}
     </>
   );
 }

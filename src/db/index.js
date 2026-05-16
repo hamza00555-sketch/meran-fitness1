@@ -1,19 +1,24 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'ratebi-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let _db;
 async function db() {
   if (!_db) {
     _db = await openDB(DB_NAME, DB_VERSION, {
-      upgrade(database) {
-        database.createObjectStore('settings', { keyPath: 'key' });
-        database.createObjectStore('commitments', { keyPath: 'id' });
-        database.createObjectStore('goals', { keyPath: 'id' });
-        const expenses = database.createObjectStore('expenses', { keyPath: 'id' });
-        expenses.createIndex('month', 'month');
-        database.createObjectStore('monthlyRecords', { keyPath: 'month' });
+      upgrade(database, oldVersion) {
+        if (oldVersion < 1) {
+          database.createObjectStore('settings', { keyPath: 'key' });
+          database.createObjectStore('commitments', { keyPath: 'id' });
+          database.createObjectStore('goals', { keyPath: 'id' });
+          const expenses = database.createObjectStore('expenses', { keyPath: 'id' });
+          expenses.createIndex('month', 'month');
+          database.createObjectStore('monthlyRecords', { keyPath: 'month' });
+        }
+        if (oldVersion < 2) {
+          database.createObjectStore('banks', { keyPath: 'id' });
+        }
       },
     });
   }
@@ -47,27 +52,32 @@ export async function getExpensesByMonth(month) {
 export async function saveExpense(e) { await (await db()).put('expenses', e); }
 export async function deleteExpense(id) { await (await db()).delete('expenses', id); }
 
+export async function getBanks() { return (await db()).getAll('banks'); }
+export async function saveBank(b) { await (await db()).put('banks', b); }
+export async function deleteBank(id) { await (await db()).delete('banks', id); }
+
 export async function getMonthlyRecords() { return (await db()).getAll('monthlyRecords'); }
 export async function saveMonthlyRecord(r) { await (await db()).put('monthlyRecords', r); }
 
 export async function exportAll() {
   const d = await db();
-  const [settings, commitments, goals, expenses, monthlyRecords] = await Promise.all([
+  const [settings, commitments, goals, expenses, banks, monthlyRecords] = await Promise.all([
     d.getAll('settings'), d.getAll('commitments'), d.getAll('goals'),
-    d.getAll('expenses'), d.getAll('monthlyRecords'),
+    d.getAll('expenses'), d.getAll('banks'), d.getAll('monthlyRecords'),
   ]);
-  return { settings, commitments, goals, expenses, monthlyRecords, exportDate: new Date().toISOString() };
+  return { settings, commitments, goals, expenses, banks, monthlyRecords, exportDate: new Date().toISOString() };
 }
 
 export async function importAll(data) {
   const d = await db();
-  const stores = ['settings', 'commitments', 'goals', 'expenses', 'monthlyRecords'];
+  const stores = ['settings', 'commitments', 'goals', 'expenses', 'banks', 'monthlyRecords'];
   const tx = d.transaction(stores, 'readwrite');
   for (const store of stores) await tx.objectStore(store).clear();
   for (const item of data.settings || []) await tx.objectStore('settings').put(item);
   for (const item of data.commitments || []) await tx.objectStore('commitments').put(item);
   for (const item of data.goals || []) await tx.objectStore('goals').put(item);
   for (const item of data.expenses || []) await tx.objectStore('expenses').put(item);
+  for (const item of data.banks || []) await tx.objectStore('banks').put(item);
   for (const item of data.monthlyRecords || []) await tx.objectStore('monthlyRecords').put(item);
   await tx.done;
 }

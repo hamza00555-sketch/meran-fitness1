@@ -1,29 +1,30 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { currentMonth, formatAmount } from '../utils/format.js';
-import { calcCommitmentsTotal, calcGoalsMonthlyTotal, calcRemaining } from '../utils/calc.js';
+import { calcCommitmentsTotal, calcGoalsMonthlyTotal, calcAllBanksTotal, calcBankTotal, calcRemaining } from '../utils/calc.js';
 import { getCatData, COMMITMENT_CATEGORIES, GOAL_CATEGORIES } from '../components/CategoryData.js';
 
 export default function SalaryDay() {
-  const { settings, commitments, goals, confirmSalaryDay } = useApp();
+  const { settings, commitments, goals, banks, confirmSalaryDay } = useApp();
   const [salary, setSalary] = useState(String(settings.salary));
   const [expenseBudget, setExpenseBudget] = useState(String(settings.expenseBudget || 1500));
   const [goalContribs, setGoalContribs] = useState(
     Object.fromEntries(goals.filter(g => !g.completed).map(g => [g.id, String(g.monthlyContribution || 0)]))
   );
 
+  const month = currentMonth();
   const activeCommitments = commitments.filter(c => c.active !== false);
   const activeGoals = goals.filter(g => !g.completed);
 
   const commitmentsTotal = useMemo(() => calcCommitmentsTotal(activeCommitments), [activeCommitments]);
+  const banksTotal = useMemo(() => calcAllBanksTotal(banks, month), [banks, month]);
   const goalsTotal = useMemo(
     () => activeGoals.reduce((s, g) => s + (Number(goalContribs[g.id]) || 0), 0),
     [activeGoals, goalContribs]
   );
-  const remaining = calcRemaining(Number(salary), commitmentsTotal, goalsTotal, Number(expenseBudget));
+  const remaining = calcRemaining(Number(salary), commitmentsTotal, banksTotal, goalsTotal, Number(expenseBudget));
 
   async function handleConfirm() {
-    const month = currentMonth();
     const updatedGoalContribs = Object.fromEntries(
       activeGoals.map(g => [g.id, Number(goalContribs[g.id]) || 0])
     );
@@ -31,6 +32,7 @@ export default function SalaryDay() {
       month,
       salary: Number(salary),
       commitmentsTotal,
+      banksTotal,
       goalsTotal,
       expenseBudget: Number(expenseBudget),
       remaining,
@@ -91,9 +93,27 @@ export default function SalaryDay() {
           )}
         </Section>
 
+        {/* Banks */}
+        {banks.length > 0 && (
+          <Section title="توزيع البنوك" icon="🏦" total={banksTotal} totalColor="var(--gold)">
+            {banks.map(b => {
+              const bankTotal = calcBankTotal(b, month);
+              return (
+                <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 20 }}>{b.emoji}</div>
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{b.name}</span>
+                  <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 14 }}>
+                    <span className="num">{formatAmount(bankTotal)}</span> ريال
+                  </span>
+                </div>
+              );
+            })}
+          </Section>
+        )}
+
         {/* Goals */}
         {activeGoals.length > 0 && (
-          <Section title="أهدافك الشهرية" icon="🎯" total={goalsTotal} totalColor="var(--gold)">
+          <Section title="أهدافك الشهرية" icon="🎯" total={goalsTotal} totalColor="var(--primary)">
             {activeGoals.map(g => {
               const cat = getCatData(GOAL_CATEGORIES, g.category);
               return (
@@ -105,7 +125,7 @@ export default function SalaryDay() {
                     onChange={e => setGoalContribs(p => ({ ...p, [g.id]: e.target.value }))}
                     style={{
                       background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8,
-                      color: 'var(--gold)', fontFamily: 'Cairo, sans-serif', fontWeight: 700,
+                      color: 'var(--primary)', fontFamily: 'Cairo, sans-serif', fontWeight: 700,
                       fontSize: 14, textAlign: 'center', width: 90, padding: '6px 8px', outline: 'none',
                     }}
                   />
@@ -118,11 +138,9 @@ export default function SalaryDay() {
 
         {/* Expense Budget */}
         <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 20 }}>💸</span>
-              <span style={{ fontWeight: 700 }}>ميزانية المصروف</span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span style={{ fontSize: 20 }}>💸</span>
+            <span style={{ fontWeight: 700 }}>ميزانية المصروف</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <input
@@ -130,7 +148,7 @@ export default function SalaryDay() {
               onChange={e => setExpenseBudget(e.target.value)}
               style={{
                 flex: 1, background: 'var(--bg2)', border: '1.5px solid var(--border)',
-                borderRadius: 10, color: 'var(--primary)', fontFamily: 'Cairo, sans-serif',
+                borderRadius: 10, color: 'var(--accent)', fontFamily: 'Cairo, sans-serif',
                 fontWeight: 700, fontSize: 18, textAlign: 'center', padding: '10px', outline: 'none',
               }}
               onFocus={e => e.target.style.borderColor = 'var(--primary)'}
@@ -140,14 +158,13 @@ export default function SalaryDay() {
           </div>
         </div>
 
-        {/* Remaining Summary */}
+        {/* Summary */}
         <div style={{
           background: remaining >= 0
             ? 'linear-gradient(135deg, rgba(0,201,167,.15), rgba(0,201,167,.05))'
             : 'linear-gradient(135deg, rgba(255,107,107,.15), rgba(255,107,107,.05))',
           border: `1px solid ${remaining >= 0 ? 'rgba(0,201,167,.3)' : 'rgba(255,107,107,.3)'}`,
-          borderRadius: 'var(--r)', padding: '20px',
-          textAlign: 'center',
+          borderRadius: 'var(--r)', padding: '20px', textAlign: 'center',
         }}>
           <div style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 8 }}>يتبقى لك هذا الشهر</div>
           <div style={{ fontSize: 38, fontWeight: 900, color: remainingColor }}>
@@ -159,10 +176,11 @@ export default function SalaryDay() {
               ⚠️ المصروف يتجاوز الراتب بـ <span className="num">{formatAmount(Math.abs(remaining))}</span> ريال
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
             <SummaryRow label="التزامات" value={commitmentsTotal} color="var(--danger)" />
-            <SummaryRow label="أهداف" value={goalsTotal} color="var(--gold)" />
-            <SummaryRow label="مصروف" value={Number(expenseBudget)} color="var(--primary)" />
+            {banksTotal > 0 && <SummaryRow label="البنوك" value={banksTotal} color="var(--gold)" />}
+            {goalsTotal > 0 && <SummaryRow label="أهداف" value={goalsTotal} color="var(--primary)" />}
+            <SummaryRow label="مصروف" value={Number(expenseBudget)} color="var(--accent)" />
           </div>
         </div>
 

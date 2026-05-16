@@ -17,17 +17,19 @@ export function AppProvider({ children }) {
   const [commitments, setCommitments] = useState([]);
   const [goals, setGoals] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [banks, setBanks] = useState([]);
   const [monthlyRecords, setMonthlyRecords] = useState([]);
   const [page, setPage] = useState('loading');
 
   useEffect(() => { loadAll(); }, []);
 
   async function loadAll() {
-    const [s, c, g, e, mr] = await Promise.all([
+    const [s, c, g, e, b, mr] = await Promise.all([
       db.getAllSettings(),
       db.getCommitments(),
       db.getGoals(),
       db.getExpenses(),
+      db.getBanks(),
       db.getMonthlyRecords(),
     ]);
     const merged = { ...DEFAULT_SETTINGS, ...s };
@@ -35,6 +37,7 @@ export function AppProvider({ children }) {
     setCommitments(c);
     setGoals(g);
     setExpenses(e);
+    setBanks(b);
     setMonthlyRecords(mr);
 
     if (!merged.onboardingComplete) {
@@ -114,6 +117,23 @@ export function AppProvider({ children }) {
     setExpenses(prev => prev.filter(e => e.id !== id));
   }, []);
 
+  const addBank = useCallback(async (data) => {
+    const item = { id: uid(), transferredMonths: [], ...data };
+    await db.saveBank(item);
+    setBanks(prev => [...prev, item]);
+    return item;
+  }, []);
+
+  const updateBank = useCallback(async (item) => {
+    await db.saveBank(item);
+    setBanks(prev => prev.map(b => b.id === item.id ? item : b));
+  }, []);
+
+  const deleteBank = useCallback(async (id) => {
+    await db.deleteBank(id);
+    setBanks(prev => prev.filter(b => b.id !== id));
+  }, []);
+
   const confirmSalaryDay = useCallback(async (record) => {
     await db.saveMonthlyRecord(record);
     setMonthlyRecords(prev => {
@@ -127,11 +147,13 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      loading, settings, commitments, goals, expenses, monthlyRecords,
+      loading, settings, commitments, goals, expenses, banks, monthlyRecords,
       page, setPage, currentMonthRecord,
       updateSettings, addCommitment, updateCommitment, deleteCommitment,
       addGoal, updateGoal, deleteGoal, addGoalAmount,
-      addExpense, deleteExpense, confirmSalaryDay,
+      addExpense, deleteExpense,
+      addBank, updateBank, deleteBank,
+      confirmSalaryDay,
     }}>
       {children}
     </AppContext.Provider>

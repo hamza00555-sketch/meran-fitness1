@@ -1,29 +1,31 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { currentMonth, currentMonthLabel, formatAmount, daysUntil } from '../utils/format.js';
-import { calcSpent, calcCommitmentsTotal, calcGoalsMonthlyTotal } from '../utils/calc.js';
+import { calcSpent, calcCommitmentsTotal, calcGoalsMonthlyTotal, calcAllBanksTotal } from '../utils/calc.js';
 import { getCatData, COMMITMENT_CATEGORIES } from '../components/CategoryData.js';
 import DonutChart from '../components/DonutChart.jsx';
 
 export default function Dashboard() {
-  const { settings, commitments, goals, expenses, currentMonthRecord, setPage } = useApp();
+  const { settings, commitments, goals, expenses, banks, currentMonthRecord, setPage } = useApp();
 
   const month = currentMonth();
   const record = currentMonthRecord;
 
   const salary = record?.salary || settings.salary || 0;
   const commitmentsTotal = record?.commitmentsTotal || calcCommitmentsTotal(commitments);
+  const banksTotal = record?.banksTotal || calcAllBanksTotal(banks, month);
   const goalsTotal = record?.goalsTotal || calcGoalsMonthlyTotal(goals);
   const expenseBudget = record?.expenseBudget || settings.expenseBudget || 0;
   const spent = useMemo(() => calcSpent(expenses, month), [expenses, month]);
-  const remaining = salary - commitmentsTotal - goalsTotal - spent;
+  const remaining = salary - commitmentsTotal - banksTotal - goalsTotal - spent;
 
   const segments = [
     { label: 'التزامات', value: commitmentsTotal, color: '#FF6B6B' },
-    { label: 'أهداف', value: goalsTotal, color: '#FFB830' },
+    { label: 'بنوك', value: banksTotal, color: '#FFB830' },
+    { label: 'أهداف', value: goalsTotal, color: '#A78BFA' },
     { label: 'صرفت', value: spent, color: '#6C63FF' },
     { label: 'متبقي', value: Math.max(0, remaining), color: '#00C9A7' },
-  ];
+  ].filter(s => s.value > 0 || s.label === 'متبقي');
 
   const upcomingCommitments = commitments
     .filter(c => c.active !== false)
@@ -33,6 +35,9 @@ export default function Dashboard() {
     .slice(0, 3);
 
   const budgetUsedPct = expenseBudget > 0 ? Math.min(100, (spent / expenseBudget) * 100) : 0;
+
+  // Banks not yet transferred this month
+  const pendingBanks = banks.filter(b => !b.transferredMonths?.includes(month));
 
   return (
     <div className="page">
@@ -63,12 +68,12 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, color: 'var(--text2)' }}>ريال</div>
           </DonutChart>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {segments.map(s => (
               <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 13, color: 'var(--text2)' }}>{s.label}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>
+                <span style={{ flex: 1, fontSize: 12, color: 'var(--text2)' }}>{s.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: s.color }}>
                   <span className="num">{formatAmount(s.value)}</span>
                 </span>
               </div>
@@ -83,7 +88,8 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <StatCard label="صرفت هذا الشهر" value={spent} suffix="ريال" color="var(--primary)" icon="💸" />
           <StatCard label="التزامات الشهر" value={commitmentsTotal} suffix="ريال" color="var(--danger)" icon="📋" />
-          <StatCard label="أهداف الشهر" value={goalsTotal} suffix="ريال" color="var(--gold)" icon="🎯" />
+          {banksTotal > 0 && <StatCard label="توزيع البنوك" value={banksTotal} suffix="ريال" color="var(--gold)" icon="🏦" onClick={() => setPage('banks')} />}
+          <StatCard label="أهداف الشهر" value={goalsTotal} suffix="ريال" color="#A78BFA" icon="🎯" />
           <StatCard
             label="متاح للصرف"
             value={Math.max(0, expenseBudget - spent)}
@@ -108,6 +114,39 @@ export default function Dashboard() {
             </div>
             <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text2)', textAlign: 'left' }}>
               <span className="num">{budgetUsedPct.toFixed(0)}</span>% استُهلك
+            </div>
+          </div>
+        )}
+
+        {/* Pending Bank Transfers */}
+        {pendingBanks.length > 0 && (
+          <div>
+            <div className="section-header">
+              <span className="section-title">تحويلات البنوك ⏳</span>
+              <button className="section-action" onClick={() => setPage('banks')}>عرض الكل</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {pendingBanks.slice(0, 3).map(b => {
+                const total = calcAllBanksTotal([b], month);
+                return (
+                  <div key={b.id} className="list-item" onClick={() => setPage('banks')} style={{ cursor: 'pointer' }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 10, fontSize: 20,
+                      background: `${b.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>{b.emoji}</div>
+                    <div className="list-item-info">
+                      <div className="list-item-name">{b.name}</div>
+                      <div className="list-item-sub">لم يتم التحويل بعد</div>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: b.color }}>
+                        <span className="num">{formatAmount(total)}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>ريال</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -166,9 +205,9 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ label, value, suffix, color, icon }) {
+function StatCard({ label, value, suffix, color, icon, onClick }) {
   return (
-    <div className="card" style={{ textAlign: 'center' }}>
+    <div className="card" style={{ textAlign: 'center', cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
       <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
       <div style={{ fontSize: 20, fontWeight: 900, color }}>
         <span className="num">{formatAmount(value)}</span>
