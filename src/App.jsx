@@ -1,422 +1,54 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import {
-  ls, calcStreak, buildExercise,
-  levelFromXP, xpProgress, getTodayChallenges,
-} from './utils.js'
-import {
-  GREETINGS, NAV_TABS, ACHIEVEMENTS,
-  DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
-} from './constants.js'
-import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
+import { AppProvider, useApp } from './context/AppContext.jsx';
+import BottomNav from './components/BottomNav.jsx';
+import Onboarding from './pages/Onboarding.jsx';
+import SalaryDay from './pages/SalaryDay.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import Commitments from './pages/Commitments.jsx';
+import Goals from './pages/Goals.jsx';
+import Expenses from './pages/Expenses.jsx';
+import Settings from './pages/Settings.jsx';
 
-const NAV_ICONS = {
-  home:         HomeIcon,
-  workout:      DumbbellIcon,
-  challenges:   FlagIcon,
-  achievements: TrophyIcon,
-  profile:      PersonIcon,
-  settings:     SettingsIcon,
-}
+function AppRouter() {
+  const { page, loading } = useApp();
 
-// Pages
-import HomePage        from './pages/HomePage.jsx'
-import WorkoutPage     from './pages/WorkoutPage.jsx'
-import ChallengesPage  from './pages/ChallengesPage.jsx'
-import AchievementsPage from './pages/AchievementsPage.jsx'
-import ProfilePage     from './pages/ProfilePage.jsx'
-import SettingsPage    from './pages/SettingsPage.jsx'
-import PhotosPage      from './pages/PhotosPage.jsx'
+  if (loading) return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 16,
+    }}>
+      <div style={{ fontSize: 52 }}>💼</div>
+      <div style={{ fontSize: 24, fontWeight: 900 }}>راتبي</div>
+      <div style={{ width: 40, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', marginTop: 8 }}>
+        <div style={{
+          height: '100%', background: 'var(--primary)', borderRadius: 2, width: '60%',
+          animation: 'loadbar 1s ease infinite alternate',
+        }} />
+      </div>
+      <style>{`@keyframes loadbar { from{transform:translateX(-100%)} to{transform:translateX(200%)} }`}</style>
+    </div>
+  );
 
-// Components
-import RestTimer        from './components/RestTimer.jsx'
-import RoutinesModal    from './components/RoutinesModal.jsx'
-import LevelUpScreen    from './components/LevelUpScreen.jsx'
-import SystemAlert      from './components/SystemAlert.jsx'
+  if (page === 'onboarding') return <Onboarding />;
+  if (page === 'salaryDay') return <SalaryDay />;
 
-// Stable greeting per session
-const GREETING = GREETINGS[Math.floor(Math.random() * GREETINGS.length)]
+  const showNav = ['dashboard', 'commitments', 'goals', 'expenses', 'settings'].includes(page);
 
-// Default profile
-const DEFAULT_PROFILE = {
-  name: 'حمزة',
-  birthday: null,
-  height: null,
-  weight: null,
-  bodyFat: null,
-  goal: 'muscle',
-  gymType: 'commercial',
-  trainingSystem: 'ppl',
-  trainingDays: [1, 3, 5], // Mon, Wed, Fri
-  workoutTime: 'المساء',
-  lastWeightUpdate: null,
+  return (
+    <>
+      {page === 'dashboard' && <Dashboard />}
+      {page === 'commitments' && <Commitments />}
+      {page === 'goals' && <Goals />}
+      {page === 'expenses' && <Expenses />}
+      {page === 'settings' && <Settings />}
+      {showNav && <BottomNav />}
+    </>
+  );
 }
 
 export default function App() {
-  // ── Persistent state ──────────────────────────────────────────
-  const [sessions,            setSessions]            = useState(() => ls.get('hf_sessions', []))
-  const [xp,                  setXP]                  = useState(() => ls.get('hf_xp', 0))
-  const [active,              setActive]              = useState(() => ls.get('hf_active', null))
-  const [profile,             setProfile]             = useState(() => ls.get('hf_profile', DEFAULT_PROFILE))
-  const [unlockedAchievements,setUnlockedAchievements]= useState(() => ls.get('hf_unlocked', []))
-  const [challengeState,      setChallengeState]      = useState(() => ls.get('hf_challenges', null))
-
-  // ── UI state ──────────────────────────────────────────────────
-  const [tab,        setTab]        = useState('home')
-  const [showRest,   setShowRest]   = useState(false)
-  const [showLevelUp,setShowLevelUp]= useState(false)
-  const [levelUpNum, setLevelUpNum] = useState(1)
-  const [alerts,     setAlerts]     = useState([])
-  const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
-
-  const prevLevelRef = useRef(levelFromXP(xp))
-
-  // ── Persist to localStorage ───────────────────────────────────
-  useEffect(() => { ls.set('hf_sessions', sessions) },             [sessions])
-  useEffect(() => { ls.set('hf_xp',       xp)       },             [xp])
-  useEffect(() => { ls.set('hf_active',   active)   },             [active])
-  useEffect(() => { ls.set('hf_profile',  profile)  },             [profile])
-  useEffect(() => { ls.set('hf_unlocked', unlockedAchievements) }, [unlockedAchievements])
-  useEffect(() => { ls.set('hf_challenges', challengeState) },     [challengeState])
-  useEffect(() => { ls.set('hf_photos',    photos) },              [photos])
-
-  // ── Initialize / refresh challenge state ──────────────────────
-  useEffect(() => {
-    const fresh = getTodayChallenges(challengeState, DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES)
-    if (
-      !challengeState ||
-      challengeState.date !== fresh.date ||
-      challengeState.week !== fresh.week
-    ) {
-      setChallengeState(prev => ({
-        ...fresh,
-        completed: prev?.date === fresh.date ? (prev?.completed || []) : [],
-      }))
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Alert helper ──────────────────────────────────────────────
-  const pushAlert = useCallback((icon, msg) => {
-    const id = Date.now() + Math.random()
-    setAlerts(prev => [...prev, { id, icon, msg }])
-  }, [])
-
-  const removeAlert = useCallback((id) => {
-    setAlerts(prev => prev.filter(a => a.id !== id))
-  }, [])
-
-  // ── XP float animation ────────────────────────────────────────
-  const showXPFloat = useCallback((amount) => {
-    const el = document.createElement('div')
-    el.className = 'xp-float'
-    el.textContent = `+${amount} XP`
-    el.style.left = '50%'
-    el.style.top  = '40%'
-    el.style.transform = 'translateX(-50%)'
-    document.body.appendChild(el)
-    setTimeout(() => el.remove(), 1500)
-  }, [])
-
-  // ── Add XP ───────────────────────────────────────────────────
-  const addXP = useCallback((amount, label = '') => {
-    setXP(prev => {
-      const newXP      = prev + amount
-      const oldLevel   = levelFromXP(prev)
-      const newLevel   = levelFromXP(newXP)
-      if (newLevel > oldLevel) {
-        prevLevelRef.current = newLevel
-        setLevelUpNum(newLevel)
-        setShowLevelUp(true)
-      }
-      return newXP
-    })
-    showXPFloat(amount)
-    if (label) pushAlert('⭐', `${label} +${amount} XP`)
-  }, [showXPFloat, pushAlert])
-
-  // ── Achievement checker ───────────────────────────────────────
-  const checkAchievements = useCallback((newSessions, newXP, newStreak) => {
-    setUnlockedAchievements(prev => {
-      const newUnlocked = [...prev]
-      let gained = 0
-      ACHIEVEMENTS.forEach(a => {
-        if (newUnlocked.includes(a.id)) return
-        try {
-          if (a.check(newSessions, newXP, newStreak)) {
-            newUnlocked.push(a.id)
-            gained += a.xp
-            pushAlert('🏆', `إنجاز: ${a.title}`)
-          }
-        } catch {}
-      })
-      if (gained > 0) {
-        setTimeout(() => addXP(gained, 'إنجازات'), 300)
-      }
-      return newUnlocked
-    })
-  }, [addXP, pushAlert])
-
-  // ── Session management ────────────────────────────────────────
-  const startWorkout = useCallback((exercises = []) => {
-    const session = {
-      id:        Date.now(),
-      date:      new Date().toISOString(),
-      duration:  null,
-      exercises,
-    }
-    setActive(session)
-    setTab('workout')
-  }, [])
-
-  const finishSession = useCallback(() => {
-    if (!active) return
-    const duration = Math.round((Date.now() - active.id) / 60000)
-    const finished = { ...active, duration }
-
-    setSessions(prev => {
-      const newSessions = [finished, ...prev]
-      const streak = calcStreak(newSessions)
-
-      // XP for session
-      const setsDone = finished.exercises.flatMap(e => e.sets).filter(s => s.done).length
-      const sessionXP = 50 + setsDone * 10 + Math.floor(duration / 30) * 30
-      setTimeout(() => {
-        addXP(sessionXP, '✓ جلسة مكتملة')
-        checkAchievements(newSessions, xp + sessionXP, streak)
-      }, 200)
-
-      return newSessions
-    })
-
-    setActive(null)
-    setTab('home')
-    pushAlert('🎉', 'جلسة مكتملة! عمل رائع!')
-  }, [active, addXP, checkAchievements, pushAlert, xp])
-
-  const updateActive = useCallback((updater) => {
-    setActive(prev => prev ? updater(prev) : prev)
-  }, [])
-
-  // ── Challenge completion ──────────────────────────────────────
-  const handleCompleteChallenge = useCallback((challengeId, xpReward) => {
-    setChallengeState(prev => ({
-      ...prev,
-      completed: [...(prev?.completed || []), challengeId],
-    }))
-    addXP(xpReward, '🏳️ تحدي مكتمل')
-  }, [addXP])
-
-  // ── Profile update ────────────────────────────────────────────
-  const handleUpdateProfile = useCallback((newProfile) => {
-    setProfile(newProfile)
-    pushAlert('✅', 'تم حفظ التغييرات')
-  }, [pushAlert])
-
-  // ── Derived values ────────────────────────────────────────────
-  const streak  = calcStreak(sessions)
-  const { level } = xpProgress(xp)
-
   return (
-    <div style={{
-      minHeight: '100dvh',
-      background: 'var(--bg)',
-      color: 'var(--text)',
-      maxWidth: 560,
-      margin: '0 auto',
-      position: 'relative',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <header style={{
-        background: 'var(--bg1)',
-        borderBottom: '1px solid var(--border)',
-        padding: `calc(var(--safe-top) + 14px) 18px 14px`,
-        position: 'sticky', top: 0, zIndex: 100,
-        backdropFilter: 'blur(16px)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 9,
-              letterSpacing: 3, color: 'var(--text3)', marginBottom: 2,
-            }}>HAMZAFIT</div>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 13,
-              fontWeight: 600, color: 'var(--text2)',
-              maxWidth: 230, lineHeight: 1.4,
-            }}>
-              {GREETING}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {streak > 0 && (
-              <div style={{
-                background: 'var(--orange-lo)',
-                border: '1px solid rgba(249,115,22,0.3)',
-                borderRadius: 20, padding: '3px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 12,
-                color: 'var(--orange)', fontWeight: 700,
-              }}>🔥 {streak}</div>
-            )}
-            <button
-              onClick={() => setShowRest(true)}
-              style={{
-                background: 'var(--bg2)', border: '1px solid var(--border)',
-                borderRadius: 8, width: 36, height: 36,
-                color: 'var(--text2)', cursor: 'pointer',
-                fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'border-color 0.15s',
-              }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
-            >⏱️</button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Page Content ────────────────────────────────────────── */}
-      <main
-        key={tab}
-        className="page-enter"
-        style={{ padding: '16px 14px 0', flex: 1 }}
-      >
-        {tab === 'home' && (
-          <HomePage
-            sessions={sessions}
-            xp={xp}
-            streak={streak}
-            profile={profile}
-            active={active}
-            onStartWorkout={() => startWorkout()}
-            onGoToWorkout={() => setTab('workout')}
-          />
-        )}
-        {tab === 'workout' && (
-          <WorkoutPage
-            active={active}
-            sessions={sessions}
-            onUpdateActive={updateActive}
-            onFinish={finishSession}
-            onShowRest={() => setShowRest(true)}
-            addXP={addXP}
-          />
-        )}
-        {tab === 'challenges' && (
-          <ChallengesPage
-            sessions={sessions}
-            challengeState={challengeState}
-            onCompleteChallenge={handleCompleteChallenge}
-            xp={xp}
-          />
-        )}
-        {tab === 'achievements' && (
-          <AchievementsPage
-            sessions={sessions}
-            xp={xp}
-            streak={streak}
-            unlockedAchievements={unlockedAchievements}
-            level={level}
-          />
-        )}
-        {tab === 'profile' && (
-          <ProfilePage
-            profile={profile}
-            sessions={sessions}
-            xp={xp}
-            streak={streak}
-            level={level}
-            onUpdateProfile={handleUpdateProfile}
-            onGoToPhotos={() => setTab('photos')}
-          />
-        )}
-        {tab === 'settings' && (
-          <SettingsPage
-            profile={profile}
-            onUpdateProfile={handleUpdateProfile}
-            sessions={sessions}
-            xp={xp}
-            unlockedAchievements={unlockedAchievements}
-          />
-        )}
-        {tab === 'photos' && (
-          <PhotosPage
-            photos={photos}
-            setPhotos={setPhotos}
-            onBack={() => setTab('profile')}
-          />
-        )}
-      </main>
-
-      {/* ── Bottom Navigation ────────────────────────────────────── */}
-      <nav style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: 'rgba(10,10,10,0.95)',
-        borderTop: '1px solid var(--border)',
-        backdropFilter: 'blur(20px)',
-        display: 'flex',
-        padding: `10px 6px calc(env(safe-area-inset-bottom, 0px) + 10px)`,
-        zIndex: 200,
-        maxWidth: 560,
-        margin: '0 auto',
-      }}>
-        {NAV_TABS.map(t => {
-          const isActive = tab === t.id
-          const hasActiveSession = t.id === 'workout' && !!active
-          const IconComp = NAV_ICONS[t.id]
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                flex: 1, background: 'none', border: 'none',
-                cursor: 'pointer', position: 'relative',
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4, padding: '4px 2px',
-                transition: 'opacity 0.15s',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              {hasActiveSession && (
-                <div className="pulse-dot" style={{
-                  position: 'absolute', top: 2, right: '50%',
-                  transform: 'translateX(12px)',
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: 'var(--cyan)',
-                }} />
-              )}
-
-              <div style={{
-                width: 38, height: 28,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: 8,
-                background: isActive ? 'var(--cyan-lo)' : 'transparent',
-                transition: 'background 0.2s',
-              }}>
-                {IconComp && (
-                  <IconComp
-                    size={19}
-                    color={isActive ? 'var(--cyan)' : '#4B5563'}
-                    filled={isActive}
-                  />
-                )}
-              </div>
-
-              <span style={{
-                fontFamily: 'var(--font-ar)', fontSize: 9,
-                color: isActive ? 'var(--cyan)' : '#4B5563',
-                fontWeight: isActive ? 700 : 500,
-                transition: 'color 0.15s',
-              }}>{t.label}</span>
-            </button>
-          )
-        })}
-      </nav>
-
-      {/* ── Overlays ─────────────────────────────────────────────── */}
-      {showRest    && <RestTimer    onClose={() => setShowRest(false)} />}
-      {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
-      <SystemAlert alerts={alerts} onRemove={removeAlert} />
-    </div>
-  )
+    <AppProvider>
+      <AppRouter />
+    </AppProvider>
+  );
 }
