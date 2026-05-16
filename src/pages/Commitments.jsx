@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { formatAmount, daysUntil } from '../utils/format.js';
+import { daysUntil } from '../utils/format.js';
 import { getCatData, COMMITMENT_CATEGORIES } from '../components/CategoryData.js';
 import BottomSheet from '../components/BottomSheet.jsx';
 
 const EMPTY_FORM = { name: '', amount: '', category: 'rent', dayOfMonth: 1 };
 
 export default function Commitments() {
-  const { commitments, addCommitment, updateCommitment, deleteCommitment } = useApp();
+  const { commitments, addCommitment, updateCommitment, deleteCommitment, fmt } = useApp();
   const [filter, setFilter] = useState('all');
   const [sheet, setSheet] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -75,7 +75,7 @@ export default function Commitments() {
           </div>
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger)' }}>
-              <span className="num">{formatAmount(total)}</span>
+              <span className="num">{fmt(total)}</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text2)' }}>ريال / شهر</div>
           </div>
@@ -116,7 +116,7 @@ export default function Commitments() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <div className="list-item-amount" style={{ color: 'var(--danger)' }}>
-                      <span className="num">{formatAmount(c.amount)}</span>
+                      <span className="num">{fmt(c.amount)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => togglePaid(c)} style={{

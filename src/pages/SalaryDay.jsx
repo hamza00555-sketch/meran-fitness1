@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { currentMonth, formatAmount } from '../utils/format.js';
+import { currentMonth } from '../utils/format.js';
 import { calcCommitmentsTotal, calcGoalsMonthlyTotal, calcAllBanksTotal, calcBankTotal, calcRemaining } from '../utils/calc.js';
 import { getCatData, COMMITMENT_CATEGORIES, GOAL_CATEGORIES } from '../components/CategoryData.js';
 
 export default function SalaryDay() {
-  const { settings, commitments, goals, banks, confirmSalaryDay } = useApp();
+  const { settings, commitments, goals, banks, confirmSalaryDay, fmt } = useApp();
   const [salary, setSalary] = useState(String(settings.salary));
   const [expenseBudget, setExpenseBudget] = useState(String(settings.expenseBudget || 1500));
   const [goalContribs, setGoalContribs] = useState(
@@ -85,7 +85,7 @@ export default function SalaryDay() {
                   <div style={{ fontSize: 20 }}>{cat.emoji}</div>
                   <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{c.name}</span>
                   <span style={{ color: 'var(--danger)', fontWeight: 700, fontSize: 14 }}>
-                    <span className="num">{formatAmount(c.amount)}</span> ريال
+                    <span className="num">{fmt(c.amount)}</span> ريال
                   </span>
                 </div>
               );
@@ -103,7 +103,7 @@ export default function SalaryDay() {
                   <div style={{ fontSize: 20 }}>{b.emoji}</div>
                   <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{b.name}</span>
                   <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: 14 }}>
-                    <span className="num">{formatAmount(bankTotal)}</span> ريال
+                    <span className="num">{fmt(bankTotal)}</span> ريال
                   </span>
                 </div>
               );
@@ -168,12 +168,12 @@ export default function SalaryDay() {
         }}>
           <div style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 8 }}>يتبقى لك هذا الشهر</div>
           <div style={{ fontSize: 38, fontWeight: 900, color: remainingColor }}>
-            <span className="num">{formatAmount(Math.abs(remaining))}</span>
+            <span className="num">{fmt(Math.abs(remaining))}</span>
             <span style={{ fontSize: 18, fontWeight: 600 }}> ريال</span>
           </div>
           {remaining < 0 && (
             <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>
-              ⚠️ المصروف يتجاوز الراتب بـ <span className="num">{formatAmount(Math.abs(remaining))}</span> ريال
+              ⚠️ المصروف يتجاوز الراتب بـ <span className="num">{fmt(Math.abs(remaining))}</span> ريال
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 14, flexWrap: 'wrap' }}>
@@ -193,6 +193,7 @@ export default function SalaryDay() {
 }
 
 function Section({ title, icon, total, totalColor, children }) {
+  const { fmt } = useApp();
   return (
     <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -201,7 +202,7 @@ function Section({ title, icon, total, totalColor, children }) {
           <span style={{ fontWeight: 700 }}>{title}</span>
         </div>
         <span style={{ color: totalColor, fontWeight: 800, fontSize: 15 }}>
-          <span className="num">{formatAmount(total)}</span> ريال
+          <span className="num">{fmt(total)}</span> ريال
         </span>
       </div>
       {children}
@@ -210,10 +211,11 @@ function Section({ title, icon, total, totalColor, children }) {
 }
 
 function SummaryRow({ label, value, color }) {
+  const { fmt } = useApp();
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ color, fontWeight: 800, fontSize: 15 }}>
-        <span className="num">{formatAmount(value)}</span>
+        <span className="num">{fmt(value)}</span>
       </div>
       <div style={{ color: 'var(--text2)', fontSize: 11 }}>{label}</div>
     </div>

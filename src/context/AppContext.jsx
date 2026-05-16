@@ -20,6 +20,7 @@ export function AppProvider({ children }) {
   const [banks, setBanks] = useState([]);
   const [monthlyRecords, setMonthlyRecords] = useState([]);
   const [page, setPage] = useState('loading');
+  const [privacyMode, setPrivacyMode] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -134,6 +135,9 @@ export function AppProvider({ children }) {
     setBanks(prev => prev.filter(b => b.id !== id));
   }, []);
 
+  const togglePrivacy = useCallback(() => setPrivacyMode(v => !v), []);
+  const fmt = useCallback((n) => privacyMode ? '••••' : formatAmount(n), [privacyMode]);
+
   const confirmSalaryDay = useCallback(async (record) => {
     await db.saveMonthlyRecord(record);
     setMonthlyRecords(prev => {
@@ -149,6 +153,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       loading, settings, commitments, goals, expenses, banks, monthlyRecords,
       page, setPage, currentMonthRecord,
+      privacyMode, togglePrivacy, fmt,
       updateSettings, addCommitment, updateCommitment, deleteCommitment,
       addGoal, updateGoal, deleteGoal, addGoalAmount,
       addExpense, deleteExpense,

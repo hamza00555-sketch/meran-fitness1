@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { currentMonth, currentMonthLabel, formatAmount, daysUntil } from '../utils/format.js';
+import { currentMonth, currentMonthLabel, daysUntil } from '../utils/format.js';
 import { calcSpent, calcCommitmentsTotal, calcGoalsMonthlyTotal, calcAllBanksTotal } from '../utils/calc.js';
 import { getCatData, COMMITMENT_CATEGORIES } from '../components/CategoryData.js';
 import DonutChart from '../components/DonutChart.jsx';
 
 export default function Dashboard() {
-  const { settings, commitments, goals, expenses, banks, currentMonthRecord, setPage } = useApp();
+  const { settings, commitments, goals, expenses, banks, currentMonthRecord, setPage, privacyMode, togglePrivacy, fmt } = useApp();
 
   const month = currentMonth();
   const record = currentMonthRecord;
@@ -48,14 +48,25 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, color: 'var(--text2)' }}>{currentMonthLabel()}</div>
             <div style={{ fontSize: 20, fontWeight: 900 }}>راتبي 💼</div>
           </div>
-          {record && (
-            <div style={{ textAlign: 'left', background: 'var(--accent-dim)', borderRadius: 10, padding: '6px 12px' }}>
-              <div style={{ fontSize: 11, color: 'var(--accent)' }}>الراتب</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>
-                <span className="num">{formatAmount(salary)}</span> ريال
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={togglePrivacy} title="إخفاء الأرقام" style={{
+              background: privacyMode ? 'var(--danger-dim)' : 'var(--card2)',
+              border: `1.5px solid ${privacyMode ? 'var(--danger)' : 'var(--border)'}`,
+              borderRadius: 10, width: 38, height: 38, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all .2s',
+            }}>
+              {privacyMode ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+            {record && (
+              <div style={{ textAlign: 'left', background: 'var(--accent-dim)', borderRadius: 10, padding: '6px 12px' }}>
+                <div style={{ fontSize: 11, color: 'var(--accent)' }}>الراتب</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>
+                  <span className="num">{fmt(salary)}</span> ريال
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Donut Chart */}
@@ -63,7 +74,7 @@ export default function Dashboard() {
           <DonutChart segments={segments} size={160} strokeWidth={20}>
             <div style={{ fontSize: 12, color: 'var(--text2)' }}>متبقي</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: remaining >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
-              <span className="num">{formatAmount(Math.abs(remaining))}</span>
+              <span className="num">{fmt(Math.abs(remaining))}</span>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text2)' }}>ريال</div>
           </DonutChart>
@@ -74,7 +85,7 @@ export default function Dashboard() {
                 <div style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
                 <span style={{ flex: 1, fontSize: 12, color: 'var(--text2)' }}>{s.label}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: s.color }}>
-                  <span className="num">{formatAmount(s.value)}</span>
+                  <span className="num">{fmt(s.value)}</span>
                 </span>
               </div>
             ))}
@@ -103,7 +114,7 @@ export default function Dashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
               <span style={{ fontWeight: 700 }}>ميزانية المصروف</span>
               <span style={{ color: 'var(--text2)', fontSize: 13 }}>
-                <span className="num">{formatAmount(spent)}</span> / <span className="num">{formatAmount(expenseBudget)}</span> ريال
+                <span className="num">{fmt(spent)}</span> / <span className="num">{fmt(expenseBudget)}</span> ريال
               </span>
             </div>
             <div className="progress-track">
@@ -140,7 +151,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontSize: 15, fontWeight: 700, color: b.color }}>
-                        <span className="num">{formatAmount(total)}</span>
+                        <span className="num">{fmt(total)}</span>
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text3)' }}>ريال</div>
                     </div>
@@ -206,14 +217,34 @@ export default function Dashboard() {
 }
 
 function StatCard({ label, value, suffix, color, icon, onClick }) {
+  const { fmt } = useApp();
   return (
     <div className="card" style={{ textAlign: 'center', cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
       <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
       <div style={{ fontSize: 20, fontWeight: 900, color }}>
-        <span className="num">{formatAmount(value)}</span>
+        <span className="num">{fmt(value)}</span>
       </div>
       <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{suffix}</div>
       <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{label}</div>
     </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { formatAmount, currentMonth } from '../utils/format.js';
+import { currentMonth } from '../utils/format.js';
 import { calcCommitmentsTotal, calcGoalsMonthlyTotal, calcSpent } from '../utils/calc.js';
 import { GOAL_CATEGORIES, getCatData } from '../components/CategoryData.js';
 
@@ -17,7 +17,7 @@ function getAffordability(monthly, freeBudget) {
 }
 
 export default function SavingsCalc({ onClose, onAddGoal }) {
-  const { settings, commitments, goals, expenses, currentMonthRecord } = useApp();
+  const { settings, commitments, goals, expenses, currentMonthRecord, fmt } = useApp();
 
   const [mode, setMode] = useState('duration'); // 'duration' | 'amount'
   const [itemName, setItemName] = useState('');
@@ -99,7 +99,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
         {[['duration', '📅 أحدد المدة'], ['amount', '💵 أحدد المبلغ']].map(([id, label]) => (
           <button key={id} onClick={() => setMode(id)} style={{
             flex: 1, padding: '10px', border: 'none', borderRadius: 10, cursor: 'pointer',
-            fontFamily: 'Mestika, Cairo, sans-serif', fontWeight: 700, fontSize: 13,
+            fontFamily: 'GuesswhatExceptional, Cairo, sans-serif', fontWeight: 700, fontSize: 13,
             background: mode === id ? 'var(--primary)' : 'transparent',
             color: mode === id ? '#fff' : 'var(--text2)', transition: 'all .2s',
           }}>{label}</button>
@@ -134,7 +134,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
             background: 'var(--accent-dim)', borderRadius: 10, padding: '8px 14px',
             fontSize: 13, color: 'var(--accent)', fontWeight: 600, textAlign: 'center',
           }}>
-            المتبقي للادخار: <span className="num">{formatAmount(remaining)}</span> ريال
+            المتبقي للادخار: <span className="num">{fmt(remaining)}</span> ريال
             (<span className="num">{Math.round((savedNum / priceNum) * 100)}</span>% مكتمل)
           </div>
         )}
@@ -146,7 +146,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
               {SCENARIOS.map(m => (
                 <button key={m} onClick={() => { setMonths(String(m)); setSelectedMonths(m); }} style={{
                   padding: '8px 14px', border: 'none', borderRadius: 10, cursor: 'pointer',
-                  fontFamily: 'Mestika, Cairo, sans-serif', fontWeight: 700, fontSize: 13,
+                  fontFamily: 'GuesswhatExceptional, Cairo, sans-serif', fontWeight: 700, fontSize: 13,
                   background: Number(months) === m ? 'var(--primary)' : 'var(--card2)',
                   color: Number(months) === m ? '#fff' : 'var(--text2)', transition: 'all .15s',
                 }}><span className="num">{m}</span> شهر</button>
@@ -181,7 +181,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
               <>
                 <div style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 6 }}>تحتاج كل شهر</div>
                 <div style={{ fontSize: 40, fontWeight: 900, color: mainAffordability.color }}>
-                  <span className="num">{formatAmount(resultMonthly)}</span>
+                  <span className="num">{fmt(resultMonthly)}</span>
                   <span style={{ fontSize: 18 }}> ريال</span>
                 </div>
                 <div style={{ color: 'var(--text2)', fontSize: 13, marginTop: 4 }}>
@@ -196,7 +196,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
                   <span style={{ fontSize: 18 }}> شهر</span>
                 </div>
                 <div style={{ color: 'var(--text2)', fontSize: 13, marginTop: 4 }}>
-                  بادخار <span className="num">{formatAmount(maxMonthly)}</span> ريال / شهر
+                  بادخار <span className="num">{fmt(maxMonthly)}</span> ريال / شهر
                 </div>
               </>
             )}
@@ -235,7 +235,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
               }}>
                 <span>يتبقى بعد الادخار</span>
                 <span style={{ fontWeight: 800, color: mainAffordability.color }}>
-                  <span className="num">{formatAmount(Math.max(0, freeBudget - (mode === 'duration' ? resultMonthly : Number(maxMonthly))))}</span> ريال
+                  <span className="num">{fmt(Math.max(0, freeBudget - (mode === 'duration' ? resultMonthly : Number(maxMonthly))))}</span> ريال
                 </span>
               </div>
             </div>
@@ -256,7 +256,7 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
                     <span className="num">{s.months}</span> شهر
                   </div>
                   <div style={{ flex: 1, fontSize: 15, fontWeight: 800 }}>
-                    <span className="num">{formatAmount(s.monthly)}</span> <span style={{ fontSize: 12, color: 'var(--text2)' }}>ريال/شهر</span>
+                    <span className="num">{fmt(s.monthly)}</span> <span style={{ fontSize: 12, color: 'var(--text2)' }}>ريال/شهر</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ fontSize: 14 }}>{s.affordability.emoji}</span>
@@ -299,13 +299,14 @@ export default function SavingsCalc({ onClose, onAddGoal }) {
 }
 
 function BudgetImpactBar({ label, value, max, color }) {
+  const { fmt } = useApp();
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
         <span style={{ fontSize: 12, color: 'var(--text2)' }}>{label}</span>
         <span style={{ fontSize: 13, fontWeight: 700, color }}>
-          <span className="num">{formatAmount(value)}</span> ريال
+          <span className="num">{fmt(value)}</span> ريال
         </span>
       </div>
       <div className="progress-track">

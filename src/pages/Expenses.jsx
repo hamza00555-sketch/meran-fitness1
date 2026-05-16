@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { formatAmount, formatDate, currentMonth } from '../utils/format.js';
+import { formatDate, currentMonth } from '../utils/format.js';
 import { calcSpent } from '../utils/calc.js';
 import { getCatData, EXPENSE_CATEGORIES } from '../components/CategoryData.js';
 import BottomSheet from '../components/BottomSheet.jsx';
 
 export default function Expenses() {
-  const { expenses, addExpense, deleteExpense, currentMonthRecord, settings } = useApp();
+  const { expenses, addExpense, deleteExpense, currentMonthRecord, settings, fmt } = useApp();
   const [sheet, setSheet] = useState(false);
   const [form, setForm] = useState({ amount: '', category: 'food', note: '' });
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -54,7 +54,7 @@ export default function Expenses() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
               <span style={{ fontSize: 13, color: 'var(--text2)' }}>
-                صرفت <span className="num">{formatAmount(spent)}</span> من <span className="num">{formatAmount(budget)}</span> ريال
+                صرفت <span className="num">{fmt(spent)}</span> من <span className="num">{fmt(budget)}</span> ريال
               </span>
               <span style={{ fontSize: 13, fontWeight: 700, color: budgetPct > 90 ? 'var(--danger)' : budgetPct > 70 ? 'var(--gold)' : 'var(--accent)' }}>
                 <span className="num">{budgetPct.toFixed(0)}</span>%
@@ -86,7 +86,7 @@ export default function Expenses() {
             }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text2)' }}>{dateLabel(date)}</span>
               <span style={{ fontSize: 13, color: 'var(--text3)' }}>
-                <span className="num">{formatAmount(items.reduce((s, e) => s + e.amount, 0))}</span> ريال
+                <span className="num">{fmt(items.reduce((s, e) => s + e.amount, 0))}</span> ريال
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -102,7 +102,7 @@ export default function Expenses() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ textAlign: 'left' }}>
                         <div className="list-item-amount" style={{ color: 'var(--primary)' }}>
-                          <span className="num">{formatAmount(e.amount)}</span>
+                          <span className="num">{fmt(e.amount)}</span>
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--text3)' }}>ريال</div>
                       </div>
@@ -129,7 +129,7 @@ export default function Expenses() {
             <div style={{ fontWeight: 700, marginBottom: 8 }}>حذف هذا المصروف؟</div>
             <div style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 20 }}>
               {getCatData(EXPENSE_CATEGORIES, confirmDelete.category).emoji}{' '}
-              <span className="num">{formatAmount(confirmDelete.amount)}</span> ريال
+              <span className="num">{fmt(confirmDelete.amount)}</span> ريال
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmDelete(null)}>إلغاء</button>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { formatAmount } from '../utils/format.js';
+
 import { calcGoalProgress, calcGoalMonthly, monthsUntil } from '../utils/calc.js';
 import { getCatData, GOAL_CATEGORIES } from '../components/CategoryData.js';
 import BottomSheet from '../components/BottomSheet.jsx';
@@ -9,7 +9,7 @@ import SavingsCalc from './SavingsCalc.jsx';
 const EMPTY_FORM = { name: '', targetAmount: '', targetDate: '', category: 'travel', monthlyContribution: '' };
 
 export default function Goals() {
-  const { goals, addGoal, updateGoal, deleteGoal, addGoalAmount } = useApp();
+  const { goals, addGoal, updateGoal, deleteGoal, addGoalAmount, fmt } = useApp();
   const [sheet, setSheet] = useState(false);
   const [addAmountSheet, setAddAmountSheet] = useState(false);
   const [calcSheet, setCalcSheet] = useState(false);
@@ -70,7 +70,7 @@ export default function Goals() {
           <button onClick={() => setCalcSheet(true)} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
             background: 'var(--primary-dim)', border: '1px solid var(--primary)',
-            borderRadius: 12, cursor: 'pointer', fontFamily: 'Mestika, Cairo, sans-serif',
+            borderRadius: 12, cursor: 'pointer', fontFamily: 'GuesswhatExceptional, Cairo, sans-serif',
             fontWeight: 700, fontSize: 13, color: 'var(--primary)',
           }}>
             🧮 الحاسبة
@@ -166,7 +166,7 @@ export default function Goals() {
         title={`إضافة مبلغ لـ "${addAmountGoal?.name}"`}>
         <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
-            الرصيد الحالي: <span className="num">{formatAmount(addAmountGoal?.savedAmount || 0)}</span> ريال
+            الرصيد الحالي: <span className="num">{fmt(addAmountGoal?.savedAmount || 0)}</span> ريال
           </div>
           <input type="number" inputMode="numeric" value={addAmountVal}
             onChange={e => setAddAmountVal(e.target.value)}
@@ -188,6 +188,7 @@ export default function Goals() {
 }
 
 function GoalCard({ goal, onEdit, onAdd, completed }) {
+  const { fmt } = useApp();
   const progress = calcGoalProgress(goal);
   const cat = getCatData(GOAL_CATEGORIES, goal.category);
   const months = goal.targetDate ? monthsUntil(goal.targetDate) : null;
@@ -199,7 +200,7 @@ function GoalCard({ goal, onEdit, onAdd, completed }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{goal.name}</div>
           <div style={{ color: 'var(--text2)', fontSize: 12, marginTop: 2 }}>
-            <span className="num">{formatAmount(goal.savedAmount || 0)}</span> / <span className="num">{formatAmount(goal.targetAmount)}</span> ريال
+            <span className="num">{fmt(goal.savedAmount || 0)}</span> / <span className="num">{fmt(goal.targetAmount)}</span> ريال
           </div>
         </div>
         <div style={{ textAlign: 'left' }}>
@@ -221,7 +222,7 @@ function GoalCard({ goal, onEdit, onAdd, completed }) {
         <div style={{ fontSize: 12, color: 'var(--text2)' }}>
           {goal.monthlyContribution > 0 && !completed && (
             <span>
-              <span className="num">{formatAmount(goal.monthlyContribution)}</span> ريال / شهر · <span className="num">{months}</span> شهر متبقي
+              <span className="num">{fmt(goal.monthlyContribution)}</span> ريال / شهر · <span className="num">{months}</span> شهر متبقي
             </span>
           )}
         </div>

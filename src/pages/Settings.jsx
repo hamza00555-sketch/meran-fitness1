@@ -219,7 +219,7 @@ export default function Settings() {
               background: promptCopied ? 'var(--accent-dim)' : 'var(--card2)',
               border: `1px solid ${promptCopied ? 'var(--accent)' : 'var(--border)'}`,
               borderRadius: 10, padding: '12px', cursor: 'pointer',
-              fontFamily: 'Mestika, Cairo, sans-serif', fontWeight: 700, fontSize: 14,
+              fontFamily: 'GuesswhatExceptional, Cairo, sans-serif', fontWeight: 700, fontSize: 14,
               color: promptCopied ? 'var(--accent)' : 'var(--text)',
               transition: 'all .2s',
             }}>
@@ -230,7 +230,7 @@ export default function Settings() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               background: 'var(--primary-dim)', border: '1px solid var(--primary)',
               borderRadius: 10, padding: '12px', cursor: 'pointer',
-              fontFamily: 'Mestika, Cairo, sans-serif', fontWeight: 700, fontSize: 14,
+              fontFamily: 'GuesswhatExceptional, Cairo, sans-serif', fontWeight: 700, fontSize: 14,
               color: 'var(--primary)',
             }}>
               {gptPasteOpen ? '▲ إغلاق' : '📥 لصق رد ChatGPT'}

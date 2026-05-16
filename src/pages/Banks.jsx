@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { formatAmount, currentMonth } from '../utils/format.js';
+import { currentMonth } from '../utils/format.js';
 import { calcBankTotal, calcAllBanksTotal, isAccountDue } from '../utils/calc.js';
 import { uid } from '../utils/format.js';
 import BottomSheet from '../components/BottomSheet.jsx';
@@ -20,7 +20,7 @@ function emptyBank() {
 }
 
 export default function Banks() {
-  const { banks, addBank, updateBank, deleteBank } = useApp();
+  const { banks, addBank, updateBank, deleteBank, fmt } = useApp();
   const [sheet, setSheet] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState(emptyBank());
@@ -98,14 +98,14 @@ export default function Banks() {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>بنوكي</h1>
             <p style={{ color: 'var(--text2)', fontSize: 13 }}>
-              <span className="num">{banks.length}</span> بنك · <span className="num">{formatAmount(totalThisMonth)}</span> ريال هذا الشهر
+              <span className="num">{banks.length}</span> بنك · <span className="num">{fmt(totalThisMonth)}</span> ريال هذا الشهر
             </p>
           </div>
           {banks.length > 0 && (
             <div style={{ textAlign: 'left', background: 'var(--gold-dim)', borderRadius: 10, padding: '6px 14px', border: '1px solid var(--gold)' }}>
               <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 2 }}>إجمالي البنوك</div>
               <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--gold)' }}>
-                <span className="num">{formatAmount(totalThisMonth)}</span>
+                <span className="num">{fmt(totalThisMonth)}</span>
                 <span style={{ fontSize: 12, fontWeight: 400 }}> ريال</span>
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function Banks() {
           <div style={{ background: 'var(--card2)', borderRadius: 'var(--r)', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 700, color: 'var(--text2)', fontSize: 14 }}>المجموع الكلي هذا الشهر</span>
             <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--gold)' }}>
-              <span className="num">{formatAmount(totalThisMonth)}</span>
+              <span className="num">{fmt(totalThisMonth)}</span>
               <span style={{ fontSize: 13, fontWeight: 400 }}> ريال</span>
             </span>
           </div>
@@ -235,6 +235,7 @@ export default function Banks() {
 }
 
 function BankCard({ bank, month, onEdit, onToggle }) {
+  const { fmt } = useApp();
   const transferred = bank.transferredMonths?.includes(month);
   const total = calcBankTotal(bank, month);
 
@@ -282,7 +283,7 @@ function BankCard({ bank, month, onEdit, onToggle }) {
                 )}
               </div>
               <span style={{ fontSize: 15, fontWeight: 800, color: due ? bank.color : 'var(--text3)' }}>
-                <span className="num">{formatAmount(acc.amount)}</span>
+                <span className="num">{fmt(acc.amount)}</span>
                 <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text3)' }}> ريال</span>
               </span>
             </div>
@@ -298,7 +299,7 @@ function BankCard({ bank, month, onEdit, onToggle }) {
         <div>
           <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2 }}>الإجمالي هذا الشهر</div>
           <div style={{ fontSize: 22, fontWeight: 900, color: bank.color }}>
-            <span className="num">{formatAmount(total)}</span>
+            <span className="num">{fmt(total)}</span>
             <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text2)' }}> ريال</span>
           </div>
         </div>
