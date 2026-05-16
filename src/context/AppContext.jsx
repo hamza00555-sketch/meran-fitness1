@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import * as db from '../db/index.js';
-import { currentMonth, uid, todayISO, monthFromDate } from '../utils/format.js';
+import { currentMonth, uid, todayISO, monthFromDate, formatAmount } from '../utils/format.js';
 import { calcGoalMonthly } from '../utils/calc.js';
 
 const AppContext = createContext();
