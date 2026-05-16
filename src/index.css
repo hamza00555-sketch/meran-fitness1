@@ -104,10 +104,10 @@ html, body {
 }
 .input:focus { border-color: var(--primary); }
 .input::placeholder { color: var(--text3); }
-.input[type="number"], .input[inputmode="numeric"] { direction: ltr; text-align: center; font-family: 'GuesswhatExceptional', 'Cairo', sans-serif; }
+.input[type="number"], .input[inputmode="numeric"] { direction: ltr; text-align: center; font-family: 'Mestika', 'Cairo', sans-serif; }
 
 /* Force numbers to render LTR to avoid bidi issues */
-.num { display: inline-block; direction: ltr; unicode-bidi: embed; font-variant-numeric: tabular-nums; font-family: 'GuesswhatExceptional', 'Mestika', sans-serif; }
+.num { display: inline-block; direction: ltr; unicode-bidi: embed; font-variant-numeric: tabular-nums; font-family: 'Mestika', sans-serif; }
 
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
