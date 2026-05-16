@@ -16,11 +16,13 @@ function AppRouter() {
   if (loading) return (
     <div style={{
       flex: 1, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: 16,
+      alignItems: 'center', justifyContent: 'center', gap: 0,
+      background: 'var(--bg)',
     }}>
-      <div style={{ fontSize: 52 }}>💼</div>
-      <div style={{ fontSize: 24, fontWeight: 900 }}>راتبي</div>
-      <div style={{ width: 40, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden', marginTop: 8 }}>
+      <img src="/icon.svg" alt="راتبي" style={{ width: 120, height: 120, borderRadius: 28, marginBottom: 20 }} />
+      <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 8 }}>راتبي</div>
+      <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 28 }}>تحكم في مالك، وحقق أهدافك</div>
+      <div style={{ width: 48, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{
           height: '100%', background: 'var(--primary)', borderRadius: 2, width: '60%',
           animation: 'loadbar 1s ease infinite alternate',

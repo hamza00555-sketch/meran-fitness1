@@ -63,9 +63,14 @@ export default function Onboarding() {
         {/* STEP 1 */}
         {step === 1 && (
           <div className="anim-fadeup">
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <img src="/icon.svg" alt="راتبي" style={{ width: 88, height: 88, borderRadius: 20, marginBottom: 14 }} />
+              <h1 style={{ fontSize: 28, fontWeight: 900, marginBottom: 6 }}>تحكم في مالك،</h1>
+              <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--accent)', marginBottom: 8 }}>وحقق أهدافك.</h1>
+              <p style={{ color: 'var(--text2)', fontSize: 14 }}>ابدأ بإدخال راتبك الشهري</p>
+            </div>
             <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700, marginBottom: 8 }}>الخطوة ١ من ٣</div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, marginBottom: 8 }}>راتبك الشهري</h1>
-            <p style={{ color: 'var(--text2)', marginBottom: 32, fontSize: 14 }}>هذا هو أساس تخطيطك المالي</p>
+            <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 20 }}>راتبك الشهري</h2>
 
             <div className="input-group" style={{ marginBottom: 20 }}>
               <label className="input-label">المبلغ (ريال)</label>

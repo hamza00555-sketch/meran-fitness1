@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Generate raatbi wallet app icons from SVG."""
+import cairosvg
+import os
+
+# SVG wallet icon matching the user's design
+# Dark purple background, white wallet outline, teal accents
+SVG = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="roundClip">
+      <rect width="1024" height="1024" rx="220" ry="220"/>
+    </clipPath>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1A0A3C"/>
+      <stop offset="100%" stop-color="#0D0A26"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bgGrad)"/>
+
+  <g clip-path="url(#roundClip)">
+
+    <!-- Cards peeking out of top of wallet -->
+    <rect x="430" y="198" width="260" height="160" rx="22" fill="#00C9A7" opacity="0.85" transform="rotate(-8,560,270)"/>
+    <rect x="460" y="195" width="240" height="150" rx="22" fill="#00C9A7" transform="rotate(-2,580,270)"/>
+
+    <!-- Wallet body shadow -->
+    <rect x="195" y="310" width="580" height="415" rx="40" fill="#0D0A26" opacity="0.4" transform="translate(8,10)"/>
+
+    <!-- Wallet body -->
+    <rect x="195" y="310" width="580" height="415" rx="40" fill="#1A1050" stroke="white" stroke-width="18"/>
+
+    <!-- Wallet inner line (fold) -->
+    <line x1="195" y1="420" x2="775" y2="420" stroke="white" stroke-width="6" opacity="0.25"/>
+
+    <!-- Clasp / snap button on right -->
+    <rect x="718" y="480" width="100" height="72" rx="16" fill="#00C9A7"/>
+    <circle cx="768" cy="516" r="20" fill="#1A1050"/>
+    <circle cx="768" cy="516" r="9" fill="#00C9A7"/>
+
+    <!-- Subtle card slot lines on wallet -->
+    <rect x="230" y="450" width="200" height="8" rx="4" fill="white" opacity="0.12"/>
+    <rect x="230" y="490" width="160" height="8" rx="4" fill="white" opacity="0.09"/>
+    <rect x="230" y="530" width="180" height="8" rx="4" fill="white" opacity="0.07"/>
+
+    <!-- Coin / money indicator top-left of wallet -->
+    <circle cx="300" cy="365" r="32" fill="#00C9A7" opacity="0.9"/>
+    <text x="300" y="375" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#1A1050">ر</text>
+
+    <!-- Bottom text: راتبي -->
+    <text x="512" y="830"
+      text-anchor="middle"
+      font-family="Cairo, Arial, sans-serif"
+      font-size="145"
+      font-weight="900"
+      fill="white"
+      letter-spacing="-2">راتبي</text>
+
+    <!-- Two teal accent dots (matching design) -->
+    <circle cx="350" cy="880" r="18" fill="#00C9A7"/>
+    <circle cx="398" cy="880" r="18" fill="#00C9A7"/>
+
+  </g>
+</svg>'''
+
+# Write SVG
+with open('public/icon.svg', 'w') as f:
+    f.write(SVG)
+print("SVG written")
+
+# Convert to PNG sizes
+sizes = [
+    ('public/icon-512.png', 512),
+    ('public/icon-192.png', 192),
+    ('public/apple-touch-icon.png', 180),
+]
+
+for path, size in sizes:
+    cairosvg.svg2png(
+        bytestring=SVG.encode(),
+        write_to=path,
+        output_width=size,
+        output_height=size,
+    )
+    file_size = os.path.getsize(path)
+    print(f"  {path} ({size}x{size}) — {file_size:,} bytes")
+
+print("Done!")
