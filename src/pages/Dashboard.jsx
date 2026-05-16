@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { currentMonth, currentMonthLabel, daysUntil } from '../utils/format.js';
-import { calcCommitmentsTotal, calcGoalsMonthlyTotal } from '../utils/calc.js';
-import { getCatData, COMMITMENT_CATEGORIES } from '../components/CategoryData.js';
+import { calcCommitmentsTotal, calcGoalsMonthlyTotal, calcGoalProgress } from '../utils/calc.js';
+import { getCatData, COMMITMENT_CATEGORIES, GOAL_CATEGORIES } from '../components/CategoryData.js';
 import DonutChart from '../components/DonutChart.jsx';
 import CatIcon from '../components/CategoryIcons.jsx';
 
@@ -89,6 +89,43 @@ export default function Dashboard() {
           <StatCard label="التزامات الشهر" value={commitmentsTotal} suffix="ريال" color="var(--danger)" icon="📋" onClick={() => setPage('commitments')} />
           <StatCard label="أهداف الشهر" value={goalsTotal} suffix="ريال" color="#A78BFA" icon="🎯" onClick={() => setPage('goals')} />
         </div>
+
+        {/* Goals Progress */}
+        {goals.filter(g => !g.completed).length > 0 && (
+          <div>
+            <div className="section-header">
+              <span className="section-title">تقدم الأهداف 🎯</span>
+              <button className="section-action" onClick={() => setPage('goals')}>عرض الكل</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {goals.filter(g => !g.completed).slice(0, 3).map(g => {
+                const progress = calcGoalProgress(g);
+                const cat = getCatData(GOAL_CATEGORIES, g.category);
+                return (
+                  <div key={g.id} className="card" style={{ padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <CatIcon id={cat.id} size={18} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{g.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text2)' }}>
+                          <span className="num">{fmt(g.savedAmount || 0)}</span> / <span className="num">{fmt(g.targetAmount)}</span> ريال
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: 'var(--primary)', flexShrink: 0 }}>
+                        <span className="num">{progress}</span>%
+                      </div>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-fill" style={{ width: `${progress}%`, background: `linear-gradient(90deg, var(--primary), ${cat.color})` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Upcoming Commitments */}
         {upcomingCommitments.length > 0 && (

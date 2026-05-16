@@ -75,7 +75,7 @@ export default function Onboarding() {
 
             <div className="input-group" style={{ marginBottom: 20 }}>
               <label className="input-label">المبلغ (ريال)</label>
-              <input className="input" type="number" inputMode="numeric"
+              <input className="input" type="text" inputMode="decimal"
                 placeholder="مثال: 10000" value={salary} onChange={e => setSalary(e.target.value)}
                 style={{ fontSize: 22, fontWeight: 700, textAlign: 'center' }} />
             </div>
@@ -213,12 +213,12 @@ function CommitmentForm({ form, setForm }) {
       <div style={{ display: 'flex', gap: 10 }}>
         <div className="input-group" style={{ flex: 1 }}>
           <label className="input-label">المبلغ (ريال)</label>
-          <input className="input" type="number" inputMode="numeric" placeholder="0"
+          <input className="input" type="text" inputMode="decimal" placeholder="0"
             value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
         </div>
         <div className="input-group" style={{ flex: 1 }}>
           <label className="input-label">يوم الدفع</label>
-          <input className="input" type="number" inputMode="numeric" min="1" max="31" placeholder="1"
+          <input className="input" type="text" inputMode="numeric" min="1" max="31" placeholder="1"
             value={form.dayOfMonth} onChange={e => setForm(p => ({ ...p, dayOfMonth: Number(e.target.value) }))} />
         </div>
       </div>
@@ -248,7 +248,7 @@ function GoalForm({ form, setForm }) {
       <div style={{ display: 'flex', gap: 10 }}>
         <div className="input-group" style={{ flex: 1 }}>
           <label className="input-label">المبلغ المطلوب</label>
-          <input className="input" type="number" inputMode="numeric" placeholder="0"
+          <input className="input" type="text" inputMode="decimal" placeholder="0"
             value={form.targetAmount} onChange={e => setForm(p => ({ ...p, targetAmount: e.target.value }))} />
         </div>
         <div className="input-group" style={{ flex: 1 }}>

@@ -107,7 +107,7 @@ export default function Commitments() {
             const assignedAccount = assignedBank?.accounts.find(a => a.id === c.accountId);
             return (
               <div key={c.id} className="anim-fadeup">
-                <div className="list-item" style={{ opacity: c.paidThisMonth ? 0.7 : 1 }}>
+                <div className="list-item" style={{ opacity: c.paidThisMonth ? 0.7 : 1, cursor: 'pointer' }} onClick={() => openEdit(c)}>
                   <div className="cat-icon" style={{ background: cat.bg }}><CatIcon id={cat.id} /></div>
                   <div className="list-item-info">
                     <div className="list-item-name" style={{ textDecoration: c.paidThisMonth ? 'line-through' : 'none' }}>
@@ -178,12 +178,12 @@ export default function Commitments() {
           <div style={{ display: 'flex', gap: 10 }}>
             <div className="input-group" style={{ flex: 1 }}>
               <label className="input-label">المبلغ (ريال)</label>
-              <input className="input" type="number" inputMode="numeric" placeholder="0"
+              <input className="input" type="text" inputMode="decimal" placeholder="0"
                 value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
             </div>
             <div className="input-group" style={{ flex: 1 }}>
               <label className="input-label">يوم الدفع</label>
-              <input className="input" type="number" inputMode="numeric" min="1" max="31"
+              <input className="input" type="text" inputMode="numeric" min="1" max="31"
                 value={form.dayOfMonth} onChange={e => setForm(p => ({ ...p, dayOfMonth: Number(e.target.value) }))} />
             </div>
           </div>

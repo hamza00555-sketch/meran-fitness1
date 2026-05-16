@@ -52,7 +52,7 @@ export default function SalaryDay() {
           <span style={{ color: 'var(--text2)', fontSize: 13 }}>راتبك هذا الشهر</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <input
-              type="number" inputMode="numeric" value={salary}
+              type="text" inputMode="decimal" value={salary}
               onChange={e => setSalary(e.target.value)}
               style={{
                 background: 'transparent', border: 'none', borderBottom: '2px solid var(--primary)',
@@ -101,7 +101,7 @@ export default function SalaryDay() {
                   </div>
                   <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{g.name}</span>
                   <input
-                    type="number" inputMode="numeric" value={goalContribs[g.id] || ''}
+                    type="text" inputMode="decimal" value={goalContribs[g.id] || ''}
                     onChange={e => setGoalContribs(p => ({ ...p, [g.id]: e.target.value }))}
                     style={{
                       background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8,

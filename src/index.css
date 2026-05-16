@@ -66,7 +66,7 @@ html, body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 130px;
+  padding-bottom: 170px;
   -webkit-overflow-scrolling: touch;
 }
 .page::-webkit-scrollbar { display: none; }
@@ -146,7 +146,7 @@ html, body {
 .badge-purple { background: var(--primary-dim); color: var(--primary); }
 
 .fab {
-  position: fixed; bottom: 86px; right: 20px;
+  position: fixed; bottom: 100px; right: 20px;
   width: 56px; height: 56px; border-radius: 50%;
   background: var(--primary); color: #fff;
   display: flex; align-items: center; justify-content: center;

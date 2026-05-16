@@ -6,7 +6,8 @@ import BottomSheet from '../components/BottomSheet.jsx';
 import SavingsCalc from './SavingsCalc.jsx';
 import CatIcon from '../components/CategoryIcons.jsx';
 
-const EMPTY_FORM = { name: '', targetAmount: '', targetDate: '', category: 'travel', monthlyContribution: '', bankId: null, accountId: null };
+const ARABIC_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const EMPTY_FORM = { name: '', targetAmount: '', targetDate: (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString().slice(0,7) + '-01'; })(), category: 'travel', monthlyContribution: '', bankId: null, accountId: null };
 
 export default function Goals() {
   const { goals, banks, addGoal, updateGoal, deleteGoal, addGoalAmount, fmt } = useApp();
@@ -37,7 +38,7 @@ export default function Goals() {
   }
 
   async function handleSave() {
-    if (!form.name || !form.targetAmount || !form.targetDate) return;
+    if (!form.name || !form.targetAmount) return;
     const base = {
       name: form.name, targetAmount: Number(form.targetAmount),
       targetDate: form.targetDate, category: form.category,
@@ -92,6 +93,7 @@ export default function Goals() {
         )}
 
         {active.map(g => <GoalCard key={g.id} goal={g} banks={banks} onEdit={openEdit}
+          onClick={() => openEdit(g)}
           onAdd={() => { setAddAmountGoal(g); setAddAmountSheet(true); }} />)}
 
         {completed.length > 0 && (
@@ -112,22 +114,37 @@ export default function Goals() {
             <input className="input" placeholder="مثال: رحلة إلى اليابان" value={form.name}
               onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div className="input-group" style={{ flex: 1 }}>
-              <label className="input-label">المبلغ المطلوب</label>
-              <input className="input" type="number" inputMode="numeric" placeholder="0"
-                value={form.targetAmount} onChange={e => setForm(p => ({ ...p, targetAmount: e.target.value }))} />
-            </div>
-            <div className="input-group" style={{ flex: 1 }}>
-              <label className="input-label">تاريخ التحقيق</label>
-              <input className="input" type="date" value={form.targetDate}
-                onChange={e => setForm(p => ({ ...p, targetDate: e.target.value }))}
-                style={{ colorScheme: 'dark' }} />
+          <div className="input-group">
+            <label className="input-label">المبلغ المطلوب</label>
+            <input className="input" type="text" inputMode="decimal" placeholder="0"
+              value={form.targetAmount} onChange={e => setForm(p => ({ ...p, targetAmount: e.target.value }))} />
+          </div>
+          <div className="input-group">
+            <label className="input-label">شهر ووقت التحقيق</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select className="input" style={{ flex: 1, padding: '12px 8px' }}
+                value={form.targetDate ? parseInt(form.targetDate.split('-')[1]) : 1}
+                onChange={e => {
+                  const m = Number(e.target.value);
+                  const y = form.targetDate ? parseInt(form.targetDate.split('-')[0]) : new Date().getFullYear() + 1;
+                  setForm(p => ({ ...p, targetDate: `${y}-${String(m).padStart(2,'0')}-01` }));
+                }}>
+                {ARABIC_MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+              </select>
+              <select className="input" style={{ flex: 1, padding: '12px 8px' }}
+                value={form.targetDate ? parseInt(form.targetDate.split('-')[0]) : new Date().getFullYear() + 1}
+                onChange={e => {
+                  const y = Number(e.target.value);
+                  const m = form.targetDate ? parseInt(form.targetDate.split('-')[1]) : 1;
+                  setForm(p => ({ ...p, targetDate: `${y}-${String(m).padStart(2,'0')}-01` }));
+                }}>
+                {Array.from({ length: 8 }, (_, i) => new Date().getFullYear() + i).map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
           </div>
           <div className="input-group">
             <label className="input-label">مساهمة شهرية (اختياري)</label>
-            <input className="input" type="number" inputMode="numeric"
+            <input className="input" type="text" inputMode="decimal"
               placeholder={form.targetAmount && form.targetDate
                 ? `مقترح: ${calcGoalMonthly({ targetAmount: Number(form.targetAmount), savedAmount: 0, targetDate: form.targetDate })}`
                 : 'تُحسب تلقائياً'}
@@ -227,7 +244,7 @@ export default function Goals() {
           <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
             الرصيد الحالي: <span className="num">{fmt(addAmountGoal?.savedAmount || 0)}</span> ريال
           </div>
-          <input type="number" inputMode="numeric" value={addAmountVal}
+          <input type="text" inputMode="decimal" value={addAmountVal}
             onChange={e => setAddAmountVal(e.target.value)}
             placeholder="0"
             style={{
@@ -246,7 +263,7 @@ export default function Goals() {
   );
 }
 
-function GoalCard({ goal, banks, onEdit, onAdd, completed }) {
+function GoalCard({ goal, banks, onEdit, onClick, onAdd, completed }) {
   const { fmt } = useApp();
   const progress = calcGoalProgress(goal);
   const cat = getCatData(GOAL_CATEGORIES, goal.category);
@@ -255,7 +272,7 @@ function GoalCard({ goal, banks, onEdit, onAdd, completed }) {
   const assignedAccount = assignedBank?.accounts.find(a => a.id === goal.accountId);
 
   return (
-    <div className="card anim-fadeup" style={{ opacity: completed ? 0.7 : 1 }}>
+    <div className="card anim-fadeup" style={{ opacity: completed ? 0.7 : 1, cursor: 'pointer' }} onClick={onClick}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
         <div className="cat-icon" style={{ background: cat.bg }}><CatIcon id={cat.id} size={24} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
