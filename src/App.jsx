@@ -62,6 +62,7 @@ export default function App() {
   const [unlockedAchievements,setUnlockedAchievements]= useState(() => ls.get('hf_unlocked', []))
   const [challengeState,      setChallengeState]      = useState(() => ls.get('hf_challenges', null))
   const [plan,                setPlan]                = useState(() => ls.get('hf_plan', null))
+  const [planIndex,           setPlanIndex]           = useState(() => ls.get('hf_plan_index', 0))
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
@@ -81,6 +82,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_unlocked', unlockedAchievements) }, [unlockedAchievements])
   useEffect(() => { ls.set('hf_challenges', challengeState) },     [challengeState])
   useEffect(() => { ls.set('hf_plan',       plan)           },     [plan])
+  useEffect(() => { ls.set('hf_plan_index', planIndex)      },     [planIndex])
   useEffect(() => { ls.set('hf_photos',    photos) },              [photos])
 
   // ── Schedule daily notifications ─────────────────────────────
@@ -175,8 +177,22 @@ export default function App() {
     const exercises = (planDay.exercises || []).map(ex =>
       buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3 })
     )
-    startWorkout(exercises)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    const session = {
+      id:           Date.now(),
+      date:         new Date().toISOString(),
+      duration:     null,
+      exercises,
+      planDayName:  planDay.name,
+      planDayIndex: planIndex,
+    }
+    setActive(session)
+    setTab('workout')
+  }, [planIndex])
+
+  const skipPlanDay = useCallback(() => {
+    setPlanIndex(prev => prev + 1)
+    pushAlert('⏭️', 'تم تخطي يوم التمرين')
+  }, [pushAlert])
 
   const startWorkout = useCallback((exercises = []) => {
     const session = {
@@ -208,6 +224,11 @@ export default function App() {
 
       return newSessions
     })
+
+    // Advance plan index when a planned session is completed
+    if (active.planDayIndex !== undefined) {
+      setPlanIndex(active.planDayIndex + 1)
+    }
 
     setActive(null)
     setTab('home')
@@ -311,8 +332,10 @@ export default function App() {
             profile={profile}
             active={active}
             plan={plan}
+            planIndex={planIndex}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
+            onSkipPlanDay={skipPlanDay}
             onGoToWorkout={() => setTab('workout')}
           />
         )}
@@ -320,9 +343,12 @@ export default function App() {
           <WorkoutPage
             active={active}
             sessions={sessions}
+            plan={plan}
+            planIndex={planIndex}
             onUpdateActive={updateActive}
             onFinish={finishSession}
             onShowRest={() => setShowRest(true)}
+            onStartPlannedWorkout={startPlannedWorkout}
             addXP={addXP}
           />
         )}
@@ -364,8 +390,8 @@ export default function App() {
             challengeState={challengeState}
             photos={photos}
             plan={plan}
-            onImportPlan={(p) => { setPlan(p); pushAlert('📋', `تم استيراد خطة: ${p.planName}`) }}
-            onClearPlan={() => setPlan(null)}
+            onImportPlan={(p) => { setPlan(p); setPlanIndex(0); pushAlert('📋', `تم استيراد خطة: ${p.planName}`) }}
+            onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
             onImport={(data) => {
               if (data.sessions !== undefined)           setSessions(data.sessions)
               if (data.xp !== undefined)                 setXP(data.xp)

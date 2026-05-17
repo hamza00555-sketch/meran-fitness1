@@ -6,7 +6,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP }) {
+export default function WorkoutPage({ active, sessions, plan, planIndex, onUpdateActive, onFinish, onShowRest, onStartPlannedWorkout, addXP }) {
   const [showAdd,      setShowAdd]      = useState(false)
   const [showRoutines, setShowRoutines] = useState(false)
   const [elapsed,      setElapsed]      = useState(0)
@@ -22,7 +22,18 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
   // ── History View ─────────────────────────────────────────────
   if (!active) {
-    return <HistoryView sessions={sessions} onStartWorkout={() => setShowRoutines(true)} showRoutines={showRoutines} setShowRoutines={setShowRoutines} />
+    const schedule = plan?.weeklySchedule
+    const nextPlanDay = schedule?.length ? schedule[(planIndex ?? 0) % schedule.length] : null
+    return (
+      <HistoryView
+        sessions={sessions}
+        onStartWorkout={() => setShowRoutines(true)}
+        showRoutines={showRoutines}
+        setShowRoutines={setShowRoutines}
+        nextPlanDay={nextPlanDay}
+        onStartPlannedWorkout={onStartPlannedWorkout}
+      />
+    )
   }
 
   // ── Helpers ──────────────────────────────────────────────────
@@ -218,7 +229,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 }
 
 // ── History sub-view ──────────────────────────────────────────
-function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }) {
+function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, nextPlanDay, onStartPlannedWorkout }) {
   const [expanded, setExpanded] = useState(null)
 
   if (!sessions.length) {
@@ -231,10 +242,15 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
           width: '100%', maxWidth: 560,
           padding: '12px 16px calc(var(--safe-bottom) + 76px)',
           background: 'linear-gradient(transparent, var(--bg) 40%)',
+          display: 'flex', flexDirection: 'column', gap: 8,
         }}>
-          <button className="btn-cyan" onClick={onStartWorkout}>
-            ⚔️ ابدأ التمرين
-          </button>
+          {nextPlanDay && (
+            <button className="btn-cyan" onClick={() => onStartPlannedWorkout(nextPlanDay)}
+              style={{ background: 'linear-gradient(135deg,#9B59B6,#7D3C98)', boxShadow: '0 4px 16px rgba(155,89,182,0.35)' }}>
+              📋 {nextPlanDay.name}
+            </button>
+          )}
+          <button className="btn-cyan" onClick={onStartWorkout}>⚔️ ابدأ التمرين</button>
         </div>
         {showRoutines && <RoutinesModal onSelect={() => {}} onClose={() => setShowRoutines(false)} />}
       </div>
@@ -243,6 +259,29 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
 
   return (
     <div style={{ paddingBottom: 120 }}>
+      {nextPlanDay && (
+        <button
+          onClick={() => onStartPlannedWorkout(nextPlanDay)}
+          style={{
+            width: '100%', marginBottom: 14,
+            background: 'rgba(155,89,182,0.1)', border: '1px solid rgba(155,89,182,0.35)',
+            borderRadius: 14, padding: '14px 18px',
+            display: 'flex', alignItems: 'center', gap: 12,
+            cursor: 'pointer', textAlign: 'right',
+          }}
+        >
+          <span style={{ fontSize: 22 }}>📋</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: 'var(--purple)' }}>
+              التمرين القادم في خطتك
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+              {nextPlanDay.name} · {nextPlanDay.exercises?.length} تمارين
+            </div>
+          </div>
+          <span style={{ color: 'var(--purple)', fontSize: 18 }}>←</span>
+        </button>
+      )}
       <SectionTitle>سجل الجلسات</SectionTitle>
       {sessions.map(s => {
         const muscles   = [...new Set(s.exercises.map(e => e.muscle))]
