@@ -144,6 +144,38 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     reader.readAsText(file, 'UTF-8')
   }
 
+  const handleClipboardPaste = async () => {
+    setPasteError('')
+    try {
+      const raw = await navigator.clipboard.readText()
+      if (!raw || !raw.trim()) { setPasteError('الحافظة فارغة — انسخ الـ JSON أولاً'); setPasteMode(true); return }
+      if (pasteRef.current) pasteRef.current.value = raw
+      // Reuse same parsing logic
+      let text = raw.trim()
+      text = text.replace(/[﻿​‌‍‎‏­⁠]/g, '')
+      text = text.replace(/[''‚‛]/g, "'")
+      text = text.replace(/[""„‟]/g, '"')
+      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (jsonMatch) text = jsonMatch[1].trim()
+      const start = text.indexOf('{'); const end = text.lastIndexOf('}')
+      if (start === -1 || end === -1) { setPasteError('لم يتم العثور على JSON — تأكد من النص'); setPasteMode(true); return }
+      text = text.slice(start, end + 1)
+      const data = JSON.parse(text)
+      if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
+        setPasteError('الـ JSON لا يحتوي على weeklySchedule'); setPasteMode(true); return
+      }
+      onImportPlan(data)
+    } catch (err) {
+      // If clipboard permission denied or API unsupported, fall back to manual paste
+      if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
+        setPasteMode(true)
+      } else {
+        setPasteError(`خطأ: ${err.message || 'تأكد من النص'}`)
+        setPasteMode(true)
+      }
+    }
+  }
+
   const handleCopyPrompt = () => {
     const template = JSON.stringify({ ...PLAN_TEMPLATE, startDate: new Date().toISOString().split('T')[0] }, null, 2)
     const prompt = AI_PLAN_PROMPT.replace('TEMPLATE_PLACEHOLDER', template)
@@ -341,6 +373,27 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 <div style={{ fontWeight: 700 }}>{promptCopied ? 'تم النسخ!' : 'نسخ البرومت للـ AI'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
                   الصق في ChatGPT أو Claude مع PDF/فيديو التمرين
+                </div>
+              </div>
+            </button>
+
+            {/* Clipboard API paste — works reliably in installed PWA */}
+            <button
+              onClick={handleClipboardPaste}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: 'rgba(155,89,182,0.12)', border: '1px solid rgba(155,89,182,0.4)',
+                borderRadius: 12, padding: '14px 16px',
+                color: 'var(--purple)', cursor: 'pointer',
+                fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600,
+                textAlign: 'right', width: '100%',
+              }}
+            >
+              <span style={{ fontSize: 20 }}>📋</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>لصق الخطة من الحافظة</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                  انسخ الـ JSON من الـ AI ثم اضغط هنا
                 </div>
               </div>
             </button>
