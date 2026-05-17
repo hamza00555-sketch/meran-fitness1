@@ -19,10 +19,12 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     return Notification.permission
   })
   const [importing, setImporting] = useState(false)
+  const [importingPlan, setImportingPlan] = useState(false)
   const [promptCopied, setPromptCopied] = useState(false)
   const [pasteMode, setPasteMode] = useState(false)
   const [pasteError, setPasteError] = useState('')
   const importRef = useRef(null)
+  const planImportRef = useRef(null)
   const pasteRef = useRef(null)
 
   const update = (key, val) => {
@@ -110,20 +112,36 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     }
   }
 
-  const handleImportPlan = async (e) => {
+  const handleImportPlan = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     setImportingPlan(true)
-    try {
-      const data = await importAllData(file)
-      if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) throw new Error()
-      onImportPlan(data)
-    } catch {
-      alert('ملف خطة غير صالح — تأكد أنه يحتوي على weeklySchedule')
-    } finally {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      try {
+        let text = (ev.target.result || '').trim()
+        text = text.replace(/[﻿​‌‍‎‏­⁠]/g, '')
+        text = text.replace(/[‘’‚‛]/g, "'")
+        text = text.replace(/[“”„‟]/g, '"')
+        const data = JSON.parse(text)
+        if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
+          alert('الملف لا يحتوي على خطة صالحة — تأكد من وجود weeklySchedule')
+          return
+        }
+        onImportPlan(data)
+      } catch (err) {
+        alert(`خطأ في قراءة الملف: ${err.message || 'تأكد من الملف'}`)
+      } finally {
+        setImportingPlan(false)
+        e.target.value = ''
+      }
+    }
+    reader.onerror = () => {
+      alert('فشل قراءة الملف')
       setImportingPlan(false)
       e.target.value = ''
     }
+    reader.readAsText(file, 'UTF-8')
   }
 
   const handleCopyPrompt = () => {
@@ -326,6 +344,38 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 </div>
               </div>
             </button>
+
+            {/* Import plan from file — most reliable on PWA/iOS */}
+            <div>
+              <input
+                ref={planImportRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: 'none' }}
+                onChange={handleImportPlan}
+              />
+              <button
+                onClick={() => planImportRef.current?.click()}
+                disabled={importingPlan}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  background: 'rgba(0,212,198,0.08)', border: '1px solid rgba(0,212,198,0.3)',
+                  borderRadius: 12, padding: '14px 16px',
+                  color: importingPlan ? 'var(--text3)' : 'var(--cyan)',
+                  cursor: importingPlan ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600,
+                  textAlign: 'right', width: '100%',
+                }}
+              >
+                <span style={{ fontSize: 20 }}>📂</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700 }}>{importingPlan ? 'جار الاستيراد...' : 'استيراد خطة من ملف'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                    احفظ JSON من الـ AI كملف ثم اختره هنا
+                  </div>
+                </div>
+              </button>
+            </div>
 
             {/* Paste JSON directly */}
             {pasteMode ? (
