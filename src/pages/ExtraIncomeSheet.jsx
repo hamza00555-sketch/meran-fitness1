@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { uid, todayISO } from '../utils/format.js';
 
@@ -21,6 +22,22 @@ export default function ExtraIncomeSheet({ onClose }) {
   const [newDebtName, setNewDebtName] = useState('');
   const [newDebtAmount, setNewDebtAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const sheetRef = useRef(null);
+
+  // Lock background scroll and prevent iOS touch-through
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const preventScroll = e => {
+      if (sheetRef.current?.contains(e.target)) return;
+      e.preventDefault();
+    };
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('touchmove', preventScroll);
+    };
+  }, []);
 
   const activeDebts = debts.filter(d => !d.paid);
   // Only tagged items receive a portion from extra income
@@ -105,10 +122,10 @@ export default function ExtraIncomeSheet({ onClose }) {
 
   const showDistribution = totalAmount > 0 && (hasDebts || hasTagged);
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.55)' }}
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 500, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.55)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: 'var(--bg)', borderRadius: '20px 20px 0 0', maxHeight: '92vh', overflowY: 'auto', paddingBottom: 40 }}>
+      <div ref={sheetRef} style={{ background: 'var(--bg)', borderRadius: '20px 20px 0 0', maxHeight: '92vh', overflowY: 'auto', paddingBottom: 'calc(env(safe-area-inset-bottom) + 32px)', overscrollBehavior: 'contain' }}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 0' }}>
           <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border)' }} />
         </div>
@@ -266,7 +283,8 @@ export default function ExtraIncomeSheet({ onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
