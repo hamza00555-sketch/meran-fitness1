@@ -83,6 +83,9 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
 
       // Strip invisible Unicode characters that break JSON.parse
       text = text.replace(/[\uFEFF\u200B\u200C\u200D\u200E\u200F\u00AD\u2060]/g, '')
+      // Normalize curly/smart quotes to straight quotes (iOS/AI apps often substitute these)
+      text = text.replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+      text = text.replace(/[\u201C\u201D\u201E\u201F]/g, '"')
 
       // Extract from markdown code blocks if present
       const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
