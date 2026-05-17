@@ -7,7 +7,7 @@ import DonutChart from '../components/DonutChart.jsx';
 import CatIcon from '../components/CategoryIcons.jsx';
 
 export default function Dashboard() {
-  const { settings, commitments, goals, currentMonthRecord, setPage, privacyMode, togglePrivacy, fmt } = useApp();
+  const { settings, commitments, goals, banks, currentMonthRecord, setPage, privacyMode, togglePrivacy, fmt } = useApp();
 
   const record = currentMonthRecord;
   const salary = record?.salary || settings.salary || 0;
@@ -20,6 +20,19 @@ export default function Dashboard() {
     { label: 'أهداف', value: goalsTotal, color: '#A78BFA' },
     { label: 'متبقي', value: Math.max(0, remaining), color: '#00C9A7' },
   ].filter(s => s.value > 0 || s.label === 'متبقي');
+
+  // Per-bank transfer breakdown
+  const bankTransfers = banks.map(bank => {
+    const accountsWithAmounts = bank.accounts.map(acc => {
+      const accCommitments = commitments.filter(c => c.active !== false && c.bankId === bank.id && c.accountId === acc.id);
+      const accGoals = goals.filter(g => !g.completed && g.bankId === bank.id && g.accountId === acc.id);
+      const total = accCommitments.reduce((s, c) => s + (c.amount || 0), 0)
+                  + accGoals.reduce((s, g) => s + (g.monthlyContribution || 0), 0);
+      return { ...acc, total, commitments: accCommitments, goals: accGoals };
+    }).filter(a => a.total > 0);
+    const total = accountsWithAmounts.reduce((s, a) => s + a.total, 0);
+    return { ...bank, accounts: accountsWithAmounts, total };
+  }).filter(b => b.total > 0);
 
   const upcomingCommitments = commitments
     .filter(c => c.active !== false)
@@ -89,6 +102,78 @@ export default function Dashboard() {
           <StatCard label="التزامات الشهر" value={commitmentsTotal} suffix="ريال" color="var(--danger)" icon="📋" onClick={() => setPage('commitments')} />
           <StatCard label="أهداف الشهر" value={goalsTotal} suffix="ريال" color="#A78BFA" icon="🎯" onClick={() => setPage('goals')} />
         </div>
+
+        {/* Bank Transfers Breakdown */}
+        {bankTransfers.length > 0 && (
+          <div>
+            <div className="section-header">
+              <span className="section-title">توزيع التحويلات 🏦</span>
+              <button className="section-action" onClick={() => setPage('banks')}>عرض البنوك</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {bankTransfers.map(bank => (
+                <div key={bank.id} className="card" style={{ borderRight: `4px solid ${bank.color}`, padding: '14px 16px' }}>
+                  {/* Bank header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: bank.accounts.length > 0 ? 10 : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10, fontSize: 18,
+                        background: `${bank.color}20`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>{bank.emoji}</div>
+                      <span style={{ fontWeight: 800, fontSize: 15 }}>{bank.name}</span>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: 17, fontWeight: 900, color: bank.color }}>
+                        <span className="num">{fmt(bank.total)}</span>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', textAlign: 'center' }}>ريال</div>
+                    </div>
+                  </div>
+
+                  {/* Per-account rows */}
+                  {bank.accounts.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {bank.accounts.map((acc, i) => (
+                        <div key={acc.id}>
+                          {i > 0 && <div style={{ borderTop: '1px solid var(--border)', marginBottom: 6 }} />}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 600 }}>
+                              {acc.name}
+                            </span>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>
+                              <span className="num">{fmt(acc.total)}</span>
+                              <span style={{ fontSize: 11, color: 'var(--text3)', marginRight: 2 }}> ريال</span>
+                            </span>
+                          </div>
+                          {/* Item rows */}
+                          {acc.commitments.map(c => (
+                            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 8, marginTop: 3 }}>
+                              <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0 }} />
+                              <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>{c.name}</span>
+                              <span style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 700 }}>
+                                <span className="num">{fmt(c.amount)}</span>
+                              </span>
+                            </div>
+                          ))}
+                          {acc.goals.map(g => (
+                            <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 8, marginTop: 3 }}>
+                              <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--primary)', flexShrink: 0 }} />
+                              <span style={{ flex: 1, fontSize: 11, color: 'var(--text3)' }}>{g.name}</span>
+                              <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 700 }}>
+                                <span className="num">{fmt(g.monthlyContribution || 0)}</span>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Goals Progress */}
         {goals.filter(g => !g.completed).length > 0 && (
