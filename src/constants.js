@@ -713,6 +713,63 @@ export const NAV_TABS = [
   { id: 'settings',     label: 'إعدادات',  icon: '⚙️' },
 ]
 
+// ── AI Workout Plan Schema ────────────────────────────────────
+export const PLAN_TEMPLATE = {
+  version: '1.0',
+  planName: 'اسم الخطة',
+  startDate: new Date().toISOString().split('T')[0],
+  durationWeeks: 12,
+  goal: 'muscle',
+  weeklySchedule: [
+    {
+      dayOfWeek: 1,
+      name: 'Push Day',
+      exercises: [
+        { muscle: 'Chest',     name: 'Bench Press',      sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+        { muscle: 'Chest',     name: 'Incline Bench Press', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90 },
+        { muscle: 'Shoulders', name: 'Overhead Press',   sets: 3, repsMin: 8,  repsMax: 10, restSeconds: 120 },
+        { muscle: 'Shoulders', name: 'Lateral Raise',    sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60  },
+        { muscle: 'Triceps',   name: 'Triceps Pushdown', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+      ],
+    },
+    {
+      dayOfWeek: 3,
+      name: 'Pull Day',
+      exercises: [
+        { muscle: 'Back',   name: 'Deadlift',      sets: 4, repsMin: 5,  repsMax: 8,  restSeconds: 180 },
+        { muscle: 'Back',   name: 'Lat Pulldown',  sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+        { muscle: 'Back',   name: 'Barbell Row',   sets: 3, repsMin: 8,  repsMax: 10, restSeconds: 120 },
+        { muscle: 'Biceps', name: 'Barbell Curl',  sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60  },
+        { muscle: 'Biceps', name: 'Hammer Curl',   sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60  },
+      ],
+    },
+    {
+      dayOfWeek: 5,
+      name: 'Legs Day',
+      exercises: [
+        { muscle: 'Legs', name: 'Barbell Squat',     sets: 4, repsMin: 6,  repsMax: 10, restSeconds: 180 },
+        { muscle: 'Legs', name: 'Romanian Deadlift', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+        { muscle: 'Legs', name: 'Leg Press',         sets: 3, repsMin: 10, repsMax: 15, restSeconds: 90  },
+        { muscle: 'Legs', name: 'Leg Extension',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60  },
+        { muscle: 'Legs', name: 'Calf Raise',        sets: 4, repsMin: 15, repsMax: 20, restSeconds: 45  },
+      ],
+    },
+  ],
+}
+
+export const AI_PLAN_PROMPT = `أنا أستخدم تطبيق HamzaFit لتتبع التمارين. أحتاج منك ملء الـ JSON التالي بخطة تمرين مخصصة بناءً على [PDF/الفيديو/البرنامج] المرفق.
+
+قواعد مهمة:
+- قيم "muscle" يجب أن تكون فقط من: Chest, Back, Shoulders, Legs, Biceps, Triceps, Core, Cardio
+- "dayOfWeek": 0=الأحد، 1=الاثنين، 2=الثلاثاء، 3=الأربعاء، 4=الخميس، 5=الجمعة، 6=السبت
+- "goal": muscle | strength | fat_loss | endurance | recomp | maintain
+- أبقِ نفس هيكل JSON بالضبط، فقط غيّر القيم
+
+هيكل JSON:
+TEMPLATE_PLACEHOLDER
+
+أعطني الـ JSON المكتمل فقط بدون أي شرح إضافي.`
+
 // ── Notification Messages ─────────────────────────────────────
 export const NOTIFICATION_MESSAGES = {
   morning: [

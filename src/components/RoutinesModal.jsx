@@ -19,7 +19,7 @@ export default function RoutinesModal({ onSelect, onClose }) {
         </div>
 
         {/* Routines list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10, WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
           {ROUTINES.map(r => (
             <button
               key={r.name}

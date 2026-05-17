@@ -3,6 +3,43 @@ import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
 import { xpProgress, getRank, getCommitmentLevel } from '../utils.js'
 import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.js'
 
+function PlanDayCard({ day, onStart }) {
+  return (
+    <Card style={{ padding: 18, marginBottom: 14, borderTop: '3px solid var(--purple)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--purple)', letterSpacing: 2, marginBottom: 4 }}>PLAN · TODAY</div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>{day.name}</div>
+        </div>
+        <div style={{
+          background: 'rgba(155,89,182,0.15)', border: '1px solid rgba(155,89,182,0.3)',
+          borderRadius: 20, padding: '3px 10px',
+          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--purple)',
+        }}>{day.exercises.length} تمارين</div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+        {day.exercises.map((ex, i) => (
+          <span key={i} style={{
+            background: 'var(--bg3)', border: '1px solid var(--border)',
+            borderRadius: 20, padding: '3px 10px',
+            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
+          }}>{ex.name} {ex.sets && `×${ex.sets}`}</span>
+        ))}
+      </div>
+      <button
+        onClick={onStart}
+        style={{
+          width: '100%', padding: '12px',
+          background: 'linear-gradient(135deg, #9B59B6, #7D3C98)',
+          border: 'none', borderRadius: 12,
+          color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
+          cursor: 'pointer', boxShadow: '0 4px 16px rgba(155,89,182,0.4)',
+        }}
+      >⚔️ ابدأ تمرين اليوم المخطط</button>
+    </Card>
+  )
+}
+
 // Hero illustration using custom artwork
 function HeroIllustration({ isTraining }) {
   return (
@@ -54,7 +91,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onGoToWorkout, active }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onGoToWorkout, active, plan }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   const today       = new Date().getDay()
@@ -76,6 +113,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'صباح الخير' : hour < 17 ? 'مساء الخير' : 'مساء النور'
+
+  const todayPlanDay = plan?.weeklySchedule?.find(d => d.dayOfWeek === today) || null
 
   return (
     <div style={{ paddingBottom: 140 }}>
@@ -157,6 +196,11 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           {currentXP} / {neededXP} XP · {pct}%
         </div>
       </div>
+
+      {/* ── Plan Day Card ─────────────────────────────────────── */}
+      {todayPlanDay && !active && (
+        <PlanDayCard day={todayPlanDay} onStart={() => onStartPlannedWorkout(todayPlanDay)} />
+      )}
 
       {/* ── Today Card ────────────────────────────────────────── */}
       <Card

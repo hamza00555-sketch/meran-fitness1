@@ -181,7 +181,7 @@ export function Overlay({ children, onClose, align = 'center' }) {
         display: 'flex',
         alignItems: align === 'bottom' ? 'flex-end' : 'center',
         justifyContent: 'center',
-        zIndex: 200,
+        zIndex: 300,
         padding: align === 'bottom' ? '0 12px 12px' : 20,
       }}
     >

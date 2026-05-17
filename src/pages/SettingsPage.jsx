@@ -1,13 +1,13 @@
 import { useState, useRef } from 'react'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
-import { WEEK_DAYS_SHORT, GYM_TYPES, WORKOUT_TIME_HOURS } from '../constants.js'
+import { WEEK_DAYS_SHORT, GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT } from '../constants.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [saved, setSaved] = useState(false)
   const [nameInput, setNameInput] = useState(profile?.name || 'حمزة')
@@ -19,7 +19,10 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     return Notification.permission
   })
   const [importing, setImporting] = useState(false)
+  const [importingPlan, setImportingPlan] = useState(false)
+  const [promptCopied, setPromptCopied] = useState(false)
   const importRef = useRef(null)
+  const planImportRef = useRef(null)
 
   const update = (key, val) => {
     onUpdateProfile({ ...profile, [key]: val })
@@ -69,6 +72,31 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       setNotifEnabled(true)
       scheduleNotificationsForToday(profile?.workoutTime || 'المساء', NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS)
     }
+  }
+
+  const handleImportPlan = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportingPlan(true)
+    try {
+      const data = await importAllData(file)
+      if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) throw new Error()
+      onImportPlan(data)
+    } catch {
+      alert('ملف خطة غير صالح — تأكد أنه يحتوي على weeklySchedule')
+    } finally {
+      setImportingPlan(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleCopyPrompt = () => {
+    const template = JSON.stringify({ ...PLAN_TEMPLATE, startDate: new Date().toISOString().split('T')[0] }, null, 2)
+    const prompt = AI_PLAN_PROMPT.replace('TEMPLATE_PLACEHOLDER', template)
+    navigator.clipboard.writeText(prompt).then(() => {
+      setPromptCopied(true)
+      setTimeout(() => setPromptCopied(false), 2000)
+    })
   }
 
   const handleReset = () => {
@@ -207,6 +235,89 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 )
               })}
             </div>
+          </Card>
+        </div>
+
+        {/* ── AI Workout Plan ────────────────────────────────── */}
+        <div style={{ marginBottom: 10 }}>
+          <SectionTitle>خطة التمرين الذكية</SectionTitle>
+          <Card style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            {plan ? (
+              <div style={{
+                background: 'rgba(155,89,182,0.1)', border: '1px solid rgba(155,89,182,0.3)',
+                borderRadius: 12, padding: 14,
+              }}>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+                  📋 {plan.planName}
+                </div>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.7 }}>
+                  {plan.durationWeeks} أسبوع · {plan.weeklySchedule?.length} أيام/أسبوع<br/>
+                  يبدأ: {plan.startDate}
+                </div>
+                <button
+                  onClick={onClearPlan}
+                  style={{
+                    marginTop: 10, background: 'var(--red-lo)', border: '1px solid var(--red-md)',
+                    borderRadius: 8, padding: '6px 14px', color: 'var(--red)',
+                    fontFamily: 'var(--font-ar)', fontSize: 12, cursor: 'pointer',
+                  }}
+                >حذف الخطة</button>
+              </div>
+            ) : (
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7 }}>
+                أرسل الخطة لأي AI (ChatGPT، Claude، Gemini) واطلب منه ملء الهيكل، ثم استورده هنا.
+              </div>
+            )}
+
+            <button
+              onClick={handleCopyPrompt}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: promptCopied ? 'rgba(34,197,94,0.1)' : 'var(--bg3)',
+                border: `1px solid ${promptCopied ? 'var(--green)' : 'var(--border2)'}`,
+                borderRadius: 12, padding: '14px 16px',
+                color: promptCopied ? 'var(--green)' : 'var(--text)', cursor: 'pointer',
+                fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600, textAlign: 'right',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span style={{ fontSize: 20 }}>{promptCopied ? '✅' : '🤖'}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{promptCopied ? 'تم النسخ!' : 'نسخ البرومت للـ AI'}</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                  الصق في ChatGPT أو Claude مع PDF/فيديو التمرين
+                </div>
+              </div>
+            </button>
+
+            <input
+              ref={planImportRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportPlan}
+            />
+            <button
+              onClick={() => planImportRef.current?.click()}
+              disabled={importingPlan}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: 'rgba(155,89,182,0.08)', border: '1px solid rgba(155,89,182,0.3)',
+                borderRadius: 12, padding: '14px 16px',
+                color: 'var(--purple)', cursor: 'pointer',
+                fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600, textAlign: 'right',
+                opacity: importingPlan ? 0.6 : 1,
+              }}
+            >
+              <span style={{ fontSize: 20 }}>📋</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{importingPlan ? 'جاري الاستيراد...' : 'استيراد خطة التمرين'}</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                  استورد ملف JSON الذي ولّده الـ AI
+                </div>
+              </div>
+            </button>
           </Card>
         </div>
 

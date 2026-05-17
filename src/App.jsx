@@ -61,6 +61,7 @@ export default function App() {
   const [profile,             setProfile]             = useState(() => ls.get('hf_profile', DEFAULT_PROFILE))
   const [unlockedAchievements,setUnlockedAchievements]= useState(() => ls.get('hf_unlocked', []))
   const [challengeState,      setChallengeState]      = useState(() => ls.get('hf_challenges', null))
+  const [plan,                setPlan]                = useState(() => ls.get('hf_plan', null))
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
@@ -79,6 +80,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_profile',  profile)  },             [profile])
   useEffect(() => { ls.set('hf_unlocked', unlockedAchievements) }, [unlockedAchievements])
   useEffect(() => { ls.set('hf_challenges', challengeState) },     [challengeState])
+  useEffect(() => { ls.set('hf_plan',       plan)           },     [plan])
   useEffect(() => { ls.set('hf_photos',    photos) },              [photos])
 
   // ── Schedule daily notifications ─────────────────────────────
@@ -169,6 +171,13 @@ export default function App() {
   }, [addXP, pushAlert])
 
   // ── Session management ────────────────────────────────────────
+  const startPlannedWorkout = useCallback((planDay) => {
+    const exercises = (planDay.exercises || []).map(ex =>
+      buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3 })
+    )
+    startWorkout(exercises)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const startWorkout = useCallback((exercises = []) => {
     const session = {
       id:        Date.now(),
@@ -301,7 +310,9 @@ export default function App() {
             streak={streak}
             profile={profile}
             active={active}
+            plan={plan}
             onStartWorkout={() => startWorkout()}
+            onStartPlannedWorkout={startPlannedWorkout}
             onGoToWorkout={() => setTab('workout')}
           />
         )}
@@ -352,6 +363,9 @@ export default function App() {
             unlockedAchievements={unlockedAchievements}
             challengeState={challengeState}
             photos={photos}
+            plan={plan}
+            onImportPlan={(p) => { setPlan(p); pushAlert('📋', `تم استيراد خطة: ${p.planName}`) }}
+            onClearPlan={() => setPlan(null)}
             onImport={(data) => {
               if (data.sessions !== undefined)           setSessions(data.sessions)
               if (data.xp !== undefined)                 setXP(data.xp)
