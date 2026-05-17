@@ -32,6 +32,10 @@ const TIPS = [
   'التخطيط المسبق يوفر عليك كثيراً — خطط لمصروفك قبل ما يجي',
 ];
 
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'check-reminders') {
     event.waitUntil(handlePeriodicSync());

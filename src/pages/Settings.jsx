@@ -169,6 +169,40 @@ export default function Settings() {
     setBiometricLoading(false);
   }
 
+  const [updateStatus, setUpdateStatus] = useState('idle'); // idle | checking | updating | current | error
+
+  async function handleAppUpdate() {
+    setUpdateStatus('checking');
+    try {
+      if (!('serviceWorker' in navigator)) { window.location.reload(); return; }
+
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (!reg) { window.location.reload(); return; }
+
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!reloaded) { reloaded = true; window.location.reload(); }
+      }, { once: true });
+
+      await reg.update();
+
+      if (reg.waiting) {
+        setUpdateStatus('updating');
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      } else if (reg.installing) {
+        setUpdateStatus('updating');
+        reg.installing.addEventListener('statechange', () => {
+          if (reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
+        });
+      } else {
+        setTimeout(() => { if (!reloaded) setUpdateStatus('current'); }, 1500);
+      }
+    } catch {
+      setUpdateStatus('error');
+      setTimeout(() => setUpdateStatus('idle'), 3000);
+    }
+  }
+
   const [importText, setImportText] = useState(TEMPLATE);
   const [importing, setImporting] = useState(false);
   const [importDone, setImportDone] = useState(false);
@@ -545,6 +579,38 @@ export default function Settings() {
             <p style={{ color: 'var(--text3)', fontSize: 12 }}>
               جميع البيانات محفوظة محلياً على جهازك فقط
             </p>
+          </div>
+        </section>
+
+        {/* App Update */}
+        <section>
+          <div style={{ fontSize: 13, color: '#6C63FF', fontWeight: 700, marginBottom: 12 }}>🔄 تحديث التطبيق</div>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ color: 'var(--text2)', fontSize: 13 }}>
+              اضغط للتحقق من وجود نسخة جديدة وتثبيتها فوراً بدون حذف التطبيق
+            </p>
+            <button
+              onClick={handleAppUpdate}
+              disabled={updateStatus === 'checking' || updateStatus === 'updating'}
+              style={{
+                padding: '13px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                fontFamily: 'Mestika, Cairo, sans-serif', fontWeight: 700, fontSize: 15,
+                transition: 'all .2s',
+                background: updateStatus === 'current' ? 'var(--accent-dim)'
+                  : updateStatus === 'error' ? 'var(--danger-dim)'
+                  : '#6C63FF',
+                color: updateStatus === 'current' ? 'var(--accent)'
+                  : updateStatus === 'error' ? 'var(--danger)'
+                  : '#fff',
+                opacity: (updateStatus === 'checking' || updateStatus === 'updating') ? 0.75 : 1,
+              }}
+            >
+              {updateStatus === 'idle' && '🔄 تحديث التطبيق'}
+              {updateStatus === 'checking' && '⏳ جاري الفحص...'}
+              {updateStatus === 'updating' && '⬇️ جاري التحديث...'}
+              {updateStatus === 'current' && '✓ التطبيق محدّث بالفعل'}
+              {updateStatus === 'error' && '⚠️ حدث خطأ، حاول مجدداً'}
+            </button>
           </div>
         </section>
 
