@@ -21,6 +21,9 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
   const [importing, setImporting] = useState(false)
   const [importingPlan, setImportingPlan] = useState(false)
   const [promptCopied, setPromptCopied] = useState(false)
+  const [pasteMode, setPasteMode] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const [pasteError, setPasteError] = useState('')
   const importRef = useRef(null)
   const planImportRef = useRef(null)
 
@@ -71,6 +74,31 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       localStorage.removeItem('hf_notif_scheduled')
       setNotifEnabled(true)
       scheduleNotificationsForToday(profile?.workoutTime || 'المساء', NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS)
+    }
+  }
+
+  const handlePastePlan = () => {
+    setPasteError('')
+    try {
+      // Try to extract JSON from text (AI sometimes wraps it in markdown code blocks)
+      let text = pasteText.trim()
+      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+      if (jsonMatch) text = jsonMatch[1].trim()
+      // Find first { and last }
+      const start = text.indexOf('{')
+      const end = text.lastIndexOf('}')
+      if (start !== -1 && end !== -1) text = text.slice(start, end + 1)
+
+      const data = JSON.parse(text)
+      if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
+        setPasteError('الـ JSON لا يحتوي على weeklySchedule — تأكد من الـ prompt')
+        return
+      }
+      onImportPlan(data)
+      setPasteMode(false)
+      setPasteText('')
+    } catch {
+      setPasteError('تعذّر قراءة الـ JSON — الصق النص كما أعطاك إياه الـ AI')
     }
   }
 
@@ -291,33 +319,73 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               </div>
             </button>
 
-            <input
-              ref={planImportRef}
-              type="file"
-              accept=".json"
-              style={{ display: 'none' }}
-              onChange={handleImportPlan}
-            />
-            <button
-              onClick={() => planImportRef.current?.click()}
-              disabled={importingPlan}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                background: 'rgba(155,89,182,0.08)', border: '1px solid rgba(155,89,182,0.3)',
-                borderRadius: 12, padding: '14px 16px',
-                color: 'var(--purple)', cursor: 'pointer',
-                fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600, textAlign: 'right',
-                opacity: importingPlan ? 0.6 : 1,
-              }}
-            >
-              <span style={{ fontSize: 20 }}>📋</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700 }}>{importingPlan ? 'جاري الاستيراد...' : 'استيراد خطة التمرين'}</div>
-                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-                  استورد ملف JSON الذي ولّده الـ AI
+            {/* Paste JSON directly */}
+            {pasteMode ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <textarea
+                  value={pasteText}
+                  onChange={e => { setPasteText(e.target.value); setPasteError('') }}
+                  placeholder='الصق هنا الـ JSON الذي أعطاك إياه الـ AI...'
+                  rows={7}
+                  style={{
+                    width: '100%', background: 'var(--bg3)',
+                    border: `1px solid ${pasteError ? 'var(--red)' : 'var(--border2)'}`,
+                    borderRadius: 10, padding: '10px 12px',
+                    color: 'var(--text)', fontFamily: 'monospace', fontSize: 12,
+                    outline: 'none', resize: 'none', direction: 'ltr', textAlign: 'left',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {pasteError && (
+                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)' }}>
+                    ⚠️ {pasteError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handlePastePlan}
+                    disabled={!pasteText.trim()}
+                    style={{
+                      flex: 1, padding: '12px',
+                      background: 'var(--purple)', border: 'none',
+                      borderRadius: 10, color: 'white',
+                      fontFamily: 'var(--font-ar)', fontWeight: 700, fontSize: 14,
+                      cursor: pasteText.trim() ? 'pointer' : 'not-allowed',
+                      opacity: pasteText.trim() ? 1 : 0.5,
+                    }}
+                  >استيراد الخطة</button>
+                  <button
+                    onClick={() => { setPasteMode(false); setPasteText(''); setPasteError('') }}
+                    style={{
+                      padding: '12px 16px', background: 'var(--bg3)',
+                      border: '1px solid var(--border2)', borderRadius: 10,
+                      color: 'var(--text2)', fontFamily: 'var(--font-ar)', fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                  >إلغاء</button>
                 </div>
               </div>
-            </button>
+            ) : (
+              <button
+                onClick={() => setPasteMode(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  background: 'rgba(155,89,182,0.08)', border: '1px solid rgba(155,89,182,0.3)',
+                  borderRadius: 12, padding: '14px 16px',
+                  color: 'var(--purple)', cursor: 'pointer',
+                  fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600, textAlign: 'right',
+                  width: '100%',
+                }}
+              >
+                <span style={{ fontSize: 20 }}>📋</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700 }}>لصق JSON من الـ AI</div>
+                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                    الصق النص الذي أعطاك إياه ChatGPT أو Claude
+                  </div>
+                </div>
+              </button>
+            )}
           </Card>
         </div>
 
