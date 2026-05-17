@@ -2,18 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { hashPin, isBiometricAvailable, authenticateBiometric } from '../utils/notifications.js';
 
-function FingerprintIcon() {
+function FaceIdIcon() {
   return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
-      <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
-      <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
-      <path d="M2 12a10 10 0 0 1 18-6"/>
-      <path d="M2 17.5c1-.5 3-2 3-5.5"/>
-      <path d="M20 13c.5 2 .5 4-1 6"/>
-      <path d="M6 14a11.93 11.93 0 0 0 .5 5"/>
-      <path d="M8.5 10.5a5.48 5.48 0 0 1 1.5-1.93"/>
-      <circle cx="12" cy="12" r="10" opacity=".15" fill="currentColor" stroke="none"/>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 2H5a3 3 0 0 0-3 3v2"/>
+      <path d="M17 2h2a3 3 0 0 1 3 3v2"/>
+      <path d="M7 22H5a3 3 0 0 1-3-3v-2"/>
+      <path d="M17 22h2a3 3 0 0 0 3-3v-2"/>
+      <path d="M9 9.5v1.5" strokeWidth="2.2"/>
+      <path d="M15 9.5v1.5" strokeWidth="2.2"/>
+      <path d="M12 10.5v2.5"/>
+      <path d="M9 16c1 1.5 5 1.5 6 0"/>
     </svg>
   );
 }
@@ -26,14 +25,18 @@ export default function LockScreen() {
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
   const [hasBiometric, setHasBiometric] = useState(false);
+  const [deviceSupport, setDeviceSupport] = useState(false);
 
   useEffect(() => {
-    const credId = localStorage.getItem('ratebi-biometric-id');
-    if (settings.biometricEnabled && credId) {
-      isBiometricAvailable().then(ok => {
-        if (ok) { setHasBiometric(true); triggerBiometric(); }
-      });
-    }
+    isBiometricAvailable().then(ok => {
+      if (!ok) return;
+      setDeviceSupport(true);
+      const credId = localStorage.getItem('ratebi-biometric-id');
+      if (settings.biometricEnabled && credId) {
+        setHasBiometric(true);
+        triggerBiometric();
+      }
+    });
   }, []);
 
   const triggerBiometric = useCallback(async () => {
@@ -97,15 +100,19 @@ export default function LockScreen() {
         {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
       </div>
 
-      {/* Numpad */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, width: 264 }}>
+      {/* Numpad — direction:ltr fixes mirrored RTL grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, width: 264, direction: 'ltr' }}>
         {NUMPAD.flat().map(d => (
           <NumBtn key={d} label={String(d)} onClick={() => addDigit(String(d))} />
         ))}
 
-        {/* Biometric / empty */}
-        {hasBiometric
-          ? <NumBtn label={<FingerprintIcon />} onClick={triggerBiometric} dimmed />
+        {/* Face ID / Biometric */}
+        {deviceSupport
+          ? <NumBtn
+              label={<FaceIdIcon />}
+              onClick={hasBiometric ? triggerBiometric : () => setError('فعّل البصمة من الإعدادات أولاً')}
+              dimmed
+            />
           : <div />
         }
 
@@ -113,13 +120,13 @@ export default function LockScreen() {
         <NumBtn label="⌫" onClick={removeDigit} dimmed />
       </div>
 
-      {hasBiometric && (
-        <button onClick={triggerBiometric} style={{
+      {deviceSupport && (
+        <button onClick={hasBiometric ? triggerBiometric : () => setError('فعّل البصمة من الإعدادات أولاً')} style={{
           marginTop: 28, background: 'transparent', border: 'none', cursor: 'pointer',
           color: 'var(--primary)', fontSize: 14, fontWeight: 700,
           fontFamily: 'Mestika, Cairo, sans-serif',
         }}>
-          الدخول ببصمة الإصبع / الوجه
+          {hasBiometric ? 'الدخول ببصمة الوجه / الإصبع' : 'بصمة الوجه'}
         </button>
       )}
 

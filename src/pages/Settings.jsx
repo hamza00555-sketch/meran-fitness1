@@ -186,16 +186,30 @@ export default function Settings() {
 
       await reg.update();
 
-      if (reg.waiting) {
+      const activatePending = sw => {
         setUpdateStatus('updating');
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        sw.postMessage({ type: 'SKIP_WAITING' });
+      };
+
+      if (reg.waiting) {
+        activatePending(reg.waiting);
       } else if (reg.installing) {
         setUpdateStatus('updating');
-        reg.installing.addEventListener('statechange', () => {
-          if (reg.waiting) { reg.waiting.postMessage({ type: 'SKIP_WAITING' }); }
+        const installing = reg.installing;
+        installing.addEventListener('statechange', function () {
+          if (installing.state === 'installed' && reg.waiting) activatePending(reg.waiting);
+          else if (installing.state === 'activating' || installing.state === 'activated') {
+            // skipWaiting already called (self.skipWaiting at top of sw.js)
+          }
         });
       } else {
-        setTimeout(() => { if (!reloaded) setUpdateStatus('current'); }, 1500);
+        // No new SW found — wait briefly in case controllerchange fires from a fast-activating SW
+        setTimeout(() => {
+          if (!reloaded) {
+            setUpdateStatus('current');
+            setTimeout(() => setUpdateStatus('idle'), 3000);
+          }
+        }, 2500);
       }
     } catch {
       setUpdateStatus('error');
@@ -465,7 +479,7 @@ export default function Settings() {
                   ))}
                 </div>
                 {pinError && <div style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 10 }}>{pinError}</div>}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, maxWidth: 220, margin: '0 auto' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, maxWidth: 220, margin: '0 auto', direction: 'ltr' }}>
                   {[1,2,3,4,5,6,7,8,9].map(d => (
                     <button key={d} onClick={() => handlePinDigit(String(d))} style={{
                       height: 52, borderRadius: 10, border: 'none', cursor: 'pointer',
