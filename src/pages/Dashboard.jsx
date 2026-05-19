@@ -74,9 +74,12 @@ export default function Dashboard() {
         borderBottom: '1px solid var(--border)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 2 }}>{currentMonthLabel()}</div>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.3 }}>راتبي</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/assets/icons/app-icon.png" alt="راتبي" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 2 }}>{currentMonthLabel()}</div>
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.3 }}>راتبي</div>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
