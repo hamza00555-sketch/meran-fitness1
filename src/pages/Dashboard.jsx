@@ -139,9 +139,8 @@ export default function Dashboard() {
               width: 54, height: 54, borderRadius: 16, flexShrink: 0,
               background: positiveRemaining ? 'rgba(0,201,167,.15)' : 'rgba(255,107,107,.15)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: positiveRemaining ? 'var(--accent)' : 'var(--danger)',
             }}>
-              <WalletIcon size={26} />
+              <img src="/assets/icons/layer-5.png" style={{ width: 30, height: 30, objectFit: 'contain' }} alt="" />
             </div>
           </div>
 
@@ -255,7 +254,7 @@ export default function Dashboard() {
         {/* ── آخر التحديثات ── */}
         {recentActivity.length > 0 && (
           <div>
-            <SectionHeader title="آخر التحديثات" icon={<CheckCircleIcon size={14} />} />
+            <SectionHeader title="آخر التحديثات" icon={<img src="/assets/icons/layer-12.png" style={{width:14, height:14, objectFit:'contain'}} alt="" />} />
             <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {recentActivity.map((item, i) => (
                 <div key={i} className="card" style={{
@@ -288,7 +287,7 @@ export default function Dashboard() {
           <div>
             <SectionHeader
               title="الأهداف"
-              icon={<TargetIcon size={14} />}
+              icon={<img src="/assets/icons/layer-8.png" style={{width:14, height:14, objectFit:'contain'}} alt="" />}
               action="عرض الكل"
               onAction={() => setPage('goals')}
             />
@@ -331,7 +330,7 @@ export default function Dashboard() {
         <div>
           <SectionHeader
             title="الدخل الإضافي"
-            icon={<PlusCircleIcon size={14} />}
+            icon={<img src="/assets/icons/layer-3.png" style={{width:13, height:14, objectFit:'contain'}} alt="" />}
             action="+ إضافة"
             onAction={() => setShowIncomeSheet(true)}
           />
