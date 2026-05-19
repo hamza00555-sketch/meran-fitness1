@@ -135,7 +135,13 @@ export default function Dashboard() {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 5 }}>ريال</div>
             </div>
-            <img src="/assets/icons/ic-wallet.png" style={{ width: 54, height: 54, objectFit: 'contain', flexShrink: 0 }} alt="" />
+            <div style={{
+              width: 54, height: 54, borderRadius: 16, flexShrink: 0,
+              background: positiveRemaining ? 'rgba(0,201,167,.15)' : 'rgba(255,107,107,.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <img src="/assets/icons/layer-5.png" style={{ width: 30, height: 30, objectFit: 'contain' }} alt="" />
+            </div>
           </div>
 
           {/* التزامات */}
@@ -146,7 +152,14 @@ export default function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 11, color: 'var(--text2)' }}>التزامات</div>
-              <img src="/assets/icons/ic-receipt.png" style={{ width: 30, height: 30, objectFit: 'contain' }} alt="" />
+              <div style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: 'rgba(255,107,107,.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--danger)',
+              }}>
+                <ReceiptIcon size={13} />
+              </div>
             </div>
             <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger)' }}>
               <span className="num">{fmt(commitmentsTotal)}</span>
@@ -162,7 +175,14 @@ export default function Dashboard() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 11, color: 'var(--text2)' }}>أهداف</div>
-              <img src="/assets/icons/ic-target.png" style={{ width: 30, height: 30, objectFit: 'contain' }} alt="" />
+              <div style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: 'rgba(167,139,250,.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#A78BFA',
+              }}>
+                <TargetIcon size={13} />
+              </div>
             </div>
             <div style={{ fontSize: 22, fontWeight: 900, color: '#A78BFA' }}>
               <span className="num">{fmt(goalsTotal)}</span>
@@ -184,7 +204,14 @@ export default function Dashboard() {
                   <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text2)', marginRight: 4 }}>ريال</span>
                 </div>
               </div>
-              <img src="/assets/icons/ic-moneybag.png" style={{ width: 36, height: 36, objectFit: 'contain' }} alt="" />
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'rgba(0,201,167,.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--accent)',
+              }}>
+                <PlusCircleIcon size={18} />
+              </div>
             </div>
           )}
         </div>
@@ -192,7 +219,7 @@ export default function Dashboard() {
         {/* ── المطلوب منك الآن ── */}
         {(upcomingCommitments.length > 0 || bankTransfers.length > 0) && (
           <div>
-            <SectionHeader title="المطلوب منك الآن" icon={<img src="/assets/icons/ic-calendar.png" style={{width:18,height:18,objectFit:'contain'}} alt="" />} />
+            <SectionHeader title="المطلوب منك الآن" icon={<CalendarIcon size={14} />} />
             <div className="card" style={{ padding: '4px 0', overflow: 'hidden' }}>
               {upcomingCommitments.map((c, i) => (
                 <ActionRow
@@ -227,7 +254,7 @@ export default function Dashboard() {
         {/* ── آخر التحديثات ── */}
         {recentActivity.length > 0 && (
           <div>
-            <SectionHeader title="آخر التحديثات" icon={<img src="/assets/icons/ic-coins.png" style={{width:18,height:18,objectFit:'contain'}} alt="" />} />
+            <SectionHeader title="آخر التحديثات" icon={<img src="/assets/icons/layer-12.png" style={{width:14, height:14, objectFit:'contain'}} alt="" />} />
             <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
               {recentActivity.map((item, i) => (
                 <div key={i} className="card" style={{
@@ -260,7 +287,7 @@ export default function Dashboard() {
           <div>
             <SectionHeader
               title="الأهداف"
-              icon={<img src="/assets/icons/ic-target.png" style={{width:18,height:18,objectFit:'contain'}} alt="" />}
+              icon={<img src="/assets/icons/layer-8.png" style={{width:14, height:14, objectFit:'contain'}} alt="" />}
               action="عرض الكل"
               onAction={() => setPage('goals')}
             />
@@ -303,7 +330,7 @@ export default function Dashboard() {
         <div>
           <SectionHeader
             title="الدخل الإضافي"
-            icon={<img src="/assets/icons/ic-moneybag.png" style={{width:18,height:18,objectFit:'contain'}} alt="" />}
+            icon={<img src="/assets/icons/layer-3.png" style={{width:13, height:14, objectFit:'contain'}} alt="" />}
             action="+ إضافة"
             onAction={() => setShowIncomeSheet(true)}
           />
