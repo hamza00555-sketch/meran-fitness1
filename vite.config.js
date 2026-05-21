@@ -26,7 +26,9 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        cacheId: 'hamzafit-v2',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,otf,woff,woff2}'],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
