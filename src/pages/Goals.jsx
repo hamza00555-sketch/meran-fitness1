@@ -337,8 +337,8 @@ function GoalCard({ goal, banks, onEdit, onClick, onAdd, completed }) {
         </div>
         {!completed && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => onEdit(goal)} className="btn-icon" style={{ color: 'var(--text2)', fontSize: 14 }}>✎</button>
-            <button onClick={onAdd} style={{
+            <button onClick={e => { e.stopPropagation(); onEdit(goal); }} className="btn-icon" style={{ color: 'var(--text2)', fontSize: 14 }}>✎</button>
+            <button onClick={e => { e.stopPropagation(); onAdd(); }} style={{
               background: 'var(--accent-dim)', color: 'var(--accent)', border: 'none',
               borderRadius: 8, padding: '6px 12px', fontFamily: 'Cairo, sans-serif',
               fontWeight: 700, fontSize: 13, cursor: 'pointer',

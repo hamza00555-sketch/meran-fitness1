@@ -47,7 +47,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Mestika', 'Cairo', sans-serif;
+  font-family: 'Mestika', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   direction: rtl;
   overscroll-behavior: none;
 }

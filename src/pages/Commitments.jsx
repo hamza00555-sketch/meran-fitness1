@@ -108,7 +108,7 @@ export default function Commitments() {
             const assignedAccount = assignedBank?.accounts.find(a => a.id === c.accountId);
             return (
               <div key={c.id} className="anim-fadeup">
-                <div className="list-item" style={{ opacity: c.paidThisMonth ? 0.7 : 1, cursor: 'pointer' }} onClick={() => openEdit(c)}>
+                <div className="list-item" style={{ opacity: c.paidThisMonth ? 0.7 : 1, cursor: 'pointer' }} onClick={() => togglePaid(c)}>
                   <div className="cat-icon" style={{ background: cat.bg }}><CatIcon id={cat.id} /></div>
                   <div className="list-item-info">
                     <div className="list-item-name" style={{ textDecoration: c.paidThisMonth ? 'line-through' : 'none' }}>
@@ -134,13 +134,13 @@ export default function Commitments() {
                       <span className="num">{fmt(c.amount)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => togglePaid(c)} style={{
+                      <button onClick={e => { e.stopPropagation(); togglePaid(c); }} style={{
                         background: c.paidThisMonth ? 'var(--accent-dim)' : 'var(--card2)',
                         border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer',
                         color: c.paidThisMonth ? 'var(--accent)' : 'var(--text2)', fontSize: 16,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>✓</button>
-                      <button onClick={() => openEdit(c)} className="btn-icon" style={{ color: 'var(--text2)', fontSize: 14 }}>✎</button>
+                      <button onClick={e => { e.stopPropagation(); openEdit(c); }} className="btn-icon" style={{ color: 'var(--text2)', fontSize: 14 }}>✎</button>
                     </div>
                   </div>
                 </div>
