@@ -56,6 +56,26 @@ export const calcStreak = (sessions) => {
   return streak
 }
 
+// ── Exercise history stats ────────────────────────────────────
+export const getExerciseStats = (sessions, exerciseName) => {
+  let lastWeight = null
+  let maxWeight  = null
+  let lastId     = 0
+  for (const session of sessions || []) {
+    for (const ex of session.exercises || []) {
+      if (ex.name !== exerciseName) continue
+      const ws = (ex.sets || [])
+        .filter(s => s.done && parseFloat(s.weight) > 0)
+        .map(s => parseFloat(s.weight))
+      if (!ws.length) continue
+      const sMax = Math.max(...ws)
+      if (maxWeight === null || sMax > maxWeight) maxWeight = sMax
+      if ((session.id || 0) > lastId) { lastId = session.id || 0; lastWeight = ws[ws.length - 1] }
+    }
+  }
+  return { lastWeight, maxWeight }
+}
+
 // ── Session volume ────────────────────────────────────────────
 export const sessionVolume = (session) => {
   if (!session || !session.exercises) return 0

@@ -6,7 +6,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
-export default function WorkoutPage({ active, sessions, plan, planIndex, onUpdateActive, onFinish, onShowRest, onStartPlannedWorkout, addXP }) {
+export default function WorkoutPage({ active, sessions = [], plan, planIndex, onUpdateActive, onFinish, onShowRest, onStartPlannedWorkout, addXP }) {
   const [showAdd,      setShowAdd]      = useState(false)
   const [showRoutines, setShowRoutines] = useState(false)
   const [elapsed,      setElapsed]      = useState(0)
@@ -182,6 +182,7 @@ export default function WorkoutPage({ active, sessions, plan, planIndex, onUpdat
         <ExerciseCard
           key={ex.id}
           exercise={ex}
+          sessions={sessions}
           onUpdateSet={(si, field, val) => handleUpdateSet(ex.id, si, field, val)}
           onDoneSet={(si, done) => handleDoneSet(ex.id, si, done)}
           onAddSet={() => handleAddSet(ex.id)}
