@@ -1,23 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApp } from '../context/AppContext.jsx';
 import { hashPin, isBiometricAvailable, authenticateBiometric } from '../utils/notifications.js';
 
-function FaceIdIcon() {
+function FaceIdIcon({ size = 30 }) {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 2H5a3 3 0 0 0-3 3v2"/>
       <path d="M17 2h2a3 3 0 0 1 3 3v2"/>
       <path d="M7 22H5a3 3 0 0 1-3-3v-2"/>
       <path d="M17 22h2a3 3 0 0 0 3-3v-2"/>
-      <path d="M9 9.5v1.5" strokeWidth="2.2"/>
-      <path d="M15 9.5v1.5" strokeWidth="2.2"/>
-      <path d="M12 10.5v2.5"/>
-      <path d="M9 16c1 1.5 5 1.5 6 0"/>
+      <path d="M9 10v1.2" strokeWidth="2.2"/>
+      <path d="M15 10v1.2" strokeWidth="2.2"/>
+      <path d="M12 11v2.5"/>
+      <path d="M9 16.5c.8 1.2 5.2 1.2 6 0"/>
     </svg>
   );
 }
 
-const NUMPAD = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+function BackspaceIcon({ size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 7H8l-7 5 7 5h13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+      <line x1="18" y1="11" x2="14" y2="15"/>
+      <line x1="14" y1="11" x2="18" y2="15"/>
+    </svg>
+  );
+}
+
+const ROWS = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];
+const PIN_LENGTH = 4;
 
 export default function LockScreen() {
   const { settings, unlock } = useApp();
@@ -25,33 +36,59 @@ export default function LockScreen() {
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
   const [hasBiometric, setHasBiometric] = useState(false);
-  const [deviceSupport, setDeviceSupport] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const autoTriggered = useRef(false);
 
   useEffect(() => {
     isBiometricAvailable().then(ok => {
       if (!ok) return;
-      setDeviceSupport(true);
       const credId = localStorage.getItem('ratebi-biometric-id');
       if (settings.biometricEnabled && credId) {
         setHasBiometric(true);
-        triggerBiometric();
+        if (!autoTriggered.current) {
+          autoTriggered.current = true;
+          // Small delay to let the page render before triggering
+          setTimeout(() => handleBiometricInner(), 400);
+        }
       }
     });
   }, []);
 
-  const triggerBiometric = useCallback(async () => {
-    const ok = await authenticateBiometric();
-    if (ok) { unlock(); } else { setError(''); }
-  }, [unlock]);
+  async function handleBiometricInner() {
+    setBiometricLoading(true);
+    try {
+      const ok = await authenticateBiometric();
+      if (ok) {
+        unlock();
+        return;
+      }
+    } catch {}
+    setBiometricLoading(false);
+  }
+
+  const handleBiometric = useCallback(async () => {
+    if (biometricLoading) return;
+    setBiometricLoading(true);
+    try {
+      const ok = await authenticateBiometric();
+      if (ok) { unlock(); return; }
+      setError('تعذّر التحقق بالبصمة');
+      setTimeout(() => setError(''), 2500);
+    } catch {
+      setError('البصمة غير متاحة');
+      setTimeout(() => setError(''), 2500);
+    }
+    setBiometricLoading(false);
+  }, [biometricLoading, unlock]);
 
   const addDigit = useCallback(async (d) => {
     if (shaking) return;
     const next = pin + d;
-    if (next.length > 4) return;
+    if (next.length > PIN_LENGTH) return;
     setPin(next);
     setError('');
 
-    if (next.length === 4) {
+    if (next.length === PIN_LENGTH) {
       const hash = await hashPin(next);
       if (hash === settings.pinHash) {
         unlock();
@@ -70,65 +107,111 @@ export default function LockScreen() {
 
   return (
     <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg)', padding: '40px 32px',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--bg)',
+      WebkitUserSelect: 'none',
+      userSelect: 'none',
     }}>
-      <img
-        src="/assets/icons/app-icon.png" alt="راتبي"
-        style={{ width: 88, height: 88, borderRadius: 22, marginBottom: 20, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}
-      />
-      <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}>راتبي</div>
-      <div style={{ color: 'var(--text2)', fontSize: 14, marginBottom: 36 }}>أدخل رمز الدخول</div>
-
-      {/* PIN dots */}
+      {/* Top greeting section */}
       <div style={{
-        display: 'flex', gap: 20, marginBottom: 16,
-        animation: shaking ? 'lock-shake 0.55s ease' : 'none',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 32px 16px',
       }}>
-        {[0, 1, 2, 3].map(i => (
-          <div key={i} style={{
-            width: 18, height: 18, borderRadius: '50%',
-            background: pin.length > i ? 'var(--primary)' : 'var(--border)',
-            boxShadow: pin.length > i ? '0 0 12px rgba(108,99,255,.5)' : 'none',
-            transition: 'background .15s, box-shadow .15s',
-          }} />
-        ))}
-      </div>
+        <img
+          src="/assets/icons/app-icon.png"
+          alt="راتبي"
+          style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 24, boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}
+        />
+        <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 6 }}>
+          👋 مرحباً
+        </div>
+        <div style={{ color: 'var(--text2)', fontSize: 14, marginBottom: 36 }}>
+          أدخل رمز الدخول السريع
+        </div>
 
-      <div style={{ minHeight: 28, marginBottom: 24, textAlign: 'center' }}>
-        {error && <span style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</span>}
-      </div>
-
-      {/* Numpad — direction:ltr fixes mirrored RTL grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, width: 264, direction: 'ltr' }}>
-        {NUMPAD.flat().map(d => (
-          <NumBtn key={d} label={String(d)} onClick={() => addDigit(String(d))} />
-        ))}
-
-        {/* Face ID / Biometric */}
-        {deviceSupport
-          ? <NumBtn
-              label={<FaceIdIcon />}
-              onClick={hasBiometric ? triggerBiometric : () => setError('فعّل البصمة من الإعدادات أولاً')}
-              dimmed
-            />
-          : <div />
-        }
-
-        <NumBtn label="0" onClick={() => addDigit('0')} />
-        <NumBtn label="⌫" onClick={removeDigit} dimmed />
-      </div>
-
-      {deviceSupport && (
-        <button onClick={hasBiometric ? triggerBiometric : () => setError('فعّل البصمة من الإعدادات أولاً')} style={{
-          marginTop: 28, background: 'transparent', border: 'none', cursor: 'pointer',
-          color: 'var(--primary)', fontSize: 14, fontWeight: 700,
-          fontFamily: 'Mestika, Cairo, sans-serif',
+        {/* PIN boxes */}
+        <div style={{
+          display: 'flex',
+          gap: 14,
+          marginBottom: 14,
+          animation: shaking ? 'lock-shake 0.55s ease' : 'none',
         }}>
-          {hasBiometric ? 'الدخول ببصمة الوجه / الإصبع' : 'بصمة الوجه'}
+          {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+            <div key={i} style={{
+              width: 58,
+              height: 58,
+              borderRadius: 14,
+              background: pin.length > i ? 'var(--primary)' : 'var(--card)',
+              border: `2px solid ${pin.length > i ? 'var(--primary)' : 'var(--border)'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all .15s',
+              boxShadow: pin.length > i ? '0 0 18px rgba(108,99,255,.45)' : 'none',
+            }}>
+              {pin.length > i && (
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#fff' }} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Error / status */}
+        <div style={{ minHeight: 22, textAlign: 'center' }}>
+          {error && (
+            <span style={{ color: 'var(--danger)', fontSize: 13, fontWeight: 600 }}>{error}</span>
+          )}
+        </div>
+
+        {/* Forgot PIN */}
+        <button
+          onClick={() => setError('تواصل مع الدعم لإعادة تعيين رمز الدخول')}
+          style={{
+            marginTop: 12,
+            background: 'none', border: 'none',
+            color: 'var(--text3)', fontSize: 13,
+            cursor: 'pointer',
+            fontFamily: 'Mestika, Cairo, sans-serif',
+            padding: '4px 0',
+          }}>
+          نسيت رمز الدخول؟
         </button>
-      )}
+      </div>
+
+      {/* Numpad */}
+      <div style={{ padding: '0 20px 44px', direction: 'ltr' }}>
+        {ROWS.map((row, ri) => (
+          <div key={ri} style={{ display: 'flex', marginBottom: 4 }}>
+            {row.map(d => (
+              <NumBtn key={d} label={String(d)} onClick={() => addDigit(String(d))} />
+            ))}
+          </div>
+        ))}
+
+        {/* Bottom row: biometric | 0 | backspace */}
+        <div style={{ display: 'flex', marginBottom: 4 }}>
+          {hasBiometric ? (
+            <NumBtn
+              label={biometricLoading
+                ? <div style={{ width: 24, height: 24, border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite' }} />
+                : <FaceIdIcon size={28} />
+              }
+              onClick={handleBiometric}
+              sub
+            />
+          ) : (
+            <div style={{ flex: 1 }} />
+          )}
+          <NumBtn label="0" onClick={() => addDigit('0')} />
+          <NumBtn label={<BackspaceIcon size={22} />} onClick={removeDigit} sub />
+        </div>
+      </div>
 
       <style>{`
         @keyframes lock-shake {
@@ -136,28 +219,40 @@ export default function LockScreen() {
           15%,55% { transform: translateX(-10px); }
           35%,75% { transform: translateX(10px); }
         }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
       `}</style>
     </div>
   );
 }
 
-function NumBtn({ label, onClick, dimmed }) {
+function NumBtn({ label, onClick, sub }) {
   return (
     <button
       onClick={onClick}
       style={{
-        height: 70, borderRadius: 16, border: 'none', cursor: 'pointer',
-        background: 'var(--card)', color: dimmed ? 'var(--text2)' : 'var(--text)',
-        fontSize: typeof label === 'string' ? 24 : 18,
-        fontWeight: 700, fontFamily: 'Cairo, sans-serif',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,.25)',
-        transition: 'transform .1s, background .1s',
+        flex: 1,
+        height: 78,
+        border: 'none',
+        cursor: 'pointer',
+        background: 'transparent',
+        color: sub ? 'var(--text2)' : 'var(--text)',
+        fontSize: typeof label === 'string' ? 32 : 18,
+        fontWeight: 300,
+        fontFamily: 'Cairo, sans-serif',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 16,
+        transition: 'background .12s',
         WebkitTapHighlightColor: 'transparent',
+        letterSpacing: 0,
       }}
-      onPointerDown={e => e.currentTarget.style.transform = 'scale(.92)'}
-      onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
-      onPointerLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      onPointerDown={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+      onPointerUp={e => e.currentTarget.style.background = 'transparent'}
+      onPointerLeave={e => e.currentTarget.style.background = 'transparent'}
+      onPointerCancel={e => e.currentTarget.style.background = 'transparent'}
     >
       {label}
     </button>
