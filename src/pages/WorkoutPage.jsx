@@ -137,7 +137,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           <div style={{ background: 'var(--bg2)', borderRadius: 4, height: 5, overflow: 'hidden' }}>
             <div style={{
               height: '100%', width: `${pct}%`,
-              background: pct === 100 ? 'var(--green)' : 'linear-gradient(90deg, var(--cyan), #00B0A6)',
+              background: pct === 100 ? 'var(--green)' : 'var(--cyan)',
               borderRadius: 4, transition: 'width 0.4s ease',
             }} />
           </div>
@@ -171,6 +171,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
         <ExerciseCard
           key={ex.id}
           exercise={ex}
+          sessions={sessions || []}
           onUpdateSet={(si, field, val) => handleUpdateSet(ex.id, si, field, val)}
           onDoneSet={(si, done) => handleDoneSet(ex.id, si, done)}
           onAddSet={() => handleAddSet(ex.id)}

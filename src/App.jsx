@@ -223,11 +223,11 @@ export default function App() {
     }}>
       {/* ── Header ──────────────────────────────────────────────── */}
       <header style={{
-        background: 'var(--bg1)',
+        background: 'rgba(7,8,12,0.92)',
         borderBottom: '1px solid var(--border)',
         padding: `calc(var(--safe-top) + 14px) 18px 14px`,
         position: 'sticky', top: 0, zIndex: 100,
-        backdropFilter: 'blur(16px)',
+        backdropFilter: 'blur(20px)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -343,7 +343,7 @@ export default function App() {
         position: 'fixed', bottom: 0,
         left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 560,
-        background: 'rgba(10,10,10,0.95)',
+        background: 'rgba(7,8,12,0.96)',
         borderTop: '1px solid var(--border)',
         backdropFilter: 'blur(20px)',
         display: 'flex',
