@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HamzaFit — برومبت روابط YouTube</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #07080C;
+    color: #EEEEF5;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 24px 16px 60px;
+  }
+  .container { max-width: 800px; margin: 0 auto; }
+
+  h1 {
+    font-size: 22px; font-weight: 800;
+    color: #9B5CFF; margin-bottom: 6px;
+  }
+  .sub { color: #A7A7B3; font-size: 13px; margin-bottom: 28px; }
+
+  .card {
+    background: #101116;
+    border: 1px solid #1E1F28;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 700;
+    color: #9B5CFF; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+
+  pre {
+    background: #17181F;
+    border: 1px solid #2A2B33;
+    border-radius: 10px;
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    color: #EEEEF5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.65;
+    direction: ltr;
+    text-align: left;
+  }
+
+  .copy-btn {
+    display: inline-block;
+    margin-top: 12px;
+    background: #9B5CFF;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .copy-btn:hover { opacity: 0.88; }
+  .copy-btn.copied { background: #22C55E; }
+
+  .note {
+    background: rgba(155,92,255,0.07);
+    border: 1px solid rgba(155,92,255,0.22);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #A7A7B3;
+    margin-bottom: 20px;
+  }
+  .note strong { color: #9B5CFF; }
+
+  .ex-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .ex-item {
+    background: #17181F;
+    border: 1px solid #2A2B33;
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: 'Courier New', monospace;
+    color: #EEEEF5;
+    direction: ltr;
+    text-align: left;
+  }
+  .muscle-label {
+    font-size: 12px; font-weight: 700;
+    margin: 14px 0 6px;
+    color: #A7A7B3;
+  }
+  .muscle-label span { margin-left: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🎬 HamzaFit — برومبت روابط YouTube</h1>
+  <p class="sub">انسخ البرومبت أدناه وأرسله لـ ChatGPT أو Claude · النتيجة JSON جاهزة للنسخ في constants.js</p>
+
+  <div class="note">
+    <strong>الأولوية:</strong> ابحث أولاً في قناة <strong>@deltabolic</strong>
+    <code style="background:#17181F;padding:2px 6px;border-radius:4px;font-size:11px;">youtube.com/@deltabolic</code>
+    — إذا وُجد فيديو للتمرين فيها استخدمه، وإن لم يوجد فأي قناة موثوقة أخرى مقبولة.
+  </div>
+
+  <!-- MAIN PROMPT -->
+  <div class="card">
+    <div class="card-title">📋 البرومبت الرئيسي — انسخه كاملاً</div>
+    <pre id="main-prompt">You are helping me add YouTube video links to a workout tracker app called HamzaFit.
+
+TASK:
+For each exercise listed below, find one YouTube video URL that best demonstrates the correct form and execution.
+
+PRIORITY RULE (important):
+- FIRST check the channel @deltabolic (youtube.com/@deltabolic). If a video exists there for this exercise, use it.
+- If @deltabolic has no video for that exercise, use the best available video from any reputable fitness channel (e.g. Jeff Nippard, AthleanX, Alan Thrall, Barbell Brigade, Starting Strength, etc.).
+
+OUTPUT FORMAT:
+Return a single valid JSON object. The key is the exact exercise name (as given). The value is the YouTube URL string, or null if you truly cannot find anything.
+
+Example output shape:
+{
+  "Bench Press": "https://www.youtube.com/watch?v=XXXXXXXXXXX",
+  "Pull-Up": "https://www.youtube.com/watch?v=XXXXXXXXXXX",
+  "Plank": null
+}
+
+EXERCISES TO FIND (67 total):
+
+// ── CHEST ───────────────────────────────────────────────────
+Bench Press
+Incline Bench Press
+Decline Bench Press
+Cable Fly
+Dumbbell Fly
+Push-Up
+Chest Dip
+Pec Deck
+Landmine Press
+
+// ── BACK ────────────────────────────────────────────────────
+Deadlift
+Pull-Up
+Barbell Row
+Cable Row
+Lat Pulldown
+T-Bar Row
+Face Pull
+Single Arm Row
+Chest-Supported Row
+
+// ── SHOULDERS ───────────────────────────────────────────────
+Overhead Press
+Dumbbell OHP
+Lateral Raise
+Front Raise
+Rear Delt Fly
+Arnold Press
+Upright Row
+Cable Lateral Raise
+Machine Shoulder Press
+
+// ── LEGS ────────────────────────────────────────────────────
+Barbell Squat
+Leg Press
+Romanian Deadlift
+Leg Extension
+Leg Curl
+Lunge
+Hip Thrust
+Calf Raise
+Hack Squat
+Bulgarian Split Squat
+
+// ── BICEPS ──────────────────────────────────────────────────
+Barbell Curl
+Dumbbell Curl
+Hammer Curl
+Preacher Curl
+Cable Curl
+Incline Dumbbell Curl
+Concentration Curl
+Spider Curl
+
+// ── TRICEPS ─────────────────────────────────────────────────
+Triceps Pushdown
+Skull Crusher
+Overhead Triceps
+Diamond Push-Up
+Triceps Dip
+Close-Grip Bench
+Cable Kickback
+
+// ── CORE ────────────────────────────────────────────────────
+Plank
+Crunches
+Leg Raise
+Russian Twist
+Ab Wheel
+Cable Crunch
+Hanging Knee Raise
+Hollow Body Hold
+
+// ── CARDIO ──────────────────────────────────────────────────
+Treadmill Run
+Rowing Machine
+Jump Rope
+Stationary Bike
+Stair Climber
+Battle Ropes
+Sled Push
+
+RULES:
+- Output ONLY the JSON object, no markdown, no explanation, no code fences.
+- Use the exact exercise names as keys (copy them exactly).
+- Prefer short tutorial/form videos (under 5 minutes) over long ones.
+- Use null for any exercise where you cannot find a good video.
+- Double-check every URL is a real YouTube link before including it.</pre>
+    <button class="copy-btn" onclick="copyText('main-prompt', this)">📋 نسخ البرومبت</button>
+  </div>
+
+  <!-- STEP 2: paste result into app -->
+  <div class="card">
+    <div class="card-title">⚙️ برومبت الخطوة الثانية — بعد ما تحصل الـ JSON</div>
+    <pre id="step2-prompt">Now take the JSON you just generated and format it exactly like this JavaScript snippet so I can paste it directly into my app's constants.js file.
+
+Each exercise entry in MUSCLE_GROUPS looks like:
+  { name: 'Bench Press', videoUrl: null, animationUrl: null }
+
+Replace the videoUrl: null with the URL you found, keeping animationUrl: null as-is.
+
+Output only the updated MUSCLE_GROUPS object, valid JavaScript, no extra explanation.</pre>
+    <button class="copy-btn" onclick="copyText('step2-prompt', this)">📋 نسخ</button>
+  </div>
+
+  <!-- Exercise reference -->
+  <div class="card">
+    <div class="card-title">📌 قائمة التمارين للمراجعة (67 تمرين)</div>
+
+    <div class="muscle-label"><span>🫁</span> Chest — الصدر</div>
+    <div class="ex-list">
+      <div class="ex-item">Bench Press</div>
+      <div class="ex-item">Incline Bench Press</div>
+      <div class="ex-item">Decline Bench Press</div>
+      <div class="ex-item">Cable Fly</div>
+      <div class="ex-item">Dumbbell Fly</div>
+      <div class="ex-item">Push-Up</div>
+      <div class="ex-item">Chest Dip</div>
+      <div class="ex-item">Pec Deck</div>
+      <div class="ex-item">Landmine Press</div>
+    </div>
+
+    <div class="muscle-label"><span>🗂️</span> Back — الظهر</div>
+    <div class="ex-list">
+      <div class="ex-item">Deadlift</div>
+      <div class="ex-item">Pull-Up</div>
+      <div class="ex-item">Barbell Row</div>
+      <div class="ex-item">Cable Row</div>
+      <div class="ex-item">Lat Pulldown</div>
+      <div class="ex-item">T-Bar Row</div>
+      <div class="ex-item">Face Pull</div>
+      <div class="ex-item">Single Arm Row</div>
+      <div class="ex-item">Chest-Supported Row</div>
+    </div>
+
+    <div class="muscle-label"><span>🦾</span> Shoulders — الأكتاف</div>
+    <div class="ex-list">
+      <div class="ex-item">Overhead Press</div>
+      <div class="ex-item">Dumbbell OHP</div>
+      <div class="ex-item">Lateral Raise</div>
+      <div class="ex-item">Front Raise</div>
+      <div class="ex-item">Rear Delt Fly</div>
+      <div class="ex-item">Arnold Press</div>
+      <div class="ex-item">Upright Row</div>
+      <div class="ex-item">Cable Lateral Raise</div>
+      <div class="ex-item">Machine Shoulder Press</div>
+    </div>
+
+    <div class="muscle-label"><span>🦵</span> Legs — الأرجل</div>
+    <div class="ex-list">
+      <div class="ex-item">Barbell Squat</div>
+      <div class="ex-item">Leg Press</div>
+      <div class="ex-item">Romanian Deadlift</div>
+      <div class="ex-item">Leg Extension</div>
+      <div class="ex-item">Leg Curl</div>
+      <div class="ex-item">Lunge</div>
+      <div class="ex-item">Hip Thrust</div>
+      <div class="ex-item">Calf Raise</div>
+      <div class="ex-item">Hack Squat</div>
+      <div class="ex-item">Bulgarian Split Squat</div>
+    </div>
+
+    <div class="muscle-label"><span>💪</span> Biceps — البايسبس</div>
+    <div class="ex-list">
+      <div class="ex-item">Barbell Curl</div>
+      <div class="ex-item">Dumbbell Curl</div>
+      <div class="ex-item">Hammer Curl</div>
+      <div class="ex-item">Preacher Curl</div>
+      <div class="ex-item">Cable Curl</div>
+      <div class="ex-item">Incline Dumbbell Curl</div>
+      <div class="ex-item">Concentration Curl</div>
+      <div class="ex-item">Spider Curl</div>
+    </div>
+
+    <div class="muscle-label"><span>🔱</span> Triceps — الترايسبس</div>
+    <div class="ex-list">
+      <div class="ex-item">Triceps Pushdown</div>
+      <div class="ex-item">Skull Crusher</div>
+      <div class="ex-item">Overhead Triceps</div>
+      <div class="ex-item">Diamond Push-Up</div>
+      <div class="ex-item">Triceps Dip</div>
+      <div class="ex-item">Close-Grip Bench</div>
+      <div class="ex-item">Cable Kickback</div>
+    </div>
+
+    <div class="muscle-label"><span>🎯</span> Core — الكور</div>
+    <div class="ex-list">
+      <div class="ex-item">Plank</div>
+      <div class="ex-item">Crunches</div>
+      <div class="ex-item">Leg Raise</div>
+      <div class="ex-item">Russian Twist</div>
+      <div class="ex-item">Ab Wheel</div>
+      <div class="ex-item">Cable Crunch</div>
+      <div class="ex-item">Hanging Knee Raise</div>
+      <div class="ex-item">Hollow Body Hold</div>
+    </div>
+
+    <div class="muscle-label"><span>❤️</span> Cardio — الكارديو</div>
+    <div class="ex-list">
+      <div class="ex-item">Treadmill Run</div>
+      <div class="ex-item">Rowing Machine</div>
+      <div class="ex-item">Jump Rope</div>
+      <div class="ex-item">Stationary Bike</div>
+      <div class="ex-item">Stair Climber</div>
+      <div class="ex-item">Battle Ropes</div>
+      <div class="ex-item">Sled Push</div>
+    </div>
+  </div>
+
+  <!-- HOW TO USE -->
+  <div class="card">
+    <div class="card-title">🚀 طريقة الاستخدام</div>
+    <ol style="padding-right: 18px; color: #A7A7B3; font-size: 13px; line-height: 2;">
+      <li>انسخ <strong style="color:#9B5CFF">البرومبت الرئيسي</strong> كاملاً وأرسله لـ ChatGPT أو Claude</li>
+      <li>بعد ما يرجع الـ JSON، راجع الروابط — أي رابط ما تعرفه افتحه وتحقق</li>
+      <li>أرسل لنا الـ JSON النهائي وخلنا نحطه في <code style="background:#17181F;padding:2px 5px;border-radius:4px">constants.js</code> مباشرة</li>
+    </ol>
+    <div style="margin-top:14px; padding:10px 14px; background:#17181F; border-radius:8px; font-size:12px; color:#52535E; direction:ltr; text-align:left;">
+      Priority: youtube.com/@deltabolic → any reputable fitness channel
+    </div>
+  </div>
+
+</div>
+
+<script>
+function copyText(id, btn) {
+  const el = document.getElementById(id)
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    btn.textContent = '✓ تم النسخ'
+    btn.classList.add('copied')
+    setTimeout(() => {
+      btn.textContent = id === 'main-prompt' ? '📋 نسخ البرومبت' : '📋 نسخ'
+      btn.classList.remove('copied')
+    }, 2000)
+  })
+}
+</script>
+</body>
+</html>
