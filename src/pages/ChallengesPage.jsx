@@ -116,9 +116,8 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
               src={cfg.img}
               alt={cfg.label}
               style={{
-                width: 68, height: 68, objectFit: 'contain',
+                width: 44, height: 44, objectFit: 'contain',
                 filter: isDone ? 'grayscale(1)' : 'none',
-                flexShrink: 0,
               }}
             />
             <span style={{
