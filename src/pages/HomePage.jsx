@@ -9,7 +9,7 @@ function HeroIllustration({ isTraining }) {
     <img
       src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'}
       alt=""
-      style={{ width: 80, height: 80, objectFit: 'contain' }}
+      style={{ width: 130, height: 130, objectFit: 'contain', flexShrink: 0 }}
     />
   )
 }
@@ -177,17 +177,17 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           pointerEvents: 'none',
         }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16 }}>
           <HeroIllustration isTraining={isTodayTraining} />
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, paddingBottom: 8 }}>
             <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900,
+              fontFamily: 'var(--font-ar)', fontSize: 24, fontWeight: 900,
               color: isTodayTraining ? 'var(--cyan)' : 'var(--text2)',
-              lineHeight: 1.2,
+              lineHeight: 1.2, marginBottom: 6,
             }}>
               {isTodayTraining ? 'يوم تمرين 💪' : 'يوم راحة'}
             </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
               {isTodayTraining
                 ? 'اليوم مقرر له التمرين — حان الوقت!'
                 : 'استرح واستعد ليوم القوة القادم'}

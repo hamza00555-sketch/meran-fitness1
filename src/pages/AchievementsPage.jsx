@@ -65,7 +65,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
               }}
             >
               {catImg && (
-                <img src={catImg} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <img src={catImg} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />
               )}
               {cat.label}
             </button>
@@ -106,12 +106,12 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {/* Icon */}
         <div style={{
-          width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+          width: 64, height: 64, borderRadius: 14, flexShrink: 0,
           background: isUnlocked ? rarity.color + '20' : 'var(--bg3)',
           border: `1px solid ${isUnlocked ? rarity.color + '40' : 'var(--border)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22,
-          filter: isUnlocked ? `drop-shadow(0 0 8px ${rarity.color})` : 'none',
+          fontSize: 30,
+          filter: isUnlocked ? `drop-shadow(0 0 10px ${rarity.color})` : 'none',
         }}>
           {isUnlocked ? a.icon : '🔒'}
         </div>
