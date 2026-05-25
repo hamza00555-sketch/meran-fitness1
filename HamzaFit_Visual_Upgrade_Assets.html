@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HamzaFit — Visual Upgrade Assets</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #07080C;
+  color: #EEEEF5;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 24px 16px 100px;
+}
+.container { max-width: 940px; margin: 0 auto; }
+
+/* ── Header ── */
+.page-header { margin-bottom: 36px; }
+.page-header h1 { font-size: 26px; font-weight: 900; color: #9B5CFF; margin-bottom: 6px; }
+.page-header p { color: #A7A7B3; font-size: 13px; }
+.palette {
+  display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
+}
+.swatch {
+  display: flex; align-items: center; gap: 6px;
+  background: #101116; border: 1px solid #1E1F28;
+  border-radius: 8px; padding: 5px 10px;
+  font-family: 'Courier New', monospace; font-size: 11px;
+  direction: ltr;
+}
+.swatch-dot { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+
+/* ── Section headers ── */
+.section {
+  margin: 44px 0 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section h2 {
+  font-size: 12px; font-weight: 800; letter-spacing: 2.5px;
+  color: #9B5CFF; text-transform: uppercase; white-space: nowrap;
+}
+.section-line { flex: 1; height: 1px; background: #1E1F28; }
+.section-note { font-size: 11px; color: #52535E; white-space: nowrap; }
+
+/* ── Impact badge ── */
+.impact {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 20px; padding: 2px 9px;
+  font-size: 10px; font-weight: 800;
+  font-family: 'Courier New', monospace;
+}
+.impact-high   { background: rgba(239,68,68,0.12);   border: 1px solid rgba(239,68,68,0.3);   color: #EF4444; }
+.impact-medium { background: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.3);  color: #F59E0B; }
+.impact-polish { background: rgba(155,92,255,0.12);  border: 1px solid rgba(155,92,255,0.3);  color: #9B5CFF; }
+
+/* ── Card ── */
+.card {
+  background: #101116;
+  border: 1px solid #1E1F28;
+  border-radius: 16px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: #2A2B33; }
+
+.card-header {
+  padding: 14px 18px 12px;
+  display: flex; align-items: flex-start; gap: 14px;
+  border-bottom: 1px solid #1E1F28;
+}
+.card-num {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: rgba(155,92,255,0.12);
+  border: 1px solid rgba(155,92,255,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  font-weight: 800; color: #9B5CFF; flex-shrink: 0;
+}
+.card-title { font-size: 15px; font-weight: 700; color: #EEEEF5; margin-bottom: 3px; }
+.card-desc { font-size: 12px; color: #A7A7B3; line-height: 1.5; }
+.card-meta {
+  margin-right: auto; display: flex; flex-direction: column;
+  align-items: flex-end; gap: 5px; flex-shrink: 0;
+}
+.size-tag {
+  background: #17181F; border: 1px solid #2A2B33;
+  border-radius: 6px; padding: 2px 8px;
+  font-family: 'Courier New', monospace; font-size: 10px; color: #A7A7B3;
+  direction: ltr;
+}
+
+.card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field-label {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+  color: #52535E; text-transform: uppercase;
+}
+.field-val { font-size: 12.5px; color: #A7A7B3; line-height: 1.6; }
+.field-val strong { color: #EEEEF5; }
+.field-val code {
+  background: #17181F; border: 1px solid #2A2B33;
+  padding: 1px 6px; border-radius: 4px;
+  font-family: 'Courier New', monospace; font-size: 11px;
+}
+
+.no-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
+.no-tag {
+  background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 6px; padding: 2px 8px;
+  font-size: 11px; color: #EF4444;
+}
+
+.prompt-wrapper {
+  background: #0D0E14;
+  border: 1px solid #2A2B33;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.prompt-label {
+  padding: 7px 12px;
+  border-bottom: 1px solid #1E1F28;
+  font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+  color: #52535E; text-transform: uppercase;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.prompt-text {
+  padding: 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px; color: #EEEEF5;
+  line-height: 1.75; direction: ltr; text-align: left;
+  white-space: pre-wrap; word-break: break-word;
+}
+.copy-btn {
+  background: transparent; border: none;
+  color: #9B5CFF; font-size: 10px; font-weight: 800;
+  cursor: pointer; font-family: inherit; padding: 2px 6px;
+  border-radius: 4px; transition: background 0.15s;
+}
+.copy-btn:hover { background: rgba(155,92,255,0.12); }
+.copy-btn.done { color: #34D399; }
+
+/* Two-column grid */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 680px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* Why it matters box */
+.why {
+  background: rgba(155,92,255,0.05);
+  border-right: 3px solid #9B5CFF;
+  border-radius: 0 8px 8px 0;
+  padding: 8px 12px;
+  font-size: 12px; color: #A7A7B3; line-height: 1.6;
+}
+.why strong { color: #9B5CFF; }
+
+/* Observation box */
+.obs {
+  background: rgba(245,158,11,0.05);
+  border: 1px solid rgba(245,158,11,0.15);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12px; color: #A7A7B3; line-height: 1.6;
+  margin-bottom: 14px;
+}
+.obs strong { color: #F59E0B; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ── Page Header ───────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <h1>🎨 HamzaFit — Visual Upgrade Assets</h1>
+  <p>طلبات مبنية على تحليل حقيقي للتطبيق — كل أسيت يحل مشكلة بصرية واضحة</p>
+  <div class="palette">
+    <div class="swatch"><div class="swatch-dot" style="background:#9B5CFF"></div>#9B5CFF Primary</div>
+    <div class="swatch"><div class="swatch-dot" style="background:#6D35D8"></div>#6D35D8 Deep</div>
+    <div class="swatch"><div class="swatch-dot" style="background:#07080C"></div>#07080C BG</div>
+    <div class="swatch"><div class="swatch-dot" style="background:#101116;border:1px solid #2A2B33"></div>#101116 Surface</div>
+    <div class="swatch"><div class="swatch-dot" style="background:#EAB308"></div>#EAB308 Gold</div>
+    <div class="swatch"><div class="swatch-dot" style="background:#34D399"></div>#34D399 Success</div>
+    <div class="swatch"><div class="swatch-dot" style="background:#EF4444"></div>#EF4444 Error</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>🔥 أولوية عالية — يغير شكل التطبيق فوراً</h2>
+  <div class="section-line"></div>
+  <span class="section-note">HIGH IMPACT</span>
+</div>
+
+<!-- 01 — Rank Badge Glow Ring -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">01</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Rank Badge — Outer Glow Ring</div>
+        <span class="impact impact-high">HIGH IMPACT</span>
+      </div>
+      <div class="card-desc">حلقة توهج خارجية حول بادج الرانك في الهوم — الآن البادج يبدو صغيراً وغير واضح في الظلام</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">160×160px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="why"><strong>لماذا؟</strong> البادج حالياً محشور بين النص وعداد السلسلة ولا يظهر بقوة. حلقة توهج تخلي المستخدم يحس إنه لاعب حقيقي له مستوى.</div>
+    <div class="field">
+      <div class="field-label">التطبيق</div>
+      <div class="field-val">تُوضع خلف صورة البادج مباشرة — كـ background layer يضيف عمق</div>
+    </div>
+    <div class="field">
+      <div class="field-label">الألوان</div>
+      <div class="field-val">يتغير لون الحلقة حسب الرانك: <code>#9CA3AF</code> للرانك E، <code>#22C55E</code> للرانك D، <code>#3B82F6</code> C، <code>#9B5CFF</code> B، <code>#F97316</code> A، <code>#EAB308</code> S، rainbow للرانك S+</div>
+    </div>
+    <div class="field">
+      <div class="field-label">ممنوع</div>
+      <div class="no-wrap">
+        <span class="no-tag">neon زيادة</span><span class="no-tag">شكل كامل مرئي</span><span class="no-tag">تفاصيل داخلية</span>
+      </div>
+    </div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">
+        PROMPT — اعمل نسخة منفصلة لكل رانك (7 ملفات)
+        <button class="copy-btn" onclick="cp(this)">نسخ</button>
+      </div>
+      <div class="prompt-text">rank glow ring decorative element, thin circular halo/aura ring, color: electric purple #9B5CFF [CHANGE COLOR PER RANK], soft radial gradient fade — bright at the ring, fully transparent toward center and outside, angular broken segments suggesting a HUD power gauge, flat minimal design, purely atmospheric light effect, no solid shapes, transparent PNG, 160x160px, fitness game rank indicator</div>
+    </div>
+  </div>
+</div>
+
+<!-- 02 — Background Texture -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">02</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Background Texture Tile</div>
+        <span class="impact impact-high">HIGH IMPACT</span>
+      </div>
+      <div class="card-desc">نسيج خلفية خفيف جداً — الخلفية الآن سوداء ميتة بدون أي عمق أو شخصية</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">400×400px</span>
+      <span class="size-tag">tileable PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="why"><strong>لماذا؟</strong> خلفية #07080C مسطحة تماماً. نسيج microscopic يضيف عمق دون ما يكون واضحاً — فرق كبير في الإحساس الـ premium.</div>
+    <div class="field">
+      <div class="field-label">التطبيق</div>
+      <div class="field-val">يُستخدم كـ <code>background-image: url(texture.png)</code> مع opacity منخفض (5-8%) فوق الخلفية الداكنة</div>
+    </div>
+    <div class="field">
+      <div class="field-label">الشرط الأساسي</div>
+      <div class="field-val"><strong>Tileable seamlessly</strong> — يجب أن يتكرر دون أن تظهر الحواف</div>
+    </div>
+    <div class="field">
+      <div class="field-label">ممنوع</div>
+      <div class="no-wrap">
+        <span class="no-tag">ألوان واضحة</span><span class="no-tag">أشكال مرئية بوضوح</span><span class="no-tag">ضوء قوي</span>
+      </div>
+    </div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">seamless tileable dark noise texture, ultra subtle grain pattern, near-black base color #07080C, extremely faint hexagonal micro-grid overlay at 3% opacity, very slight film grain noise, premium dark material feel like anodized carbon fiber or brushed graphite, no visible pattern from a distance, only adds depth up close, no colors no light effects, transparent-compatible dark PNG tile, 400x400px</div>
+    </div>
+  </div>
+</div>
+
+<!-- 03 — Hero Character Upgraded -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">03</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Hero Training — Upgraded</div>
+        <span class="impact impact-high">HIGH IMPACT</span>
+      </div>
+      <div class="card-desc">صورة البطل في بطاقة "يوم تمرين" — النسخة الحالية صغيرة وداكنة وتضيع في البطاقة</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">280×280px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="obs"><strong>المشكلة الحالية:</strong> الصورة الحالية 80×80px فقط وتضيع بجانب النص. المطلوب نسخة أكبر وأكثر حيوية وتعبيراً، بحيث تكون هي نجمة البطاقة.</div>
+    <div class="why"><strong>لماذا؟</strong> بطاقة "يوم تمرين" هي أول شيء يراه المستخدم. صورة قوية تحفزه فوراً وتعطي التطبيق شخصية.</div>
+    <div class="field">
+      <div class="field-label">المطلوب</div>
+      <div class="field-val">شخصية رياضي أنيمي، موقف قوي ومتحمس، طاقة بنفسجية تتفجر حوله، يناسب الوضع في يمين البطاقة</div>
+    </div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT — Training Day<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">anime style warrior athlete character, powerful dynamic pose — fist raised or mid-lift, dark muscular silhouette with electric purple #9B5CFF energy crackling around the body, purple aura particles floating upward, intense motivated expression (face can be partially shadowed), wearing minimal dark athletic gear, completely transparent background, flat clean anime illustration style, bold confident linework, dramatic lighting from below in purple, no background elements, transparent PNG, 280x280px</div>
+    </div>
+    <div class="prompt-wrapper" style="margin-top:8px">
+      <div class="prompt-label">PROMPT — Rest Day<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">anime style warrior athlete character, calm relaxed pose — sitting cross-legged or leaning back eyes closed, peaceful recovery mood, dark silhouette with soft dim purple #6D35D8 glow, small floating moon or star particles around body, wearing comfortable athletic clothing, completely transparent background, flat clean anime illustration style, soft gentle linework, serene atmosphere, no background elements, transparent PNG, 280x280px</div>
+    </div>
+  </div>
+</div>
+
+<!-- 04 — Boss Challenge -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">04</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Boss Challenge Icon — Redesign</div>
+        <span class="impact impact-high">HIGH IMPACT</span>
+      </div>
+      <div class="card-desc">أيقونة تحدي البوص — الحالية عين برتقالية ناري لا تتناسب مع الثيم البنفسجي إطلاقاً</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">300×300px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="obs"><strong>المشكلة الحالية:</strong> الأيقونة برتقالية/حمراء وتبدو من عالم مختلف. تحتاج نسخة بنفسجية تحافظ على الشعور المرعب مع الانسجام مع الثيم.</div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">boss challenge icon, single massive ominous eye, vertical slit pupil glowing electric purple #9B5CFF, iris deep purple #6D35D8, dark shadowy eyelids with cracked stone or shadow texture, crackling purple lightning energy around the eye, Solo Leveling monarch shadow eye aesthetic, extremely menacing and powerful, dark near-black background #07080C, flat anime illustration, dramatic bold linework, transparent PNG, 300x300px</div>
+    </div>
+  </div>
+</div>
+
+<!-- 05 — Muscle Icons Redesign -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">05</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Muscle Group Icons — Full Redesign (8 ملفات)</div>
+        <span class="impact impact-high">HIGH IMPACT</span>
+      </div>
+      <div class="card-desc">أيقونات العضلات في قسم "تقدم العضلات" — الآن يستخدم إيموجي (🦵🫁) وهو يبدو رخيصاً بجانب الكروت المصممة</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">80×80px</span>
+      <span class="size-tag">8 ملفات PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="obs"><strong>المشكلة الحالية:</strong> أيقونات العضلات الموجودة (muscle_chest.png إلخ) مقصوصة بشكل غريب وألوانها باهتة. عند استخدامها في progress bars تبدو ضعيفة. المطلوب نسخ صغيرة ونظيفة لكل عضلة.</div>
+    <div class="field">
+      <div class="field-label">الأيقونات المطلوبة</div>
+      <div class="field-val">
+        <strong>Chest</strong> #FF6B35 · <strong>Back</strong> #3B82F6 · <strong>Shoulders</strong> #A855F7 · <strong>Legs</strong> #22C55E · <strong>Biceps</strong> #EAB308 · <strong>Triceps</strong> #F97316 · <strong>Core</strong> #EC4899 · <strong>Cardio</strong> #EF4444
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">الأسلوب</div>
+      <div class="field-val">أيقونة مسطحة بسيطة — ليست تشريحية معقدة. مثل أيقونات تطبيقات الرياضة الاحترافية. كل أيقونة على خلفية دائرية داكنة.</div>
+    </div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT TEMPLATE — غيّر [MUSCLE] و [COLOR] لكل واحدة<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">small flat muscle group icon, [MUSCLE] muscle, clean minimal silhouette of the muscle group on human body, [COLOR] color on dark circular badge #17181F, 2px border of [COLOR] at 30% opacity, flat clean design with 1-2 bold lines showing the muscle shape, no text, no gradient, no shadow, premium fitness app style, 80x80px transparent PNG
+
+--- 8 VARIATIONS ---
+1. muscle_chest.png   → [MUSCLE]=chest pectoral   [COLOR]=#FF6B35
+2. muscle_back.png    → [MUSCLE]=back lats         [COLOR]=#3B82F6
+3. muscle_shoulders.png → [MUSCLE]=shoulder deltoid [COLOR]=#A855F7
+4. muscle_legs.png    → [MUSCLE]=quadriceps legs   [COLOR]=#22C55E
+5. muscle_biceps.png  → [MUSCLE]=bicep arm flex    [COLOR]=#EAB308
+6. muscle_triceps.png → [MUSCLE]=tricep horseshoe  [COLOR]=#F97316
+7. muscle_core.png    → [MUSCLE]=abdominal core    [COLOR]=#EC4899
+8. cardio.png         → [MUSCLE]=heart pulse run   [COLOR]=#EF4444</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>⚡ تحسينات كبيرة — تلمع شاشات محددة</h2>
+  <div class="section-line"></div>
+  <span class="section-note">MEDIUM IMPACT</span>
+</div>
+
+<!-- 06 — Level Up Screen -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">06</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Level Up Burst Effect</div>
+        <span class="impact impact-medium">MEDIUM</span>
+      </div>
+      <div class="card-desc">تأثير انفجار عند ارتفاع المستوى — اللحظة الاحتفالية في اللعبة تحتاج "WOW moment"</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">500×500px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="why"><strong>لماذا؟</strong> شاشة Level Up حالياً تعتمد على أيقونات SVG فقط. صورة burst خلفها تحوّل اللحظة من عادية إلى "Solo Leveling moment".</div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">level up celebration burst effect, radial explosion of electric purple #9B5CFF energy rays shooting outward from center, gold #EAB308 sparkle particles mixed in, sharp angular anime-style energy beams, circular symmetrical burst composition, dark transparent background — effect only no solid shapes, dramatic and powerful but flat illustration style, no text no characters, transparent PNG, 500x500px, fitness game level up visual effect</div>
+    </div>
+  </div>
+</div>
+
+<!-- 07 — PR Celebration -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">07</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">PR Personal Record — Celebration Banner</div>
+        <span class="impact impact-medium">MEDIUM</span>
+      </div>
+      <div class="card-desc">لحظة الرقم القياسي الجديد — حالياً مجرد نص بنفسجي. هذه اللحظة تستحق صورة احتفالية</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">400×200px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">personal record achievement illustration, bold trophy silhouette with upward lightning bolt integrated, electric purple #9B5CFF trophy with gold #EAB308 lightning, small confetti particles in purple and gold scattered around, "PR" text suggestion integrated subtly into the trophy design, dark transparent background, flat anime style, energetic and triumphant composition, no background fill, transparent PNG, 400x200px wide format</div>
+    </div>
+  </div>
+</div>
+
+<!-- 08 — Achievement Icons Set -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">08</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Achievement Icons — Purple Theme (4 ملفات)</div>
+        <span class="impact impact-medium">MEDIUM</span>
+      </div>
+      <div class="card-desc">أيقونات الإنجازات — الحالية مستخدمة ألوان زرقاء سماوية (cyan) لا تنتمي للثيم البنفسجي الجديد</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">128×128px</span>
+      <span class="size-tag">4 ملفات PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div class="prompt-wrapper">
+        <div class="prompt-label">ach_consistency.png — الثبات<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+        <div class="prompt-text">achievement icon, consistency streak, three interlocked chain links forming compact shape, electric purple #9B5CFF metal chains, dark circular badge #17181F background, flat anime style, bold clean linework, 128x128px transparent PNG</div>
+      </div>
+      <div class="prompt-wrapper">
+        <div class="prompt-label">ach_master.png — الإتقان<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+        <div class="prompt-text">achievement icon, mastery crown, angular anime crown with central purple gem, gold #EAB308 crown body with #9B5CFF jewel center, dark circular badge #17181F background, flat anime style, bold linework, 128x128px transparent PNG</div>
+      </div>
+      <div class="prompt-wrapper">
+        <div class="prompt-label">ach_strength.png — القوة<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+        <div class="prompt-text">achievement icon, strength power, upward pointing sword, dark blade with electric purple #9B5CFF energy glow running along the edge, orange #F97316 flame at the tip, dark circular badge #17181F background, flat anime style, bold dramatic linework, 128x128px transparent PNG</div>
+      </div>
+      <div class="prompt-wrapper">
+        <div class="prompt-label">ach_volume.png — الحجم<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+        <div class="prompt-text">achievement icon, volume training, three ascending bar chart bars, bars in electric purple #9B5CFF with the tallest bar topped with gold #EAB308 star, dark circular badge #17181F background, flat anime style, clean geometric design, 128x128px transparent PNG</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 09 — Rank Badges Refreshed -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">09</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Rank Badges — Cleaner Version (7 ملفات)</div>
+        <span class="impact impact-medium">MEDIUM</span>
+      </div>
+      <div class="card-desc">البادجات الحالية جيدة لكنها داكنة جداً وتضيع على الخلفية الداكنة. نسخة أوضح مع حواف أكثر تعريفاً</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">200×200px</span>
+      <span class="size-tag">7 ملفات PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="field">
+      <div class="field-label">الفرق عن النسخة الحالية</div>
+      <div class="field-val">الشكل نفس الدرع، لكن: <strong>حواف أكثر وضوحاً</strong>، <strong>لون الرانك أكثر سطوعاً</strong> (ليس فقط خلفية — الحواف نفسها ملونة)، <strong>حجم 200×200 بدل 128×128</strong> عشان يبدو أفضل عند تكبيره</div>
+    </div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT TEMPLATE — عدّل [RANK_LETTER] و [COLOR] و [MATERIAL]<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">anime heraldic shield badge rank [RANK_LETTER], prominent [COLOR] colored border and trim, [MATERIAL] texture on shield face, clear strong silhouette readable on dark backgrounds, angular bold design, rank letter [RANK_LETTER] subtly suggested in the shield's central motif, transparent PNG, 200x200px, premium fitness game rank badge
+
+--- 7 VARIATIONS ---
+E → [COLOR]=#9CA3AF  [MATERIAL]=cracked stone texture  [RANK_LETTER]=E
+D → [COLOR]=#22C55E  [MATERIAL]=rough iron with green veins  [RANK_LETTER]=D
+C → [COLOR]=#3B82F6  [MATERIAL]=polished steel with blue circuits  [RANK_LETTER]=C
+B → [COLOR]=#9B5CFF  [MATERIAL]=dark obsidian with purple runes  [RANK_LETTER]=B
+A → [COLOR]=#F97316  [MATERIAL]=black metal with orange flames  [RANK_LETTER]=A
+S → [COLOR]=#EAB308  [MATERIAL]=gleaming gold with ornate carvings  [RANK_LETTER]=S
+S+ → [COLOR]=iridescent prismatic  [MATERIAL]=crystalline rainbow  [RANK_LETTER]=S+</div>
+    </div>
+  </div>
+</div>
+
+<!-- 10 — Weekly Schedule Day Dots -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">10</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Weekly Schedule — Active Day Glow Dot</div>
+        <span class="impact impact-medium">MEDIUM</span>
+      </div>
+      <div class="card-desc">نقطة "اليوم الحالي" في الجدول الأسبوعي — تحتاج إحساس خاص مميز</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">80×80px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">glowing active indicator circle, soft circular glow effect in electric purple #9B5CFF, outer soft halo ring fading to transparent, inner bright core circle, pulsing energy feel, purely light/glow with no solid opaque shapes, dark transparent background, flat design, 80x80px transparent PNG, UI active state indicator for fitness app</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>✨ تلميع — التفاصيل اللي تفرق</h2>
+  <div class="section-line"></div>
+  <span class="section-note">POLISH</span>
+</div>
+
+<!-- 11 — XP Bar Fill Texture -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">11</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">XP Progress Bar — Fill Texture</div>
+        <span class="impact impact-polish">POLISH</span>
+      </div>
+      <div class="card-desc">شريط الـ XP الذهبي يبدو عادياً — نسيج خفيف يعطيه عمق وشخصية</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">200×20px</span>
+      <span class="size-tag">tileable PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">progress bar fill texture, gold #EAB308 base color, very subtle diagonal shine lines at 45 degrees, slight metallic sheen effect, premium feel, seamlessly tileable horizontally, flat design no 3D effects, 200x20px transparent PNG, fitness app XP bar fill element</div>
+    </div>
+  </div>
+</div>
+
+<!-- 12 — Card Header Decorative Pattern -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">12</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Player Card — Decorative BG Pattern</div>
+        <span class="impact impact-polish">POLISH</span>
+      </div>
+      <div class="card-desc">خلفية بطاقة اللاعب الرئيسية في الهوم — حالياً مجرد لون solid وdecorative blob غير مرئي</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">560×180px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="why"><strong>لماذا؟</strong> البطاقة الرئيسية تستحق خلفية مميزة. نمط هندسي خفيف في الزاوية يضيف طابع game HUD دون إزعاج المحتوى.</div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">decorative card background pattern element, angular geometric HUD lines concentrated in bottom-left corner fading toward center-right, electric purple #9B5CFF lines at 4% opacity, hexagonal grid fragments, anime game interface aesthetic, purely decorative overlay — no solid fills, very subtle barely visible, transparent PNG, 560x180px wide banner format, fitness game player card decoration</div>
+    </div>
+  </div>
+</div>
+
+<!-- 13 — Section Divider -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">13</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Section Divider — Styled</div>
+        <span class="impact impact-polish">POLISH</span>
+      </div>
+      <div class="card-desc">فاصل بين الأقسام — أفضل من مجرد خط رمادي</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">560×16px</span>
+      <span class="size-tag">transparent PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">decorative section divider line, thin horizontal rule with small diamond or angular node at center in electric purple #9B5CFF, line fades from transparent at edges to semi-visible purple at center, anime HUD aesthetic, no solid backgrounds, transparent PNG, 560x16px wide, fitness app section separator element</div>
+    </div>
+  </div>
+</div>
+
+<!-- 14 — Empty State Characters -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">14</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Empty States — 3 Illustrations</div>
+        <span class="impact impact-polish">POLISH</span>
+      </div>
+      <div class="card-desc">صفحات التمارين والإنجازات والتحديات عندما تكون فارغة — حالياً emoji فقط</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">220×220px</span>
+      <span class="size-tag">3 ملفات PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="grid-2">
+      <div class="prompt-wrapper">
+        <div class="prompt-label">empty_workout.png<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+        <div class="prompt-text">empty state illustration, lone dumbbell resting on dark floor, small electric purple #9B5CFF glow beneath suggesting dormant power, melancholic but hopeful mood, minimal flat anime style, transparent PNG, 220x220px</div>
+      </div>
+      <div class="prompt-wrapper">
+        <div class="prompt-label">empty_achievements.png<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+        <div class="prompt-text">empty state illustration, closed locked treasure chest with purple padlock, muted dark tones with faint #9B5CFF glow seeping from the lock seam, treasures waiting inside, flat anime style, transparent PNG, 220x220px</div>
+      </div>
+    </div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">empty_challenges.png<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">empty state illustration, small sleeping anime dragon curled up on a platform, dim purple #6D35D8 outline, tiny "Zzz" floating softly, dormant power waiting to be awakened, cute but slightly ominous, flat anime style, transparent PNG, 220x220px</div>
+    </div>
+  </div>
+</div>
+
+<!-- 15 — Goal Illustrations -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">15</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">Goal Cards — Illustrated Icons (5 ملفات)</div>
+        <span class="impact impact-polish">POLISH</span>
+      </div>
+      <div class="card-desc">أيقونات أهداف المستخدم (بناء عضل، حرق دهون، قوة...) في صفحة الإعداد والبروفايل</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">120×120px</span>
+      <span class="size-tag">5 ملفات PNG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT TEMPLATE — 5 goals<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">goal selection icon, flat anime illustration style, dark rounded square card #17181F background, centered icon symbol, clean minimal design, transparent PNG, 120x120px
+
+--- 5 VARIATIONS ---
+goalc_muscle.png    → flexed arm silhouette, electric purple #9B5CFF, growing muscle lines
+goalc_fatloss.png   → flame with downward arrow, orange #F97316 fire, shrinking shape
+goalc_strength.png  → barbell with power lines radiating, gold #EAB308 weights, bold
+goalc_endurance.png → running figure with wind lines, green #22C55E, dynamic pose
+goalc_recomp.png    → scale/balance with muscle on one side fat on other, purple #9B5CFF balance point</div>
+    </div>
+  </div>
+</div>
+
+<!-- 16 — Splash / Loading Screen -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-num">16</div>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div class="card-title">App Logo — Icon + Full Splash</div>
+        <span class="impact impact-polish">POLISH</span>
+      </div>
+      <div class="card-desc">أيقونة التطبيق الرئيسية وخلفية الـ splash screen — ما في لوغو واضح حالياً</div>
+    </div>
+    <div class="card-meta">
+      <span class="size-tag">1024×1024px</span>
+      <span class="size-tag">PNG + SVG</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="why"><strong>لماذا؟</strong> عند إضافة التطبيق للهاتف، أيقونة الهوم سكرين تكون أول ما يراه المستخدم — حالياً مجرد أيقونة عامة.</div>
+    <div class="prompt-wrapper">
+      <div class="prompt-label">PROMPT — App Icon<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">fitness app logo icon, bold angular "H" letterform combined with a stylized dumbbell or lightning bolt integrated seamlessly into the letter shape, electric purple #9B5CFF on deep dark #07080C background, flat vector design, clean sharp geometric lines, no gradients, strong silhouette readable at 48x48px size, rounded square frame for app icon, premium athletic brand, 1024x1024px PNG</div>
+    </div>
+    <div class="prompt-wrapper" style="margin-top:8px">
+      <div class="prompt-label">PROMPT — Splash Background<button class="copy-btn" onclick="cp(this)">نسخ</button></div>
+      <div class="prompt-text">app splash screen background, deep dark #07080C base, centered radial purple glow #9B5CFF emanating from center point fading to black at edges, ultra subtle hexagonal grid pattern at 5% opacity, no characters no text, purely atmospheric background for logo placement, flat design, 1080x1920px PNG (portrait mobile)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- Summary Table -->
+<div style="margin-top:48px; background:#101116; border:1px solid #1E1F28; border-radius:16px; overflow:hidden;">
+  <div style="padding:14px 18px; border-bottom:1px solid #1E1F28; font-size:12px; font-weight:800; letter-spacing:1.5px; color:#9B5CFF; text-transform:uppercase;">ملخص — الأولوية والتأثير</div>
+  <div style="padding:16px 18px;">
+    <table style="width:100%; border-collapse:collapse; font-size:12px; direction:ltr; text-align:left;">
+      <thead>
+        <tr style="color:#52535E; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase;">
+          <td style="padding:6px 8px 10px">#</td>
+          <td style="padding:6px 8px 10px">Asset</td>
+          <td style="padding:6px 8px 10px">Files</td>
+          <td style="padding:6px 8px 10px">Size</td>
+          <td style="padding:6px 8px 10px">Impact</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">01</td><td>Rank Badge Glow Ring</td><td style="color:#9B5CFF">7</td><td style="color:#52535E;font-family:monospace">160×160</td><td><span class="impact impact-high" style="font-size:9px">HIGH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">02</td><td>Background Texture Tile</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">400×400</td><td><span class="impact impact-high" style="font-size:9px">HIGH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">03</td><td>Hero Character (Training + Rest)</td><td style="color:#9B5CFF">2</td><td style="color:#52535E;font-family:monospace">280×280</td><td><span class="impact impact-high" style="font-size:9px">HIGH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">04</td><td>Boss Challenge Icon Redesign</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">300×300</td><td><span class="impact impact-high" style="font-size:9px">HIGH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">05</td><td>Muscle Group Icons (8 muscles)</td><td style="color:#9B5CFF">8</td><td style="color:#52535E;font-family:monospace">80×80</td><td><span class="impact impact-high" style="font-size:9px">HIGH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">06</td><td>Level Up Burst Effect</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">500×500</td><td><span class="impact impact-medium" style="font-size:9px">MEDIUM</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">07</td><td>PR Celebration Banner</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">400×200</td><td><span class="impact impact-medium" style="font-size:9px">MEDIUM</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">08</td><td>Achievement Icons (4 icons)</td><td style="color:#9B5CFF">4</td><td style="color:#52535E;font-family:monospace">128×128</td><td><span class="impact impact-medium" style="font-size:9px">MEDIUM</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">09</td><td>Rank Badges Cleaner (7 ranks)</td><td style="color:#9B5CFF">7</td><td style="color:#52535E;font-family:monospace">200×200</td><td><span class="impact impact-medium" style="font-size:9px">MEDIUM</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">10</td><td>Weekly Schedule Active Dot</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">80×80</td><td><span class="impact impact-medium" style="font-size:9px">MEDIUM</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">11</td><td>XP Bar Fill Texture</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">200×20</td><td><span class="impact impact-polish" style="font-size:9px">POLISH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">12</td><td>Player Card Decorative BG</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">560×180</td><td><span class="impact impact-polish" style="font-size:9px">POLISH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">13</td><td>Section Divider</td><td style="color:#9B5CFF">1</td><td style="color:#52535E;font-family:monospace">560×16</td><td><span class="impact impact-polish" style="font-size:9px">POLISH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">14</td><td>Empty State Illustrations (3)</td><td style="color:#9B5CFF">3</td><td style="color:#52535E;font-family:monospace">220×220</td><td><span class="impact impact-polish" style="font-size:9px">POLISH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">15</td><td>Goal Card Icons (5 goals)</td><td style="color:#9B5CFF">5</td><td style="color:#52535E;font-family:monospace">120×120</td><td><span class="impact impact-polish" style="font-size:9px">POLISH</span></td></tr>
+        <tr style="border-top:1px solid #1E1F28"><td style="padding:8px">16</td><td>App Logo + Splash Background</td><td style="color:#9B5CFF">2</td><td style="color:#52535E;font-family:monospace">1024×1024</td><td><span class="impact impact-polish" style="font-size:9px">POLISH</span></td></tr>
+        <tr style="border-top:2px solid #9B5CFF22; font-weight:800">
+          <td colspan="2" style="padding:10px 8px; color:#EEEEF5">المجموع</td>
+          <td style="padding:10px 8px; color:#9B5CFF; font-size:16px">46</td>
+          <td colspan="2" style="padding:10px 8px; color:#52535E">ملف PNG</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+function cp(btn) {
+  const block = btn.closest('.prompt-wrapper')
+  const txt = block.querySelector('.prompt-text')
+  navigator.clipboard.writeText(txt.textContent.trim()).then(() => {
+    const prev = btn.textContent
+    btn.textContent = '✓ تم'
+    btn.classList.add('done')
+    setTimeout(() => { btn.textContent = prev; btn.classList.remove('done') }, 2000)
+  })
+}
+</script>
+</body>
+</html>
