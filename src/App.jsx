@@ -314,6 +314,18 @@ export default function App() {
               onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
               onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
             >⏱️</button>
+            <button
+              onClick={() => setTab(t => t === 'settings' ? 'home' : 'settings')}
+              style={{
+                background: 'var(--bg2)', border: '1px solid var(--border)',
+                borderRadius: 8, width: 36, height: 36,
+                color: tab === 'settings' ? 'var(--cyan)' : 'var(--text2)', cursor: 'pointer',
+                fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
+              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
+            ><SettingsIcon size={18} /></button>
           </div>
         </div>
       </header>
