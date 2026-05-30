@@ -1,0 +1,439 @@
+# راتبي — Context File للمحادثة الجديدة
+
+## معلومات المشروع
+
+**اسم التطبيق:** راتبي — مخطط الراتب الشهري  
+**النوع:** PWA (Progressive Web App) — React 18 + Vite  
+**اللغة:** عربي RTL  
+**الهدف:** تطبيق إدارة مالية شخصية (التزامات، أهداف، بنوك، دخل إضافي)
+
+## Git & Deployment
+
+- **الريبو:** `hamza00555-sketch/workout-tracker-hamza`
+- **الفرع الصحيح لـ راتبي:** `ratebi` (ليس `main` — `main` خاص بتطبيق التمارين HamzaFit)
+- **Vercel مشروع:** `ratebi-salary-app2`
+- **رابط التطبيق المباشر (production):** `ratebi-salary-app2.vercel.app`
+- **عند الـ push:** دائماً `git push origin HEAD:ratebi`
+- **المحلي:** الفرع المحلي اسمه `ratebi` ويتتبع `origin/ratebi`
+
+## قواعد مهمة جداً
+
+1. **لا تلمس BottomNav.jsx** — المستخدم رفض أي تعديل عليه
+2. **لا ترسم أو تعيد إنشاء أي تصميم** — فقط استخدم الأصول (assets) اللي يعطيك إياها المستخدم كما هي
+3. **بعد كل تعديل:** ابنِ (`npm run build`) ثم push إلى `ratebi` ثم أعطِ رابط Vercel shareable
+4. **الخط:** Mestika للعربي فقط (بدون glyphs للأرقام اللاتينية) → Cairo للأرقام → system fonts fallback
+5. **الأرقام:** استخدم `<span className="num">` دائماً لعرض الأرقام (يجبر LTR + Cairo)
+6. **الـ PIN:** 4 أرقام، hash بـ SHA-256 + salt `ratebi-secure-salt-2024`
+
+## Tech Stack
+
+```json
+{
+  "react": "^18.3.1",
+  "react-dom": "^18.3.1",
+  "vite": "^5.4.2",
+  "vite-plugin-pwa": "^1.3.0",
+  "idb": "^8.0.3"
+}
+```
+
+## هيكل المشروع
+
+```
+src/
+  App.jsx                    — Router الرئيسي
+  main.jsx                   — Entry point
+  index.css                  — Global styles + CSS variables
+  sw.js                      — Service Worker (Workbox injectManifest)
+  context/
+    AppContext.jsx            — State management (React Context)
+  db/
+    index.js                 — IndexedDB (idb) — قاعدة البيانات المحلية
+  utils/
+    format.js                — formatAmount, currentMonth, uid, daysUntil...
+    calc.js                  — calcGoalProgress, calcCommitmentsTotal...
+    notifications.js         — إشعارات، PIN hash، Biometric (WebAuthn)
+  components/
+    BottomNav.jsx            — ⚠️ لا تلمسه
+    BottomSheet.jsx          — Bottom sheet modal
+    CategoryData.js          — COMMITMENT_CATEGORIES, EXPENSE_CATEGORIES, GOAL_CATEGORIES
+    CategoryIcons.jsx        — SVG icons للفئات
+    DonutChart.jsx           — رسم بياني دائري
+  pages/
+    Dashboard.jsx            — الصفحة الرئيسية
+    Commitments.jsx          — التزامات (checklist UX)
+    Goals.jsx                — الأهداف
+    Banks.jsx                — البنوك والحسابات
+    Settings.jsx             — الإعدادات (PIN, biometric, import/export)
+    Onboarding.jsx           — الإعداد الأولي (3 خطوات)
+    SalaryDay.jsx            — شاشة يوم الراتب
+    LockScreen.jsx           — شاشة القفل (PIN + biometric)
+    ExtraIncomeSheet.jsx     — شاشة الدخل الإضافي
+    SavingsCalc.jsx          — حاسبة الادخار
+
+public/
+  icon-192.png               — أيقونة PWA 192x192 (شعار راتبي 3D purple wallet)
+  icon-512.png               — أيقونة PWA 512x512
+  apple-touch-icon.png       — أيقونة iOS 180x180
+  assets/icons/app-icon.png  — أيقونة التطبيق الرئيسية
+  assets/icons/nav-*.png     — أيقونات الـ BottomNav
+  assets/icons/illus-*.png   — صور توضيحية للـ Onboarding
+  fonts/Mestika-*.otf        — خط Mestika (عربي فقط، بدون أرقام لاتينية)
+  fonts/Zanjabeel-*.otf      — خط Zanjabeel (احتياطي)
+```
+
+## CSS Variables (index.css)
+
+```css
+--bg: #0D0A26        /* خلفية رئيسية */
+--bg2: #13103A       /* خلفية ثانوية */
+--card: #1A1650      /* بطاقات */
+--card2: #201C5E     /* بطاقات ثانوية */
+--primary: #6C63FF   /* بنفسجي رئيسي */
+--accent: #00C9A7    /* أخضر/تيفاني */
+--danger: #FF6B6B    /* أحمر */
+--gold: #FFB830      /* ذهبي */
+--text: #FFFFFF
+--text2: #9B99C8
+--text3: #5C5A8A
+--border: #2A2660
+```
+
+## IndexedDB Schema (ratebi-db v3)
+
+```
+settings      { key, value }           — إعدادات المستخدم
+commitments   { id, name, amount, category, dayOfMonth, bankId, accountId, paidThisMonth, active, extraIncomeTag }
+goals         { id, name, targetAmount, savedAmount, targetDate, category, monthlyContribution, completed, bankId, accountId, extraIncomeTag }
+expenses      { id, month, ... }       — مصاريف يومية (index على month)
+banks         { id, name, emoji, color, accounts: [{id, name}] }
+monthlyRecords { month, salary, commitmentsTotal, goalsTotal, remaining, ... }
+debts         { id, name, totalAmount, paidAmount, paid }
+extraIncome   { id, date, amount, source, distribution, debtBreakdown, taggedBreakdown }
+```
+
+## AppContext — State & Actions
+
+```js
+// State
+settings, commitments, goals, banks, monthlyRecords, debts, extraIncome
+page, setPage          // 'loading' | 'onboarding' | 'salaryDay' | 'dashboard' | 'commitments' | 'banks' | 'goals' | 'settings'
+privacyMode, togglePrivacy
+locked, unlock
+currentMonthRecord     // monthlyRecords.find(r => r.month === currentMonth())
+fmt(n)                 // formatAmount أو '••••' في وضع الخصوصية
+
+// Actions
+updateSettings(updates)
+addCommitment(data), updateCommitment(item), deleteCommitment(id)
+addGoal(data), updateGoal(item), deleteGoal(id), addGoalAmount(id, amount)
+addBank(data), updateBank(item), deleteBank(id)
+addDebt(data), updateDebt(item), deleteDebt(id)
+addExtraIncome(data), deleteExtraIncome(id)
+confirmSalaryDay(record)
+```
+
+## DEFAULT_SETTINGS
+
+```js
+{ salary: 0, salaryDay: 25, currency: 'ريال', onboardingComplete: false }
+```
+
+---
+
+## ملفات الكود الكاملة
+
+---
+
+### src/index.css
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 100; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 200; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 800; font-display: swap; }
+@font-face { font-family: 'GuesswhatExceptional'; src: url('/fonts/GuesswhatExceptional.otf') format('opentype'); font-weight: 900; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-Thin.otf') format('opentype'); font-weight: 100; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-ExtraLight.otf') format('opentype'); font-weight: 200; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-Light.otf') format('opentype'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-Medium.otf') format('opentype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-SemiBold.otf') format('opentype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-ExtraBold.otf') format('opentype'); font-weight: 800; font-display: swap; }
+@font-face { font-family: 'Mestika'; src: url('/fonts/Mestika-Black.otf') format('opentype'); font-weight: 900; font-display: swap; }
+
+:root {
+  --bg: #0D0A26;
+  --bg2: #13103A;
+  --card: #1A1650;
+  --card2: #201C5E;
+  --primary: #6C63FF;
+  --primary-dim: rgba(108,99,255,0.15);
+  --accent: #00C9A7;
+  --accent-dim: rgba(0,201,167,0.15);
+  --danger: #FF6B6B;
+  --danger-dim: rgba(255,107,107,0.15);
+  --gold: #FFB830;
+  --gold-dim: rgba(255,184,48,0.15);
+  --text: #FFFFFF;
+  --text2: #9B99C8;
+  --text3: #5C5A8A;
+  --border: #2A2660;
+  --r: 16px;
+  --r-sm: 10px;
+  --r-lg: 24px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Mestika', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  direction: rtl;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  max-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.page {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 170px;
+  -webkit-overflow-scrolling: touch;
+}
+.page::-webkit-scrollbar { display: none; }
+
+.card { background: var(--card); border-radius: var(--r); padding: 16px; border: 1px solid var(--border); }
+.card-inset { background: var(--bg2); border-radius: var(--r-sm); padding: 12px; }
+
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; border: none; cursor: pointer; font-family: 'Mestika', 'Cairo', sans-serif; font-weight: 700; border-radius: var(--r-sm); padding: 14px 20px; font-size: 15px; transition: opacity .15s, transform .1s; -webkit-user-select: none; user-select: none; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--primary); color: #fff; width: 100%; font-size: 16px; border-radius: var(--r); padding: 16px; }
+.btn-accent { background: var(--accent); color: #0D0A26; }
+.btn-ghost { background: transparent; color: var(--text2); }
+.btn-danger { background: var(--danger-dim); color: var(--danger); }
+.btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); width: 100%; font-size: 16px; border-radius: var(--r); padding: 15px; }
+.btn-icon { background: var(--card2); border-radius: var(--r-sm); padding: 10px; width: 40px; height: 40px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-label { font-size: 13px; color: var(--text2); font-weight: 600; }
+.input { background: var(--bg2); border: 1.5px solid var(--border); border-radius: var(--r-sm); color: var(--text); font-family: 'Cairo', sans-serif; font-size: 16px; padding: 13px 14px; width: 100%; outline: none; transition: border-color .2s; direction: rtl; }
+.input:focus { border-color: var(--primary); }
+.input::placeholder { color: var(--text3); }
+.input[type="number"], .input[inputmode="numeric"] { direction: ltr; text-align: center; font-family: 'Cairo', sans-serif; }
+
+/* Force numbers to render LTR with Cairo (Mestika has no digit glyphs) */
+.num { display: inline-block; direction: ltr; unicode-bidi: embed; font-family: 'Cairo', sans-serif; color: inherit; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; border: none; font-family: 'Mestika', 'Cairo', sans-serif; }
+.chip-ghost { background: var(--card2); color: var(--text2); }
+.chip.active { background: var(--primary); color: #fff; }
+
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 16px; font-weight: 700; }
+.section-action { font-size: 13px; color: var(--primary); font-weight: 600; cursor: pointer; background: none; border: none; font-family: 'Mestika', 'Cairo', sans-serif; }
+
+.progress-track { background: var(--border); border-radius: 10px; height: 8px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 10px; transition: width .5s ease; }
+
+.cat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+
+.list-item { display: flex; align-items: center; gap: 12px; padding: 14px; background: var(--card); border-radius: var(--r); border: 1px solid var(--border); }
+.list-item-info { flex: 1; min-width: 0; }
+.list-item-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-item-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.list-item-amount { font-size: 15px; font-weight: 700; white-space: nowrap; }
+
+.badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; }
+.badge-green { background: var(--accent-dim); color: var(--accent); }
+.badge-yellow { background: var(--gold-dim); color: var(--gold); }
+.badge-red { background: var(--danger-dim); color: var(--danger); }
+.badge-purple { background: var(--primary-dim); color: var(--primary); }
+
+.fab { position: fixed; bottom: 100px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(108,99,255,.4); transition: transform .15s; z-index: 10; }
+.fab:active { transform: scale(.93); }
+
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+.amount-positive { color: var(--accent); }
+.amount-negative { color: var(--danger); }
+.amount-gold { color: var(--gold); }
+.amount-primary { color: var(--primary); }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.anim-fadeup { animation: fadeUp .3s ease both; }
+.anim-fadein { animation: fadeIn .25s ease both; }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.text-center { text-align: center; }
+.w-full { width: 100%; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.p-16 { padding: 16px; }
+```
+
+---
+
+### package.json
+
+```json
+{
+  "name": "ratebi",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "idb": "^8.0.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "playwright": "^1.49.1",
+    "vite": "^5.4.2",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}
+```
+
+---
+
+### vite.config.js
+
+```js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
+
+export default defineConfig({
+  plugins: [
+    react(),
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      registerType: 'autoUpdate',
+      manifest: {
+        name: 'راتبي - مخطط الراتب الشهري',
+        short_name: 'راتبي',
+        description: 'سيطر على راتبك قبل ما يتطير',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#0D0A26',
+        theme_color: '#0D0A26',
+        orientation: 'portrait',
+        lang: 'ar',
+        dir: 'rtl',
+        icons: [
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+        ],
+      },
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,otf}'],
+      },
+    }),
+  ],
+  build: { outDir: 'dist', sourcemap: false },
+})
+```
+
+---
+
+### index.html
+
+```html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="راتبي" />
+    <meta name="theme-color" content="#0D0A26" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <title>راتبي</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+```
+
+---
+
+### vercel.json
+
+```json
+{
+  "routes": [
+    { "src": "/sw.js", "dest": "/sw.js", "headers": { "Cache-Control": "no-cache, no-store, must-revalidate", "Service-Worker-Allowed": "/" } },
+    { "src": "/workbox-(.*)\\.js", "dest": "/workbox-$1.js", "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" } },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/" }
+  ]
+}
+```
+
+---
+
+## أهم الملفات المعدّلة مؤخراً (آخر session)
+
+### الإصلاحات التي تمت:
+1. **`src/index.css` line 50** — font-family أضيفت system fonts بعد Cairo عشان الإنجليزي يظهر (مثل "SCC")
+2. **`src/pages/Commitments.jsx`** — الضغط على البطاقة يغير الحالة لـ `paidThisMonth`، زر ✎ يفتح التعديل بـ `e.stopPropagation()`
+3. **`src/pages/Goals.jsx`** — زر "+ إضافة" وزر ✎ داخل GoalCard أضيف لهم `e.stopPropagation()` عشان البار يتحدث بشكل صحيح
+4. **`src/pages/LockScreen.jsx`** — تصميم جديد بأسلوب STC Bank (صناديق PIN مستطيلة، نمباد شفاف كبير، زر Face ID)
+
+---
+
+## إرشادات Vercel Deployment
+
+للحصول على رابط shareable بعد كل push:
+1. `npm run build` — تأكد من نجاح البناء
+2. `git add ... && git commit -m "..."` 
+3. `git push origin HEAD:ratebi`
+4. انتظر Vercel يبني (عادة 30-60 ثانية)
+5. استخدم MCP tool `get_access_to_vercel_url` على رابط `ratebi-salary-app2-git-ratebi-hamza00555-3384s-projects.vercel.app`
+6. سيعطيك رابط بـ `?_vercel_share=...` صالح 23 ساعة
