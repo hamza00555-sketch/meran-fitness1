@@ -735,11 +735,11 @@ export const REST_PRESETS = [45, 60, 90, 120, 180]
 
 // ── Nav Tabs (RTL order: Profile | Achievements | Challenges | Workout | Home) ─
 export const NAV_TABS = [
-  { id: 'profile',      label: 'الملف',    icon: '👤' },
-  { id: 'achievements', label: 'جوائز',    icon: '🏆' },
-  { id: 'challenges',   label: 'تحديات',   icon: '🏳️' },
-  { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
   { id: 'home',         label: 'الرئيسية', icon: '🏠' },
+  { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
+  { id: 'challenges',   label: 'تحديات',   icon: '🏳️' },
+  { id: 'achievements', label: 'جوائز',    icon: '🏆' },
+  { id: 'profile',      label: 'الملف',    icon: '👤' },
 ]
 // Settings accessible via gear icon in header (not a nav tab)
 
