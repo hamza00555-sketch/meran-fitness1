@@ -7,7 +7,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
   const emoji = group.emoji || '🏋️'
 
   const exDef = (group.exercises || []).find(e => e.name === exercise.name) || {}
-  const { videoUrl, animationUrl } = exDef
+  const { videoUrl, animationUrl, tips } = exDef
 
   const ytId = videoUrl ? (() => {
     const m = videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/)
@@ -142,6 +142,40 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
             )}
           </div>
 
+          {/* Tips */}
+          {tips && tips.length > 0 && (
+            <div style={{
+              background: 'var(--bg3)', border: '1px solid var(--border2)',
+              borderRadius: 12, padding: '14px 16px', marginBottom: 12,
+            }}>
+              <div style={{
+                fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
+                color: 'var(--text2)', marginBottom: 10,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <span style={{ fontSize: 14 }}>⚡</span> نصائح مهمة
+              </div>
+              {tips.map((tip, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                  marginBottom: i < tips.length - 1 ? 8 : 0,
+                }}>
+                  <span style={{
+                    minWidth: 20, height: 20, borderRadius: '50%',
+                    background: color + '20', border: `1px solid ${color}40`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+                    color, flexShrink: 0, marginTop: 1,
+                  }}>{i + 1}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-ar)', fontSize: 13,
+                    color: 'var(--text2)', lineHeight: 1.55,
+                  }}>{tip}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Muscle group info */}
           <div style={{
             background: color + '0D', border: `1px solid ${color}25`,
@@ -151,14 +185,13 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
               fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
               color, marginBottom: 4,
             }}>
-              {emoji} {label}
+              {emoji} المجموعة العضلية: {label}
             </div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
               lineHeight: 1.6,
             }}>
-              التمرين يستهدف مجموعة {label} بشكل أساسي.
-              سجّل وزنك وتكراراتك في كل سيت لمتابعة تقدمك.
+              سجّل وزنك وتكراراتك في كل سيت لمتابعة تقدمك وتجاوز أرقامك القياسية.
             </div>
           </div>
 

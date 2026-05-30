@@ -70,13 +70,23 @@ function Stepper({ onUp, onDown, disabled }) {
 }
 
 export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions }) {
-  const [showInfo, setShowInfo] = useState(false)
-  const [showPR,   setShowPR]   = useState(false)
+  const [showInfo,  setShowInfo]  = useState(false)
+  const [showPR,    setShowPR]    = useState(false)
+  const [copied,    setCopied]    = useState(false)
 
-  const group = MUSCLE_GROUPS[ex.muscle] || {}
-  const color = group.color || 'var(--cyan)'
-  const label = group.label || ex.muscle
-  const emoji = group.emoji || '🏋️'
+  const group  = MUSCLE_GROUPS[ex.muscle] || {}
+  const color  = group.color || 'var(--cyan)'
+  const label  = group.label || ex.muscle
+  const emoji  = group.emoji || '🏋️'
+  const exDef  = (group.exercises || []).find(e => e.name === ex.name) || {}
+  const ytUrl  = exDef.videoUrl || null
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(ex.name).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
 
   const { lastWeight, maxWeight } = useMemo(
     () => getExerciseStats(sessions, ex.name),
@@ -122,15 +132,55 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
           {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700,
-                color: 'var(--text)', marginBottom: 5,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {ex.name}
+              {/* Exercise name + copy button */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700,
+                  color: 'var(--text)',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  flex: 1, minWidth: 0,
+                }}>
+                  {ex.name}
+                </div>
+                <button
+                  onClick={handleCopy}
+                  title="نسخ الاسم"
+                  style={{
+                    background: copied ? 'var(--green-lo)' : 'var(--bg3)',
+                    border: `1px solid ${copied ? '#22C55E50' : 'var(--border)'}`,
+                    borderRadius: 6, padding: '2px 7px',
+                    color: copied ? 'var(--green)' : 'var(--text3)',
+                    fontSize: 11, cursor: 'pointer', flexShrink: 0,
+                    fontFamily: 'var(--font-mono)', transition: 'all 0.15s',
+                    lineHeight: 1.6,
+                  }}
+                >{copied ? '✓' : '⎘'}</button>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+
+              {/* Badges row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Badge color={color}>{emoji} {label}</Badge>
+
+                {/* YouTube tag */}
+                {ytUrl && (
+                  <a
+                    href={ytUrl} target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: 'rgba(255,0,0,0.10)', border: '1px solid rgba(255,0,0,0.28)',
+                      borderRadius: 10, padding: '2px 8px',
+                      fontSize: 10, color: '#FF4444', fontWeight: 700,
+                      textDecoration: 'none', fontFamily: 'var(--font-mono)',
+                      transition: 'background 0.15s',
+                      flexShrink: 0,
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,0,0,0.18)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,0,0,0.10)'}
+                  >
+                    ▶ YouTube
+                  </a>
+                )}
+
                 {lastWeight !== null && (
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
                     آخر <span style={{ color: 'var(--text2)', fontWeight: 700 }}>{lastWeight}kg</span>
@@ -141,7 +191,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0, marginRight: 4 }}>
               <button
                 onClick={() => setShowInfo(true)}
                 title="معلومات التمرين"
