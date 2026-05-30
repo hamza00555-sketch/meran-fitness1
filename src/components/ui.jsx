@@ -6,7 +6,7 @@ export function Card({ children, style = {}, topColor, onClick }) {
     <div
       onClick={onClick}
       style={{
-        background: 'var(--bg1)',
+        background: 'var(--bg2)',
         border: '1px solid var(--border)',
         borderRadius: 'var(--radius)',
         borderTop: topColor ? `2px solid ${topColor}` : '1px solid var(--border)',
@@ -21,13 +21,13 @@ export function Card({ children, style = {}, topColor, onClick }) {
 // Button variants
 const BTN_VARIANTS = {
   primary: {
-    background: 'linear-gradient(135deg, var(--cyan), #7D3C98)',
-    color: '#F0F4FF',
+    background: 'var(--cyan)',
+    color: '#fff',
     border: 'none',
-    boxShadow: '0 4px 20px rgba(155,89,182,0.35)',
+    boxShadow: '0 4px 18px rgba(155,92,255,0.28)',
   },
   secondary: {
-    background: 'var(--bg2)',
+    background: 'var(--bg3)',
     color: 'var(--text)',
     border: '1px solid var(--border2)',
     boxShadow: 'none',

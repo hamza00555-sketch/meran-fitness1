@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HamzaFit — طلبات الأسيتس</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #07080C;
+  color: #EEEEF5;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 24px 16px 80px;
+}
+.container { max-width: 860px; margin: 0 auto; }
+
+h1 { font-size: 24px; font-weight: 900; color: #9B5CFF; margin-bottom: 4px; }
+.sub { color: #A7A7B3; font-size: 13px; margin-bottom: 32px; }
+
+h2 {
+  font-size: 13px; font-weight: 800; letter-spacing: 2px;
+  color: #9B5CFF; text-transform: uppercase;
+  margin: 36px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1E1F28;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
+.grid-3 { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+
+.asset-card {
+  background: #101116;
+  border: 1px solid #1E1F28;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.asset-card:hover { border-color: #9B5CFF44; }
+
+.card-head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #1E1F28;
+  display: flex; align-items: center; gap: 10px;
+}
+.asset-name {
+  font-family: 'Courier New', monospace;
+  font-size: 11px; font-weight: 700;
+  color: #9B5CFF; direction: ltr;
+}
+.asset-size {
+  font-family: 'Courier New', monospace;
+  font-size: 10px; color: #52535E;
+  margin-right: auto;
+}
+.color-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.prompt-box {
+  padding: 12px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 11.5px;
+  color: #EEEEF5;
+  line-height: 1.65;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.copy-btn {
+  display: block; width: calc(100% - 28px);
+  margin: 0 14px 12px;
+  background: #17181F;
+  border: 1px solid #2A2B33;
+  border-radius: 7px;
+  padding: 7px;
+  color: #A7A7B3;
+  font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+  font-family: inherit;
+}
+.copy-btn:hover { border-color: #9B5CFF; color: #9B5CFF; }
+.copy-btn.copied { border-color: #22C55E; color: #22C55E; background: rgba(34,197,94,0.06); }
+
+.tag {
+  display: inline-block;
+  background: rgba(155,92,255,0.12);
+  border: 1px solid rgba(155,92,255,0.25);
+  border-radius: 20px; padding: 2px 8px;
+  font-size: 10px; color: #9B5CFF; font-weight: 700;
+  margin-bottom: 10px; margin-left: 6px;
+}
+.tag.green  { background: rgba(34,197,94,0.1);  border-color: rgba(34,197,94,0.25);  color: #22C55E; }
+.tag.blue   { background: rgba(59,130,246,0.1);  border-color: rgba(59,130,246,0.25);  color: #3B82F6; }
+.tag.orange { background: rgba(249,115,22,0.1);  border-color: rgba(249,115,22,0.25);  color: #F97316; }
+.tag.gold   { background: rgba(234,179,8,0.1);   border-color: rgba(234,179,8,0.25);   color: #EAB308; }
+.tag.gray   { background: rgba(156,163,175,0.1); border-color: rgba(156,163,175,0.25); color: #9CA3AF; }
+
+.style-note {
+  background: rgba(155,92,255,0.06);
+  border: 1px solid rgba(155,92,255,0.18);
+  border-radius: 10px; padding: 12px 16px;
+  font-size: 12px; color: #A7A7B3;
+  margin-bottom: 28px; direction: ltr; text-align: left;
+  line-height: 1.8;
+}
+.style-note strong { color: #9B5CFF; }
+
+.existing-img {
+  width: 48px; height: 48px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid #2A2B33;
+  background: #17181F;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🎨 HamzaFit — طلبات الأسيتس</h1>
+<p class="sub">31 أسيت · مقسّمة على 7 مجموعات · كل برومبت جاهز للنسخ في Midjourney / DALL-E / Ideogram</p>
+
+<div class="style-note">
+<strong>الأسلوب العام لكل الأسيتس:</strong><br>
+• Dark background or transparent PNG<br>
+• Primary color: <strong>#9B5CFF</strong> electric purple · Deep purple: <strong>#6D35D8</strong><br>
+• Style: flat anime-inspired illustration, clean edges, minimal glow, no excessive gradients<br>
+• Feel: premium athletic app, Solo Leveling HUD aesthetic, subtle not cyberpunk<br>
+• Export: PNG with transparency, square canvas unless noted
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>🏅 GROUP 1 — Rank Badges (7 أسيتس)</h2>
+<div class="style-note">
+Badge shape: <strong>heraldic shield</strong> with angular anime-style detailing · Each rank has its own accent color · Size: <strong>256×256px</strong> transparent PNG · Style consistent across all 7 — same shield template, different color/material treatment
+</div>
+
+<div class="grid">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_e.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_e.png</div>
+        <div style="margin-top:3px"><span class="tag gray">E RANK · المبتدئ</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank E, stone gray color #9CA3AF, cracked stone texture, worn and rough surface, faint runes etched on surface, dark background transparent PNG, flat anime illustration style, clean bold linework, no glow effects, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_d.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_d.png</div>
+        <div style="margin-top:3px"><span class="tag green">D RANK · الجاد</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank D, green color #22C55E, iron shield with green energy lines, slight metallic sheen, small leaf or sprout motif, dark background transparent PNG, flat anime illustration style, clean bold linework, minimal glow, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_c.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_c.png</div>
+        <div style="margin-top:3px"><span class="tag blue">C RANK · الحديدي</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank C, blue color #3B82F6, polished steel shield with blue circuit-like engravings, angular geometric design, dark background transparent PNG, flat anime illustration style, clean bold linework, subtle blue inner light, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_b.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_b.png</div>
+        <div style="margin-top:3px"><span class="tag">B RANK · المتمرس</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank B, electric purple color #9B5CFF, dark purple shield with glowing purple rune carvings, mystical energy pattern, sharp angular anime style, dark background transparent PNG, flat illustration, clean bold linework, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_a.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_a.png</div>
+        <div style="margin-top:3px"><span class="tag orange">A RANK · النخبة</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank A, deep orange color #F97316, obsidian shield with blazing orange flame engravings, fierce warrior aesthetic, sharp angular design, dark background transparent PNG, flat anime illustration, clean bold linework, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_s.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_s.png</div>
+        <div style="margin-top:3px"><span class="tag gold">S RANK · الأسطورة</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank S, gold color #EAB308, gleaming golden shield with legendary ornate patterns, mythic crown motif at top, radiating prestige, dark background transparent PNG, flat anime illustration, clean bold linework, subtle gold shimmer, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/rank_s_plus.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">rank_s_plus.png</div>
+        <div style="margin-top:3px"><span class="tag gold">S+ RANK · الظاهرة</span></div>
+      </div>
+      <div class="asset-size">256×256</div>
+    </div>
+    <div class="prompt-box">anime heraldic shield badge, rank S+, iridescent prismatic color, transcendent beyond gold, crystalline shield with rainbow light refraction, small "+" symbol integrated in design, godlike aesthetic, dark background transparent PNG, flat anime illustration, clean bold linework, premium fitness game UI asset, 256x256px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>💪 GROUP 2 — Muscle Group Icons (8 أسيتس)</h2>
+<div class="style-note">
+Circular coin/medallion design · Each shows the muscle group silhouette · Size: <strong>128×128px</strong> transparent PNG · Color matches the app's muscle group color · Clean flat illustration, no photorealism
+</div>
+
+<div class="grid grid-3">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_chest.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_chest.png</div>
+        <div style="margin-top:3px"><span class="tag orange">الصدر · #FF6B35</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, chest pectoral muscles, front torso silhouette showing pecs, orange-red color #FF6B35, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_back.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_back.png</div>
+        <div style="margin-top:3px"><span class="tag blue">الظهر · #3B82F6</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, back muscles lats trapezius, rear torso silhouette showing lat spread, blue color #3B82F6, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_shoulders.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_shoulders.png</div>
+        <div style="margin-top:3px"><span class="tag">الأكتاف · #A855F7</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, shoulder deltoid muscles, upper body silhouette showing broad shoulders and deltoids highlighted, purple color #A855F7, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_legs.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_legs.png</div>
+        <div style="margin-top:3px"><span class="tag green">الأرجل · #22C55E</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, leg muscles quadriceps hamstrings, lower body silhouette showing powerful legs and thighs, green color #22C55E, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_biceps.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_biceps.png</div>
+        <div style="margin-top:3px"><span class="tag gold">البايسبس · #EAB308</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, bicep muscle, flexed arm silhouette showing peak bicep, gold yellow color #EAB308, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_triceps.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_triceps.png</div>
+        <div style="margin-top:3px"><span class="tag orange">الترايسبس · #F97316</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, tricep muscle, arm extended from behind showing tricep horseshoe, orange color #F97316, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/muscle_core.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">muscle_core.png</div>
+        <div style="margin-top:3px"><span class="tag" style="color:#EC4899;border-color:#EC489944;background:rgba(236,72,153,0.1)">الكور · #EC4899</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, core abdominal muscles, torso silhouette showing six-pack abs and obliques, pink hot color #EC4899, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/cardio.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">cardio.png</div>
+        <div style="margin-top:3px"><span class="tag" style="color:#EF4444;border-color:#EF444444;background:rgba(239,68,68,0.1)">الكارديو · #EF4444</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">circular muscle icon coin, cardio heart rate, running figure silhouette with heartbeat line overlay, red color #EF4444, dark circular badge, flat anime illustration, clean linework, 128x128px transparent PNG, fitness app icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>🦸 GROUP 3 — Hero Illustrations (2 أسيتس)</h2>
+<div class="style-note">
+Used in the Today card on the home screen · Size: <strong>200×200px</strong> transparent PNG · Anime chibi-style character, dark silhouette with electric purple highlights · Same character, two states
+</div>
+
+<div class="grid">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/hero_training.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">hero_training.png</div>
+        <div style="margin-top:3px"><span class="tag">يوم تمرين 💪</span></div>
+      </div>
+      <div class="asset-size">200×200</div>
+    </div>
+    <div class="prompt-box">anime style muscular warrior silhouette, lifting heavy barbell overhead, electric purple energy aura #9B5CFF radiating from body, dynamic powerful pose, dark near-black background, flat illustration clean linework, no background detail, transparent PNG, fitness app hero illustration, 200x200px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/hero_rest.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">hero_rest.png</div>
+        <div style="margin-top:3px"><span class="tag gray">يوم راحة 😴</span></div>
+      </div>
+      <div class="asset-size">200×200</div>
+    </div>
+    <div class="prompt-box">anime style warrior silhouette, sitting relaxed cross-legged meditating, soft dim purple glow #6D35D8 around body, calm peaceful pose, moon or stars small detail, dark near-black background, flat illustration clean linework, transparent PNG, fitness app hero illustration, 200x200px</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>🏆 GROUP 4 — Achievement Icons (4 أسيتس)</h2>
+<div class="style-note">
+Shown in the achievements grid · Size: <strong>128×128px</strong> transparent PNG · Circular dark badge with icon inside · Purple/gold accents · Replace cyan with purple
+</div>
+
+<div class="grid grid-3">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/ach_consistency.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">ach_consistency.png</div>
+        <div style="margin-top:3px"><span class="tag">الثبات 🔗</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">achievement badge icon, consistency streak, interlocked chain links forming a circle, electric purple #9B5CFF, dark circular badge background, flat anime style, clean linework, 128x128px transparent PNG, fitness app achievement icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/ach_master.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">ach_master.png</div>
+        <div style="margin-top:3px"><span class="tag gold">الإتقان 👑</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">achievement badge icon, mastery crown, ornate angular crown with gem in center, gold color #EAB308 with purple #9B5CFF gem, dark circular badge background, flat anime style, clean linework, 128x128px transparent PNG, fitness app achievement icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/ach_strength.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">ach_strength.png</div>
+        <div style="margin-top:3px"><span class="tag orange">القوة ⚔️</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">achievement badge icon, strength power, crossed swords or single upward sword, orange #F97316 blade with purple #9B5CFF energy glow along edge, dark circular badge background, flat anime style, clean linework, 128x128px transparent PNG, fitness app achievement icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/ach_volume.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">ach_volume.png</div>
+        <div style="margin-top:3px"><span class="tag">الحجم 📊</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">achievement badge icon, volume training, upward bar chart with three bars ascending, electric purple #9B5CFF bars, topmost bar has gold tip #EAB308, dark circular badge background, flat anime style, clean linework, 128x128px transparent PNG, fitness app achievement icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>⚡ GROUP 5 — Challenge Icons (3 أسيتس)</h2>
+<div class="style-note">
+Used in the challenges tab · Size: <strong>160×160px</strong> transparent PNG · Daily = quick lightning bolt · Weekly = calendar with sword · Boss = menacing eye or creature — replace the current orange eye with purple version
+</div>
+
+<div class="grid grid-3">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/challenge_daily.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">challenge_daily.png</div>
+        <div style="margin-top:3px"><span class="tag gold">يومي ⚡</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">challenge icon, daily challenge, bold lightning bolt striking downward, electric yellow-gold #EAB308 color, sharp angular anime style, speed lines background hint, dark near-black background, flat illustration clean linework, transparent PNG, 160x160px, fitness app challenge icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/challenge_weekly.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">challenge_weekly.png</div>
+        <div style="margin-top:3px"><span class="tag blue">أسبوعي 🗓️</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">challenge icon, weekly challenge, shield with calendar grid and small sword overlay, blue #3B82F6 and purple #9B5CFF accents, heraldic feel, dark near-black background, flat anime illustration clean linework, transparent PNG, 160x160px, fitness app challenge icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/challenge_boss.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">challenge_boss.png</div>
+        <div style="margin-top:3px"><span class="tag">بوص 👁️</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">challenge icon, boss challenge, single menacing eye with vertical slit pupil, electric purple iris #9B5CFF, dark shadowy eyelids, ominous energy crackling around it, Solo Leveling monarch eye aesthetic, dark background, flat anime illustration, clean dramatic linework, transparent PNG, 160x160px, fitness app boss challenge icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>🌑 GROUP 6 — Empty States (3 أسيتس)</h2>
+<div class="style-note">
+Shown when lists are empty · Size: <strong>180×180px</strong> transparent PNG · Subtle, not distracting · Muted purple tones · Minimal detail
+</div>
+
+<div class="grid grid-3">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/empty_workout.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">empty_workout.png</div>
+        <div style="margin-top:3px"><span class="tag gray">لا جلسات</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">empty state illustration, empty gym, lone barbell on floor with small dust particles, muted dark purple #6D35D8 tones, melancholic quiet mood, minimal detail, flat anime style, soft linework, transparent PNG, 180x180px, fitness app empty state</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/empty_achievements.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">empty_achievements.png</div>
+        <div style="margin-top:3px"><span class="tag gray">لا إنجازات</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">empty state illustration, locked trophy or chest, padlock on a faded trophy, muted gray-purple tones, sense of potential waiting to be unlocked, minimal detail, flat anime style, soft linework, transparent PNG, 180x180px, fitness app empty state</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/empty_challenges.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">empty_challenges.png</div>
+        <div style="margin-top:3px"><span class="tag gray">لا تحديات</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">empty state illustration, sleeping or dormant small creature or dragon curled up, faint purple #6D35D8 outline, calm sleepy mood, minimal detail, flat anime style, soft linework, transparent PNG, 180x180px, fitness app empty state</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<h2>✨ GROUP 7 — Decorative Elements (4 أسيتس)</h2>
+<div class="style-note">
+Small decorative elements used throughout the UI · Various sizes · Transparent PNG · Simple, iconic
+</div>
+
+<div class="grid grid-3">
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/deco_level_ring.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">deco_level_ring.png</div>
+        <div style="margin-top:3px"><span class="tag">مستوى 🔵</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">decorative ring element, circular progress ring UI element, electric purple #9B5CFF, angular segmented ring like a power gauge, gap at top, clean flat design, transparent PNG, 128x128px, fitness game HUD element</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/deco_star.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">deco_star.png</div>
+        <div style="margin-top:3px"><span class="tag gold">نجمة XP ⭐</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">decorative star icon, XP star, 6-pointed angular star with inner glow, gold #EAB308 with purple #9B5CFF core, clean flat design, no shadow, transparent PNG, 64x64px, fitness game XP indicator icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/deco_streak_flame.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">deco_streak_flame.png</div>
+        <div style="margin-top:3px"><span class="tag orange">شعلة 🔥</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">decorative flame icon, streak fire flame, bold stylized flame shape, deep orange #F97316 base fading to bright yellow tip, clean flat anime style, no shadow, transparent PNG, 64x64px, fitness app streak indicator</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+  <div class="asset-card">
+    <div class="card-head">
+      <img src="assets/deco_xp_orb.png" class="existing-img" alt="">
+      <div>
+        <div class="asset-name">deco_xp_orb.png</div>
+        <div style="margin-top:3px"><span class="tag">كرة XP 🔮</span></div>
+      </div>
+    </div>
+    <div class="prompt-box">decorative orb icon, XP energy orb, small glowing sphere, electric purple #9B5CFF outer ring with bright white-purple core, magical energy wisps around it, flat design minimal glow, no shadow, transparent PNG, 64x64px, fitness game XP collectible icon</div>
+    <button class="copy-btn" onclick="cp(this)">📋 نسخ</button>
+  </div>
+
+</div>
+
+<!-- Summary -->
+<div style="margin-top:40px; padding:16px 20px; background:#101116; border:1px solid #1E1F28; border-radius:14px; font-size:12px; color:#52535E; direction:ltr; text-align:left; line-height:2;">
+  Total: 31 assets &nbsp;·&nbsp;
+  Group 1: 7 rank badges (256×256) &nbsp;·&nbsp;
+  Group 2: 8 muscle icons (128×128) &nbsp;·&nbsp;
+  Group 3: 2 hero illustrations (200×200) &nbsp;·&nbsp;
+  Group 4: 4 achievement icons (128×128) &nbsp;·&nbsp;
+  Group 5: 3 challenge icons (160×160) &nbsp;·&nbsp;
+  Group 6: 3 empty states (180×180) &nbsp;·&nbsp;
+  Group 7: 4 decorative (64–128px)<br>
+  Style: flat anime · palette: #07080C bg · #9B5CFF primary · #6D35D8 deep · #EAB308 gold
+</div>
+
+</div>
+
+<script>
+function cp(btn) {
+  const box = btn.previousElementSibling
+  navigator.clipboard.writeText(box.textContent.trim()).then(() => {
+    btn.textContent = '✓ تم النسخ'
+    btn.classList.add('copied')
+    setTimeout(() => {
+      btn.textContent = '📋 نسخ'
+      btn.classList.remove('copied')
+    }, 2000)
+  })
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HamzaFit — 20 Asset Prompts</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #07080C;
+  color: #EEEEF5;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 24px 16px 80px;
+}
+.container { max-width: 900px; margin: 0 auto; }
+
+h1 { font-size: 22px; font-weight: 900; color: #9B5CFF; margin-bottom: 4px; }
+.sub { color: #A7A7B3; font-size: 13px; margin-bottom: 28px; }
+
+.style-box {
+  background: #101116;
+  border: 1px solid rgba(155,92,255,0.25);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 28px;
+  font-size: 12px;
+  color: #A7A7B3;
+  direction: ltr;
+  text-align: left;
+  line-height: 2;
+}
+.style-box strong { color: #9B5CFF; }
+
+.asset-wrap {
+  background: #101116;
+  border: 1px solid #1E1F28;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.asset-wrap:hover { border-color: #9B5CFF44; }
+
+.asset-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid #1E1F28;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.asset-num {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: rgba(155,92,255,0.15);
+  border: 1px solid rgba(155,92,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Courier New', monospace;
+  font-size: 11px; font-weight: 800;
+  color: #9B5CFF;
+  flex-shrink: 0;
+}
+.asset-title { font-size: 14px; font-weight: 700; color: #EEEEF5; }
+.asset-sub { font-size: 11px; color: #52535E; margin-top: 1px; }
+.asset-meta {
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.tag {
+  display: inline-block;
+  background: rgba(155,92,255,0.1);
+  border: 1px solid rgba(155,92,255,0.22);
+  border-radius: 20px; padding: 1px 8px;
+  font-size: 10px; color: #9B5CFF; font-weight: 700;
+  font-family: 'Courier New', monospace;
+  direction: ltr;
+}
+.tag.gold { background: rgba(234,179,8,0.1); border-color: rgba(234,179,8,0.25); color: #EAB308; }
+.tag.green { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.25); color: #34D399; }
+.tag.red { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.25); color: #EF4444; }
+
+.asset-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+.field-label {
+  font-size: 9px; font-weight: 800; letter-spacing: 1.5px;
+  color: #52535E; text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.field-val {
+  font-size: 12px; color: #A7A7B3; line-height: 1.6;
+}
+
+.prompt-block {
+  background: #17181F;
+  border: 1px solid #2A2B33;
+  border-radius: 10px;
+  padding: 14px;
+}
+.prompt-text {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #EEEEF5;
+  line-height: 1.7;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.copy-btn {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  border: 1px solid #2A2B33;
+  border-radius: 7px;
+  padding: 8px;
+  color: #A7A7B3;
+  font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+  font-family: inherit;
+}
+.copy-btn:hover { border-color: #9B5CFF; color: #9B5CFF; }
+.copy-btn.copied { border-color: #34D399; color: #34D399; background: rgba(52,211,153,0.05); }
+
+.no-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  direction: ltr; text-align: left;
+}
+.no-item {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 6px; padding: 3px 9px;
+  font-size: 11px; color: #EF4444;
+}
+
+.divider {
+  height: 1px; background: #1E1F28;
+  margin: 6px 0;
+}
+
+.section-title {
+  font-size: 11px; font-weight: 800; letter-spacing: 2px;
+  color: #9B5CFF; text-transform: uppercase;
+  margin: 28px 0 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px; background: #1E1F28;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🎨 HamzaFit — 20 Asset Prompts</h1>
+<p class="sub">حسب طلب Prompt Pack الأصلي · كل أسيت له هدف، مقاس، ألوان، ممنوعات، وبرومبت جاهز</p>
+
+<div class="style-box">
+  <strong>الأسلوب العام:</strong> flat · premium · anime-inspired · dark background<br>
+  <strong>الخلفية:</strong> #07080C · <strong>السطح:</strong> #101116 · <strong>الأكسنت:</strong> #9B5CFF<br>
+  <strong>ممنوع في الكل:</strong> gradients قوية · emboss · neon glow مبالغ · cyberpunk زيادة · ألوان أصفر/أخضر كأكسنت رئيسي
+</div>
+
+<!-- ══════════════ GROUP 1: BRAND ══════════════ -->
+<div class="section-title">🔷 Brand Identity</div>
+
+<!-- 01 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">01</div>
+    <div>
+      <div class="asset-title">Logo Mark</div>
+      <div class="asset-sub">الشعار فقط بدون كلمات — للأيقونة والـ favicon</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">512×512</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">أيقونة التطبيق الرئيسية — تظهر في الـ homescreen وفي الـ PWA splash screen</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">الألوان</div>
+      <div class="field-val">Primary: <strong style="color:#9B5CFF">#9B5CFF</strong> · Deep: <strong style="color:#6D35D8">#6D35D8</strong> · Background: transparent or #07080C</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">نص أو حروف</span>
+        <span class="no-item">ألوان كثيرة</span>
+        <span class="no-item">تفاصيل زيادة</span>
+        <span class="no-item">ظل قوي</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">minimalist logo mark for fitness app "HamzaFit", abstract angular letter H shape combined with a dumbbell or lightning bolt, electric purple #9B5CFF on deep dark #07080C background, flat vector design, clean sharp geometric lines, no text, no gradients, no glow effects, premium athletic brand identity, 512x512px transparent PNG</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 02 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">02</div>
+    <div>
+      <div class="asset-title">HamzaFit Wordmark</div>
+      <div class="asset-sub">اسم التطبيق بشكل مصمم — عربي وإنجليزي</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">800×200</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">يستخدم في الهيدر والـ splash screen والمواد التسويقية</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">خلفية ملونة</span>
+        <span class="no-item">تأثيرات 3D</span>
+        <span class="no-item">زخارف زيادة</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">wordmark logo "HamzaFit" in bold athletic typeface, electric purple #9B5CFF text, the H letter slightly modified with angular cut or dumbbell detail integrated, clean flat modern design, no background, transparent PNG, fitness app brand typography, wide format 800x200px</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ GROUP 2: CHARACTERS ══════════════ -->
+<div class="section-title">🦸 Characters & Illustrations</div>
+
+<!-- 03 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">03</div>
+    <div>
+      <div class="asset-title">Anime Athlete Hero Character</div>
+      <div class="asset-sub">شخصية رياضية أنيمي — تستخدم في الهوم وشاشة الترحيب</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×400</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">شخصية بطل الجيم — تعكس هوية Solo Leveling الخفيفة للتطبيق. تظهر في الهوم screen وبطاقة اليوم</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">وجه مفصّل</span>
+        <span class="no-item">ألوان كثيرة</span>
+        <span class="no-item">خلفية</span>
+        <span class="no-item">neon مبالغ</span>
+        <span class="no-item">أسلحة</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">anime style dark silhouette athletic male character, muscular build, confident standing pose with arms crossed, wearing compression workout clothes, electric purple #9B5CFF energy aura emanating from body, dark graphite #07080C background, flat clean anime illustration, bold clean linework, no facial detail needed, no background elements, transparent PNG, fitness app mascot, 400x400px</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 04 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">04</div>
+    <div>
+      <div class="asset-title">Muscle Map — Front Body</div>
+      <div class="asset-sub">خريطة عضلات الجسم — واجهة أمامية</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">300×500</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">تستخدم في موال التمرين لتوضيح العضلات المستهدفة. العضلات تتلون بالبنفسجي عند التفاعل</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ملاحظة مهمة</div>
+      <div class="field-val" style="color:#F59E0B">كل عضلة يجب أن تكون منفصلة بصريًا عن غيرها — حدود واضحة بين العضلات</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">ألوان تشريحية</span>
+        <span class="no-item">وجه مفصّل</span>
+        <span class="no-item">تفاصيل طبية</span>
+        <span class="no-item">خلفية</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">anatomical muscle map illustration, human body front view, male figure, all muscles clearly segmented with clean outlines, base color dark #17181F, muscle borders #2A2B33, neutral resting state ready for color highlighting, flat clean illustration style, no background, no facial detail, no text labels, transparent PNG, fitness app muscle diagram, 300x500px portrait</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 05 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">05</div>
+    <div>
+      <div class="asset-title">Muscle Map — Back Body</div>
+      <div class="asset-sub">خريطة عضلات الجسم — خلفية</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">300×500</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">نفس استخدام الأمامية — تكمل الصورة لعضلات الظهر والأرجل الخلفية</div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">anatomical muscle map illustration, human body rear back view, male figure, all muscles clearly segmented with clean outlines, base color dark #17181F, muscle borders #2A2B33, neutral resting state ready for color highlighting, flat clean illustration style, no background, no facial detail, no text labels, transparent PNG, fitness app muscle diagram, 300x500px portrait</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ GROUP 3: EXERCISE ILLUSTRATIONS ══════════════ -->
+<div class="section-title">🏋️ Exercise Illustrations</div>
+
+<!-- 06 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">06</div>
+    <div>
+      <div class="asset-title">Bench Press</div>
+      <div class="asset-sub">تمرين ضغط الصدر — مرحلتين: أسفل وأعلى</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×250</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">تظهر في موال معلومات التمرين — تحل مؤقتًا مكان الأنيميشن القادم</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">وجه مفصّل</span><span class="no-item">خلفية جيم</span><span class="no-item">ألوان كثيرة</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">exercise illustration, bench press movement, anime style dark silhouette athlete lying on bench pressing barbell upward, clear motion showing the pressing movement, electric purple #9B5CFF barbell and accent lines, dark #07080C background, flat clean illustration, bold linework, side view, no facial detail, transparent PNG, 400x250px landscape</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 07 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">07</div>
+    <div>
+      <div class="asset-title">Dumbbell Press</div>
+      <div class="asset-sub">ضغط الدمبل — صدر أو كتف</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×250</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div class="prompt-block">
+      <div class="prompt-text">exercise illustration, dumbbell press movement, anime style dark silhouette athlete lying on bench pressing two dumbbells overhead, electric purple #9B5CFF dumbbells and accent lines, dark #07080C background, flat clean illustration, bold linework, front or side view, no facial detail, transparent PNG, 400x250px landscape</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 08 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">08</div>
+    <div>
+      <div class="asset-title">Chest Fly</div>
+      <div class="asset-sub">فراشة الصدر — كيبل أو دمبل</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×250</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div class="prompt-block">
+      <div class="prompt-text">exercise illustration, chest fly movement, anime style dark silhouette athlete lying on bench with arms extended wide like wings bringing dumbbells together over chest, electric purple #9B5CFF accent on weights and motion arc, dark #07080C background, flat clean illustration, bold linework, no facial detail, transparent PNG, 400x250px landscape</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 09 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">09</div>
+    <div>
+      <div class="asset-title">Deadlift</div>
+      <div class="asset-sub">الديدليفت — الحركة الكاملة</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×300</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div class="prompt-block">
+      <div class="prompt-text">exercise illustration, deadlift movement, anime style dark silhouette powerful athlete lifting heavy barbell from floor to hip height, spine straight, knees bent, strong heroic pose, electric purple #9B5CFF barbell and energy lines radiating from the lift, dark #07080C background, flat clean illustration, bold dynamic linework, side view, no facial detail, transparent PNG, 400x300px</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 10 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">10</div>
+    <div>
+      <div class="asset-title">Squat</div>
+      <div class="asset-sub">السكوات — مع البار على الكتفين</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×300</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div class="prompt-block">
+      <div class="prompt-text">exercise illustration, barbell squat movement, anime style dark silhouette powerful athlete in deep squat position with barbell on upper back, thighs parallel to floor, upright torso, electric purple #9B5CFF barbell and highlights on leg muscles, dark #07080C background, flat clean illustration, bold linework, side view, no facial detail, transparent PNG, 400x300px</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 11 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">11</div>
+    <div>
+      <div class="asset-title">Pull-Up / Alternative</div>
+      <div class="asset-sub">العقلة — مع بديل (Lat Pulldown)</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×300</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">ملاحظة</div>
+      <div class="field-val">هذا يستخدم لميزة "بديل التمرين" — يوضح العقلة كأصل والـ Lat Pulldown كبديل</div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">exercise illustration, pull-up movement, anime style dark silhouette athlete hanging from bar pulling chin above bar level, strong back and bicep engagement visible, electric purple #9B5CFF bar and muscle highlight lines, dark #07080C background, flat clean illustration, bold linework, front or side view, no facial detail, transparent PNG, 400x300px</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ GROUP 4: UI ILLUSTRATIONS ══════════════ -->
+<div class="section-title">📱 UI Component Illustrations</div>
+
+<!-- 12 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">12</div>
+    <div>
+      <div class="asset-title">Progress Chart Card</div>
+      <div class="asset-sub">بطاقة الرسم البياني في شاشة التقدم</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">600×300</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">رسم توضيحي لكيف يبدو الرسم البياني في الشاشة — يستخدم في الـ onboarding أو الـ empty state للتقدم</div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">UI illustration, dark fitness app progress chart card, sleek line chart showing weight progression over time going upward, electric purple #9B5CFF line with subtle area fill, dark surface #101116 card background with rounded corners, small percentage badge "+18%" in corner, minimal clean flat design, no grid lines, no labels needed, 600x300px transparent PNG</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 13 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">13</div>
+    <div>
+      <div class="asset-title">Rest Timer Card</div>
+      <div class="asset-sub">بطاقة مؤقت الراحة بين المجموعات</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">400×400</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">صورة تظهر كيف يبدو مؤقت الراحة — حلقة دائرية مع العد التنازلي</div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">UI illustration, rest timer interface, large circular countdown ring with electric purple #9B5CFF progress arc, dark #101116 center showing "1:30" time remaining in bold monospace, "استرح" Arabic text below, dark #07080C background, flat premium design, subtle completion pulse animation implied, 400x400px transparent PNG</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 14 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">14</div>
+    <div>
+      <div class="asset-title">Workout Set Tracker Card</div>
+      <div class="asset-sub">بطاقة تتبع المجموعات أثناء التمرين</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">500×280</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">يوضح شكل بطاقة التمرين النشط — للـ onboarding أو screenshots تسويقية</div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">UI illustration, workout set tracker card for fitness app, dark surface #101116 card, exercise name "Bench Press" at top in monospace font, 3 rows showing set number / weight input / reps input / done checkmark, two rows checked in green #34D399, one row active with purple #9B5CFF border highlight, +/- stepper buttons beside inputs, clean flat premium design, Arabic RTL layout implied, 500x280px transparent PNG</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 15 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">15</div>
+    <div>
+      <div class="asset-title">Add Exercise Button</div>
+      <div class="asset-sub">زر إضافة تمرين — الحالة الفارغة</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">500×80</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div class="prompt-block">
+      <div class="prompt-text">UI illustration, add exercise button component, wide rounded rectangle with dashed border in electric purple #9B5CFF, "＋ إضافة تمرين" Arabic text centered, dark #07080C background, flat clean design, subtle hover state glow, premium fitness app style, 500x80px transparent PNG</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 16 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">16</div>
+    <div>
+      <div class="asset-title">Bottom Navigation Bar</div>
+      <div class="asset-sub">شريط التنقل السفلي — حالة نشطة</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">560×80</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الأقسام</div>
+      <div class="field-val">الرئيسية · التمرين · التحديات · الإنجازات · البروفايل — العنصر النشط بالبنفسجي</div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">UI illustration, mobile app bottom navigation bar, 5 tab items: home icon / dumbbell icon / flag icon / trophy icon / person icon, second tab "workout" active state with electric purple #9B5CFF icon and subtle purple pill background, other tabs in muted gray #52535E, dark #07080C background, flat clean icons, Arabic labels below each icon, 560x80px transparent PNG</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ GROUP 5: GAMIFICATION ══════════════ -->
+<div class="section-title">🏆 Gamification Elements</div>
+
+<!-- 17 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">17</div>
+    <div>
+      <div class="asset-title">Achievement Badge</div>
+      <div class="asset-sub">بادج الإنجاز — قابل للتخصيص</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">200×200</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">يستخدم في قسم الإنجازات — كل إنجاز له أيقونة من نفس الأسلوب</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">نص داخل البادج</span><span class="no-item">أكثر من 3 ألوان</span><span class="no-item">تفاصيل كثيرة</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">achievement badge icon, heraldic hexagonal badge shape, trophy or star symbol inside, electric purple #9B5CFF primary color with gold #EAB308 accent on symbol, dark #17181F badge background, angular anime-inspired design, clean bold flat linework, no text, transparent PNG, 200x200px, fitness game achievement system</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 18 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">18</div>
+    <div>
+      <div class="asset-title">PR Celebration Icon</div>
+      <div class="asset-sub">أيقونة الرقم القياسي الجديد — تظهر لحظة الاحتفال</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">300×300</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">تظهر مع أنيميشن احتفالي عند تسجيل أعلى وزن جديد (Personal Record). يجب أن تكون جذابة ومحفزة</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">ألوان هادئة</span><span class="no-item">شكل ممل</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">PR personal record celebration icon, bold trophy with upward lightning bolt through it, electric purple #9B5CFF base with gold #EAB308 lightning bolt, radiating burst lines around trophy suggesting explosion of achievement, dark background, flat anime illustration, energetic dynamic composition, no text, transparent PNG, 300x300px, fitness app celebration moment</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 19 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">19</div>
+    <div>
+      <div class="asset-title">Empty State Illustration</div>
+      <div class="asset-sub">صورة الحالة الفارغة — عند عدم وجود بيانات</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">300×250</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">تظهر في كل الصفحات الفارغة — قائمة التمارين، الإنجازات، السجل. يجب أن تحث المستخدم على البدء</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">تصميم حزين</span><span class="no-item">ألوان داكنة جدًا</span><span class="no-item">تفاصيل زيادة</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">empty state illustration for fitness app, lone dumbbell on dark floor with subtle dust particles, small electric purple #9B5CFF glow beneath it suggesting dormant power, minimalist composition, slight sense of potential waiting to be unlocked, flat anime style, clean simple linework, muted palette with purple accent only, transparent PNG, 300x250px</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- 20 -->
+<div class="asset-wrap">
+  <div class="asset-head">
+    <div class="asset-num">20</div>
+    <div>
+      <div class="asset-title">Exercise Info Modal Illustration</div>
+      <div class="asset-sub">صورة تعليمية داخل موال معلومات التمرين</div>
+    </div>
+    <div class="asset-meta">
+      <span class="tag">560×315</span>
+      <span class="tag gold">transparent PNG</span>
+    </div>
+  </div>
+  <div class="asset-body">
+    <div>
+      <div class="field-label">الهدف</div>
+      <div class="field-val">placeholder للفيديو في موال التمرين — تُستخدم مؤقتًا قبل إضافة الأنيميشن الحقيقي. تنسيق 16:9</div>
+    </div>
+    <div class="divider"></div>
+    <div>
+      <div class="field-label">ممنوع</div>
+      <div class="no-list">
+        <span class="no-item">نص تعليمي</span><span class="no-item">أرقام</span><span class="no-item">خلفية بيضاء</span>
+      </div>
+    </div>
+    <div class="prompt-block">
+      <div class="prompt-text">exercise demonstration illustration, wide 16:9 format, anime style dark silhouette athlete performing a generic strength exercise with proper form, electric purple #9B5CFF accent lines highlighting the primary muscle group being worked, motion arrows showing the movement path, dark #07080C background, flat clean illustration, bold linework, professional fitness app style, no text, transparent PNG, 560x315px landscape</div>
+      <button class="copy-btn" onclick="cp(this)">📋 نسخ البرومبت</button>
+    </div>
+  </div>
+</div>
+
+<!-- Footer summary -->
+<div style="margin-top:40px; padding:16px 20px; background:#101116; border:1px solid #1E1F28; border-radius:14px;">
+  <div style="font-size:11px; color:#52535E; direction:ltr; text-align:left; line-height:2.2;">
+    <span style="color:#9B5CFF; font-weight:700;">20 Assets Total</span> &nbsp;·&nbsp;
+    Brand: 01–02 &nbsp;·&nbsp;
+    Characters: 03–05 &nbsp;·&nbsp;
+    Exercises: 06–11 &nbsp;·&nbsp;
+    UI: 12–16 &nbsp;·&nbsp;
+    Gamification: 17–20<br>
+    <span style="color:#9B5CFF">Primary: #9B5CFF</span> &nbsp;·&nbsp;
+    <span style="color:#6D35D8">Deep: #6D35D8</span> &nbsp;·&nbsp;
+    <span style="color:#EAB308">Gold: #EAB308</span> &nbsp;·&nbsp;
+    <span style="color:#34D399">Success: #34D399</span> &nbsp;·&nbsp;
+    BG: #07080C &nbsp;·&nbsp; Surface: #101116
+  </div>
+</div>
+
+</div>
+
+<script>
+function cp(btn) {
+  const txt = btn.previousElementSibling.querySelector('.prompt-text') || btn.previousElementSibling
+  navigator.clipboard.writeText(txt.textContent.trim()).then(() => {
+    btn.textContent = '✓ تم النسخ'
+    btn.classList.add('copied')
+    setTimeout(() => { btn.textContent = '📋 نسخ البرومبت'; btn.classList.remove('copied') }, 2200)
+  })
+}
+</script>
+</body>
+</html>
