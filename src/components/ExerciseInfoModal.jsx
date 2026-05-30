@@ -109,7 +109,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
           )}
 
           {/* Compact YouTube link */}
-          {(ytId || animationUrl) && (
+          {(videoUrl || animationUrl) && (
             <a
               href={videoUrl || animationUrl}
               target="_blank"
