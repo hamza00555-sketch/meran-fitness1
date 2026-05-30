@@ -14,6 +14,7 @@ import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon 
 const NAV_ICONS = {
   home:         HomeIcon,
   workout:      DumbbellIcon,
+  exercises:    null,
   challenges:   FlagIcon,
   achievements: TrophyIcon,
   profile:      PersonIcon,
@@ -28,6 +29,7 @@ import AchievementsPage from './pages/AchievementsPage.jsx'
 import ProfilePage     from './pages/ProfilePage.jsx'
 import SettingsPage    from './pages/SettingsPage.jsx'
 import PhotosPage      from './pages/PhotosPage.jsx'
+import ExercisesPage   from './pages/ExercisesPage.jsx'
 
 // Components
 import RestTimer        from './components/RestTimer.jsx'
@@ -364,6 +366,7 @@ export default function App() {
             addXP={addXP}
           />
         )}
+        {tab === 'exercises' && <ExercisesPage />}
         {tab === 'challenges' && (
           <ChallengesPage
             sessions={sessions}
@@ -471,13 +474,10 @@ export default function App() {
                 background: isActive ? 'var(--cyan-lo)' : 'transparent',
                 transition: 'background 0.2s',
               }}>
-                {IconComp && (
-                  <IconComp
-                    size={19}
-                    color={isActive ? 'var(--cyan)' : '#4B5563'}
-                    filled={isActive}
-                  />
-                )}
+                {IconComp
+                  ? <IconComp size={19} color={isActive ? 'var(--cyan)' : '#4B5563'} filled={isActive} />
+                  : <span style={{ fontSize: 17, opacity: isActive ? 1 : 0.45 }}>{t.icon}</span>
+                }
               </div>
 
               <span style={{

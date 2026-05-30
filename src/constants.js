@@ -737,7 +737,7 @@ export const REST_PRESETS = [45, 60, 90, 120, 180]
 export const NAV_TABS = [
   { id: 'home',         label: 'الرئيسية', icon: '🏠' },
   { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
-  { id: 'challenges',   label: 'تحديات',   icon: '🏳️' },
+  { id: 'exercises',    label: 'التمارين', icon: '📚' },
   { id: 'achievements', label: 'جوائز',    icon: '🏆' },
   { id: 'profile',      label: 'الملف',    icon: '👤' },
 ]
