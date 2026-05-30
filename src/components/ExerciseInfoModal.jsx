@@ -74,75 +74,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
         {/* Scrollable body */}
         <div style={{ overflowY: 'auto', padding: '0 18px 40px', WebkitOverflowScrolling: 'touch' }}>
 
-          {/* Video / Animation */}
-          <div style={{
-            background: 'var(--bg3)', border: '1px solid var(--border)',
-            borderRadius: 14, overflow: 'hidden', marginBottom: 14,
-          }}>
-            {animationUrl ? (
-              <div style={{ position: 'relative', aspectRatio: '16/9' }}>
-                {animationUrl.match(/\.(mp4|webm)$/i) ? (
-                  <video
-                    src={animationUrl} autoPlay loop muted playsInline
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <img src={animationUrl} alt={exercise.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                )}
-              </div>
-            ) : ytId ? (
-              <a href={videoUrl} target="_blank" rel="noopener noreferrer"
-                style={{ display: 'block', position: 'relative', textDecoration: 'none' }}>
-                <img
-                  src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`}
-                  alt={exercise.name}
-                  style={{ width: '100%', display: 'block' }}
-                />
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(0,0,0,0.32)',
-                }}>
-                  <div style={{
-                    width: 56, height: 56, borderRadius: '50%',
-                    background: '#FF0000',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <div style={{
-                      width: 0, height: 0,
-                      borderTop: '11px solid transparent',
-                      borderBottom: '11px solid transparent',
-                      borderLeft: '18px solid white',
-                      marginRight: -3,
-                    }} />
-                  </div>
-                </div>
-                <div style={{
-                  position: 'absolute', bottom: 8, right: 8,
-                  background: 'rgba(0,0,0,0.7)', borderRadius: 6,
-                  padding: '3px 8px', fontFamily: 'var(--font-ar)',
-                  fontSize: 11, color: 'white',
-                }}>افتح على YouTube</div>
-              </a>
-            ) : (
-              <div style={{
-                aspectRatio: '16/9', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 10,
-              }}>
-                <div style={{ fontSize: 36 }}>🎬</div>
-                <div style={{
-                  fontFamily: 'var(--font-ar)', fontSize: 13,
-                  color: 'var(--text3)', textAlign: 'center', lineHeight: 1.6,
-                }}>
-                  لا يوجد فيديو بعد<br/>
-                  <span style={{ fontSize: 11 }}>سيُضاف لاحقاً</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Tips */}
+          {/* Tips — shown first */}
           {tips && tips.length > 0 && (
             <div style={{
               background: 'var(--bg3)', border: '1px solid var(--border2)',
@@ -174,6 +106,42 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Compact YouTube link */}
+          {(ytId || animationUrl) && (
+            <a
+              href={videoUrl || animationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: 'rgba(255,0,0,0.08)', border: '1px solid rgba(255,0,0,0.25)',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 12,
+                textDecoration: 'none',
+              }}
+            >
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', background: '#FF0000', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{
+                  width: 0, height: 0,
+                  borderTop: '7px solid transparent',
+                  borderBottom: '7px solid transparent',
+                  borderLeft: '12px solid white',
+                  marginRight: -2,
+                }} />
+              </div>
+              <div>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: '#FF4444', marginBottom: 2 }}>
+                  شاهد الشرح على YouTube
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
+                  {exercise.name}
+                </div>
+              </div>
+            </a>
           )}
 
           {/* Muscle group info */}
