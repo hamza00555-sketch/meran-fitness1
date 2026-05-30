@@ -20,20 +20,20 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 400,
         background: 'rgba(0,0,0,0.80)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         backdropFilter: 'blur(6px)',
+        padding: '16px',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 560,
+          width: '100%', maxWidth: 500,
           background: 'var(--bg2)',
-          borderRadius: '20px 20px 0 0',
+          borderRadius: 20,
           border: '1px solid var(--border)',
-          borderBottom: 'none',
           overflow: 'hidden',
-          maxHeight: '85vh',
+          maxHeight: '88vh',
           display: 'flex', flexDirection: 'column',
         }}
       >
