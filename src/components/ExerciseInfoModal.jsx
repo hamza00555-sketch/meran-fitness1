@@ -1,6 +1,12 @@
+import { useEffect } from 'react'
 import { MUSCLE_GROUPS } from '../constants.js'
 
 export default function ExerciseInfoModal({ exercise, onClose }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
   const group = MUSCLE_GROUPS[exercise.muscle] || {}
   const color = group.color || 'var(--cyan)'
   const label = group.label || exercise.muscle
@@ -22,9 +28,10 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
       style={{
         position: 'fixed', inset: 0, zIndex: 400,
         background: 'rgba(0,0,0,0.80)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         backdropFilter: 'blur(6px)',
-        padding: '16px',
+        padding: '12px 16px',
+        overflowY: 'auto',
       }}
     >
       <div
