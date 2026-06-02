@@ -6,19 +6,31 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting }) {
   const [showAdd,      setShowAdd]      = useState(false)
   const [showRoutines, setShowRoutines] = useState(false)
   const [elapsed,      setElapsed]      = useState(0)
-  const timerRef = useRef(null)
+  const timerRef      = useRef(null)
+  const pausedMsRef   = useRef(0)
+  const pauseStartRef = useRef(null)
 
+  // pause timer when rest opens, resume when it closes
   useEffect(() => {
     if (!active) return
-    const tick = () => setElapsed(Math.round((Date.now() - active.id) / 60000))
-    tick()
-    timerRef.current = setInterval(tick, 10000)
+    if (isResting) {
+      clearInterval(timerRef.current)
+      pauseStartRef.current = Date.now()
+    } else {
+      if (pauseStartRef.current) {
+        pausedMsRef.current += Date.now() - pauseStartRef.current
+        pauseStartRef.current = null
+      }
+      const tick = () => setElapsed(Math.round((Date.now() - active.id - pausedMsRef.current) / 60000))
+      tick()
+      timerRef.current = setInterval(tick, 10000)
+    }
     return () => clearInterval(timerRef.current)
-  }, [active?.id])
+  }, [active?.id, isResting])
 
   // ── History View ─────────────────────────────────────────────
   if (!active) {
