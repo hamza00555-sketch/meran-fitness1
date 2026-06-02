@@ -79,7 +79,8 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
   const label  = group.label || ex.muscle
   const emoji  = group.emoji || '🏋️'
   const exDef  = (group.exercises || []).find(e => e.name === ex.name) || {}
-  const ytUrl  = exDef.videoUrl || null
+  const ytUrl  = exDef.videoUrl ||
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + ' proper form')}`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(ex.name).then(() => {

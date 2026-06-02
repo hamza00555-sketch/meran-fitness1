@@ -7,7 +7,9 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
   const emoji = group.emoji || '🏋️'
 
   const exDef = (group.exercises || []).find(e => e.name === exercise.name) || {}
-  const { videoUrl, animationUrl, tips } = exDef
+  const videoUrl    = exDef.videoUrl ||
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.name + ' proper form')}`
+  const { animationUrl, tips } = exDef
 
   const ytId = videoUrl ? (() => {
     const m = videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/)
