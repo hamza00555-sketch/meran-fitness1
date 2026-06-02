@@ -26,7 +26,7 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        cacheId: 'hamzafit-v3',
+        cacheId: 'hamzafit-v4',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,otf,woff,woff2}'],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
