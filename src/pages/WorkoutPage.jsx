@@ -123,14 +123,14 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
             }}
           >⏱️ راحة</button>
           <button
-            onClick={onFinish}
+            onClick={onGoBack}
             style={{
-              background: 'var(--green-lo)', border: '1px solid #22C55E50',
-              borderRadius: 10, padding: '8px 16px',
-              color: 'var(--green)', fontFamily: 'var(--font-ar)',
-              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '8px 14px',
+              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
+              fontSize: 12, cursor: 'pointer',
             }}
-          >✓ إنهاء</button>
+          >← تراجع</button>
         </div>
       </div>
 
