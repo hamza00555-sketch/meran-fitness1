@@ -102,15 +102,6 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={onGoBack}
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '8px 12px',
-              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-              fontSize: 12, cursor: 'pointer',
-            }}
-          >← تراجع</button>
-          <button
             onClick={onShowRest}
             style={{
               background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -214,8 +205,18 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
         background: 'linear-gradient(transparent, var(--bg) 40%)',
         pointerEvents: 'none',
       }}>
-        <div style={{ pointerEvents: 'all' }}>
-          <button className="btn-cyan" onClick={onFinish}>
+        <div style={{ pointerEvents: 'all', display: 'flex', gap: 8 }}>
+          <button
+            onClick={onGoBack}
+            style={{
+              flex: '0 0 auto',
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 14, padding: '14px 18px',
+              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
+              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            }}
+          >← تراجع</button>
+          <button className="btn-cyan" onClick={onFinish} style={{ flex: 1 }}>
             ✓ إنهاء الجلسة {doneSets > 0 ? `· ${doneSets} sets` : ''}
           </button>
         </div>
