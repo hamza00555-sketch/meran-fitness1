@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { Card, Overlay, CloseBtn } from './ui.jsx'
 import { playBeep } from '../utils.js'
 import { REST_PRESETS } from '../constants.js'
 
 export default function RestTimer({ onClose }) {
-  const [selected, setSelected] = useState(90)
-  const [remaining, setRemaining] = useState(null)
-  const [running, setRunning] = useState(false)
+  const [selected,  setSelected]  = useState(90)
+  const [remaining, setRemaining] = useState(90)
+  const [running,   setRunning]   = useState(true)
   const intervalRef = useRef(null)
 
   useEffect(() => {
@@ -28,132 +27,131 @@ export default function RestTimer({ onClose }) {
   }
   const pause  = () => { setRunning(false); clearInterval(intervalRef.current) }
   const resume = () => setRunning(true)
-  const reset  = () => { pause(); setRemaining(null) }
 
-  const pct  = remaining !== null ? remaining / selected : 1
-  const R    = 54; const CX = 70; const CY = 70
+  const pct  = remaining / selected
+  const R = 18, CX = 22, CY = 22
   const circ = 2 * Math.PI * R
-  const dash = circ * pct
-  const done = remaining === 0
-  const displaySecs = remaining !== null ? remaining : selected
-  const mins = Math.floor(displaySecs / 60)
-  const secs = displaySecs % 60
+  const dash  = circ * pct
+  const done  = remaining === 0
+  const mins  = Math.floor(remaining / 60)
+  const secs  = remaining % 60
 
   return (
-    <Overlay onClose={onClose} align="center">
-      <Card style={{ padding: 24 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>⏱️ استراحة</div>
-            <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-              راحة بين السيتات
-            </div>
-          </div>
-          <CloseBtn onClick={onClose} />
+    <div style={{
+      position: 'fixed',
+      top: 'calc(var(--safe-top, 0px) + 74px)',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: 'calc(100% - 28px)',
+      maxWidth: 532,
+      zIndex: 150,
+      background: 'rgba(7,8,12,0.97)',
+      border: `1px solid ${done ? '#22C55E' : 'var(--cyan)'}`,
+      borderRadius: 16,
+      backdropFilter: 'blur(20px)',
+      padding: '10px 14px',
+      boxShadow: `0 4px 20px ${done ? 'rgba(34,197,94,0.18)' : 'rgba(0,210,255,0.14)'}`,
+      transition: 'border-color 0.3s, box-shadow 0.3s',
+    }}>
+      {/* Main row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Mini ring */}
+        <svg width={44} height={44} viewBox="0 0 44 44" style={{ flexShrink: 0 }}>
+          <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border2)" strokeWidth={4} />
+          <circle
+            cx={CX} cy={CY} r={R}
+            fill="none"
+            stroke={done ? '#22C55E' : 'var(--cyan)'}
+            strokeWidth={4}
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={circ - dash}
+            transform={`rotate(-90 ${CX} ${CY})`}
+            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+          />
+        </svg>
+
+        {/* Time */}
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 800,
+          color: done ? '#22C55E' : 'var(--text)',
+          minWidth: 70, letterSpacing: 1,
+        }}>
+          {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
         </div>
 
-        {/* SVG Ring */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
-          <svg width={140} height={140} viewBox="0 0 140 140">
-            <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border2)" strokeWidth={10} />
-            <circle
-              cx={CX} cy={CY} r={R}
-              fill="none"
-              stroke={done ? 'var(--green)' : 'var(--cyan)'}
-              strokeWidth={10}
-              strokeLinecap="round"
-              strokeDasharray={circ}
-              strokeDashoffset={circ - dash}
-              transform={`rotate(-90 ${CX} ${CY})`}
-              style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
-            />
-            <text
-              x={CX} y={CY + 8}
-              textAnchor="middle"
-              fill={done ? '#22C55E' : 'var(--text)'}
-              style={{ fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 700 }}
-            >
-              {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
-            </text>
-            {done && (
-              <text x={CX} y={CY + 28} textAnchor="middle" fill="#22C55E"
-                style={{ fontSize: 11, fontFamily: 'var(--font-ar)', fontWeight: 700 }}>
-                خلصت! 🎉
-              </text>
-            )}
-          </svg>
-        </div>
-
-        {/* Preset Buttons */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 18 }}>
-          {REST_PRESETS.map(p => (
-            <button
-              key={p}
-              onClick={() => start(p)}
-              style={{
-                background: selected === p ? 'var(--cyan-lo)' : 'var(--bg2)',
-                border: `1px solid ${selected === p ? 'var(--cyan)' : 'var(--border)'}`,
-                borderRadius: 8, padding: '7px 10px',
-                color: selected === p ? 'var(--cyan)' : 'var(--text3)',
-                fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer',
-                transition: 'all 0.15s',
-              }}
-            >{p < 60 ? `${p}s` : `${p / 60}m`}</button>
-          ))}
+        {/* Label */}
+        <div style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 12, color: done ? '#22C55E' : 'var(--text3)' }}>
+          {done ? '✓ انتهت الراحة!' : 'استراحة'}
         </div>
 
         {/* Controls */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-          {remaining === null && (
-            <button
-              className="btn-cyan"
-              onClick={() => start()}
-              style={{ fontSize: 15 }}
-            >▶ ابدأ</button>
-          )}
+        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
           {running && (
             <button
               onClick={pause}
               style={{
-                background: 'var(--red-lo)', border: '1px solid var(--red-md)',
-                borderRadius: 10, padding: '11px 20px',
-                color: 'var(--red)', fontFamily: 'var(--font-ar)',
-                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                background: 'var(--bg2)', border: '1px solid var(--border)',
+                borderRadius: 8, width: 32, height: 32,
+                color: 'var(--text2)', cursor: 'pointer', fontSize: 13,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-            >⏸ إيقاف</button>
+            >⏸</button>
           )}
-          {!running && remaining !== null && remaining > 0 && (
+          {!running && remaining > 0 && (
             <button
-              className="btn-cyan"
               onClick={resume}
-              style={{ fontSize: 15, flex: 1 }}
-            >▶ استمر</button>
-          )}
-          {remaining !== null && (
-            <button
-              onClick={reset}
               style={{
-                background: 'transparent', border: '1px solid var(--border)',
-                borderRadius: 10, padding: '11px 20px',
-                color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                background: 'var(--cyan-lo)', border: '1px solid var(--cyan)',
+                borderRadius: 8, width: 32, height: 32,
+                color: 'var(--cyan)', cursor: 'pointer', fontSize: 13,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-            >↺ إعادة</button>
+            >▶</button>
           )}
           {done && (
             <button
               onClick={onClose}
               style={{
-                background: 'var(--green-lo)', border: '1px solid #22C55E50',
-                borderRadius: 10, padding: '11px 20px',
-                color: 'var(--green)', fontFamily: 'var(--font-ar)',
-                fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                background: 'rgba(34,197,94,0.12)', border: '1px solid #22C55E50',
+                borderRadius: 8, padding: '0 12px', height: 32,
+                color: '#22C55E', cursor: 'pointer', fontSize: 12,
+                fontFamily: 'var(--font-ar)', fontWeight: 700,
+                display: 'flex', alignItems: 'center',
               }}
-            >✓ تمام</button>
+            >تمام ✓</button>
           )}
+          <button
+            onClick={onClose}
+            style={{
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 8, width: 32, height: 32,
+              color: 'var(--text3)', cursor: 'pointer', fontSize: 18,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              lineHeight: 1,
+            }}
+          >×</button>
         </div>
-      </Card>
-    </Overlay>
+      </div>
+
+      {/* Preset row */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        {REST_PRESETS.map(p => (
+          <button
+            key={p}
+            onClick={() => start(p)}
+            style={{
+              flex: 1,
+              background: selected === p && !done ? 'var(--cyan-lo)' : 'var(--bg2)',
+              border: `1px solid ${selected === p && !done ? 'var(--cyan)' : 'var(--border)'}`,
+              borderRadius: 8, padding: '5px 0',
+              color: selected === p && !done ? 'var(--cyan)' : 'var(--text3)',
+              fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >{p < 60 ? `${p}s` : `${p / 60}m`}</button>
+        ))}
+      </div>
+    </div>
   )
 }
