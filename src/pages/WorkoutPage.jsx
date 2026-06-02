@@ -6,7 +6,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack }) {
   const [showAdd,      setShowAdd]      = useState(false)
   const [showRoutines, setShowRoutines] = useState(false)
   const [elapsed,      setElapsed]      = useState(0)
@@ -101,6 +101,15 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={onGoBack}
+            style={{
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '8px 12px',
+              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
+              fontSize: 12, cursor: 'pointer',
+            }}
+          >← تراجع</button>
           <button
             onClick={onShowRest}
             style={{

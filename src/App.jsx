@@ -364,6 +364,7 @@ export default function App() {
             onShowRest={() => setShowRest(true)}
             onStartPlannedWorkout={startPlannedWorkout}
             addXP={addXP}
+            onGoBack={() => setTab('home')}
           />
         )}
         {tab === 'exercises' && <ExercisesPage />}
