@@ -72,6 +72,7 @@ export default function App() {
   const [showLevelUp,setShowLevelUp]= useState(false)
   const [levelUpNum, setLevelUpNum] = useState(1)
   const [alerts,     setAlerts]     = useState([])
+  const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
 
   const prevLevelRef = useRef(levelFromXP(xp))
@@ -361,7 +362,7 @@ export default function App() {
             planIndex={planIndex}
             onUpdateActive={updateActive}
             onFinish={finishSession}
-            onShowRest={() => setShowRest(true)}
+            onShowRest={() => { setShowRest(true); setRestKey(k => k + 1) }}
             onStartPlannedWorkout={startPlannedWorkout}
             addXP={addXP}
             onGoBack={() => { setActive(null); setShowRest(false); setTab('home') }}
@@ -494,7 +495,7 @@ export default function App() {
       </nav>
 
       {/* ── Overlays ─────────────────────────────────────────────── */}
-      {showRest    && <RestTimer    onClose={() => setShowRest(false)} />}
+      {showRest    && <RestTimer key={restKey} onClose={() => setShowRest(false)} />}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alerts} onRemove={removeAlert} />
     </div>
