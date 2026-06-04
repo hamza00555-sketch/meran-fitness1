@@ -369,7 +369,7 @@ export default function App() {
             isResting={showRest}
           />
         )}
-        {tab === 'exercises' && <ExercisesPage />}
+        {tab === 'exercises' && <ExercisesPage sessions={sessions} />}
         {tab === 'challenges' && (
           <ChallengesPage
             sessions={sessions}
