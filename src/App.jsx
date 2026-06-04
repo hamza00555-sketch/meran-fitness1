@@ -283,7 +283,7 @@ export default function App() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 9,
+              fontFamily: 'var(--font-mono)', fontSize: 10,
               letterSpacing: 3, color: 'var(--text3)', marginBottom: 2,
             }}>HAMZAFIT</div>
             <div style={{

@@ -228,7 +228,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
             {['#', 'الوزن', '', 'التكرار', '', ''].map((h, i) => (
               <div key={i} style={{
                 fontFamily: (h === 'الوزن' || h === 'التكرار') ? 'var(--font-ar)' : 'var(--font-mono)',
-                fontSize: (h === 'الوزن' || h === 'التكرار') ? 11 : 9,
+                fontSize: (h === 'الوزن' || h === 'التكرار') ? 11 : 10,
                 color: 'var(--text3)', textAlign: 'center',
               }}>{h}</div>
             ))}
