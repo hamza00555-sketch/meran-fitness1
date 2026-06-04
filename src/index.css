@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Arabic:wght@400;500;600;700&display=swap');
+
 @font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Thin.otf'); font-weight: 100; font-display: swap; }
 @font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-ExtraLight.otf'); font-weight: 200; font-display: swap; }
 @font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Light.otf'); font-weight: 300; font-display: swap; }
@@ -15,8 +17,8 @@
   --bg1:      #0D0E14;
   --bg2:      #101116;
   --bg3:      #17181F;
-  --border:   #1E1F28;
-  --border2:  #2A2B33;
+  --border:   #252632;
+  --border2:  #333444;
 
   --cyan:     #9B5CFF;
   --cyan-lo:  rgba(155,92,255,0.10);
@@ -45,11 +47,11 @@
   --green:    #22C55E;
   --green-lo: rgba(34,197,94,0.12);
 
-  --text:     #EEEEF5;
-  --text2:    #A7A7B3;
-  --text3:    #52535E;
+  --text:     #F0F0F8;
+  --text2:    #C8C8D8;
+  --text3:    #8A8B9E;
 
-  --font-ar:   'Zanjabeel', sans-serif;
+  --font-ar:   'IBM Plex Arabic', 'Zanjabeel', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
   --radius:    16px;
@@ -66,6 +68,7 @@ html, body {
   direction: rtl;
   font-family: var(--font-ar);
   font-size: 16px;
+  font-weight: 500;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
