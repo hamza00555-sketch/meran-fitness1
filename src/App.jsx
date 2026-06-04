@@ -484,7 +484,7 @@ export default function App() {
               </div>
 
               <span style={{
-                fontFamily: 'var(--font-ar)', fontSize: 9,
+                fontFamily: 'var(--font-ar)', fontSize: 11,
                 color: isActive ? 'var(--cyan)' : '#4B5563',
                 fontWeight: isActive ? 700 : 500,
                 transition: 'color 0.15s',

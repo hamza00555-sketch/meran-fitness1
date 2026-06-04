@@ -285,7 +285,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                   {fmtDate(s.date)}
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', marginBottom: 8 }}>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
                   {fmtDuration(s.duration)}
                   {vol > 0 ? ` · ${(vol / 1000).toFixed(1)} طن` : ''}
                 </div>
@@ -304,7 +304,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--cyan)' }}>
                   {doneSets}
                 </div>
-                <div style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'var(--font-ar)' }}>sets</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>sets</div>
               </div>
             </div>
 

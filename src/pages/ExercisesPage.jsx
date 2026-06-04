@@ -105,7 +105,7 @@ export default function ExercisesPage({ sessions = [] }) {
                   }
                   <div style={{ flex: 1, textAlign: 'right' }}>
                     <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: g.color }}>{g.label}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', marginRight: 8 }}>{g.filtered.length} تمرين</span>
+                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginRight: 8 }}>{g.filtered.length} تمرين</span>
                   </div>
                   {!query && (
                     <span style={{ color: 'var(--text3)', fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
@@ -136,7 +136,7 @@ export default function ExercisesPage({ sessions = [] }) {
                               <span style={{ background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.25)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FF4444' }}>▶ YouTube</span>
                             )}
                             {ex.tips?.length > 0 && (
-                              <span style={{ background: g.color + '15', border: `1px solid ${g.color}35`, borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)', fontSize: 10, color: g.color }}>⚡ {ex.tips.length} نصائح</span>
+                              <span style={{ background: g.color + '15', border: `1px solid ${g.color}35`, borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-ar)', fontSize: 12, color: g.color }}>⚡ {ex.tips.length} نصائح</span>
                             )}
                           </div>
                         </div>
@@ -203,12 +203,12 @@ export default function ExercisesPage({ sessions = [] }) {
                             <span style={{
                               background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.35)',
                               borderRadius: 6, padding: '2px 7px',
-                              fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FBBF24',
+                              fontFamily: 'var(--font-ar)', fontSize: 12, color: '#FBBF24',
                             }}>🏆 PR</span>
                           )}
                           {trend !== 0 && (
                             <span style={{
-                              fontFamily: 'var(--font-mono)', fontSize: 11,
+                              fontFamily: 'var(--font-ar)', fontSize: 12,
                               color: trend > 0 ? 'var(--green)' : 'var(--red)',
                             }}>
                               {trend > 0 ? '▲' : '▼'} {Math.abs(trend)}kg
@@ -220,19 +220,19 @@ export default function ExercisesPage({ sessions = [] }) {
                       {/* Stats row */}
                       <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>آخر جلسة</div>
+                          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>آخر جلسة</div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 800, color: 'var(--text)' }}>
                             {last.maxW}<span style={{ fontSize: 11, color: 'var(--text3)', marginRight: 2 }}>kg</span>
                           </div>
                         </div>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>الأعلى</div>
+                          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>الأعلى</div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 800, color: g.color }}>
                             {allMax}<span style={{ fontSize: 11, color: 'var(--text3)', marginRight: 2 }}>kg</span>
                           </div>
                         </div>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', marginBottom: 2 }}>جلسات</div>
+                          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>جلسات</div>
                           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 800, color: 'var(--text2)' }}>
                             {ex.entries.length}
                           </div>

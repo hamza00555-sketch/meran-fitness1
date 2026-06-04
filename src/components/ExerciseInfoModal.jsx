@@ -146,7 +146,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: '#FF4444', marginBottom: 2 }}>
                   شاهد الشرح على YouTube
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
                   {exercise.name}
                 </div>
               </div>
