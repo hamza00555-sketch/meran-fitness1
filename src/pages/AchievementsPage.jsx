@@ -65,7 +65,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
               }}
             >
               {catImg && (
-                <img src={catImg} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                <img src={catImg} alt="" style={{ width: 108, height: 108, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
               )}
               {cat.label}
             </button>
@@ -103,46 +103,47 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
       }}
       topColor={isUnlocked ? rarity.color : undefined}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Icon */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+        {/* Big Icon */}
         <div style={{
-          width: 48, height: 48, borderRadius: 12, flexShrink: 0,
-          background: isUnlocked ? rarity.color + '20' : 'var(--bg3)',
-          border: `1px solid ${isUnlocked ? rarity.color + '40' : 'var(--border)'}`,
+          width: 144, height: 144, borderRadius: 28, flexShrink: 0,
+          background: isUnlocked ? rarity.color + '18' : 'var(--bg3)',
+          border: `2px solid ${isUnlocked ? rarity.color + '50' : 'var(--border)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22,
-          filter: isUnlocked ? `drop-shadow(0 0 8px ${rarity.color})` : 'none',
+          fontSize: 72,
+          filter: isUnlocked ? `drop-shadow(0 0 16px ${rarity.color})` : 'none',
+          boxShadow: isUnlocked ? `0 4px 24px ${rarity.color}20` : 'none',
         }}>
           {isUnlocked ? a.icon : '🔒'}
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1 }}>
+        <div style={{ width: '100%' }}>
           {/* Rarity badge */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
             <span style={{
               background: rarity.color + '20', color: rarity.color,
               border: `1px solid ${rarity.color}38`,
-              borderRadius: 12, padding: '1px 8px',
-              fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+              borderRadius: 12, padding: '2px 10px',
+              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
             }}>{rarity.label}</span>
             {isUnlocked && (
               <span style={{
                 background: 'var(--green-lo)', color: 'var(--green)',
                 border: '1px solid #22C55E38',
-                borderRadius: 12, padding: '1px 8px',
-                fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700,
+                borderRadius: 12, padding: '2px 10px',
+                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
               }}>✓ محقق</span>
             )}
           </div>
 
           <div style={{
-            fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
-            color: isUnlocked ? 'var(--text)' : 'var(--text3)', marginBottom: 2,
+            fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700,
+            color: isUnlocked ? 'var(--text)' : 'var(--text3)', marginBottom: 4,
           }}>
             {a.title}
           </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
             {a.desc}
           </div>
         </div>

@@ -74,7 +74,7 @@ function HeroIllustration({ isTraining }) {
     <img
       src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'}
       alt=""
-      style={{ width: 80, height: 80, objectFit: 'contain' }}
+      style={{ width: 240, height: 240, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.4))' }}
     />
   )
 }
@@ -82,19 +82,20 @@ function HeroIllustration({ isTraining }) {
 // Rank display using custom rank badge artwork
 function RankRing({ rank, level }) {
   return (
-    <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+    <div style={{ position: 'relative', width: 216, height: 216, flexShrink: 0 }}>
       {rank.img && (
         <img src={rank.img} alt={rank.label}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }} />
       )}
       {/* Level number overlay */}
       <div style={{
-        position: 'absolute', bottom: -6, left: '50%',
+        position: 'absolute', bottom: 0, left: '50%',
         transform: 'translateX(-50%)',
-        background: rank.color, borderRadius: 10,
-        padding: '1px 7px',
-        fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800,
+        background: rank.color, borderRadius: 12,
+        padding: '3px 12px',
+        fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 800,
         color: '#0A0A0A', whiteSpace: 'nowrap',
+        boxShadow: `0 2px 8px ${rank.color}60`,
       }}>LV{level}</div>
     </div>
   )
@@ -178,21 +179,21 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           pointerEvents: 'none',
         }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
-          <RankRing rank={rank} level={level} />
-          <div style={{ flex: 1 }}>
+        {/* Top row: name + streak */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 2 }}>
               {greeting}
             </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 26, fontWeight: 900, lineHeight: 1.1, marginBottom: 6 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 28, fontWeight: 900, lineHeight: 1.1, marginBottom: 8 }}>
               {profile?.name || 'حمزة'}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{
                 background: rank.bg, color: rank.color,
                 border: `1px solid ${rank.color}40`,
-                borderRadius: 20, padding: '2px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+                borderRadius: 20, padding: '3px 12px',
+                fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
               }}>
                 {rank.tier} · {rank.label}
               </span>
@@ -203,16 +204,21 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             <div style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)',
-              borderRadius: 12, padding: '8px 10px',
+              borderRadius: 14, padding: '10px 14px',
             }}>
-              <span style={{ fontSize: 20 }}>🔥</span>
+              <span style={{ fontSize: 24 }}>🔥</span>
               <span style={{
-                fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 800,
+                fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800,
                 color: 'var(--orange)', lineHeight: 1,
               }}>{streak}</span>
-              <span style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>يوم</span>
+              <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>يوم</span>
             </div>
           )}
+        </div>
+
+        {/* Big rank image centered */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <RankRing rank={rank} level={level} />
         </div>
 
         {/* XP Bar */}
@@ -269,17 +275,17 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           pointerEvents: 'none',
         }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
           <HeroIllustration isTraining={isTodayTraining} />
-          <div style={{ flex: 1 }}>
+          <div>
             <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900,
+              fontFamily: 'var(--font-ar)', fontSize: 24, fontWeight: 900,
               color: isTodayTraining ? 'var(--cyan)' : 'var(--text2)',
-              lineHeight: 1.2,
+              lineHeight: 1.2, marginBottom: 6,
             }}>
               {isTodayTraining ? 'يوم تمرين 💪' : 'يوم راحة'}
             </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)' }}>
               {isTodayTraining
                 ? 'اليوم مقرر له التمرين — حان الوقت!'
                 : 'استرح واستعد ليوم القوة القادم'}
