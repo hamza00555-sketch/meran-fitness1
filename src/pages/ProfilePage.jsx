@@ -262,24 +262,24 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           <div
             onClick={() => startEdit('goal', profile?.goal)}
             style={{
-              display: 'flex', alignItems: 'center', gap: 14,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
               background: 'var(--bg2)', border: '1px solid var(--border2)',
-              borderRadius: 14, padding: '14px 16px',
+              borderRadius: 14, padding: '16px',
               cursor: 'pointer', marginBottom: 10,
-              transition: 'border-color 0.15s',
+              transition: 'border-color 0.15s', textAlign: 'center',
             }}
           >
             {goal.img
-              ? <img src={goal.img} alt={goal.label} style={{ width: 40, height: 40, objectFit: 'contain' }} />
-              : <TargetIcon size={22} color="var(--purple)" />
+              ? <img src={goal.img} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+              : <TargetIcon size={66} color="var(--purple)" />
             }
-            <div style={{ flex: 1 }}>
+            <div style={{ width: '100%' }}>
               <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>الهدف</div>
               <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
                 {goal.label}
               </div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)', marginTop: 4 }}>اضغط للتغيير</div>
             </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)' }}>تغيير</div>
           </div>
 
           {/* Training System row */}

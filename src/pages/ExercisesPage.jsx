@@ -100,8 +100,8 @@ export default function ExercisesPage({ sessions = [] }) {
                   }}
                 >
                   {g.img
-                    ? <img src={g.img} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />
-                    : <span style={{ fontSize: 22 }}>{g.emoji}</span>
+                    ? <img src={g.img} style={{ width: 84, height: 84, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' }} alt="" />
+                    : <span style={{ fontSize: 66 }}>{g.emoji}</span>
                   }
                   <div style={{ flex: 1, textAlign: 'right' }}>
                     <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: g.color }}>{g.label}</span>

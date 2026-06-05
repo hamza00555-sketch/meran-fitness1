@@ -108,34 +108,45 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
       }}
       topColor={cfg.color}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div style={{ flex: 1 }}>
-          {/* Type badge + icon */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <img
-              src={cfg.img}
-              alt={cfg.label}
-              style={{
-                width: 44, height: 44, objectFit: 'contain',
-                filter: isDone ? 'grayscale(1)' : 'none',
-              }}
-            />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center', marginBottom: 10 }}>
+        {/* Big icon */}
+        <img
+          src={cfg.img}
+          alt={cfg.label}
+          style={{
+            width: 132, height: 132, objectFit: 'contain',
+            filter: isDone ? 'grayscale(1)' : `drop-shadow(0 4px 12px ${cfg.color}60)`,
+          }}
+        />
+
+        {/* Badges row */}
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span style={{
+            background: cfg.color + '20', color: cfg.color,
+            border: `1px solid ${cfg.color}38`,
+            borderRadius: 12, padding: '2px 8px',
+            fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+          }}>{cfg.label}</span>
+          {isDone && (
             <span style={{
-              background: cfg.color + '20', color: cfg.color,
-              border: `1px solid ${cfg.color}38`,
+              background: 'var(--green-lo)', color: 'var(--green)',
+              border: '1px solid #22C55E38',
               borderRadius: 12, padding: '2px 8px',
               fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-            }}>{cfg.label}</span>
-            {isDone && (
-              <span style={{
-                background: 'var(--green-lo)', color: 'var(--green)',
-                border: '1px solid #22C55E38',
-                borderRadius: 12, padding: '2px 8px',
-                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-              }}>✓ مكتمل</span>
-            )}
+            }}>✓ مكتمل</span>
+          )}
+          {/* XP Badge */}
+          <div style={{
+            background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
+            borderRadius: 12, padding: '2px 8px',
+            fontFamily: 'var(--font-mono)', fontSize: 10,
+            color: 'var(--gold)', fontWeight: 700,
+          }}>
+            +{c.xp} XP
           </div>
+        </div>
 
+        <div style={{ width: '100%' }}>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
             {c.title}
           </div>
@@ -155,17 +166,6 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
             </div>
             <ProgressBar value={progress} max={c.target} color={cfg.color} height={6} />
           </div>
-        </div>
-
-        {/* XP Badge */}
-        <div style={{
-          background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-          borderRadius: 12, padding: '4px 10px',
-          fontFamily: 'var(--font-mono)', fontSize: 12,
-          color: 'var(--gold)', fontWeight: 700,
-          marginRight: 8, flexShrink: 0,
-        }}>
-          +{c.xp} XP
         </div>
       </div>
 
