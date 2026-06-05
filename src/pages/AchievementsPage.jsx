@@ -65,7 +65,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
               }}
             >
               {catImg && (
-                <img src={catImg} alt="" style={{ width: 64, height: 64, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
+                <img src={catImg} alt="" style={{ width: 108, height: 108, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
               )}
               {cat.label}
             </button>
@@ -95,7 +95,7 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
   return (
     <Card
       style={{
-        padding: 14, marginBottom: 10,
+        padding: 8, marginBottom: 6,
         opacity: isUnlocked ? 1 : 0.55,
         borderColor: isUnlocked ? rarity.color + '40' : undefined,
         background: isUnlocked ? rarity.color + '08' : undefined,
@@ -103,14 +103,14 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
       }}
       topColor={isUnlocked ? rarity.color : undefined}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
         {/* Big Icon */}
         <div style={{
-          width: 96, height: 96, borderRadius: 20, flexShrink: 0,
+          width: 144, height: 144, borderRadius: 28, flexShrink: 0,
           background: isUnlocked ? rarity.color + '18' : 'var(--bg3)',
           border: `2px solid ${isUnlocked ? rarity.color + '50' : 'var(--border)'}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 48,
+          fontSize: 72,
           filter: isUnlocked ? `drop-shadow(0 0 16px ${rarity.color})` : 'none',
           boxShadow: isUnlocked ? `0 4px 24px ${rarity.color}20` : 'none',
         }}>

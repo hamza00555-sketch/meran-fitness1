@@ -102,19 +102,19 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
   return (
     <Card
       style={{
-        padding: 16, marginBottom: 10,
+        padding: 10, marginBottom: 6,
         borderColor: c.type === 'boss' ? 'var(--red-md)' : undefined,
         background: c.type === 'boss' ? 'rgba(239,68,68,0.04)' : undefined,
       }}
       topColor={cfg.color}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center', marginBottom: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', marginBottom: 6 }}>
         {/* Big icon */}
         <img
           src={cfg.img}
           alt={cfg.label}
           style={{
-            width: 80, height: 80, objectFit: 'contain',
+            width: 132, height: 132, objectFit: 'contain',
             filter: isDone ? 'grayscale(1)' : `drop-shadow(0 4px 12px ${cfg.color}60)`,
           }}
         />

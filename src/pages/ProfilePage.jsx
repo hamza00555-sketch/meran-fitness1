@@ -262,15 +262,15 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           <div
             onClick={() => startEdit('goal', profile?.goal)}
             style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
               background: 'var(--bg2)', border: '1px solid var(--border2)',
-              borderRadius: 14, padding: '16px',
+              borderRadius: 14, padding: '10px',
               cursor: 'pointer', marginBottom: 10,
               transition: 'border-color 0.15s', textAlign: 'center',
             }}
           >
             {goal.img
-              ? <img src={goal.img} alt={goal.label} style={{ width: 80, height: 80, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+              ? <img src={goal.img} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
               : <TargetIcon size={66} color="var(--purple)" />
             }
             <div style={{ width: '100%' }}>

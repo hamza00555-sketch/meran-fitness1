@@ -74,7 +74,7 @@ function HeroIllustration({ isTraining }) {
     <img
       src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'}
       alt=""
-      style={{ width: 160, height: 160, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.4))' }}
+      style={{ width: 240, height: 240, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.4))' }}
     />
   )
 }
@@ -82,7 +82,7 @@ function HeroIllustration({ isTraining }) {
 // Rank display using custom rank badge artwork
 function RankRing({ rank, level }) {
   return (
-    <div style={{ position: 'relative', width: 144, height: 144, flexShrink: 0 }}>
+    <div style={{ position: 'relative', width: 216, height: 216, flexShrink: 0 }}>
       {rank.img && (
         <img src={rank.img} alt={rank.label}
           style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }} />
