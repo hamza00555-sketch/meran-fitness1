@@ -53,7 +53,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       const data = await importAllData(file)
       onImport(data)
     } catch {
-      alert('فشل استيراد الملف — تأكد أنه ملف HamzaFit صالح')
+      alert('فشل استيراد الملف — تأكد أنه ملف MERAN صالح')
     } finally {
       setImporting(false)
       e.target.value = ''
@@ -331,7 +331,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
 
             {plan ? (
               <div style={{
-                background: 'rgba(155,89,182,0.1)', border: '1px solid rgba(155,89,182,0.3)',
+                background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
                 borderRadius: 12, padding: 14,
               }}>
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
@@ -382,9 +382,9 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               onClick={handleClipboardPaste}
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                background: 'rgba(155,89,182,0.12)', border: '1px solid rgba(155,89,182,0.4)',
+                background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
                 borderRadius: 12, padding: '14px 16px',
-                color: 'var(--purple)', cursor: 'pointer',
+                color: 'var(--cyan)', cursor: 'pointer',
                 fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600,
                 textAlign: 'right', width: '100%',
               }}
@@ -479,9 +479,9 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 onClick={() => setPasteMode(true)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
-                  background: 'rgba(155,89,182,0.08)', border: '1px solid rgba(155,89,182,0.3)',
+                  background: 'var(--cyan-lo)', border: '1px solid rgba(94,195,42,0.25)',
                   borderRadius: 12, padding: '14px 16px',
-                  color: 'var(--purple)', cursor: 'pointer',
+                  color: 'var(--cyan)', cursor: 'pointer',
                   fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600, textAlign: 'right',
                   width: '100%',
                 }}
@@ -648,7 +648,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
           fontFamily: 'var(--font-mono)', fontSize: 11,
           color: 'var(--text3)',
         }}>
-          HamzaFit v1.0 · Solo Leveling × Gym
+          MERAN v1.0 · تطبيق تتبع التمارين
         </div>
       </div>
 

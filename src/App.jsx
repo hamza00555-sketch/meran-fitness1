@@ -264,7 +264,7 @@ export default function App() {
   return (
     <div style={{
       minHeight: '100dvh',
-      background: 'var(--bg)',
+      background: 'linear-gradient(180deg, #0A0E1A 0%, var(--bg) 30%)',
       color: 'var(--text)',
       maxWidth: 560,
       margin: '0 auto',
@@ -274,18 +274,21 @@ export default function App() {
     }}>
       {/* ── Header ──────────────────────────────────────────────── */}
       <header style={{
-        background: 'rgba(7,8,12,0.92)',
-        borderBottom: '1px solid var(--border)',
+        background: 'rgba(8,11,20,0.94)',
+        borderBottom: '1px solid rgba(94,195,42,0.12)',
         padding: `calc(var(--safe-top) + 14px) 18px 14px`,
         position: 'sticky', top: 0, zIndex: 100,
-        backdropFilter: 'blur(20px)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        boxShadow: '0 1px 0 rgba(94,195,42,0.08)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 10,
-              letterSpacing: 3, color: 'var(--text3)', marginBottom: 2,
-            }}>HAMZAFIT</div>
+              letterSpacing: 4, color: 'var(--cyan)', marginBottom: 2,
+              opacity: 0.8,
+            }}>MERAN</div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 13,
               fontWeight: 600, color: 'var(--text2)',
@@ -308,26 +311,32 @@ export default function App() {
             <button
               onClick={() => setShowRest(true)}
               style={{
-                background: 'var(--bg2)', border: '1px solid var(--border)',
-                borderRadius: 8, width: 36, height: 36,
+                background: 'rgba(94,195,42,0.07)', border: '1px solid rgba(94,195,42,0.18)',
+                borderRadius: 10, width: 36, height: 36,
                 color: 'var(--text2)', cursor: 'pointer',
                 fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'border-color 0.15s',
+                transition: 'all 0.15s',
               }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
+              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(94,195,42,0.18)'; e.currentTarget.style.color = 'var(--text2)' }}
             >⏱️</button>
             <button
               onClick={() => setTab(t => t === 'settings' ? 'home' : 'settings')}
               style={{
-                background: 'var(--bg2)', border: '1px solid var(--border)',
-                borderRadius: 8, width: 36, height: 36,
+                background: tab === 'settings' ? 'var(--cyan-lo)' : 'rgba(94,195,42,0.07)',
+                border: `1px solid ${tab === 'settings' ? 'var(--cyan)' : 'rgba(94,195,42,0.18)'}`,
+                borderRadius: 10, width: 36, height: 36,
                 color: tab === 'settings' ? 'var(--cyan)' : 'var(--text2)', cursor: 'pointer',
                 fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'border-color 0.15s',
+                transition: 'all 0.15s',
               }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
+              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
+              onMouseOut={e => {
+                if (tab !== 'settings') {
+                  e.currentTarget.style.borderColor = 'rgba(94,195,42,0.18)'
+                  e.currentTarget.style.color = 'var(--text2)'
+                }
+              }}
             ><SettingsIcon size={18} /></button>
           </div>
         </div>
@@ -435,13 +444,14 @@ export default function App() {
         position: 'fixed', bottom: 0,
         left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 560,
-        background: 'rgba(7,8,12,0.96)',
-        borderTop: '1px solid var(--border)',
-        backdropFilter: 'blur(20px)',
+        background: 'rgba(8,11,20,0.96)',
+        borderTop: '1px solid rgba(94,195,42,0.10)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        boxShadow: '0 -1px 0 rgba(94,195,42,0.06)',
         display: 'flex',
         padding: `10px 6px calc(env(safe-area-inset-bottom, 0px) + 10px)`,
         zIndex: 200,
-        maxWidth: 560,
         margin: '0 auto',
       }}>
         {NAV_TABS.map(t => {

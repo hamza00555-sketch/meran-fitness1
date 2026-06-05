@@ -32,13 +32,13 @@ export const GREETINGS = [
 
 // ── Ranks ─────────────────────────────────────────────────────
 export const RANKS = [
-  { label: 'المبتدئ',  tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20', img: '/assets/rank_e.png' },
-  { label: 'الجاد',    tier: 'D',  minLevel: 5,  color: '#22C55E', bg: '#22C55E20', img: '/assets/rank_d.png' },
-  { label: 'الحديدي',  tier: 'C',  minLevel: 10, color: '#3B82F6', bg: '#3B82F620', img: '/assets/rank_c.png' },
-  { label: 'المتمرس',  tier: 'B',  minLevel: 20, color: '#9B59B6', bg: '#9B59B620', img: '/assets/rank_b.png' },
-  { label: 'النخبة',   tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620', img: '/assets/rank_a.png' },
-  { label: 'الأسطورة', tier: 'S',  minLevel: 50, color: '#EAB308', bg: '#EAB30820', img: '/assets/rank_s.png' },
-  { label: 'الظاهرة',  tier: 'S+', minLevel: 75, color: '#C39BD3', bg: '#C39BD320', img: '/assets/rank_s_plus.png' },
+  { label: 'مبتدئ',   tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20', img: '/assets/rank_e.png' },
+  { label: 'متوسط',   tier: 'D',  minLevel: 5,  color: '#5EC32A', bg: '#5EC32A20', img: '/assets/rank_d.png' },
+  { label: 'متقدم',   tier: 'C',  minLevel: 10, color: '#3B9DE8', bg: '#3B9DE820', img: '/assets/rank_c.png' },
+  { label: 'محترف',   tier: 'B',  minLevel: 20, color: '#A855F7', bg: '#A855F720', img: '/assets/rank_b.png' },
+  { label: 'بطل',     tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620', img: '/assets/rank_a.png' },
+  { label: 'أسطورة',  tier: 'S',  minLevel: 50, color: '#F59E0B', bg: '#F59E0B20', img: '/assets/rank_s.png' },
+  { label: 'خارق',    tier: 'S+', minLevel: 75, color: '#EC4899', bg: '#EC489920', img: '/assets/rank_s_plus.png' },
 ]
 
 // ── Commitment Levels (0-5 flames based on streak) ───────────
@@ -47,8 +47,8 @@ export const COMMITMENT_LEVELS = [
   { min: 1,  label: 'مبتدئ',        flames: 1, color: '#F97316', desc: 'خطوة رائعة، استمر!' },
   { min: 3,  label: 'منتظم',        flames: 2, color: '#EAB308', desc: 'الانتظام هو المفتاح!' },
   { min: 7,  label: 'ملتزم',        flames: 3, color: '#22C55E', desc: 'أسبوع كامل، ممتاز!' },
-  { min: 14, label: 'مخضرم',        flames: 4, color: '#00D4C8', desc: 'أسبوعان متواصلان!' },
-  { min: 30, label: 'أسطورة الجيم', flames: 5, color: '#9B59B6', desc: 'شهر كامل، أنت أسطورة!' },
+  { min: 14, label: 'مخضرم',        flames: 4, color: '#3B9DE8', desc: 'أسبوعان متواصلان!' },
+  { min: 30, label: 'أسطورة الجيم', flames: 5, color: '#5EC32A', desc: 'شهر كامل، أنت أسطورة!' },
 ]
 
 // ── Goals ─────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ export const ACHIEVEMENT_CATS = [
 export const RARITY_COLORS = {
   common:    { color: '#9CA3AF', label: 'عادي' },
   rare:      { color: '#3B82F6', label: 'نادر' },
-  epic:      { color: '#9B59B6', label: 'ملحمي' },
+  epic:      { color: '#A855F7', label: 'ملحمي' },
   legendary: { color: '#EAB308', label: 'أسطوري' },
 }
 
@@ -786,7 +786,7 @@ export const PLAN_TEMPLATE = {
   ],
 }
 
-export const AI_PLAN_PROMPT = `أنا أستخدم تطبيق HamzaFit لتتبع التمارين. أحتاج منك ملء الـ JSON التالي بخطة تمرين مخصصة بناءً على [PDF/الفيديو/البرنامج] المرفق.
+export const AI_PLAN_PROMPT = `أنا أستخدم تطبيق مران (MERAN) لتتبع التمارين. أحتاج منك ملء الـ JSON التالي بخطة تمرين مخصصة بناءً على [PDF/الفيديو/البرنامج] المرفق.
 
 قواعد مهمة:
 - قيم "muscle" يجب أن تكون فقط من: Chest, Back, Shoulders, Legs, Biceps, Triceps, Core, Cardio

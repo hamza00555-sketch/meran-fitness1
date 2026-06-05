@@ -175,7 +175,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
           {/* Coming soon notice */}
           {!animationUrl && (
             <div style={{
-              background: 'rgba(155,92,255,0.06)', border: '1px solid rgba(155,92,255,0.20)',
+              background: 'var(--cyan-lo)', border: '1px solid rgba(94,195,42,0.18)',
               borderRadius: 10, padding: '10px 14px',
               fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
               lineHeight: 1.6,

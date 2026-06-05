@@ -268,7 +268,7 @@ export const exportAllData = (sessions, xp, profile, unlockedAchievements, chall
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `hamzafit-backup-${new Date().toISOString().split('T')[0]}.json`
+  a.download = `meran-backup-${new Date().toISOString().split('T')[0]}.json`
   a.click()
   URL.revokeObjectURL(url)
 }

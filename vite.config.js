@@ -9,13 +9,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'assets/**/*', 'fonts/**/*'],
       manifest: {
-        name: 'HamzaFit',
-        short_name: 'HamzaFit',
-        description: 'متابعة التمارين - سولو ليفلينق × الجيم',
+        name: 'مران | MERAN',
+        short_name: 'مران',
+        description: 'تطبيق مران لتتبع التمارين والوصول إلى قمة اللياقة',
         start_url: '/',
         display: 'standalone',
-        background_color: '#0A0A0A',
-        theme_color: '#9B59B6',
+        background_color: '#080B14',
+        theme_color: '#5EC32A',
         orientation: 'portrait',
         lang: 'ar',
         icons: [
@@ -26,7 +26,7 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        cacheId: 'hamzafit-v4',
+        cacheId: 'meran-v1',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,otf,woff,woff2}'],
         cleanupOutdatedCaches: true,
         runtimeCaching: [

@@ -5,18 +5,18 @@ import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.
 
 function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip }) {
   return (
-    <Card style={{ padding: 18, marginBottom: 14, borderTop: '3px solid var(--purple)' }}>
+    <Card style={{ padding: 18, marginBottom: 14, borderTop: '3px solid var(--cyan)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--purple)', letterSpacing: 2, marginBottom: 4 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 4 }}>
             PLAN · {dayNum}/{totalDays}
           </div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>{day.name}</div>
         </div>
         <div style={{
-          background: 'rgba(155,89,182,0.15)', border: '1px solid rgba(155,89,182,0.3)',
+          background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
           borderRadius: 20, padding: '3px 10px',
-          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--purple)',
+          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)',
         }}>{day.exercises.length} تمارين</div>
       </div>
 
@@ -26,9 +26,9 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip }) {
           <div key={i} style={{
             flex: 1, height: 3, borderRadius: 2,
             background: i < (dayNum - 1) % totalDays || dayNum > totalDays
-              ? 'var(--purple)' : i === (dayNum - 1) % totalDays
-              ? 'var(--purple)' : 'var(--bg3)',
-            opacity: i === (dayNum - 1) % totalDays ? 1 : i < (dayNum - 1) % totalDays ? 0.5 : 0.2,
+              ? 'var(--cyan)' : i === (dayNum - 1) % totalDays
+              ? 'var(--cyan)' : 'var(--bg3)',
+            opacity: i === (dayNum - 1) % totalDays ? 1 : i < (dayNum - 1) % totalDays ? 0.5 : 0.15,
           }} />
         ))}
       </div>
@@ -48,12 +48,12 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip }) {
           onClick={onStart}
           style={{
             flex: 1, padding: '12px',
-            background: 'linear-gradient(135deg, #9B59B6, #7D3C98)',
+            background: 'var(--grad-primary)',
             border: 'none', borderRadius: 12,
             color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
-            cursor: 'pointer', boxShadow: '0 4px 16px rgba(155,89,182,0.35)',
+            cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
           }}
-        >⚔️ ابدأ</button>
+        >⚡ ابدأ</button>
         <button
           onClick={onSkip}
           style={{
@@ -155,19 +155,26 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
       {/* ── Player Hero Card ─────────────────────────────────── */}
       <div style={{
         position: 'relative',
-        background: 'var(--bg1)',
-        border: '1px solid var(--border)',
+        background: 'var(--grad-hero)',
+        border: '1px solid rgba(94,195,42,0.12)',
         borderBottom: `3px solid ${rank.color}`,
         borderRadius: 'var(--radius)',
         padding: '20px 18px',
         marginBottom: 14,
         overflow: 'hidden',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)',
       }}>
         {/* Decorative glow blob */}
         <div style={{
-          position: 'absolute', top: -30, left: -30,
-          width: 140, height: 140, borderRadius: '50%',
-          background: `radial-gradient(circle, ${rank.color}18 0%, transparent 70%)`,
+          position: 'absolute', top: -40, left: -40,
+          width: 160, height: 160, borderRadius: '50%',
+          background: `radial-gradient(circle, ${rank.color}20 0%, rgba(94,195,42,0.04) 50%, transparent 70%)`,
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: -20, right: -20,
+          width: 100, height: 100, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(59,157,232,0.08) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
@@ -221,7 +228,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             fontFamily: 'var(--font-mono)', fontSize: 13, color: '#F59E0B', fontWeight: 700,
           }}>LVL {level}</div>
         </div>
-        <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={10} />
+        <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={10} gradient />
         <div style={{
           fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
           marginTop: 6, textAlign: 'left',
@@ -246,7 +253,9 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         style={{
           padding: 20, marginBottom: 14,
           borderTop: `3px solid ${isTodayTraining ? 'var(--cyan)' : 'var(--purple)'}`,
-          background: isTodayTraining ? 'rgba(155,89,182,0.06)' : 'rgba(155,89,182,0.04)',
+          background: isTodayTraining
+            ? 'linear-gradient(135deg, rgba(94,195,42,0.07) 0%, rgba(59,157,232,0.04) 100%)'
+            : 'linear-gradient(135deg, rgba(59,157,232,0.05) 0%, rgba(94,195,42,0.03) 100%)',
           position: 'relative', overflow: 'hidden',
         }}
       >
@@ -255,8 +264,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           position: 'absolute', left: -20, bottom: -20,
           width: 100, height: 100, borderRadius: '50%',
           background: isTodayTraining
-            ? 'rgba(155,89,182,0.08)'
-            : 'rgba(155,89,182,0.05)',
+            ? 'rgba(94,195,42,0.08)'
+            : 'rgba(59,157,232,0.06)',
           pointerEvents: 'none',
         }} />
 
@@ -364,18 +373,13 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
       }}>
         <div style={{ pointerEvents: 'all' }}>
           {active ? (
-            <button className="btn-cyan" onClick={onGoToWorkout} style={{
-              boxShadow: '0 0 30px rgba(155,89,182,0.4)',
-              animation: 'glowPulse 2s ease-in-out infinite',
-            }}>
+            <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}>
               <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'currentColor', animation: 'pulseDot 1.5s ease-in-out infinite' }} />
               متابعة الجلسة
             </button>
           ) : (
-            <button className="btn-cyan" onClick={onStartWorkout} style={{
-              boxShadow: '0 0 24px rgba(155,89,182,0.35)',
-            }}>
-              ⚔️ ابدأ التمرين
+            <button className="btn-cyan" onClick={onStartWorkout}>
+              ⚡ ابدأ التمرين
             </button>
           )}
         </div>

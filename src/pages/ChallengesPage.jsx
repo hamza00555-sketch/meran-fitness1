@@ -94,7 +94,7 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
 
   const typeConfig = {
     daily: { color: '#22C55E',  icon: '⚡', label: 'يومي',    img: '/assets/challenge_daily.png' },
-    weekly:{ color: '#00D4C8', icon: '📅', label: 'أسبوعي',  img: '/assets/challenge_weekly.png' },
+    weekly:{ color: '#3B9DE8', icon: '📅', label: 'أسبوعي',  img: '/assets/challenge_weekly.png' },
     boss:  { color: '#EF4444', icon: '👹', label: 'الزعيم',  img: '/assets/challenge_boss.png' },
   }
   const cfg = typeConfig[c.type] || typeConfig.daily

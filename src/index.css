@@ -13,27 +13,32 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:       #07080C;
-  --bg1:      #0D0E14;
-  --bg2:      #101116;
-  --bg3:      #17181F;
-  --border:   #252632;
-  --border2:  #333444;
+  /* ── Backgrounds: dark navy with depth ── */
+  --bg:       #080B14;
+  --bg1:      #0C1220;
+  --bg2:      #101928;
+  --bg3:      #182438;
+  --border:   #1E2D40;
+  --border2:  #253A52;
 
-  --cyan:     #9B5CFF;
-  --cyan-lo:  rgba(155,92,255,0.10);
-  --cyan-md:  rgba(155,92,255,0.22);
-  --cyan-glow:rgba(155,92,255,0.14);
+  /* ── Primary: Meran Green ── */
+  --cyan:     #5EC32A;
+  --cyan-lo:  rgba(94,195,42,0.10);
+  --cyan-md:  rgba(94,195,42,0.25);
+  --cyan-glow:rgba(94,195,42,0.15);
 
-  --gold:     #EAB308;
-  --gold-lo:  rgba(234,179,8,0.12);
-  --gold-md:  rgba(234,179,8,0.3);
+  /* ── Gold (XP / rewards) ── */
+  --gold:     #F59E0B;
+  --gold-lo:  rgba(245,158,11,0.12);
+  --gold-md:  rgba(245,158,11,0.30);
 
-  --purple:   #9B5CFF;
-  --purple-lo:rgba(155,92,255,0.10);
-  --purple-md:rgba(155,92,255,0.22);
-  --purple-deep: #6D35D8;
+  /* ── Secondary: Sky Blue (replaces purple) ── */
+  --purple:      #3B9DE8;
+  --purple-lo:   rgba(59,157,232,0.10);
+  --purple-md:   rgba(59,157,232,0.22);
+  --purple-deep: #1A75C0;
 
+  /* ── Status colors ── */
   --orange:   #F97316;
   --orange-lo:rgba(249,115,22,0.12);
 
@@ -41,25 +46,34 @@
   --red-lo:   rgba(239,68,68,0.12);
   --red-md:   rgba(239,68,68,0.25);
 
-  --blue:     #3B82F6;
-  --blue-lo:  rgba(59,130,246,0.12);
+  --blue:     #3B9DE8;
+  --blue-lo:  rgba(59,157,232,0.12);
 
   --green:    #22C55E;
   --green-lo: rgba(34,197,94,0.12);
 
-  --text:     #F0F0F8;
-  --text2:    #C8C8D8;
-  --text3:    #8A8B9E;
+  /* ── Text ── */
+  --text:     #EEF4FF;
+  --text2:    #B8D0E8;
+  --text3:    #607888;
 
+  /* ── Fonts ── */
   --font-ar:   'IBM Plex Arabic', 'Zanjabeel', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
-  --radius:    16px;
-  --radius-sm: 10px;
+  /* ── Radii ── */
+  --radius:    18px;
+  --radius-sm: 12px;
   --radius-xs: 6px;
 
+  /* ── Safe areas ── */
   --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Gradients ── */
+  --grad-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
+  --grad-hero:    linear-gradient(145deg, #0B1E14 0%, #0D1C2E 100%);
+  --grad-card:    linear-gradient(135deg, rgba(94,195,42,0.06) 0%, rgba(59,157,232,0.04) 100%);
 }
 
 html, body {
@@ -161,6 +175,11 @@ input[type=number] { -moz-appearance: textfield; }
   0%   { opacity: 0; transform: translateX(8px); }
   100% { opacity: 1; transform: translateX(0); }
 }
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
 .page-enter  { animation: fadeUp   0.22s ease forwards; }
 .modal-enter { animation: slideUp  0.25s ease forwards; }
@@ -193,11 +212,21 @@ input[type=number] { -moz-appearance: textfield; }
   animation: shimmer 2.5s linear infinite;
 }
 
+.shimmer-green {
+  background: linear-gradient(90deg, var(--cyan) 0%, #A8F060 50%, var(--cyan) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 2.5s linear infinite;
+}
+
 *:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
+/* ── Primary action button (Meran Green gradient) ── */
 .btn-cyan {
   width: 100%;
-  background: var(--cyan);
+  background: var(--grad-primary);
   color: #fff;
   font-family: var(--font-ar);
   font-size: 17px;
@@ -210,14 +239,14 @@ input[type=number] { -moz-appearance: textfield; }
   align-items: center;
   justify-content: center;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(155,92,255,0.30);
+  box-shadow: 0 4px 20px rgba(94,195,42,0.32), 0 0 0 1px rgba(94,195,42,0.15);
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.btn-cyan:hover { opacity: 0.92; }
+.btn-cyan:hover { opacity: 0.93; }
 .btn-cyan:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(155,92,255,0.18);
+  box-shadow: 0 2px 8px rgba(94,195,42,0.20);
 }
 
 .btn-ghost {
@@ -233,3 +262,28 @@ input[type=number] { -moz-appearance: textfield; }
   -webkit-tap-highlight-color: transparent;
 }
 .btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* ── Glassmorphism card ── */
+.glass-card {
+  background: rgba(16, 25, 40, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(94,195,42,0.12);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ── Gradient card ── */
+.gradient-card {
+  background: var(--grad-card);
+  border: 1px solid rgba(94,195,42,0.14);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.28);
+}
+
+/* ── Active workout glow button ── */
+.btn-active-glow {
+  background: var(--grad-primary);
+  box-shadow: 0 0 32px rgba(94,195,42,0.45), 0 4px 16px rgba(0,0,0,0.4);
+  animation: glowPulse 2s ease-in-out infinite;
+}

@@ -1,17 +1,29 @@
 // ── Shared UI Primitives ──────────────────────────────────────
 
 // Card
-export function Card({ children, style = {}, topColor, onClick }) {
+export function Card({ children, style = {}, topColor, onClick, glass = false }) {
   return (
     <div
       onClick={onClick}
       style={{
-        background: 'var(--bg2)',
-        border: '1px solid var(--border)',
+        background: glass
+          ? 'rgba(16,25,40,0.72)'
+          : 'var(--bg2)',
+        backdropFilter: glass ? 'blur(14px)' : undefined,
+        WebkitBackdropFilter: glass ? 'blur(14px)' : undefined,
+        border: topColor
+          ? undefined
+          : glass
+            ? '1px solid rgba(94,195,42,0.10)'
+            : '1px solid var(--border)',
+        borderTop: topColor ? `2px solid ${topColor}` : glass ? '1px solid rgba(94,195,42,0.14)' : '1px solid var(--border)',
+        borderRight: topColor ? '1px solid var(--border)' : undefined,
+        borderBottom: topColor ? '1px solid var(--border)' : undefined,
+        borderLeft: topColor ? '1px solid var(--border)' : undefined,
         borderRadius: 'var(--radius)',
-        borderTop: topColor ? `2px solid ${topColor}` : '1px solid var(--border)',
         padding: 20,
         cursor: onClick ? 'pointer' : 'default',
+        boxShadow: glass ? '0 8px 32px rgba(0,0,0,0.28)' : '0 2px 12px rgba(0,0,0,0.18)',
         ...style,
       }}
     >{children}</div>
@@ -21,10 +33,10 @@ export function Card({ children, style = {}, topColor, onClick }) {
 // Button variants
 const BTN_VARIANTS = {
   primary: {
-    background: 'var(--cyan)',
+    background: 'var(--grad-primary)',
     color: '#fff',
     border: 'none',
-    boxShadow: '0 4px 18px rgba(155,92,255,0.28)',
+    boxShadow: '0 4px 18px rgba(94,195,42,0.30)',
   },
   secondary: {
     background: 'var(--bg3)',
@@ -80,7 +92,7 @@ export function Btn({
 }
 
 // Badge
-export function Badge({ children, color = '#00D4C8' }) {
+export function Badge({ children, color = '#5EC32A' }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -136,16 +148,19 @@ export function EmptyState({ icon, title, desc }) {
 }
 
 // Progress Bar
-export function ProgressBar({ value = 0, max = 100, color = 'var(--cyan)', height = 6 }) {
+export function ProgressBar({ value = 0, max = 100, color = 'var(--cyan)', height = 6, gradient = false }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
   return (
     <div style={{
-      background: 'var(--bg3)', borderRadius: height, height, overflow: 'hidden',
+      background: 'rgba(255,255,255,0.05)', borderRadius: height, height, overflow: 'hidden',
+      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)',
     }}>
       <div style={{
         height: '100%', width: `${pct}%`,
-        background: color, borderRadius: height,
+        background: gradient ? `linear-gradient(90deg, ${color}, #A8F060)` : color,
+        borderRadius: height,
         transition: 'width 0.6s ease',
+        boxShadow: pct > 0 ? `0 0 8px ${color}60` : 'none',
       }} />
     </div>
   )
