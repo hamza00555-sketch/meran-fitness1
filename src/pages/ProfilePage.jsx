@@ -270,7 +270,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
             }}
           >
             {goal.img
-              ? <img src={goal.img} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+              ? <img src={goal.img} alt={goal.label} style={{ width: 80, height: 80, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
               : <TargetIcon size={66} color="var(--purple)" />
             }
             <div style={{ width: '100%' }}>

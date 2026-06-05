@@ -114,7 +114,7 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
           src={cfg.img}
           alt={cfg.label}
           style={{
-            width: 132, height: 132, objectFit: 'contain',
+            width: 80, height: 80, objectFit: 'contain',
             filter: isDone ? 'grayscale(1)' : `drop-shadow(0 4px 12px ${cfg.color}60)`,
           }}
         />
