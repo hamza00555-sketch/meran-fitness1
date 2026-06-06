@@ -1,0 +1,418 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-06-06",
+  "source_file": "hamzafitbackup20260606.json",
+  "rules": {
+    "auto_approve_threshold": 0.93,
+    "manual_review_threshold": 0.85,
+    "preserve_original_names": true,
+    "never_delete_history": true
+  },
+  "exercises": [
+    {
+      "standard_name": "Dumbbell Curl",
+      "muscle_group": "Biceps",
+      "movement_pattern": "Elbow Flexion",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Alternating Dumbbell Curl"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Barbell Squat",
+      "muscle_group": "Legs",
+      "movement_pattern": "Knee Dominant",
+      "equipment": [
+        "Barbell"
+      ],
+      "aliases": [
+        "Barbell Back Squat"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Barbell Bench Press",
+      "muscle_group": "Chest",
+      "movement_pattern": "Horizontal Push",
+      "equipment": [
+        "Barbell"
+      ],
+      "aliases": [],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Barbell Row",
+      "muscle_group": "Back",
+      "movement_pattern": "Horizontal Pull",
+      "equipment": [
+        "Barbell"
+      ],
+      "aliases": [
+        "Barbell Bent Over Row"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Hip Thrust",
+      "muscle_group": "Legs",
+      "movement_pattern": "Hip Extension",
+      "equipment": [
+        "Barbell"
+      ],
+      "aliases": [
+        "Barbell Hip Thrust"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Bulgarian Split Squat",
+      "muscle_group": "Legs",
+      "movement_pattern": "Knee Dominant",
+      "equipment": [
+        "Bodyweight/DB"
+      ],
+      "aliases": [
+        "Bulgarian Split Squat (Quad Bias)"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Chest Fly",
+      "muscle_group": "Chest",
+      "movement_pattern": "Horizontal Fly",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [
+        "Cable Chest Fly (High-to-Low)",
+        "Machine Chest Fly (Pec Deck)"
+      ],
+      "do_not_merge_with": [
+        "Barbell Bench Press",
+        "Incline Bench Press",
+        "Machine Chest Press"
+      ]
+    },
+    {
+      "standard_name": "Cable Crunch",
+      "muscle_group": "Core",
+      "movement_pattern": "Spinal Flexion",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Lateral Raise",
+      "muscle_group": "Shoulders",
+      "movement_pattern": "Shoulder Abduction",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [
+        "Cable Lateral Raise",
+        "Dumbbell Lateral Raise"
+      ],
+      "do_not_merge_with": [
+        "Dumbbell Shoulder Press",
+        "Overhead Press",
+        "Front Raise"
+      ]
+    },
+    {
+      "standard_name": "Overhead Triceps Extension",
+      "muscle_group": "Triceps",
+      "movement_pattern": "Elbow Extension",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [
+        "Cable Overhead Triceps Extension"
+      ],
+      "do_not_merge_with": [
+        "Triceps Pushdown",
+        "Skull Crusher",
+        "Triceps Kickback"
+      ]
+    },
+    {
+      "standard_name": "Triceps Pushdown",
+      "muscle_group": "Triceps",
+      "movement_pattern": "Elbow Extension",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [
+        "Cable Triceps Pushdown"
+      ],
+      "do_not_merge_with": [
+        "Overhead Triceps Extension",
+        "Skull Crusher",
+        "Triceps Kickback"
+      ]
+    },
+    {
+      "standard_name": "Incline Dumbbell Press",
+      "muscle_group": "Chest",
+      "movement_pattern": "Incline Push",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Dumbbell Incline Bench Press"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Lunge",
+      "muscle_group": "Legs",
+      "movement_pattern": "Knee Dominant",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Dumbbell Lunge"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Reverse Fly",
+      "muscle_group": "Shoulders",
+      "movement_pattern": "Shoulder Horizontal Abduction",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Dumbbell Reverse Fly",
+        "Machine Reverse Fly"
+      ],
+      "do_not_merge_with": [
+        "Face Pull"
+      ]
+    },
+    {
+      "standard_name": "Romanian Deadlift",
+      "muscle_group": "Legs",
+      "movement_pattern": "Hip Hinge",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Dumbbell Romanian Deadlift (RDL)"
+      ],
+      "do_not_merge_with": [
+        "Deadlift",
+        "Sumo Deadlift"
+      ]
+    },
+    {
+      "standard_name": "Hanging Leg Raise",
+      "muscle_group": "Core",
+      "movement_pattern": "Hip Flexion",
+      "equipment": [
+        "Bodyweight"
+      ],
+      "aliases": [],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Leg Extension",
+      "muscle_group": "Legs",
+      "movement_pattern": "Knee Extension",
+      "equipment": [
+        "Machine"
+      ],
+      "aliases": [],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Skull Crusher",
+      "muscle_group": "Triceps",
+      "movement_pattern": "Elbow Extension",
+      "equipment": [
+        "Barbell"
+      ],
+      "aliases": [
+        "Lying Barbell Triceps Extensions"
+      ],
+      "do_not_merge_with": [
+        "Triceps Pushdown",
+        "Overhead Triceps Extension"
+      ]
+    },
+    {
+      "standard_name": "Lying Leg Curl",
+      "muscle_group": "Legs",
+      "movement_pattern": "Knee Flexion",
+      "equipment": [
+        "Machine"
+      ],
+      "aliases": [],
+      "do_not_merge_with": [
+        "Seated Leg Curl"
+      ]
+    },
+    {
+      "standard_name": "Hip Abduction",
+      "muscle_group": "Legs",
+      "movement_pattern": "Hip Abduction",
+      "equipment": [
+        "Machine"
+      ],
+      "aliases": [
+        "Machine Hip Abduction"
+      ],
+      "do_not_merge_with": [
+        "Hip Adduction"
+      ]
+    },
+    {
+      "standard_name": "Hip Adduction",
+      "muscle_group": "Legs",
+      "movement_pattern": "Hip Adduction",
+      "equipment": [
+        "Machine"
+      ],
+      "aliases": [
+        "Machine Hip Adduction"
+      ],
+      "do_not_merge_with": [
+        "Hip Abduction"
+      ]
+    },
+    {
+      "standard_name": "Dumbbell Shoulder Press",
+      "muscle_group": "Shoulders",
+      "movement_pattern": "Vertical Push",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Seated Dumbbell Overhead Press"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Seated Leg Curl",
+      "muscle_group": "Legs",
+      "movement_pattern": "Knee Flexion",
+      "equipment": [
+        "Machine"
+      ],
+      "aliases": [],
+      "do_not_merge_with": [
+        "Lying Leg Curl"
+      ]
+    },
+    {
+      "standard_name": "Straight Arm Pulldown",
+      "muscle_group": "Back",
+      "movement_pattern": "Shoulder Extension",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [
+        "Straight Arm Cable Pulldown"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Lat Pulldown",
+      "muscle_group": "Back",
+      "movement_pattern": "Vertical Pull",
+      "equipment": [
+        "Cable Machine"
+      ],
+      "aliases": [
+        "Supinated Lat Pulldown"
+      ],
+      "do_not_merge_with": [
+        "Pull Up"
+      ]
+    },
+    {
+      "standard_name": "Dumbbell Row",
+      "muscle_group": "Back",
+      "movement_pattern": "Horizontal Pull",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "aliases": [
+        "Unilateral Dumbbell Row"
+      ],
+      "do_not_merge_with": []
+    },
+    {
+      "standard_name": "Seated Cable Row",
+      "muscle_group": "Back",
+      "movement_pattern": "Horizontal Pull",
+      "equipment": [
+        "Cable"
+      ],
+      "aliases": [
+        "Wide Grip Seated Cable Row"
+      ],
+      "do_not_merge_with": []
+    }
+  ],
+  "pending_new_standards": [
+    {
+      "original_name": "Barbell Reverse Curl",
+      "suggested_standard": "Reverse Curl",
+      "muscle_group": "Biceps",
+      "movement_pattern": "Elbow Flexion (Pronated)",
+      "equipment": [
+        "Barbell"
+      ],
+      "status": "Awaiting Approval"
+    },
+    {
+      "original_name": "Cable Core Rotation",
+      "suggested_standard": "Cable Core Rotation",
+      "muscle_group": "Core",
+      "movement_pattern": "Spinal Rotation",
+      "equipment": [
+        "Cable"
+      ],
+      "status": "Awaiting Approval"
+    },
+    {
+      "original_name": "Cable Triceps Kickback",
+      "suggested_standard": "Triceps Kickback",
+      "muscle_group": "Triceps",
+      "movement_pattern": "Elbow Extension",
+      "equipment": [
+        "Cable"
+      ],
+      "status": "Awaiting Approval"
+    },
+    {
+      "original_name": "Dumbbell Farmers Carry",
+      "suggested_standard": "Farmers Carry",
+      "muscle_group": "Back/Grip",
+      "movement_pattern": "Loaded Carry",
+      "equipment": [
+        "Dumbbell"
+      ],
+      "status": "Awaiting Approval"
+    }
+  ],
+  "needs_review": [
+    {
+      "original_name": "Feet Elevated Dumbbell Calf Raise",
+      "suggested_standard": "Standing Calf Raise",
+      "confidence": 0.88,
+      "note": "Approve if you want PRs merged with Standing Calf Raise"
+    },
+    {
+      "original_name": "Feet Elevated Smith Machine Calf Raise",
+      "suggested_standard": "Standing Calf Raise",
+      "confidence": 0.88,
+      "note": "Approve if you want PRs merged with Standing Calf Raise"
+    }
+  ]
+}

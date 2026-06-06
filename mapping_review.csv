@@ -1,0 +1,7 @@
+original_exercise_name,suggested_standard,confidence,status,reason,recommended_action
+Feet Elevated Dumbbell Calf Raise,Standing Calf Raise,0.88,Needs Review,Feet elevation increases ROM but direction/pattern is same as Standing Calf Raise. Verify if you track these as separate PRs,Approve mapping to Standing Calf Raise?
+Cable Triceps Kickback,Triceps Kickback,0.8,New Standard Needed,Explicitly NOT merged with Triceps Pushdown per mapping rules; needs its own Standard Name,Add as new Standard Name
+Feet Elevated Smith Machine Calf Raise,Standing Calf Raise,0.88,Needs Review,Same reasoning as Feet Elevated Dumbbell Calf Raise — debatable if this is the same PR or a separate variant,Approve mapping to Standing Calf Raise?
+Dumbbell Farmers Carry,Farmers Carry,0.78,New Standard Needed,Carry/grip exercise — no equivalent in Standard Names list; needs its own Standard Name,Add as new Standard Name
+Barbell Reverse Curl,Reverse Curl,0.82,New Standard Needed,Pronated grip targets brachioradialis — mechanically distinct from Barbell Curl; needs its own Standard Name,Add as new Standard Name
+Cable Core Rotation,Cable Core Rotation,0.8,New Standard Needed,Rotational core movement — not the same as Pallof Press (anti-rotation); needs its own Standard Name,Add as new Standard Name

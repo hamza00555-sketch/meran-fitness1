@@ -1,0 +1,112 @@
+date,original_exercise_name,standard_exercise_name,muscle_group,movement_pattern,equipment,reps,weight,unit,is_pr,mapping_confidence,mapping_status,mapping_reason
+2026-06-06,Bulgarian Split Squat (Quad Bias),Bulgarian Split Squat,Legs,Knee Dominant,Bodyweight/DB,6,10.0,kg,YES,0.95,Auto Approved,"""Quad Bias"" is a form cue, not a different exercise"
+2026-06-06,Bulgarian Split Squat (Quad Bias),Bulgarian Split Squat,Legs,Knee Dominant,Bodyweight/DB,6,10.0,kg,YES,0.95,Auto Approved,"""Quad Bias"" is a form cue, not a different exercise"
+2026-06-06,Bulgarian Split Squat (Quad Bias),Bulgarian Split Squat,Legs,Knee Dominant,Bodyweight/DB,6,10.0,kg,YES,0.95,Auto Approved,"""Quad Bias"" is a form cue, not a different exercise"
+2026-06-06,Barbell Hip Thrust,Hip Thrust,Legs,Hip Extension,Barbell,12,31.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement is identical
+2026-06-06,Barbell Hip Thrust,Hip Thrust,Legs,Hip Extension,Barbell,12,31.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement is identical
+2026-06-06,Barbell Hip Thrust,Hip Thrust,Legs,Hip Extension,Barbell,12,31.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement is identical
+2026-06-06,Leg Extension,Leg Extension,Legs,Knee Extension,Machine,12,0,kg,,1.0,Auto Approved,Exact match
+2026-06-06,Leg Extension,Leg Extension,Legs,Knee Extension,Machine,12,5.0,kg,,1.0,Auto Approved,Exact match
+2026-06-06,Leg Extension,Leg Extension,Legs,Knee Extension,Machine,12,10.0,kg,YES,1.0,Auto Approved,Exact match
+2026-06-06,Lying Leg Curl,Lying Leg Curl,Legs,Knee Flexion,Machine,12,30.0,kg,,1.0,Auto Approved,Exact match — NOT merged with Seated Leg Curl
+2026-06-06,Lying Leg Curl,Lying Leg Curl,Legs,Knee Flexion,Machine,6,35.0,kg,YES,1.0,Auto Approved,Exact match — NOT merged with Seated Leg Curl
+2026-06-06,Lying Leg Curl,Lying Leg Curl,Legs,Knee Flexion,Machine,6,30.0,kg,,1.0,Auto Approved,Exact match — NOT merged with Seated Leg Curl
+2026-06-06,Lying Leg Curl,Lying Leg Curl,Legs,Knee Flexion,Machine,12,25.0,kg,,1.0,Auto Approved,Exact match — NOT merged with Seated Leg Curl
+2026-06-06,Feet Elevated Dumbbell Calf Raise,Standing Calf Raise,Legs,Plantar Flexion,Dumbbell,12,20.0,kg,YES,0.88,Needs Review,Feet elevation increases ROM but direction/pattern is same as Standing Calf Raise. Verify if you track these as separate PRs
+2026-06-06,Feet Elevated Dumbbell Calf Raise,Standing Calf Raise,Legs,Plantar Flexion,Dumbbell,12,20.0,kg,YES,0.88,Needs Review,Feet elevation increases ROM but direction/pattern is same as Standing Calf Raise. Verify if you track these as separate PRs
+2026-06-06,Feet Elevated Dumbbell Calf Raise,Standing Calf Raise,Legs,Plantar Flexion,Dumbbell,12,20.0,kg,YES,0.88,Needs Review,Feet elevation increases ROM but direction/pattern is same as Standing Calf Raise. Verify if you track these as separate PRs
+2026-06-06,Feet Elevated Dumbbell Calf Raise,Standing Calf Raise,Legs,Plantar Flexion,Dumbbell,12,20.0,kg,YES,0.88,Needs Review,Feet elevation increases ROM but direction/pattern is same as Standing Calf Raise. Verify if you track these as separate PRs
+2026-06-06,Machine Hip Adduction,Hip Adduction,Legs,Hip Adduction,Machine,12,27.0,kg,YES,0.97,Auto Approved,Equipment qualifier only — NOT merged with Hip Abduction
+2026-06-06,Machine Hip Adduction,Hip Adduction,Legs,Hip Adduction,Machine,12,27.0,kg,YES,0.97,Auto Approved,Equipment qualifier only — NOT merged with Hip Abduction
+2026-06-06,Machine Hip Adduction,Hip Adduction,Legs,Hip Adduction,Machine,12,27.0,kg,YES,0.97,Auto Approved,Equipment qualifier only — NOT merged with Hip Abduction
+2026-06-03,Supinated Lat Pulldown,Lat Pulldown,Back,Vertical Pull,Cable Machine,10,33.0,kg,YES,0.93,Auto Approved,"Supinated grip is a grip variant of Lat Pulldown; same machine, same pattern — at confidence threshold"
+2026-06-03,Supinated Lat Pulldown,Lat Pulldown,Back,Vertical Pull,Cable Machine,10,33.0,kg,YES,0.93,Auto Approved,"Supinated grip is a grip variant of Lat Pulldown; same machine, same pattern — at confidence threshold"
+2026-06-03,Supinated Lat Pulldown,Lat Pulldown,Back,Vertical Pull,Cable Machine,10,33.0,kg,YES,0.93,Auto Approved,"Supinated grip is a grip variant of Lat Pulldown; same machine, same pattern — at confidence threshold"
+2026-06-03,Supinated Lat Pulldown,Lat Pulldown,Back,Vertical Pull,Cable Machine,12,33.0,kg,YES,0.93,Auto Approved,"Supinated grip is a grip variant of Lat Pulldown; same machine, same pattern — at confidence threshold"
+2026-06-03,Barbell Bent Over Row,Barbell Row,Back,Horizontal Pull,Barbell,12,25.0,kg,,0.97,Auto Approved,Bent Over Row is the standard form of Barbell Row
+2026-06-03,Barbell Bent Over Row,Barbell Row,Back,Horizontal Pull,Barbell,12,30.0,kg,YES,0.97,Auto Approved,Bent Over Row is the standard form of Barbell Row
+2026-06-03,Barbell Bent Over Row,Barbell Row,Back,Horizontal Pull,Barbell,11,30.0,kg,YES,0.97,Auto Approved,Bent Over Row is the standard form of Barbell Row
+2026-06-03,Barbell Bent Over Row,Barbell Row,Back,Horizontal Pull,Barbell,10,30.0,kg,YES,0.97,Auto Approved,Bent Over Row is the standard form of Barbell Row
+2026-06-03,Straight Arm Cable Pulldown,Straight Arm Pulldown,Back,Shoulder Extension,Cable,7,30.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-06-03,Straight Arm Cable Pulldown,Straight Arm Pulldown,Back,Shoulder Extension,Cable,10,30.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-06-03,Straight Arm Cable Pulldown,Straight Arm Pulldown,Back,Shoulder Extension,Cable,9,30.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-06-02,Dumbbell Incline Bench Press,Incline Dumbbell Press,Chest,Incline Push,Dumbbell,12,10.0,kg,YES,0.97,Auto Approved,Direct alias — same exercise
+2026-06-02,Dumbbell Incline Bench Press,Incline Dumbbell Press,Chest,Incline Push,Dumbbell,12,10.0,kg,YES,0.97,Auto Approved,Direct alias — same exercise
+2026-06-02,Dumbbell Incline Bench Press,Incline Dumbbell Press,Chest,Incline Push,Dumbbell,12,10.0,kg,YES,0.97,Auto Approved,Direct alias — same exercise
+2026-06-02,Dumbbell Incline Bench Press,Incline Dumbbell Press,Chest,Incline Push,Dumbbell,11,10.0,kg,YES,0.97,Auto Approved,Direct alias — same exercise
+2026-06-02,Lying Barbell Triceps Extensions,Skull Crusher,Triceps,Elbow Extension,Barbell,12,20.0,kg,YES,0.95,Auto Approved,Lying Barbell Triceps Extension is the anatomical name for Skull Crusher — same exercise
+2026-06-02,Lying Barbell Triceps Extensions,Skull Crusher,Triceps,Elbow Extension,Barbell,14,20.0,kg,YES,0.95,Auto Approved,Lying Barbell Triceps Extension is the anatomical name for Skull Crusher — same exercise
+2026-06-02,Lying Barbell Triceps Extensions,Skull Crusher,Triceps,Elbow Extension,Barbell,14,20.0,kg,YES,0.95,Auto Approved,Lying Barbell Triceps Extension is the anatomical name for Skull Crusher — same exercise
+2026-06-02,Cable Chest Fly (High-to-Low),Chest Fly,Chest,Horizontal Fly,Cable,12,20.0,kg,YES,0.94,Auto Approved,"High-to-Low is a cable fly variant; same movement pattern, same standard name"
+2026-06-02,Cable Chest Fly (High-to-Low),Chest Fly,Chest,Horizontal Fly,Cable,11,20.0,kg,YES,0.94,Auto Approved,"High-to-Low is a cable fly variant; same movement pattern, same standard name"
+2026-06-02,Cable Chest Fly (High-to-Low),Chest Fly,Chest,Horizontal Fly,Cable,12,20.0,kg,YES,0.94,Auto Approved,"High-to-Low is a cable fly variant; same movement pattern, same standard name"
+2026-06-02,Dumbbell Lateral Raise,Lateral Raise,Shoulders,Shoulder Abduction,Dumbbell,12,10.0,kg,YES,0.97,Auto Approved,Confirmed alias — equipment qualifier only
+2026-06-02,Dumbbell Lateral Raise,Lateral Raise,Shoulders,Shoulder Abduction,Dumbbell,12,10.0,kg,YES,0.97,Auto Approved,Confirmed alias — equipment qualifier only
+2026-06-02,Dumbbell Lateral Raise,Lateral Raise,Shoulders,Shoulder Abduction,Dumbbell,12,10.0,kg,YES,0.97,Auto Approved,Confirmed alias — equipment qualifier only
+2026-06-02,Dumbbell Reverse Fly,Reverse Fly,Shoulders,Shoulder Horizontal Abduction,Dumbbell,12,2.5,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-06-02,Dumbbell Reverse Fly,Reverse Fly,Shoulders,Shoulder Horizontal Abduction,Dumbbell,12,2.5,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-06-02,Dumbbell Reverse Fly,Reverse Fly,Shoulders,Shoulder Horizontal Abduction,Dumbbell,8,2.5,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-06-02,Cable Triceps Kickback,Triceps Kickback,Triceps,Elbow Extension,Cable,24,5.0,kg,YES,0.8,New Standard Needed,Explicitly NOT merged with Triceps Pushdown per mapping rules; needs its own Standard Name
+2026-06-02,Cable Crunch,Cable Crunch,Core,Spinal Flexion,Cable,12,40.0,kg,YES,1.0,Auto Approved,Exact match
+2026-06-02,Cable Crunch,Cable Crunch,Core,Spinal Flexion,Cable,12,40.0,kg,YES,1.0,Auto Approved,Exact match
+2026-06-02,Cable Crunch,Cable Crunch,Core,Spinal Flexion,Cable,12,40.0,kg,YES,1.0,Auto Approved,Exact match
+2026-05-30,Barbell Back Squat,Barbell Squat,Legs,Knee Dominant,Barbell,12,20.0,kg,YES,0.97,Auto Approved,"""Back Squat"" is the standard term for barbell squat — same movement"
+2026-05-30,Barbell Back Squat,Barbell Squat,Legs,Knee Dominant,Barbell,12,20.0,kg,YES,0.97,Auto Approved,"""Back Squat"" is the standard term for barbell squat — same movement"
+2026-05-30,Barbell Back Squat,Barbell Squat,Legs,Knee Dominant,Barbell,12,20.0,kg,YES,0.97,Auto Approved,"""Back Squat"" is the standard term for barbell squat — same movement"
+2026-05-30,Barbell Back Squat,Barbell Squat,Legs,Knee Dominant,Barbell,12,20.0,kg,YES,0.97,Auto Approved,"""Back Squat"" is the standard term for barbell squat — same movement"
+2026-05-30,Dumbbell Romanian Deadlift (RDL),Romanian Deadlift,Legs,Hip Hinge,Dumbbell,12,30.0,kg,YES,0.96,Auto Approved,RDL abbreviation + equipment qualifier; same hip hinge movement — NOT merged with Deadlift
+2026-05-30,Dumbbell Romanian Deadlift (RDL),Romanian Deadlift,Legs,Hip Hinge,Dumbbell,12,30.0,kg,YES,0.96,Auto Approved,RDL abbreviation + equipment qualifier; same hip hinge movement — NOT merged with Deadlift
+2026-05-30,Dumbbell Romanian Deadlift (RDL),Romanian Deadlift,Legs,Hip Hinge,Dumbbell,12,30.0,kg,YES,0.96,Auto Approved,RDL abbreviation + equipment qualifier; same hip hinge movement — NOT merged with Deadlift
+2026-05-30,Dumbbell Lunge,Lunge,Legs,Knee Dominant,Dumbbell,10,20.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-05-30,Dumbbell Lunge,Lunge,Legs,Knee Dominant,Dumbbell,9,20.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-05-30,Dumbbell Lunge,Lunge,Legs,Knee Dominant,Dumbbell,10,20.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-05-30,Seated Leg Curl,Seated Leg Curl,Legs,Knee Flexion,Machine,12,25.0,kg,YES,1.0,Auto Approved,Exact match — NOT merged with Lying Leg Curl
+2026-05-30,Seated Leg Curl,Seated Leg Curl,Legs,Knee Flexion,Machine,12,25.0,kg,YES,1.0,Auto Approved,Exact match — NOT merged with Lying Leg Curl
+2026-05-30,Seated Leg Curl,Seated Leg Curl,Legs,Knee Flexion,Machine,8,25.0,kg,YES,1.0,Auto Approved,Exact match — NOT merged with Lying Leg Curl
+2026-05-30,Feet Elevated Smith Machine Calf Raise,Standing Calf Raise,Legs,Plantar Flexion,Smith Machine,6,40.0,kg,YES,0.88,Needs Review,Same reasoning as Feet Elevated Dumbbell Calf Raise — debatable if this is the same PR or a separate variant
+2026-05-30,Machine Hip Abduction,Hip Abduction,Legs,Hip Abduction,Machine,12,14.0,kg,,0.97,Auto Approved,Equipment qualifier only — NOT merged with Hip Adduction
+2026-05-30,Machine Hip Abduction,Hip Abduction,Legs,Hip Abduction,Machine,10,18.0,kg,YES,0.97,Auto Approved,Equipment qualifier only — NOT merged with Hip Adduction
+2026-05-30,Machine Hip Abduction,Hip Abduction,Legs,Hip Abduction,Machine,12,14.0,kg,,0.97,Auto Approved,Equipment qualifier only — NOT merged with Hip Adduction
+2026-05-30,Hanging Leg Raise,Hanging Leg Raise,Core,Hip Flexion,Bodyweight,8,0,kg,,1.0,Auto Approved,Exact match
+2026-05-30,Hanging Leg Raise,Hanging Leg Raise,Core,Hip Flexion,Bodyweight,5,0,kg,,1.0,Auto Approved,Exact match
+2026-05-30,Hanging Leg Raise,Hanging Leg Raise,Core,Hip Flexion,Bodyweight,5,0,kg,,1.0,Auto Approved,Exact match
+2026-05-24,Unilateral Dumbbell Row,Dumbbell Row,Back,Horizontal Pull,Dumbbell,24,10.0,kg,,0.95,Auto Approved,"Unilateral = single arm, standard execution of Dumbbell Row"
+2026-05-24,Unilateral Dumbbell Row,Dumbbell Row,Back,Horizontal Pull,Dumbbell,24,11.0,kg,YES,0.95,Auto Approved,"Unilateral = single arm, standard execution of Dumbbell Row"
+2026-05-24,Unilateral Dumbbell Row,Dumbbell Row,Back,Horizontal Pull,Dumbbell,24,11.0,kg,YES,0.95,Auto Approved,"Unilateral = single arm, standard execution of Dumbbell Row"
+2026-05-24,Dumbbell Farmers Carry,Farmers Carry,Back,Loaded Carry,Dumbbell,2,30.0,kg,,0.78,New Standard Needed,Carry/grip exercise — no equivalent in Standard Names list; needs its own Standard Name
+2026-05-24,Dumbbell Farmers Carry,Farmers Carry,Back,Loaded Carry,Dumbbell,2,40.0,kg,YES,0.78,New Standard Needed,Carry/grip exercise — no equivalent in Standard Names list; needs its own Standard Name
+2026-05-24,Dumbbell Farmers Carry,Farmers Carry,Back,Loaded Carry,Dumbbell,4,40.0,kg,YES,0.78,New Standard Needed,Carry/grip exercise — no equivalent in Standard Names list; needs its own Standard Name
+2026-05-24,Wide Grip Seated Cable Row,Seated Cable Row,Back,Horizontal Pull,Cable,12,25.0,kg,YES,0.93,Auto Approved,Wide grip is a grip variant of Seated Cable Row; same machine and pattern — at confidence threshold
+2026-05-24,Wide Grip Seated Cable Row,Seated Cable Row,Back,Horizontal Pull,Cable,12,25.0,kg,YES,0.93,Auto Approved,Wide grip is a grip variant of Seated Cable Row; same machine and pattern — at confidence threshold
+2026-05-24,Wide Grip Seated Cable Row,Seated Cable Row,Back,Horizontal Pull,Cable,12,25.0,kg,YES,0.93,Auto Approved,Wide grip is a grip variant of Seated Cable Row; same machine and pattern — at confidence threshold
+2026-05-24,Barbell Reverse Curl,Reverse Curl,Biceps,Elbow Flexion (Pronated),Barbell,10,30.0,kg,YES,0.82,New Standard Needed,Pronated grip targets brachioradialis — mechanically distinct from Barbell Curl; needs its own Standard Name
+2026-05-24,Barbell Reverse Curl,Reverse Curl,Biceps,Elbow Flexion (Pronated),Barbell,10,30.0,kg,YES,0.82,New Standard Needed,Pronated grip targets brachioradialis — mechanically distinct from Barbell Curl; needs its own Standard Name
+2026-05-24,Barbell Reverse Curl,Reverse Curl,Biceps,Elbow Flexion (Pronated),Barbell,15,30.0,kg,YES,0.82,New Standard Needed,Pronated grip targets brachioradialis — mechanically distinct from Barbell Curl; needs its own Standard Name
+2026-05-24,Alternating Dumbbell Curl,Dumbbell Curl,Biceps,Elbow Flexion,Dumbbell,10,10.0,kg,YES,0.95,Auto Approved,Alternating is execution style only; same movement/equipment as Dumbbell Curl
+2026-05-24,Alternating Dumbbell Curl,Dumbbell Curl,Biceps,Elbow Flexion,Dumbbell,8,10.0,kg,YES,0.95,Auto Approved,Alternating is execution style only; same movement/equipment as Dumbbell Curl
+2026-05-24,Alternating Dumbbell Curl,Dumbbell Curl,Biceps,Elbow Flexion,Dumbbell,10,10.0,kg,YES,0.95,Auto Approved,Alternating is execution style only; same movement/equipment as Dumbbell Curl
+2026-05-24,Cable Core Rotation,Cable Core Rotation,Core,Spinal Rotation,Cable,12,15.0,kg,YES,0.8,New Standard Needed,Rotational core movement — not the same as Pallof Press (anti-rotation); needs its own Standard Name
+2026-05-24,Cable Core Rotation,Cable Core Rotation,Core,Spinal Rotation,Cable,12,15.0,kg,YES,0.8,New Standard Needed,Rotational core movement — not the same as Pallof Press (anti-rotation); needs its own Standard Name
+2026-05-24,Cable Core Rotation,Cable Core Rotation,Core,Spinal Rotation,Cable,12,15.0,kg,YES,0.8,New Standard Needed,Rotational core movement — not the same as Pallof Press (anti-rotation); needs its own Standard Name
+2026-05-17,Barbell Bench Press,Barbell Bench Press,Chest,Horizontal Push,Barbell,8,0,kg,,1.0,Auto Approved,Exact match
+2026-05-17,Barbell Bench Press,Barbell Bench Press,Chest,Horizontal Push,Barbell,8,10.0,kg,YES,1.0,Auto Approved,Exact match
+2026-05-17,Barbell Bench Press,Barbell Bench Press,Chest,Horizontal Push,Barbell,8,10.0,kg,YES,1.0,Auto Approved,Exact match
+2026-05-17,Barbell Bench Press,Barbell Bench Press,Chest,Horizontal Push,Barbell,8,7.5,kg,,1.0,Auto Approved,Exact match
+2026-05-17,Seated Dumbbell Overhead Press,Dumbbell Shoulder Press,Shoulders,Vertical Push,Dumbbell,12,5.0,kg,,0.96,Auto Approved,Seated + dumbbell OHP = Dumbbell Shoulder Press
+2026-05-17,Seated Dumbbell Overhead Press,Dumbbell Shoulder Press,Shoulders,Vertical Push,Dumbbell,12,5.0,kg,,0.96,Auto Approved,Seated + dumbbell OHP = Dumbbell Shoulder Press
+2026-05-17,Seated Dumbbell Overhead Press,Dumbbell Shoulder Press,Shoulders,Vertical Push,Dumbbell,9,10.0,kg,YES,0.96,Auto Approved,Seated + dumbbell OHP = Dumbbell Shoulder Press
+2026-05-17,Machine Chest Fly (Pec Deck),Chest Fly,Chest,Horizontal Fly,Machine,12,40.0,kg,YES,0.96,Auto Approved,Pec Deck is a confirmed alias of Chest Fly — NOT merged with any Bench Press
+2026-05-17,Machine Chest Fly (Pec Deck),Chest Fly,Chest,Horizontal Fly,Machine,8,31.0,kg,,0.96,Auto Approved,Pec Deck is a confirmed alias of Chest Fly — NOT merged with any Bench Press
+2026-05-17,Machine Chest Fly (Pec Deck),Chest Fly,Chest,Horizontal Fly,Machine,11,31.0,kg,,0.96,Auto Approved,Pec Deck is a confirmed alias of Chest Fly — NOT merged with any Bench Press
+2026-05-17,Machine Reverse Fly,Reverse Fly,Shoulders,Shoulder Horizontal Abduction,Machine,9,15.0,kg,YES,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-05-17,Machine Reverse Fly,Reverse Fly,Shoulders,Shoulder Horizontal Abduction,Machine,12,10.0,kg,,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-05-17,Machine Reverse Fly,Reverse Fly,Shoulders,Shoulder Horizontal Abduction,Machine,7,10.0,kg,,0.97,Auto Approved,Equipment qualifier only; movement identical
+2026-05-17,Cable Overhead Triceps Extension,Overhead Triceps Extension,Triceps,Elbow Extension,Cable,12,15.0,kg,YES,0.97,Auto Approved,Cable is equipment qualifier; movement = overhead elbow extension
+2026-05-17,Cable Overhead Triceps Extension,Overhead Triceps Extension,Triceps,Elbow Extension,Cable,12,10.0,kg,,0.97,Auto Approved,Cable is equipment qualifier; movement = overhead elbow extension
+2026-05-17,Cable Overhead Triceps Extension,Overhead Triceps Extension,Triceps,Elbow Extension,Cable,11,10.0,kg,,0.97,Auto Approved,Cable is equipment qualifier; movement = overhead elbow extension
+2026-05-17,Cable Lateral Raise,Lateral Raise,Shoulders,Shoulder Abduction,Cable,12,10.0,kg,YES,0.97,Auto Approved,Confirmed alias — equipment qualifier only
+2026-05-17,Cable Lateral Raise,Lateral Raise,Shoulders,Shoulder Abduction,Cable,8,10.0,kg,YES,0.97,Auto Approved,Confirmed alias — equipment qualifier only
+2026-05-17,Cable Lateral Raise,Lateral Raise,Shoulders,Shoulder Abduction,Cable,12,10.0,kg,YES,0.97,Auto Approved,Confirmed alias — equipment qualifier only
+2026-05-17,Cable Triceps Pushdown,Triceps Pushdown,Triceps,Elbow Extension,Cable,12,25.0,kg,YES,0.98,Auto Approved,Confirmed alias in mapping rules
+2026-05-17,Cable Triceps Pushdown,Triceps Pushdown,Triceps,Elbow Extension,Cable,7,25.0,kg,YES,0.98,Auto Approved,Confirmed alias in mapping rules
+2026-05-17,Cable Triceps Pushdown,Triceps Pushdown,Triceps,Elbow Extension,Cable,12,20.0,kg,,0.98,Auto Approved,Confirmed alias in mapping rules
