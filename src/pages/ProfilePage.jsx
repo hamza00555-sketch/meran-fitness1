@@ -270,7 +270,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
             }}
           >
             {goal.img
-              ? <img src={goal.img} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+              ? <img src={goal.img.replace('/assets/goalc_', '/assets/goal_')} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.5))' }} />
               : <TargetIcon size={66} color="var(--purple)" />
             }
             <div style={{ width: '100%' }}>
@@ -651,21 +651,35 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
         </div>
 
         {type === 'select' ? (
-          <select
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            style={{
-              width: '100%', background: 'var(--bg3)',
-              border: '1px solid var(--border2)', borderRadius: 10,
-              padding: '12px 14px', color: 'var(--text)',
-              fontFamily: 'var(--font-ar)', fontSize: 15, outline: 'none',
-              marginBottom: 18, cursor: 'pointer',
-            }}
-          >
-            {GOALS.map(g => (
-              <option key={g.id} value={g.id}>{g.icon} {g.label}</option>
-            ))}
-          </select>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
+            {GOALS.map(g => {
+              const isSelected = value === g.id
+              const img2 = g.img ? g.img.replace('/assets/goalc_', '/assets/goal2_') : null
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => onChange(g.id)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                    padding: '10px 6px',
+                    background: isSelected ? 'var(--cyan-lo)' : 'var(--bg3)',
+                    border: `2px solid ${isSelected ? 'var(--cyan)' : 'var(--border)'}`,
+                    borderRadius: 12, cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {img2
+                    ? <img src={img2} alt={g.label} style={{ width: 48, height: 48, objectFit: 'contain', filter: isSelected ? 'none' : 'grayscale(0.5) brightness(0.8)' }} />
+                    : <span style={{ fontSize: 28 }}>{g.icon}</span>
+                  }
+                  <div style={{
+                    fontFamily: 'var(--font-ar)', fontSize: 11, fontWeight: isSelected ? 700 : 400,
+                    color: isSelected ? 'var(--cyan)' : 'var(--text3)', textAlign: 'center',
+                  }}>{g.label}</div>
+                </div>
+              )
+            })}
+          </div>
         ) : type === 'select-system' ? (
           <select
             value={value}

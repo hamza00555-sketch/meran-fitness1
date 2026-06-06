@@ -128,13 +128,16 @@ export function SectionTitle({ children, action }) {
 }
 
 // Empty State
-export function EmptyState({ icon, title, desc }) {
+export function EmptyState({ icon, img, title, desc }) {
   return (
     <div style={{
       textAlign: 'center', padding: '50px 20px',
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
     }}>
-      <div className="icon-glow" style={{ fontSize: 52 }}>{icon}</div>
+      {img
+        ? <img src={img} alt="" style={{ width: 140, height: 140, objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(94,195,42,0.2))' }} />
+        : <div className="icon-glow" style={{ fontSize: 52 }}>{icon}</div>
+      }
       <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 700, color: 'var(--text2)' }}>
         {title}
       </div>

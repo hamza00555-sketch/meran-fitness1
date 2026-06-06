@@ -247,7 +247,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
   if (!sessions.length) {
     return (
       <div style={{ paddingBottom: 120 }}>
-        <EmptyState icon="📋" title="لا يوجد سجل بعد" desc="أنهِ جلسة لتظهر هنا" />
+        <EmptyState img="/assets/empty_workout.png" title="لا يوجد سجل بعد" desc="أنهِ جلسة لتظهر هنا" />
         <div style={{
           position: 'fixed', bottom: 0,
           left: '50%', transform: 'translateX(-50%)',

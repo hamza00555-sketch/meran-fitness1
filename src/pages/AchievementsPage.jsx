@@ -62,6 +62,13 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
 
       {/* ── Achievement Cards ────────────────────────────────────
           Horizontal: text RIGHT (RTL-first) · icon LEFT           */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <img src="/assets/empty_achievements.png" alt="" style={{ width: 140, height: 140, objectFit: 'contain', opacity: 0.7 }} />
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, color: 'var(--text3)' }}>لا توجد جوائز في هذا القسم</div>
+        </div>
+      )}
+
       {filtered.map(a => {
         const isUnlocked = unlocked.includes(a.id) || satisfiedIds.has(a.id)
         const rarity     = RARITY_COLORS[a.rarity] || RARITY_COLORS.common
@@ -76,6 +83,13 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
       })}
     </div>
   )
+}
+
+// Map achievement category/rarity → illustration image
+function getAchImg(a) {
+  if (a.rarity === 'legendary' || a.rarity === 'epic') return '/assets/ach_master.png'
+  const map = { sessions: '/assets/ach_consistency.png', streak: '/assets/ach_consistency.png', strength: '/assets/ach_strength.png', volume: '/assets/ach_volume.png' }
+  return map[a.cat] || '/assets/ach_consistency.png'
 }
 
 // ── Achievement Card ──────────────────────────────────────────
@@ -140,8 +154,27 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
           border: `2px solid ${isUnlocked ? rarity.color + '50' : 'var(--border)'}`,
           filter: isUnlocked ? `drop-shadow(0 0 10px ${rarity.color}80)` : 'none',
           boxShadow: isUnlocked ? `0 4px 18px ${rarity.color}20` : 'none',
+          position: 'relative', overflow: 'visible',
         }}>
-          {isUnlocked ? a.icon : '🔒'}
+          {isUnlocked
+            ? <span style={{ fontSize: 'clamp(30px,8vw,44px)' }}>{a.icon}</span>
+            : (
+              <>
+                <img
+                  src={getAchImg(a)}
+                  alt=""
+                  style={{ width: '78%', height: '78%', objectFit: 'contain', filter: 'grayscale(1)', opacity: 0.35 }}
+                />
+                <div style={{
+                  position: 'absolute', bottom: -4, right: -4,
+                  fontSize: 15, lineHeight: 1,
+                  background: 'var(--bg2)', border: '1px solid var(--border2)',
+                  borderRadius: '50%', width: 22, height: 22,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>🔒</div>
+              </>
+            )
+          }
         </div>
 
       </div>

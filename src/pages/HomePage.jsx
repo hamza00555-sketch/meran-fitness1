@@ -187,9 +187,13 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               }}>{rank.tier} · {rank.label}</span>
               {streak > 0 && (
                 <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
                   color: 'var(--orange)', fontFamily: 'var(--font-mono)',
                   fontSize: 12, fontWeight: 700,
-                }}>🔥 {streak}</span>
+                }}>
+                  <img src="/assets/deco_streak_flame.png" alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
+                  {streak}
+                </span>
               )}
               <CommitmentFlames streak={streak} />
             </div>
@@ -200,7 +204,11 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
                 background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
                 borderRadius: 20, padding: '3px 10px',
                 fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)', fontWeight: 700,
-              }}>⭐ {xp.toLocaleString()}</div>
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+              }}>
+                <img src="/assets/deco_xp_orb.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
+                {xp.toLocaleString()}
+              </div>
               <div style={{
                 background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)',
                 borderRadius: 20, padding: '3px 10px',
@@ -218,7 +226,16 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           <div className="hp-icon" style={{
             background: rank.color + '15',
             border: `1.5px solid ${rank.color}30`,
+            position: 'relative',
           }}>
+            {/* Decorative level ring behind rank badge */}
+            <img src="/assets/deco_level_ring.png" alt="" style={{
+              position: 'absolute', inset: -6,
+              width: 'calc(100% + 12px)', height: 'calc(100% + 12px)',
+              objectFit: 'contain', opacity: 0.55,
+              animation: 'spin 12s linear infinite',
+              pointerEvents: 'none',
+            }} />
             <RankRing rank={rank} level={level} />
           </div>
         </div>
