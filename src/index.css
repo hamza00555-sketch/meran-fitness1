@@ -287,3 +287,84 @@ input[type=number] { -moz-appearance: textfield; }
   box-shadow: 0 0 32px rgba(94,195,42,0.45), 0 4px 16px rgba(0,0,0,0.4);
   animation: glowPulse 2s ease-in-out infinite;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Home Page + Achievements Page — layout system (clamp-based)
+   These classes are ONLY used in HomePage.jsx & AchievementsPage.jsx
+   ══════════════════════════════════════════════════════════ */
+:root {
+  --hp-icon-size:  clamp(88px, 23vw, 118px);
+  --ap-icon-size:  clamp(70px, 19vw,  98px);
+  --hp-card-pad:   clamp(12px, 3.2vw,  18px);
+  --hp-card-gap:   clamp(10px, 2.6vw,  16px);
+  --hp-card-mb:    clamp(8px,  2vw,    12px);
+}
+
+/* Horizontal card inner wrapper */
+.hp-row, .ap-row {
+  display: flex;
+  align-items: center;
+  gap: var(--hp-card-gap);
+  padding: var(--hp-card-pad);
+}
+
+/* Icon container — home page */
+.hp-icon {
+  width: var(--hp-icon-size);
+  height: var(--hp-icon-size);
+  flex-shrink: 0;
+  border-radius: clamp(16px, 4vw, 22px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.hp-icon img { width: 90%; height: 90%; object-fit: contain; }
+
+/* Icon container — achievements page */
+.ap-icon {
+  width: var(--ap-icon-size);
+  height: var(--ap-icon-size);
+  flex-shrink: 0;
+  border-radius: clamp(13px, 3.5vw, 18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(32px, 8.5vw, 46px);
+}
+
+/* Achievements filter tab */
+.ap-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: clamp(34px, 5.5vh, 46px);
+  padding: 0 clamp(12px, 3.2vw, 18px);
+  border-radius: 20px;
+  font-family: var(--font-ar);
+  font-size: clamp(12px, 3.2vw, 14px);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  border-width: 1px;
+  border-style: solid;
+}
+
+/* Card title / subtitle inside home + achievements */
+.hp-title   { font-size: clamp(19px, 5vw, 26px);   font-weight: 900; line-height: 1.15; }
+.hp-sub     { font-size: clamp(13px, 3.5vw, 16px);  color: var(--text3); line-height: 1.35; }
+.hp-meta    { font-size: clamp(11px, 3vw,  13px);   color: var(--text3); }
+.ap-title   { font-size: clamp(13px, 3.5vw, 15px);  font-weight: 700; }
+.ap-sub     { font-size: clamp(11px, 3vw,  13px);   color: var(--text3); }
+
+@media (max-width: 380px) {
+  :root {
+    --hp-icon-size: 80px;
+    --ap-icon-size: 66px;
+    --hp-card-pad:  10px;
+    --hp-card-gap:  8px;
+  }
+  .hp-title { font-size: 18px; }
+  .ap-title { font-size: 13px; }
+  .ap-tab   { min-height: 32px; padding: 0 10px; font-size: 12px; }
+}

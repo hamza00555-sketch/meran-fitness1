@@ -8,7 +8,6 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
 
   const unlocked = unlockedAchievements || []
 
-  // Check which achievements are currently satisfied
   const satisfiedIds = new Set(
     ACHIEVEMENTS.filter(a => {
       try { return a.check(sessions, xp, streak) } catch { return false }
@@ -23,57 +22,46 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      {/* ── Header ────────────────────────────────────────────── */}
-      <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--gold)">
+
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }} topColor="var(--gold)">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 900, marginBottom: 3 }}>
               جوائز 🏆
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
               أنجازاتك ومكافآتك
             </div>
           </div>
-          {/* Circle */}
           <AchievCircle done={unlockedCount} total={40} />
         </div>
       </Card>
 
-      {/* ── Category Filter ───────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, overflowX: 'auto', paddingBottom: 2 }}>
+      {/* ── Category Tabs ──────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
         {ACHIEVEMENT_CATS.map(cat => {
-          const CAT_IMGS = {
-            sessions: '/assets/ach_consistency.png',
-            strength: '/assets/ach_strength.png',
-            streak:   '/assets/ach_master.png',
-            volume:   '/assets/ach_volume.png',
-          }
-          const catImg = CAT_IMGS[cat.id]
+          const isActive = catFilter === cat.id
           return (
             <button
               key={cat.id}
               onClick={() => setCatFilter(cat.id)}
+              className="ap-tab"
               style={{
-                background: catFilter === cat.id ? 'var(--gold-lo)' : 'var(--bg2)',
-                border: `1px solid ${catFilter === cat.id ? 'var(--gold)' : 'var(--border)'}`,
-                borderRadius: 20, padding: '6px 16px',
-                color: catFilter === cat.id ? 'var(--gold)' : 'var(--text3)',
-                fontFamily: 'var(--font-ar)', fontSize: 13,
-                cursor: 'pointer', whiteSpace: 'nowrap',
-                transition: 'all 0.15s', flexShrink: 0,
-                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: isActive ? 'var(--gold-lo)' : 'var(--bg2)',
+                borderColor: isActive ? 'var(--gold)' : 'var(--border)',
+                color: isActive ? 'var(--gold)' : 'var(--text3)',
+                fontWeight: isActive ? 700 : 400,
               }}
             >
-              {catImg && (
-                <img src={catImg} alt="" style={{ width: 108, height: 108, objectFit: 'contain', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
-              )}
               {cat.label}
             </button>
           )
         })}
       </div>
 
-      {/* ── Achievement Cards ─────────────────────────────────── */}
+      {/* ── Achievement Cards ────────────────────────────────────
+          Horizontal: text RIGHT (RTL-first) · icon LEFT           */}
       {filtered.map(a => {
         const isUnlocked = unlocked.includes(a.id) || satisfiedIds.has(a.id)
         const rarity     = RARITY_COLORS[a.rarity] || RARITY_COLORS.common
@@ -95,30 +83,21 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
   return (
     <Card
       style={{
-        padding: 4, marginBottom: 3,
+        padding: 0,
+        marginBottom: 'var(--hp-card-mb)',
         opacity: isUnlocked ? 1 : 0.55,
         borderColor: isUnlocked ? rarity.color + '40' : undefined,
-        background: isUnlocked ? rarity.color + '08' : undefined,
+        background: isUnlocked ? rarity.color + '07' : undefined,
         transition: 'all 0.3s',
       }}
       topColor={isUnlocked ? rarity.color : undefined}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* Big Icon */}
-        <div style={{
-          width: 144, height: 144, borderRadius: 28, flexShrink: 0,
-          background: isUnlocked ? rarity.color + '18' : 'var(--bg3)',
-          border: `2px solid ${isUnlocked ? rarity.color + '50' : 'var(--border)'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 72,
-          filter: isUnlocked ? `drop-shadow(0 0 16px ${rarity.color})` : 'none',
-          boxShadow: isUnlocked ? `0 4px 24px ${rarity.color}20` : 'none',
-        }}>
-          {isUnlocked ? a.icon : '🔒'}
-        </div>
+      {/* ── Inner horizontal row ── */}
+      <div className="ap-row">
 
-        {/* Content */}
-        <div style={{ flex: 1 }}>
+        {/* TEXT SIDE — right in RTL (first child) */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Badges */}
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 5 }}>
             <span style={{
               background: rarity.color + '20', color: rarity.color,
@@ -135,13 +114,17 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
               }}>✓ محقق</span>
             )}
           </div>
-          <div style={{
-            fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700,
-            color: isUnlocked ? 'var(--text)' : 'var(--text3)', marginBottom: 3,
+
+          <div className="ap-title" style={{
+            fontFamily: 'var(--font-ar)',
+            color: isUnlocked ? 'var(--text)' : 'var(--text3)',
+            marginBottom: 3,
           }}>{a.title}</div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
+
+          <div className="ap-sub" style={{ fontFamily: 'var(--font-ar)', marginBottom: 7 }}>
             {a.desc}
           </div>
+
           <div style={{
             display: 'inline-block',
             background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
@@ -150,6 +133,17 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
             color: 'var(--gold)', fontWeight: 700,
           }}>+{a.xp} XP</div>
         </div>
+
+        {/* ICON SIDE — left in RTL (second child) */}
+        <div className="ap-icon" style={{
+          background: isUnlocked ? rarity.color + '18' : 'var(--bg3)',
+          border: `2px solid ${isUnlocked ? rarity.color + '50' : 'var(--border)'}`,
+          filter: isUnlocked ? `drop-shadow(0 0 10px ${rarity.color}80)` : 'none',
+          boxShadow: isUnlocked ? `0 4px 18px ${rarity.color}20` : 'none',
+        }}>
+          {isUnlocked ? a.icon : '🔒'}
+        </div>
+
       </div>
     </Card>
   )
@@ -158,22 +152,22 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
 // ── Achievement Circle ────────────────────────────────────────
 function AchievCircle({ done, total }) {
   const pct  = total > 0 ? done / total : 0
-  const R    = 28; const CX = 36; const CY = 36
+  const R    = 24; const CX = 30; const CY = 30
   const circ = 2 * Math.PI * R
 
   return (
-    <svg width={72} height={72} viewBox="0 0 72 72">
-      <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border2)" strokeWidth={6} />
+    <svg width={60} height={60} viewBox="0 0 60 60">
+      <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border2)" strokeWidth={5} />
       <circle
         cx={CX} cy={CY} r={R} fill="none"
-        stroke="var(--gold)" strokeWidth={6} strokeLinecap="round"
+        stroke="var(--gold)" strokeWidth={5} strokeLinecap="round"
         strokeDasharray={circ}
         strokeDashoffset={circ * (1 - pct)}
         transform={`rotate(-90 ${CX} ${CY})`}
         style={{ transition: 'stroke-dashoffset 0.6s ease' }}
       />
-      <text x={CX} y={CY + 5} textAnchor="middle" fill="var(--gold)"
-        style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 700 }}>
+      <text x={CX} y={CY + 4} textAnchor="middle" fill="var(--gold)"
+        style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700 }}>
         {done}/{total}
       </text>
     </svg>
