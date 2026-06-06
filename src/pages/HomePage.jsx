@@ -143,28 +143,36 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   return (
     <div style={{ paddingBottom: 140 }}>
 
-      {/* ── Logo ─────────────────────────────────────────────────── */}
-      <div style={{ paddingInline: 24, marginTop: 18, marginBottom: 12, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{
-            position: 'absolute', insetInlineEnd: -10, top: '50%', transform: 'translateY(-50%)',
-            width: 130, height: 42, borderRadius: 999,
-            background: 'radial-gradient(circle, rgba(94,195,42,0.26) 0%, rgba(94,195,42,0.12) 38%, rgba(94,195,42,0) 72%)',
-            filter: 'blur(14px)', opacity: 0.85, pointerEvents: 'none',
-          }} />
-          <img
-            src="/assets/meran-wordmark-transparent-192.png"
-            alt="MERAN"
-            style={{
-              position: 'relative', zIndex: 1,
-              width: 138, maxWidth: '42vw', height: 'auto',
-              objectFit: 'contain', display: 'block',
-              opacity: 0.98,
-              filter: 'drop-shadow(0 0 14px rgba(94,195,42,0.28))',
-            }}
-          />
-        </div>
-      </div>
+      {/* ── Logo Card ────────────────────────────────────────────── */}
+      <Card style={{
+        marginBottom: 'var(--hp-card-mb)',
+        padding: '14px 20px',
+        background: 'linear-gradient(135deg, rgba(94,195,42,0.07) 0%, rgba(15,28,46,0.95) 55%, rgba(59,157,232,0.05) 100%)',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        overflow: 'hidden',
+        position: 'relative',
+      }} topColor="var(--cyan)">
+        {/* subtle background glow blob */}
+        <div style={{
+          position: 'absolute', insetInlineEnd: 10, top: '50%', transform: 'translateY(-50%)',
+          width: 180, height: 60, borderRadius: 999,
+          background: 'radial-gradient(ellipse, rgba(94,195,42,0.18) 0%, rgba(94,195,42,0.06) 45%, transparent 72%)',
+          filter: 'blur(16px)',
+          pointerEvents: 'none',
+        }} />
+        <img
+          src="/assets/meran-wordmark-transparent-192.png"
+          alt="MERAN"
+          style={{
+            position: 'relative', zIndex: 1,
+            width: 138, maxWidth: '42vw', height: 'auto',
+            objectFit: 'contain', display: 'block',
+            filter: 'drop-shadow(0 0 12px rgba(94,195,42,0.30))',
+          }}
+        />
+      </Card>
 
       {/* ── Player Hero Card ─────────────────────────────────────
           Horizontal layout: text RIGHT (RTL-first) · icon LEFT   */}
