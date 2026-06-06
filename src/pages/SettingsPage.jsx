@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
-import { WEEK_DAYS_SHORT, GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT } from '../constants.js'
+import { WEEK_DAYS_SHORT, GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 
@@ -21,6 +21,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
   const [importing, setImporting] = useState(false)
   const [importingPlan, setImportingPlan] = useState(false)
   const [promptCopied, setPromptCopied] = useState(false)
+  const [expandedPlan, setExpandedPlan] = useState(null)
   const [pasteMode, setPasteMode] = useState(false)
   const [pasteError, setPasteError] = useState('')
   const importRef = useRef(null)
@@ -322,6 +323,113 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               })}
             </div>
           </Card>
+        </div>
+
+        {/* ── Built-in Program Library ───────────────────────── */}
+        <div style={{ marginBottom: 10 }}>
+          <SectionTitle>مكتبة البرامج الجاهزة</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {BUILT_IN_PLANS.map(p => {
+              const isActive = plan?.planId === p.planId
+              const isExpanded = expandedPlan === p.planId
+              return (
+                <Card key={p.planId} style={{ padding: 0, overflow: 'hidden', border: isActive ? '1px solid var(--cyan)' : undefined }}>
+                  {/* Card header */}
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800 }}>{p.planName}</span>
+                          {isActive && (
+                            <span style={{
+                              background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
+                              borderRadius: 20, padding: '1px 8px',
+                              fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--cyan)', fontWeight: 700,
+                            }}>مفعّل ✓</span>
+                          )}
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.6, marginBottom: 8 }}>
+                          {p.description}
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                          <span style={{
+                            background: 'var(--bg3)', border: '1px solid var(--border)',
+                            borderRadius: 20, padding: '2px 9px',
+                            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
+                          }}>⏱ {p.daysPerWeek} أيام/أسبوع</span>
+                          <span style={{
+                            background: 'var(--bg3)', border: '1px solid var(--border)',
+                            borderRadius: 20, padding: '2px 9px',
+                            fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text2)',
+                          }}>{p.difficulty}</span>
+                          {p.tags.map(t => (
+                            <span key={t} style={{
+                              background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
+                              borderRadius: 20, padding: '2px 9px',
+                              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)',
+                            }}>{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => setExpandedPlan(isExpanded ? null : p.planId)}
+                        style={{
+                          flex: 1, padding: '9px',
+                          background: 'var(--bg3)', border: '1px solid var(--border2)',
+                          borderRadius: 10, color: 'var(--text2)',
+                          fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
+                        }}
+                      >{isExpanded ? '▲ إخفاء' : '▼ عرض التمارين'}</button>
+                      <button
+                        onClick={() => {
+                          onImportPlan({ ...p, startDate: new Date().toISOString().split('T')[0] })
+                        }}
+                        style={{
+                          flex: 2, padding: '9px',
+                          background: isActive ? 'var(--cyan-lo)' : 'var(--grad-primary)',
+                          border: isActive ? '1px solid var(--cyan)' : 'none',
+                          borderRadius: 10,
+                          color: isActive ? 'var(--cyan)' : 'white',
+                          fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                          boxShadow: isActive ? 'none' : '0 2px 10px rgba(94,195,42,0.3)',
+                        }}
+                      >{isActive ? '✓ مفعّل حالياً' : '⚡ تفعيل البرنامج'}</button>
+                    </div>
+                  </div>
+
+                  {/* Expanded exercise list */}
+                  {isExpanded && (
+                    <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+                      {p.weeklySchedule.map((day, di) => (
+                        <div key={di} style={{ borderBottom: di < p.weeklySchedule.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                          <div style={{
+                            padding: '8px 16px',
+                            background: 'var(--bg2)',
+                            fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700, color: 'var(--cyan)',
+                          }}>{day.name}</div>
+                          {day.exercises.map((ex, ei) => (
+                            <div key={ei} style={{
+                              padding: '7px 16px',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              borderTop: ei > 0 ? '1px solid rgba(255,255,255,0.03)' : 'none',
+                            }}>
+                              <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text2)' }}>{ex.name}</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', flexShrink: 0, marginRight: 8 }}>
+                                {ex.sets} × {ex.repsMin === ex.repsMax ? ex.repsMin : `${ex.repsMin}-${ex.repsMax}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              )
+            })}
+          </div>
         </div>
 
         {/* ── AI Workout Plan ────────────────────────────────── */}

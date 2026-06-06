@@ -869,3 +869,90 @@ export const XP_RATES = {
   session_hour:   30,
   challenge:      1,
 }
+
+// ── Built-in Workout Programs ─────────────────────────────────
+export const BUILT_IN_PLANS = [
+  {
+    planId:       'ppl_alex_lueth_v2',
+    planName:     'Push Pull Legs — Alex Lueth',
+    description:  'برنامج 5-6 أيام أسبوعياً مبني على العلم لبناء العضلات وحرق الدهون، من خبرة 20 سنة في التدريب.',
+    durationWeeks: 6,
+    daysPerWeek:  '5-6',
+    difficulty:   'متوسط–متقدم',
+    tags:         ['PPL', 'هايبرتروفي', 'جيم تجاري'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Push A — صدر، أكتاف، ترايسبس',
+        exercises: [
+          { name: 'Barbell Bench Press',              muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Seated Dumbbell Overhead Press',   muscle: 'Shoulders', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Machine Chest Fly (Pec Deck)',     muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 120 },
+          { name: 'Machine Reverse Fly',              muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Overhead Triceps Extension', muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Lateral Raise',              muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Triceps Pushdown',           muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Pull A — ظهر، بايسبس',
+        exercises: [
+          { name: 'Pull-Up',                    muscle: 'Back',    sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Unilateral Dumbbell Row',    muscle: 'Back',    sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Dumbbell Farmers Carry',     muscle: 'Back',    sets: 3, repsMin: 1,  repsMax: 1,  restSeconds: 150 },
+          { name: 'Wide Grip Seated Cable Row', muscle: 'Back',    sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 150 },
+          { name: 'Barbell Reverse Curl',       muscle: 'Biceps',  sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Alternating Dumbbell Curl',  muscle: 'Biceps',  sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Core Rotation',        muscle: 'Core',    sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Legs A — أرجل',
+        exercises: [
+          { name: 'Barbell Back Squat',          muscle: 'Legs', sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 180 },
+          { name: 'Dumbbell Romanian Deadlift',  muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Dumbbell Lunge',              muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 120 },
+          { name: 'Seated Leg Curl',             muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+          { name: 'Smith Machine Calf Raise',    muscle: 'Legs', sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+          { name: 'Machine Hip Abduction',       muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+          { name: 'Hanging Leg Raise',           muscle: 'Core', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Push B — صدر، أكتاف، ترايسبس',
+        exercises: [
+          { name: 'Dumbbell Incline Bench Press',    muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Skull Crushers',                  muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 150 },
+          { name: 'Cable Chest Fly (High-to-Low)',   muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 120 },
+          { name: 'Dumbbell Lateral Raise',          muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Reverse Fly',            muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Triceps Kickback',          muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Crunch',                    muscle: 'Core',      sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Pull B — ظهر، بايسبس',
+        exercises: [
+          { name: 'Supinated Lat Pulldown',        muscle: 'Back',   sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Barbell Bent Over Row',         muscle: 'Back',   sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Straight Arm Cable Pulldown',   muscle: 'Back',   sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Barbell Curl',                  muscle: 'Biceps', sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Shrug',                muscle: 'Back',   sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Concentration Curl',   muscle: 'Biceps', sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Side Bend',            muscle: 'Core',   sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Legs B — أرجل',
+        exercises: [
+          { name: 'Bulgarian Split Squat',         muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Barbell Hip Thrust',            muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Leg Extension',                 muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Lying Leg Curl',                muscle: 'Legs', sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Calf Raise',           muscle: 'Legs', sets: 4, repsMin: 8,  repsMax: 20, restSeconds: 90  },
+          { name: 'Machine Hip Adduction',         muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+    ],
+  },
+]
