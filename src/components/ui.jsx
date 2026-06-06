@@ -21,7 +21,7 @@ export function Card({ children, style = {}, topColor, onClick, glass = false })
         borderBottom: topColor ? '1px solid var(--border)' : undefined,
         borderLeft: topColor ? '1px solid var(--border)' : undefined,
         borderRadius: 'var(--radius)',
-        padding: 12,
+        padding: 6,
         cursor: onClick ? 'pointer' : 'default',
         boxShadow: glass ? '0 8px 32px rgba(0,0,0,0.28)' : '0 2px 12px rgba(0,0,0,0.18)',
         ...style,

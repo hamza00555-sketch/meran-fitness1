@@ -110,7 +110,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
       )}
 
       {/* ── Player Card ───────────────────────────────────────── */}
-      <Card style={{ padding: 12, marginBottom: 8 }} topColor="var(--cyan)">
+      <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--cyan)">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
           {/* Avatar with pulsing ring */}
           <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -309,7 +309,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
       {/* ════════════════════════════════════════════════════════ */}
 
       {/* ── Training Schedule ─────────────────────────────────── */}
-      <Card style={{ padding: 12, marginBottom: 8 }}>
+      <Card style={{ padding: 6, marginBottom: 4 }}>
         <SectionTitle>جدول التدريب</SectionTitle>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between', marginBottom: 12 }}>
           {WEEK_DAYS_SHORT.map((day, idx) => {
@@ -341,7 +341,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
       </Card>
 
       {/* ── Lifetime Stats ────────────────────────────────────── */}
-      <Card style={{ padding: 12, marginBottom: 8 }}>
+      <Card style={{ padding: 6, marginBottom: 4 }}>
         <SectionTitle>إحصائيات كاملة</SectionTitle>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <StatBox label="إجمالي الجلسات" value={totalSessions} color="var(--cyan)" />
@@ -417,7 +417,7 @@ function ProteinCalc({ profile, activity, setActivity }) {
   const missing = !weight || !height || !age
 
   return (
-    <Card style={{ padding: 12, marginBottom: 8 }} topColor="var(--cyan)">
+    <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--cyan)">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <div style={{ fontSize: 24 }}>🥩</div>

@@ -136,7 +136,7 @@ export default function PhotosPage({ photos, setPhotos, onBack }) {
       </div>
 
       {/* Add photo */}
-      <Card style={{ padding: 10, marginBottom: 8 }}>
+      <Card style={{ padding: 5, marginBottom: 4 }}>
         <input
           value={note}
           onChange={e => setNote(e.target.value)}

@@ -24,7 +24,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
   return (
     <div style={{ paddingBottom: 100 }}>
       {/* ── Header ────────────────────────────────────────────── */}
-      <Card style={{ padding: 12, marginBottom: 8 }} topColor="var(--gold)">
+      <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--gold)">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
@@ -95,7 +95,7 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
   return (
     <Card
       style={{
-        padding: 8, marginBottom: 6,
+        padding: 4, marginBottom: 3,
         opacity: isUnlocked ? 1 : 0.55,
         borderColor: isUnlocked ? rarity.color + '40' : undefined,
         background: isUnlocked ? rarity.color + '08' : undefined,

@@ -29,7 +29,7 @@ export default function ChallengesPage({ sessions, challengeState, onCompleteCha
   return (
     <div style={{ paddingBottom: 100 }}>
       {/* ── Header Card ───────────────────────────────────────── */}
-      <Card style={{ padding: 12, marginBottom: 8 }} topColor="var(--cyan)">
+      <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--cyan)">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
@@ -102,7 +102,7 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
   return (
     <Card
       style={{
-        padding: 8, marginBottom: 6,
+        padding: 4, marginBottom: 3,
         borderColor: c.type === 'boss' ? 'var(--red-md)' : undefined,
         background: c.type === 'boss' ? 'rgba(239,68,68,0.04)' : undefined,
       }}

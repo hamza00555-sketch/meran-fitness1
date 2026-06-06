@@ -277,7 +277,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
         return (
           <Card
             key={s.id}
-            style={{ marginBottom: 6, padding: 10, cursor: 'pointer' }}
+            style={{ marginBottom: 3, padding: 5, cursor: 'pointer' }}
             onClick={() => setExpanded(isOpen ? null : s.id)}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
