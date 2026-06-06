@@ -147,12 +147,12 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        let text = (ev.target.result || ‘’).trim()
-        text = text.replace(/[﻿​‌‍‎‏­⁠]/g, ‘’)
-        text = text.replace(/[‘’‚‛]/g, “’”)
-        text = text.replace(/[“”„‟]/g, ‘”’)
+        let text = (ev.target.result || '').trim()
+        text = text.replace(/[﻿​‌‍‎‏­⁠]/g, '')
+        text = text.replace(/[‘’‚‛]/g, "'")
+        text = text.replace(/[“”„‟]/g, '"')
         const data = JSON.parse(text)
-        if (data.type === ‘exercise_mapping’ && data.mapping) {
+        if (data.type === 'exercise_mapping' && data.mapping) {
           onImportMapping?.(data.mapping)
           return
         }
@@ -161,23 +161,23 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
           return
         }
         if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
-          alert(‘الملف لا يحتوي على خطة صالحة — تأكد من وجود weeklySchedule’)
+          alert('الملف لا يحتوي على خطة صالحة — تأكد من وجود weeklySchedule')
           return
         }
         onImportPlan(data)
       } catch (err) {
-        alert(`خطأ في قراءة الملف: ${err.message || ‘تأكد من الملف’}`)
+        alert(`خطأ في قراءة الملف: ${err.message || 'تأكد من الملف'}`)
       } finally {
         setImportingPlan(false)
-        e.target.value = ‘’
+        e.target.value = ''
       }
     }
     reader.onerror = () => {
-      alert(‘فشل قراءة الملف’)
+      alert('فشل قراءة الملف')
       setImportingPlan(false)
-      e.target.value = ‘’
+      e.target.value = ''
     }
-    reader.readAsText(file, ‘UTF-8’)
+    reader.readAsText(file, 'UTF-8')
   }
 
   const handleClipboardPaste = async () => {
