@@ -270,7 +270,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
             }}
           >
             {goal.img
-              ? <img src={goal.img.replace('/assets/goalc_', '/assets/goal_')} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.5))' }} />
+              ? <img src={goal.img} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
               : <TargetIcon size={66} color="var(--purple)" />
             }
             <div style={{ width: '100%' }}>
@@ -654,7 +654,6 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
             {GOALS.map(g => {
               const isSelected = value === g.id
-              const img2 = g.img ? g.img.replace('/assets/goalc_', '/assets/goal2_') : null
               return (
                 <div
                   key={g.id}
@@ -668,8 +667,8 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
                     transition: 'all 0.15s',
                   }}
                 >
-                  {img2
-                    ? <img src={img2} alt={g.label} style={{ width: 48, height: 48, objectFit: 'contain', filter: isSelected ? 'none' : 'grayscale(0.5) brightness(0.8)' }} />
+                  {g.img
+                    ? <img src={g.img} alt={g.label} style={{ width: 48, height: 48, objectFit: 'contain', filter: isSelected ? 'none' : 'grayscale(0.4) brightness(0.75)' }} />
                     : <span style={{ fontSize: 28 }}>{g.icon}</span>
                   }
                   <div style={{

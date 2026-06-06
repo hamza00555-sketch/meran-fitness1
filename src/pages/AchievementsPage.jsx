@@ -62,12 +62,6 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
 
       {/* ── Achievement Cards ────────────────────────────────────
           Horizontal: text RIGHT (RTL-first) · icon LEFT           */}
-      {filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <img src="/assets/empty_achievements.png" alt="" style={{ width: 140, height: 140, objectFit: 'contain', opacity: 0.7 }} />
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, color: 'var(--text3)' }}>لا توجد جوائز في هذا القسم</div>
-        </div>
-      )}
 
       {filtered.map(a => {
         const isUnlocked = unlocked.includes(a.id) || satisfiedIds.has(a.id)
