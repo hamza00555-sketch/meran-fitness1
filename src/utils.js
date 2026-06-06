@@ -94,6 +94,46 @@ export const blankSet = (prevWeight = '') => ({
   done: false,
 })
 
+// ── Historical max weight for an exercise across completed sessions ──
+export const getHistoricalMax = (sessions, exerciseName) => {
+  let max = 0
+  for (const session of sessions || []) {
+    for (const ex of session.exercises || []) {
+      if (ex.name === exerciseName) {
+        for (const s of ex.sets || []) {
+          if (s.done) max = Math.max(max, parseFloat(s.weight) || 0)
+        }
+      }
+    }
+  }
+  return max
+}
+
+// ── Detect equipment category from exercise name ──────────────
+export const detectEquipment = (name) => {
+  const n = name.toLowerCase()
+  if (n.includes('smith machine'))                      return 'Smith Machine'
+  if (n.includes('barbell'))                            return 'Barbell'
+  if (n.includes('dumbbell'))                           return 'Dumbbell'
+  if (n.includes('cable'))                              return 'Cable'
+  if (n.includes('machine') || n.includes('pec deck')) return 'Machine'
+  if (n.includes('band') || n.includes('banded'))      return 'Resistance Band'
+  if (n.includes('kettlebell'))                         return 'Kettlebell'
+  return 'Bodyweight'
+}
+
+// ── Equipment labels (Arabic) ─────────────────────────────────
+export const EQUIPMENT_LABELS = {
+  'Barbell':          { ar: 'باربل',          emoji: '🏋️' },
+  'Dumbbell':         { ar: 'دمبل',            emoji: '💪' },
+  'Cable':            { ar: 'كابل',            emoji: '🔗' },
+  'Machine':          { ar: 'ماشين',           emoji: '🤖' },
+  'Smith Machine':    { ar: 'سميث ماشين',      emoji: '⚙️' },
+  'Resistance Band':  { ar: 'إيلاستيك',        emoji: '🟡' },
+  'Kettlebell':       { ar: 'كيتل بيل',        emoji: '🔔' },
+  'Bodyweight':       { ar: 'وزن الجسم',       emoji: '🤸' },
+}
+
 // ── Build exercise ────────────────────────────────────────────
 export const buildExercise = ({ muscle, name, numSets = 3, prevWeight = '' }) => ({
   id: uid(),

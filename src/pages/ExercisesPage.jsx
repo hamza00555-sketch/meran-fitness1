@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { MUSCLE_GROUPS } from '../constants.js'
+import { detectEquipment, EQUIPMENT_LABELS } from '../utils.js'
 import ExerciseInfoModal from '../components/ExerciseInfoModal.jsx'
 
 function buildProgress(sessions) {
@@ -36,6 +37,22 @@ export default function ExercisesPage({ sessions = [] }) {
     return grouped
   }, [progress])
 
+  // Group progress by equipment — shared PR = max weight across all exercises in group
+  const progressByEquipment = useMemo(() => {
+    const grouped = {}
+    for (const ex of progress) {
+      const eq = detectEquipment(ex.name)
+      if (!grouped[eq]) grouped[eq] = []
+      const allMax = Math.max(...ex.entries.map(e => e.maxW))
+      grouped[eq].push({ ...ex, allMax })
+    }
+    // Sort each group by allMax desc, compute group PR
+    for (const eq of Object.keys(grouped)) {
+      grouped[eq].sort((a, b) => b.allMax - a.allMax)
+    }
+    return grouped
+  }, [progress])
+
   const groups = Object.entries(MUSCLE_GROUPS).map(([key, g]) => ({
     key, ...g,
     filtered: (g.exercises || []).filter(e => !query || e.name.toLowerCase().includes(query)),
@@ -46,8 +63,9 @@ export default function ExercisesPage({ sessions = [] }) {
       {/* Tab switcher */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[
-          { id: 'all',      label: '📚 جميع التمارين' },
-          { id: 'progress', label: `📊 تقدمي${progress.length > 0 ? ` (${progress.length})` : ''}` },
+          { id: 'all',       label: '📚 جميع التمارين' },
+          { id: 'progress',  label: `📊 تقدمي${progress.length > 0 ? ` (${progress.length})` : ''}` },
+          { id: 'equipment', label: '🔧 معدات' },
         ].map(t => (
           <button
             key={t.id}
@@ -271,6 +289,93 @@ export default function ExercisesPage({ sessions = [] }) {
                     </div>
                   )
                 })}
+              </div>
+            )
+          })
+        )
+      )}
+
+      {/* ── EQUIPMENT VIEW ── */}
+      {view === 'equipment' && (
+        Object.keys(progressByEquipment).length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '50px 20px', fontFamily: 'var(--font-ar)', color: 'var(--text3)', fontSize: 14 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔧</div>
+            أنهِ جلسات أولاً لترى تمارينك مجمّعة حسب المعدة
+          </div>
+        ) : (
+          Object.entries(progressByEquipment).map(([eq, exercises]) => {
+            const label   = EQUIPMENT_LABELS[eq] || { ar: eq, emoji: '🏋️' }
+            const groupPR = exercises[0]?.allMax || 0
+            return (
+              <div key={eq} style={{ marginBottom: 14 }}>
+                {/* Equipment header */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  marginBottom: 8, paddingInline: 4,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 20 }}>{label.emoji}</span>
+                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
+                      {label.ar}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+                      · {exercises.length} تمرين
+                    </span>
+                  </div>
+                  {/* Group PR badge */}
+                  <div style={{
+                    background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)',
+                    borderRadius: 20, padding: '3px 10px',
+                    fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F59E0B', fontWeight: 700,
+                  }}>🏆 {groupPR}kg</div>
+                </div>
+
+                {/* Exercise rows */}
+                <div style={{
+                  background: 'var(--bg2)', border: '1px solid var(--border)',
+                  borderRadius: 12, overflow: 'hidden',
+                }}>
+                  {exercises.map((ex, i) => {
+                    const last  = ex.entries[ex.entries.length - 1]
+                    const trend = ex.entries.length >= 2
+                      ? last.maxW - ex.entries[ex.entries.length - 2].maxW : 0
+                    const isGroupPR = ex.allMax === groupPR
+
+                    return (
+                      <div key={ex.name} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '11px 14px',
+                        borderBottom: i < exercises.length - 1 ? '1px solid var(--border)' : 'none',
+                        background: isGroupPR ? 'rgba(245,158,11,0.04)' : 'transparent',
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}>{ex.name}</div>
+                          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                            {ex.entries.length} جلسة
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                          {trend !== 0 && (
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: trend > 0 ? 'var(--green)' : 'var(--red)' }}>
+                              {trend > 0 ? '▲' : '▼'}{Math.abs(trend)}
+                            </span>
+                          )}
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{
+                              fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 800,
+                              color: isGroupPR ? '#F59E0B' : 'var(--cyan)',
+                            }}>{ex.allMax}kg</div>
+                          </div>
+                          {isGroupPR && <span style={{ fontSize: 14 }}>👑</span>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )
           })
