@@ -362,22 +362,6 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         </div>
       </div>
 
-      {/* ── Plan Progress Card ───────────────────────────────── */}
-      {plan && !active && (
-        <PlanProgressCard plan={plan} planIndex={planIndex ?? 0} />
-      )}
-
-      {/* ── Plan Day Card ─────────────────────────────────────── */}
-      {currentPlanDay && !active && (
-        <PlanDayCard
-          day={currentPlanDay}
-          dayNum={planDayNum}
-          totalDays={planTotal}
-          onStart={() => onStartPlannedWorkout(currentPlanDay)}
-          onSkip={onSkipPlanDay}
-        />
-      )}
-
       {/* ── Today Card ────────────────────────────────────────────
           Horizontal: title/desc RIGHT · illustration LEFT         */}
       <Card style={{
@@ -420,6 +404,22 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           </div>
         </div>
       </Card>
+
+      {/* ── Plan Progress Card ───────────────────────────────── */}
+      {plan && !active && (
+        <PlanProgressCard plan={plan} planIndex={planIndex ?? 0} />
+      )}
+
+      {/* ── Plan Day Card ─────────────────────────────────────── */}
+      {currentPlanDay && !active && (
+        <PlanDayCard
+          day={currentPlanDay}
+          dayNum={planDayNum}
+          totalDays={planTotal}
+          onStart={() => onStartPlannedWorkout(currentPlanDay)}
+          onSkip={onSkipPlanDay}
+        />
+      )}
 
       {/* ── Weekly Schedule ───────────────────────────────────── */}
       <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }}>
