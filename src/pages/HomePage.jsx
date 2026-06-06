@@ -141,7 +141,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   const planTotal    = schedule?.length ?? 1
 
   return (
-    <div style={{ paddingBottom: 140 }}>
+    <div style={{ paddingBottom: 200 }}>
 
       {/* ── Logo Banner ──────────────────────────────────────────── */}
       <div style={{
