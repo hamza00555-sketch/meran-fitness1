@@ -103,7 +103,7 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
       }}
       topColor={isUnlocked ? rarity.color : undefined}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {/* Big Icon */}
         <div style={{
           width: 144, height: 144, borderRadius: 28, flexShrink: 0,
@@ -118,45 +118,37 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
         </div>
 
         {/* Content */}
-        <div style={{ width: '100%' }}>
-          {/* Rarity badge */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 5 }}>
             <span style={{
               background: rarity.color + '20', color: rarity.color,
               border: `1px solid ${rarity.color}38`,
-              borderRadius: 12, padding: '2px 10px',
+              borderRadius: 10, padding: '2px 8px',
               fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
             }}>{rarity.label}</span>
             {isUnlocked && (
               <span style={{
                 background: 'var(--green-lo)', color: 'var(--green)',
                 border: '1px solid #22C55E38',
-                borderRadius: 12, padding: '2px 10px',
+                borderRadius: 10, padding: '2px 8px',
                 fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
               }}>✓ محقق</span>
             )}
           </div>
-
           <div style={{
-            fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700,
-            color: isUnlocked ? 'var(--text)' : 'var(--text3)', marginBottom: 4,
-          }}>
-            {a.title}
-          </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+            fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700,
+            color: isUnlocked ? 'var(--text)' : 'var(--text3)', marginBottom: 3,
+          }}>{a.title}</div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
             {a.desc}
           </div>
-        </div>
-
-        {/* XP reward */}
-        <div style={{
-          background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-          borderRadius: 10, padding: '4px 8px',
-          fontFamily: 'var(--font-mono)', fontSize: 11,
-          color: 'var(--gold)', fontWeight: 700,
-          flexShrink: 0,
-        }}>
-          +{a.xp} XP
+          <div style={{
+            display: 'inline-block',
+            background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
+            borderRadius: 8, padding: '2px 8px',
+            fontFamily: 'var(--font-mono)', fontSize: 11,
+            color: 'var(--gold)', fontWeight: 700,
+          }}>+{a.xp} XP</div>
         </div>
       </div>
     </Card>

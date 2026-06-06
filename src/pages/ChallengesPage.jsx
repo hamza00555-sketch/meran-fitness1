@@ -108,55 +108,51 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
       }}
       topColor={cfg.color}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center', marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         {/* Big icon */}
         <img
           src={cfg.img}
           alt={cfg.label}
           style={{
-            width: 132, height: 132, objectFit: 'contain',
+            width: 132, height: 132, objectFit: 'contain', flexShrink: 0,
             filter: isDone ? 'grayscale(1)' : `drop-shadow(0 4px 12px ${cfg.color}60)`,
           }}
         />
 
-        {/* Badges row */}
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <span style={{
-            background: cfg.color + '20', color: cfg.color,
-            border: `1px solid ${cfg.color}38`,
-            borderRadius: 12, padding: '2px 8px',
-            fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-          }}>{cfg.label}</span>
-          {isDone && (
+        {/* Content */}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 5 }}>
             <span style={{
-              background: 'var(--green-lo)', color: 'var(--green)',
-              border: '1px solid #22C55E38',
-              borderRadius: 12, padding: '2px 8px',
+              background: cfg.color + '20', color: cfg.color,
+              border: `1px solid ${cfg.color}38`,
+              borderRadius: 10, padding: '2px 7px',
               fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-            }}>✓ مكتمل</span>
-          )}
-          {/* XP Badge */}
-          <div style={{
-            background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-            borderRadius: 12, padding: '2px 8px',
-            fontFamily: 'var(--font-mono)', fontSize: 10,
-            color: 'var(--gold)', fontWeight: 700,
-          }}>
-            +{c.xp} XP
+            }}>{cfg.label}</span>
+            {isDone && (
+              <span style={{
+                background: 'var(--green-lo)', color: 'var(--green)',
+                border: '1px solid #22C55E38',
+                borderRadius: 10, padding: '2px 7px',
+                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+              }}>✓ مكتمل</span>
+            )}
+            <span style={{
+              background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
+              borderRadius: 10, padding: '2px 7px',
+              fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gold)', fontWeight: 700,
+            }}>+{c.xp} XP</span>
           </div>
-        </div>
 
-        <div style={{ width: '100%' }}>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, marginBottom: 3 }}>
             {c.title}
           </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 10 }}>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginBottom: 8 }}>
             {c.desc}
           </div>
 
           {/* Progress bar */}
-          <div style={{ marginBottom: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
                 {Math.round(progress)} / {c.target}
               </span>
@@ -164,7 +160,7 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
                 {Math.round(pct)}%
               </span>
             </div>
-            <ProgressBar value={progress} max={c.target} color={cfg.color} height={6} />
+            <ProgressBar value={progress} max={c.target} color={cfg.color} height={5} />
           </div>
         </div>
       </div>
