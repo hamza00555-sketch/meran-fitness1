@@ -37,8 +37,8 @@ import RoutinesModal    from './components/RoutinesModal.jsx'
 import LevelUpScreen    from './components/LevelUpScreen.jsx'
 import SystemAlert      from './components/SystemAlert.jsx'
 
-// Stable greeting per session
-const GREETING = GREETINGS[Math.floor(Math.random() * GREETINGS.length)]
+// Stable greeting index per session
+const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
 
 // Default profile
 const DEFAULT_PROFILE = {
@@ -294,7 +294,7 @@ export default function App() {
               fontWeight: 600, color: 'var(--text2)',
               maxWidth: 230, lineHeight: 1.4,
             }}>
-              {GREETING}
+              {GREETINGS[GREETING_IDX].replace('{name}', profile?.name || 'حمزة')}
             </div>
           </div>
 
