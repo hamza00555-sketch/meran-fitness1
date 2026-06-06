@@ -284,16 +284,11 @@ export default function App() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <img
-              src="/assets/app_logo_full.png"
-              alt="MERAN"
-              style={{
-                height: 22, width: 'auto',
-                objectFit: 'contain',
-                display: 'block', marginBottom: 3,
-                filter: 'drop-shadow(0 0 6px rgba(94,195,42,0.35))',
-              }}
-            />
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              letterSpacing: 4, color: 'var(--cyan)', marginBottom: 2,
+              opacity: 0.8,
+            }}>MERAN</div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 13,
               fontWeight: 600, color: 'var(--text2)',
