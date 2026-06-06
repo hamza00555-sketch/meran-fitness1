@@ -297,7 +297,7 @@ input[type=number] { -moz-appearance: textfield; }
   --ap-icon-size:  clamp(70px, 19vw,  98px);
   --hp-card-pad:   clamp(12px, 3.2vw,  18px);
   --hp-card-gap:   clamp(10px, 2.6vw,  16px);
-  --hp-card-mb:    clamp(8px,  2vw,    12px);
+  --hp-card-mb:    clamp(14px, 3.5vw,  20px);
 }
 
 /* Horizontal card inner wrapper */

@@ -145,7 +145,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
 
       {/* ── Logo Banner ──────────────────────────────────────────── */}
       <div style={{
-        marginInline: 24, marginTop: 14, marginBottom: 14,
+        marginTop: 14, marginBottom: 'var(--hp-card-mb)',
         height: 64, borderRadius: 22,
         position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
