@@ -155,6 +155,14 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         overflow: 'hidden',
         boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)',
       }}>
+        {/* App icon watermark */}
+        <img src="/assets/meran-app-icon-transparent-512.png" alt="" style={{
+          position: 'absolute', bottom: -18, left: -18,
+          width: 110, height: 110, objectFit: 'contain',
+          opacity: 0.045, pointerEvents: 'none',
+          filter: 'blur(1px)',
+        }} />
+
         {/* Decorative blobs */}
         <div style={{
           position: 'absolute', top: -30, left: -30, width: 130, height: 130, borderRadius: '50%',
