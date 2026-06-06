@@ -56,14 +56,18 @@ export const calcStreak = (sessions) => {
   return streak
 }
 
+// ── Exercise name resolver (alias → standard name) ────────────
+export const resolveExerciseName = (name, mapping = {}) => mapping[name] || name
+
 // ── Exercise history stats ────────────────────────────────────
-export const getExerciseStats = (sessions, exerciseName) => {
+export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
+  const resolved = resolveExerciseName(exerciseName, mapping)
   let lastWeight = null
   let maxWeight  = null
   let lastId     = 0
   for (const session of sessions || []) {
     for (const ex of session.exercises || []) {
-      if (ex.name !== exerciseName) continue
+      if (resolveExerciseName(ex.name, mapping) !== resolved) continue
       const ws = (ex.sets || [])
         .filter(s => s.done && parseFloat(s.weight) > 0)
         .map(s => parseFloat(s.weight))
@@ -95,11 +99,12 @@ export const blankSet = (prevWeight = '') => ({
 })
 
 // ── Historical max weight for an exercise across completed sessions ──
-export const getHistoricalMax = (sessions, exerciseName) => {
+export const getHistoricalMax = (sessions, exerciseName, mapping = {}) => {
+  const resolved = resolveExerciseName(exerciseName, mapping)
   let max = 0
   for (const session of sessions || []) {
     for (const ex of session.exercises || []) {
-      if (ex.name === exerciseName) {
+      if (resolveExerciseName(ex.name, mapping) === resolved) {
         for (const s of ex.sets || []) {
           if (s.done) max = Math.max(max, parseFloat(s.weight) || 0)
         }

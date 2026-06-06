@@ -7,7 +7,7 @@ import { NOTIFICATION_MESSAGES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [saved, setSaved] = useState(false)
   const [nameInput, setNameInput] = useState(profile?.name || 'حمزة')
@@ -20,12 +20,14 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
   })
   const [importing, setImporting] = useState(false)
   const [importingPlan, setImportingPlan] = useState(false)
+  const [importingMapping, setImportingMapping] = useState(false)
   const [promptCopied, setPromptCopied] = useState(false)
   const [expandedPlan, setExpandedPlan] = useState(null)
   const [pasteMode, setPasteMode] = useState(false)
   const [pasteError, setPasteError] = useState('')
   const importRef = useRef(null)
   const planImportRef = useRef(null)
+  const mappingImportRef = useRef(null)
   const pasteRef = useRef(null)
 
   const update = (key, val) => {
@@ -44,6 +46,25 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
 
   const handleExport = () => {
     exportAllData(sessions, xp, profile, unlockedAchievements, challengeState, photos)
+  }
+
+  const handleImportMapping = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportingMapping(true)
+    try {
+      const data = await importAllData(file)
+      if (data.type === 'exercise_mapping' && data.mapping) {
+        onImportMapping?.(data.mapping)
+      } else {
+        alert('الملف ليس خريطة تمارين — تأكد أنه ملف exercise_mapping من مران')
+      }
+    } catch {
+      alert('فشل استيراد الملف')
+    } finally {
+      setImportingMapping(false)
+      e.target.value = ''
+    }
   }
 
   const handleImport = async (e) => {
@@ -692,6 +713,34 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 <div style={{ fontWeight: 700 }}>تصدير البيانات</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
                   حفظ الجلسات والصور والإنجازات كملف JSON
+                </div>
+              </div>
+            </button>
+
+            <input
+              ref={mappingImportRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportMapping}
+            />
+            <button
+              onClick={() => mappingImportRef.current?.click()}
+              disabled={importingMapping}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: 'var(--bg3)', border: '1px solid var(--border2)',
+                borderRadius: 12, padding: '14px 16px',
+                color: 'var(--text)', cursor: 'pointer',
+                fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600,
+                textAlign: 'right', opacity: importingMapping ? 0.6 : 1,
+              }}
+            >
+              <span style={{ fontSize: 20 }}>🗺️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{importingMapping ? 'جاري التحديث...' : 'استيراد خريطة التمارين'}</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                  {Object.keys(exerciseMapping).length} تمرين موحد حالياً · استورد ملف exercise_mapping.json من /gym-mapping
                 </div>
               </div>
             </button>

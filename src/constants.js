@@ -991,3 +991,65 @@ export const BUILT_IN_PLANS = [
     ],
   },
 ]
+
+// ── Default Exercise Mapping (aliases → standard names) ───────
+// Used to unify exercise variants for shared PR tracking.
+// Keys are alias names, values are the Standard Name to group under.
+// User can extend this via Settings → Import Mapping.
+export const DEFAULT_EXERCISE_MAPPING = {
+  // ── Triceps ──────────────────────────────────────────────────
+  'Cable Triceps Pushdown':           'Triceps Pushdown',
+  'Rope Pushdown':                    'Triceps Pushdown',
+  'Cable Pushdown':                   'Triceps Pushdown',
+  'Tricep Pressdown':                 'Triceps Pushdown',
+  'Triceps Pressdown':                'Triceps Pushdown',
+  'V-Bar Pushdown':                   'Triceps Pushdown',
+  'Straight Bar Pushdown':            'Triceps Pushdown',
+  'Cable Overhead Triceps Extension': 'Overhead Triceps Extension',
+  'Skull Crushers':                   'Skull Crusher',
+  'Lying Barbell Triceps Extensions': 'Skull Crusher',
+  // ── Chest ────────────────────────────────────────────────────
+  'Pec Deck':                         'Chest Fly',
+  'Cable Fly':                        'Chest Fly',
+  'Dumbbell Fly':                     'Chest Fly',
+  'Machine Fly':                      'Chest Fly',
+  'Machine Chest Fly (Pec Deck)':     'Chest Fly',
+  'Cable Chest Fly (High-to-Low)':    'Chest Fly',
+  'Dumbbell Incline Bench Press':     'Incline Dumbbell Press',
+  // ── Back ─────────────────────────────────────────────────────
+  'Supinated Lat Pulldown':           'Lat Pulldown',
+  'Wide Grip Pulldown':               'Lat Pulldown',
+  'Close Grip Pulldown':              'Lat Pulldown',
+  'Cable Lat Pulldown':               'Lat Pulldown',
+  'Wide Grip Seated Cable Row':       'Seated Cable Row',
+  'Barbell Bent Over Row':            'Barbell Row',
+  'Straight Arm Cable Pulldown':      'Straight Arm Pulldown',
+  'Unilateral Dumbbell Row':          'Dumbbell Row',
+  'Dumbbell Shrug':                   'Shrug',
+  // ── Shoulders ────────────────────────────────────────────────
+  'Dumbbell Lateral Raise':           'Lateral Raise',
+  'Cable Lateral Raise':              'Lateral Raise',
+  'Machine Lateral Raise':            'Lateral Raise',
+  'Side Raise':                       'Lateral Raise',
+  'Dumbbell Reverse Fly':             'Reverse Fly',
+  'Machine Reverse Fly':              'Reverse Fly',
+  'Seated Dumbbell Overhead Press':   'Dumbbell Shoulder Press',
+  // ── Biceps ───────────────────────────────────────────────────
+  'Alternating Dumbbell Curl':        'Dumbbell Curl',
+  'Dumbbell Concentration Curl':      'Concentration Curl',
+  'Barbell Reverse Curl':             'Reverse Curl',
+  // ── Legs ─────────────────────────────────────────────────────
+  'Barbell Back Squat':               'Barbell Squat',
+  'Dumbbell Romanian Deadlift (RDL)': 'Romanian Deadlift',
+  'Dumbbell Romanian Deadlift':       'Romanian Deadlift',
+  'Dumbbell Lunge':                   'Lunge',
+  'Machine Hip Abduction':            'Hip Abduction',
+  'Machine Hip Adduction':            'Hip Adduction',
+  'Smith Machine Calf Raise':         'Standing Calf Raise',
+  'Feet Elevated Smith Machine Calf Raise': 'Standing Calf Raise',
+  'Dumbbell Calf Raise':              'Standing Calf Raise',
+  'Feet Elevated Dumbbell Calf Raise':'Standing Calf Raise',
+  'Barbell Hip Thrust':               'Hip Thrust',
+  'Bulgarian Split Squat (Quad Bias)':'Bulgarian Split Squat',
+  'Smith Machine Squat':              'Barbell Squat',
+}

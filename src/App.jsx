@@ -8,6 +8,7 @@ import {
   GREETINGS, NAV_TABS, ACHIEVEMENTS,
   DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
   NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS,
+  DEFAULT_EXERCISE_MAPPING,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 
@@ -65,6 +66,7 @@ export default function App() {
   const [challengeState,      setChallengeState]      = useState(() => ls.get('hf_challenges', null))
   const [plan,                setPlan]                = useState(() => ls.get('hf_plan', null))
   const [planIndex,           setPlanIndex]           = useState(() => ls.get('hf_plan_index', 0))
+  const [exerciseMapping,     setExerciseMapping]     = useState(() => ({ ...DEFAULT_EXERCISE_MAPPING, ...ls.get('hf_exercise_mapping', {}) }))
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
@@ -84,9 +86,10 @@ export default function App() {
   useEffect(() => { ls.set('hf_profile',  profile)  },             [profile])
   useEffect(() => { ls.set('hf_unlocked', unlockedAchievements) }, [unlockedAchievements])
   useEffect(() => { ls.set('hf_challenges', challengeState) },     [challengeState])
-  useEffect(() => { ls.set('hf_plan',       plan)           },     [plan])
-  useEffect(() => { ls.set('hf_plan_index', planIndex)      },     [planIndex])
-  useEffect(() => { ls.set('hf_photos',    photos) },              [photos])
+  useEffect(() => { ls.set('hf_plan',             plan)            }, [plan])
+  useEffect(() => { ls.set('hf_plan_index',       planIndex)       }, [planIndex])
+  useEffect(() => { ls.set('hf_photos',           photos)          }, [photos])
+  useEffect(() => { ls.set('hf_exercise_mapping', exerciseMapping) }, [exerciseMapping])
 
   // ── Schedule daily notifications ─────────────────────────────
   useEffect(() => {
@@ -383,9 +386,10 @@ export default function App() {
             addXP={addXP}
             onGoBack={() => { setActive(null); setShowRest(false); setTab('home') }}
             isResting={showRest}
+            exerciseMapping={exerciseMapping}
           />
         )}
-        {tab === 'exercises' && <ExercisesPage sessions={sessions} />}
+        {tab === 'exercises' && <ExercisesPage sessions={sessions} exerciseMapping={exerciseMapping} />}
         {tab === 'challenges' && (
           <ChallengesPage
             sessions={sessions}
@@ -426,7 +430,17 @@ export default function App() {
             plan={plan}
             onImportPlan={(p) => { setPlan(p); setPlanIndex(0); pushAlert('📋', `تم استيراد خطة: ${p.planName}`) }}
             onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
+            exerciseMapping={exerciseMapping}
+            onImportMapping={(newMapping) => {
+              setExerciseMapping(prev => ({ ...prev, ...newMapping }))
+              pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
+            }}
             onImport={(data) => {
+              if (data.type === 'exercise_mapping') {
+                setExerciseMapping(prev => ({ ...prev, ...data.mapping }))
+                pushAlert('🗺️', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
+                return
+              }
               if (data.sessions !== undefined)           setSessions(data.sessions)
               if (data.xp !== undefined)                 setXP(data.xp)
               if (data.profile)                          setProfile(data.profile)

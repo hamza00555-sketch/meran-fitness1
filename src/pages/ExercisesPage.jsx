@@ -3,7 +3,7 @@ import { MUSCLE_GROUPS } from '../constants.js'
 import { detectEquipment, EQUIPMENT_LABELS } from '../utils.js'
 import ExerciseInfoModal from '../components/ExerciseInfoModal.jsx'
 
-function buildProgress(sessions) {
+function buildProgress(sessions, mapping = {}) {
   const map = {}
   const sorted = [...(sessions || [])].sort((a, b) => a.id - b.id)
   for (const session of sorted) {
@@ -12,21 +12,23 @@ function buildProgress(sessions) {
       if (!doneSets.length) continue
       const maxW = Math.max(...doneSets.map(s => parseFloat(s.weight)))
       const totalReps = doneSets.reduce((t, s) => t + (parseInt(s.reps) || 0), 0)
-      if (!map[ex.name]) map[ex.name] = { name: ex.name, muscle: ex.muscle, entries: [] }
-      map[ex.name].entries.push({ sessionId: session.id, date: session.date, maxW, sets: doneSets.length, totalReps })
+      const key = mapping[ex.name] || ex.name
+      if (!map[key]) map[key] = { name: key, muscle: ex.muscle, aliases: new Set(), entries: [] }
+      map[key].aliases.add(ex.name)
+      map[key].entries.push({ sessionId: session.id, date: session.date, maxW, sets: doneSets.length, totalReps })
     }
   }
-  return Object.values(map)
+  return Object.values(map).map(ex => ({ ...ex, aliases: [...ex.aliases] }))
 }
 
-export default function ExercisesPage({ sessions = [] }) {
+export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
   const [openGroup, setOpenGroup]  = useState(null)
   const [infoEx,    setInfoEx]     = useState(null)
   const [search,    setSearch]     = useState('')
   const [view,      setView]       = useState('all')
 
   const query    = search.trim().toLowerCase()
-  const progress = useMemo(() => buildProgress(sessions), [sessions])
+  const progress = useMemo(() => buildProgress(sessions, exerciseMapping), [sessions, exerciseMapping])
 
   const progressByMuscle = useMemo(() => {
     const grouped = {}

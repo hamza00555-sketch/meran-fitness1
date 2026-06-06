@@ -6,7 +6,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {} }) {
   const [showAdd,      setShowAdd]      = useState(false)
   const [showRoutines, setShowRoutines] = useState(false)
   const [elapsed,      setElapsed]      = useState(0)
@@ -57,7 +57,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
       const set = ex?.sets[si]
       const w   = parseFloat(set?.weight) || 0
       if (w > 0 && ex) {
-        const histMax = getHistoricalMax(sessions, ex.name)
+        const histMax = getHistoricalMax(sessions, ex.name, exerciseMapping)
         if (w > histMax) {
           setPrFlash(ex.name)
           setTimeout(() => setPrFlash(null), 2800)
