@@ -42,7 +42,7 @@ const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
 
 // Default profile
 const DEFAULT_PROFILE = {
-  name: 'حمزة',
+  name: 'البطل',
   birthday: null,
   height: null,
   weight: null,
@@ -294,7 +294,14 @@ export default function App() {
               fontWeight: 600, color: 'var(--text2)',
               maxWidth: 230, lineHeight: 1.4,
             }}>
-              {GREETINGS[GREETING_IDX].replace('{name}', profile?.name || 'حمزة')}
+              {GREETINGS[GREETING_IDX].replace('{name}', profile?.name || 'البطل')}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-ar)', fontSize: 10,
+              color: 'var(--text3)', marginTop: 3,
+              display: 'flex', alignItems: 'center', gap: 3,
+            }}>
+              اضغط ⚙️ لتغيير اسمك
             </div>
           </div>
 

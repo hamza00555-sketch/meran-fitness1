@@ -232,7 +232,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="hp-meta" style={{ fontFamily: 'var(--font-ar)', marginBottom: 2 }}>{greeting}</div>
             <div className="hp-title" style={{ fontFamily: 'var(--font-ar)', marginBottom: 6 }}>
-              {profile?.name || 'حمزة'}
+              {profile?.name || 'البطل'}
             </div>
 
             {/* Rank + streak + flames */}
