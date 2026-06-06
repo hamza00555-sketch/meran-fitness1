@@ -122,6 +122,12 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       text = text.slice(start, end + 1)
 
       const data = JSON.parse(text)
+      if (data.type === 'exercise_mapping' && data.mapping) {
+        onImportMapping?.(data.mapping); setPasteMode(false); if (pasteRef.current) pasteRef.current.value = ''; return
+      }
+      if (data.sessions !== undefined || data.xp !== undefined) {
+        onImport?.(data); setPasteMode(false); if (pasteRef.current) pasteRef.current.value = ''; return
+      }
       if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
         setPasteError('الـ JSON لا يحتوي على weeklySchedule — تأكد من البرومت')
         return
@@ -141,29 +147,37 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     const reader = new FileReader()
     reader.onload = (ev) => {
       try {
-        let text = (ev.target.result || '').trim()
-        text = text.replace(/[﻿​‌‍‎‏­⁠]/g, '')
-        text = text.replace(/[‘’‚‛]/g, "'")
-        text = text.replace(/[“”„‟]/g, '"')
+        let text = (ev.target.result || ‘’).trim()
+        text = text.replace(/[﻿​‌‍‎‏­⁠]/g, ‘’)
+        text = text.replace(/[‘’‚‛]/g, “’”)
+        text = text.replace(/[“”„‟]/g, ‘”’)
         const data = JSON.parse(text)
+        if (data.type === ‘exercise_mapping’ && data.mapping) {
+          onImportMapping?.(data.mapping)
+          return
+        }
+        if (data.sessions !== undefined || data.xp !== undefined) {
+          onImport?.(data)
+          return
+        }
         if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
-          alert('الملف لا يحتوي على خطة صالحة — تأكد من وجود weeklySchedule')
+          alert(‘الملف لا يحتوي على خطة صالحة — تأكد من وجود weeklySchedule’)
           return
         }
         onImportPlan(data)
       } catch (err) {
-        alert(`خطأ في قراءة الملف: ${err.message || 'تأكد من الملف'}`)
+        alert(`خطأ في قراءة الملف: ${err.message || ‘تأكد من الملف’}`)
       } finally {
         setImportingPlan(false)
-        e.target.value = ''
+        e.target.value = ‘’
       }
     }
     reader.onerror = () => {
-      alert('فشل قراءة الملف')
+      alert(‘فشل قراءة الملف’)
       setImportingPlan(false)
-      e.target.value = ''
+      e.target.value = ‘’
     }
-    reader.readAsText(file, 'UTF-8')
+    reader.readAsText(file, ‘UTF-8’)
   }
 
   const handleClipboardPaste = async () => {
@@ -183,6 +197,12 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       if (start === -1 || end === -1) { setPasteError('لم يتم العثور على JSON — تأكد من النص'); setPasteMode(true); return }
       text = text.slice(start, end + 1)
       const data = JSON.parse(text)
+      if (data.type === 'exercise_mapping' && data.mapping) {
+        onImportMapping?.(data.mapping); return
+      }
+      if (data.sessions !== undefined || data.xp !== undefined) {
+        onImport?.(data); return
+      }
       if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
         setPasteError('الـ JSON لا يحتوي على weeklySchedule'); setPasteMode(true); return
       }
