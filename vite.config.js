@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'icon-512.png', 'assets/**/*', 'fonts/**/*'],
+      includeAssets: ['assets/**/*', 'fonts/**/*'],
       manifest: {
         name: 'مران | MERAN',
         short_name: 'مران',
@@ -19,8 +19,8 @@ export default defineConfig({
         orientation: 'portrait',
         lang: 'ar',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/assets/meran-app-icon-transparent-180.png', sizes: '180x180', type: 'image/png', purpose: 'any' },
+          { src: '/assets/meran-app-icon-transparent-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
