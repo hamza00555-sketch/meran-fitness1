@@ -153,7 +153,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             filter: 'blur(14px)', opacity: 0.85, pointerEvents: 'none',
           }} />
           <img
-            src="/assets/meran-wordmark-transparent-192.png"
+            src="/assets/app_logo_full.png"
             alt="MERAN"
             style={{
               position: 'relative', zIndex: 1,
