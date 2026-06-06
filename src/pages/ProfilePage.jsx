@@ -634,8 +634,9 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
         position: 'fixed', inset: 0, zIndex: 300,
         background: 'rgba(0,0,0,0.85)',
         backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        padding: '80px 20px 20px',
+        overflowY: 'auto',
       }}
     >
       <div
