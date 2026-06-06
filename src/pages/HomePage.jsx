@@ -400,7 +400,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         position: 'fixed', bottom: 0,
         left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 560,
-        padding: '12px 16px calc(var(--safe-bottom) + 76px)',
+        padding: '12px 16px calc(var(--safe-bottom) + 90px)',
         background: 'linear-gradient(transparent, var(--bg) 40%)',
         pointerEvents: 'none',
       }}>
