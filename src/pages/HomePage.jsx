@@ -143,36 +143,55 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   return (
     <div style={{ paddingBottom: 140 }}>
 
-      {/* ── Logo Card ────────────────────────────────────────────── */}
-      <Card style={{
-        marginBottom: 'var(--hp-card-mb)',
-        padding: '14px 20px',
-        background: 'linear-gradient(135deg, rgba(94,195,42,0.07) 0%, rgba(15,28,46,0.95) 55%, rgba(59,157,232,0.05) 100%)',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        overflow: 'hidden',
-        position: 'relative',
-      }} topColor="var(--cyan)">
-        {/* subtle background glow blob */}
+      {/* ── Logo Banner ──────────────────────────────────────────── */}
+      <div style={{
+        marginInline: 24, marginTop: 14, marginBottom: 14,
+        height: 64, borderRadius: 22,
+        position: 'relative', overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(135deg, rgba(8,11,20,0.96), rgba(15,32,38,0.82))',
+        border: '1px solid rgba(94,195,42,0.34)',
+        boxShadow: '0 0 0 1px rgba(94,195,42,0.08), 0 12px 32px rgba(0,0,0,0.28)',
+      }}>
+        {/* centre glow */}
         <div style={{
-          position: 'absolute', insetInlineEnd: 10, top: '50%', transform: 'translateY(-50%)',
-          width: 180, height: 60, borderRadius: 999,
-          background: 'radial-gradient(ellipse, rgba(94,195,42,0.18) 0%, rgba(94,195,42,0.06) 45%, transparent 72%)',
-          filter: 'blur(16px)',
-          pointerEvents: 'none',
+          position: 'absolute', left: '50%', top: '50%',
+          transform: 'translate(-50%,-50%)',
+          width: 180, height: 64, borderRadius: 999,
+          background: 'radial-gradient(circle, rgba(94,195,42,0.18) 0%, rgba(94,195,42,0.07) 40%, rgba(94,195,42,0) 74%)',
+          filter: 'blur(12px)', opacity: 0.85, pointerEvents: 'none',
         }} />
+        {/* diagonal speed lines */}
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 22,
+          pointerEvents: 'none', opacity: 0.35,
+          background: 'linear-gradient(115deg, transparent 0%, rgba(94,195,42,0.10) 16%, transparent 28%, transparent 62%, rgba(94,195,42,0.09) 78%, transparent 100%)',
+        }} />
+        <div style={{
+          position: 'absolute', insetInlineStart: 18, top: 20,
+          width: 130, height: 1,
+          background: 'linear-gradient(90deg, rgba(94,195,42,0), rgba(94,195,42,0.34), rgba(94,195,42,0))',
+          transform: 'rotate(-12deg)', opacity: 0.45, pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', insetInlineEnd: 18, bottom: 18,
+          width: 130, height: 1,
+          background: 'linear-gradient(90deg, rgba(94,195,42,0), rgba(94,195,42,0.28), rgba(94,195,42,0))',
+          transform: 'rotate(-12deg)', opacity: 0.38, pointerEvents: 'none',
+        }} />
+        {/* logo */}
         <img
-          src="/assets/meran-wordmark-transparent-192.png"
+          src="/assets/app_logo_full_light.png"
           alt="MERAN"
           style={{
-            position: 'relative', zIndex: 1,
-            width: 138, maxWidth: '42vw', height: 'auto',
+            position: 'relative', zIndex: 2,
+            width: 96, maxWidth: '32vw', height: 'auto',
             objectFit: 'contain', display: 'block',
-            filter: 'drop-shadow(0 0 12px rgba(94,195,42,0.30))',
+            opacity: 0.94,
+            filter: 'drop-shadow(0 0 10px rgba(94,195,42,0.22))',
           }}
         />
-      </Card>
+      </div>
 
       {/* ── Player Hero Card ─────────────────────────────────────
           Horizontal layout: text RIGHT (RTL-first) · icon LEFT   */}
