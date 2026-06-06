@@ -3,6 +3,86 @@ import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
 import { xpProgress, getRank, getCommitmentLevel } from '../utils.js'
 import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.js'
 
+function PlanProgressCard({ plan, planIndex }) {
+  const schedule      = plan.weeklySchedule
+  const durationWeeks = plan.durationWeeks || 6
+  const totalSessions = durationWeeks * schedule.length
+  const dayInCycle    = planIndex % schedule.length        // 0-based current day in weekly cycle
+  const currentWeek   = Math.min(Math.floor(planIndex / schedule.length) + 1, durationWeeks)
+  const overallPct    = Math.min(100, Math.round((planIndex / totalSessions) * 100))
+  const isCompleted   = planIndex >= totalSessions
+
+  // Day type label abbreviation: "Push A" → "Push", "Legs B" → "Legs"
+  const shortLabel = (name) => name.split('—')[0].trim().split(' ')[0]
+
+  return (
+    <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 2 }}>
+            PROGRAM PROGRESS
+          </div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {plan.planName}
+          </div>
+        </div>
+        <div style={{
+          flexShrink: 0, marginRight: 10,
+          background: isCompleted ? 'var(--gold-lo)' : 'var(--cyan-lo)',
+          border: `1px solid ${isCompleted ? 'var(--gold-md)' : 'var(--cyan-md)'}`,
+          borderRadius: 20, padding: '3px 12px',
+          fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
+          color: isCompleted ? 'var(--gold)' : 'var(--cyan)',
+        }}>
+          {isCompleted ? '🏆 مكتمل' : `W${currentWeek}/${durationWeeks}`}
+        </div>
+      </div>
+
+      {/* Overall progress bar + stats */}
+      <ProgressBar value={planIndex} max={totalSessions} color="var(--cyan)" height={7} gradient />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, marginBottom: 14 }}>
+        <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+          {planIndex} من {totalSessions} جلسة
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)', fontWeight: 700 }}>
+          {overallPct}%
+        </span>
+      </div>
+
+      {/* This cycle's day bubbles */}
+      <div style={{ display: 'flex', gap: 4 }}>
+        {schedule.map((day, i) => {
+          const isDone    = i < dayInCycle
+          const isCurrent = i === dayInCycle && !isCompleted
+          return (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <div style={{
+                width: '100%', height: 30, borderRadius: 8,
+                background: isDone ? 'var(--cyan)' : isCurrent ? 'var(--cyan-lo)' : 'var(--bg3)',
+                border: isCurrent ? '2px solid var(--cyan)' : `1px solid ${isDone ? 'var(--cyan)' : 'var(--border)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: isDone ? '#0A0E14' : isCurrent ? 'var(--cyan)' : 'var(--text3)',
+                fontSize: 13, fontWeight: 800,
+                animation: isCurrent ? 'glowPulse 2.5s ease-in-out infinite' : 'none',
+                boxShadow: isCurrent ? '0 0 12px var(--cyan-glow)' : 'none',
+                transition: 'all 0.2s',
+              }}>
+                {isDone ? '✓' : isCurrent ? '▶' : String(i + 1)}
+              </div>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 9,
+                color: isDone ? 'var(--cyan)' : isCurrent ? 'var(--text)' : 'var(--text3)',
+                fontWeight: isCurrent ? 700 : 400,
+              }}>{shortLabel(day.name)}</span>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
 function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip }) {
   return (
     <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)', borderTop: '3px solid var(--cyan)' }}>
@@ -281,6 +361,11 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           </div>
         </div>
       </div>
+
+      {/* ── Plan Progress Card ───────────────────────────────── */}
+      {plan && !active && (
+        <PlanProgressCard plan={plan} planIndex={planIndex ?? 0} />
+      )}
 
       {/* ── Plan Day Card ─────────────────────────────────────── */}
       {currentPlanDay && !active && (
