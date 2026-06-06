@@ -24,7 +24,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
   return (
     <div style={{ paddingBottom: 100 }}>
       {/* ── Header ────────────────────────────────────────────── */}
-      <Card style={{ padding: 20, marginBottom: 14 }} topColor="var(--gold)">
+      <Card style={{ padding: 12, marginBottom: 8 }} topColor="var(--gold)">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900, marginBottom: 4 }}>

@@ -5,7 +5,7 @@ import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.
 
 function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip }) {
   return (
-    <Card style={{ padding: 18, marginBottom: 14, borderTop: '3px solid var(--cyan)' }}>
+    <Card style={{ padding: 12, marginBottom: 8, borderTop: '3px solid var(--cyan)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 4 }}>
@@ -257,7 +257,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
       {/* ── Today Card ────────────────────────────────────────── */}
       <Card
         style={{
-          padding: 20, marginBottom: 14,
+          padding: 12, marginBottom: 8,
           borderTop: `3px solid ${isTodayTraining ? 'var(--cyan)' : 'var(--purple)'}`,
           background: isTodayTraining
             ? 'linear-gradient(135deg, rgba(94,195,42,0.07) 0%, rgba(59,157,232,0.04) 100%)'
@@ -295,7 +295,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
       </Card>
 
       {/* ── Weekly Schedule ───────────────────────────────────── */}
-      <Card style={{ padding: 20, marginBottom: 14 }}>
+      <Card style={{ padding: 12, marginBottom: 8 }}>
         <SectionTitle>الجدول الأسبوعي</SectionTitle>
         <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
           {WEEK_DAYS_SHORT.map((day, idx) => {
@@ -346,7 +346,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
 
       {/* ── Muscle Progress ──────────────────────────────────── */}
       {muscleEntries.length > 0 && (
-        <Card style={{ padding: 20, marginBottom: 16 }}>
+        <Card style={{ padding: 12, marginBottom: 8 }}>
           <SectionTitle>تقدم العضلات هذا الشهر</SectionTitle>
           {muscleEntries.map(([muscle, count]) => {
             const g = MUSCLE_GROUPS[muscle]

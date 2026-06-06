@@ -214,7 +214,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         {/* ── Player Name ─────────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>الاسم</SectionTitle>
-          <Card style={{ padding: 16 }}>
+          <Card style={{ padding: 10 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <input
                 value={nameInput}
@@ -235,7 +235,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         {/* ── Training Days ──────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>أيام التمرين الأسبوعية</SectionTitle>
-          <Card style={{ padding: 16 }}>
+          <Card style={{ padding: 10 }}>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
               {WEEK_DAYS_SHORT.map((day, idx) => {
                 const isActive = (profile?.trainingDays || []).includes(idx)
@@ -267,7 +267,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         {/* ── Workout Time ───────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>وقت التمرين المفضل</SectionTitle>
-          <Card style={{ padding: 16 }}>
+          <Card style={{ padding: 10 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {WORKOUT_TIMES.map(t => {
                 const isActive = profile?.workoutTime === t
@@ -297,7 +297,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         {/* ── Gym Type ───────────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>نوع الجيم</SectionTitle>
-          <Card style={{ padding: 16 }}>
+          <Card style={{ padding: 10 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {GYM_TYPES.map(g => {
                 const isActive = profile?.gymType === g.id
