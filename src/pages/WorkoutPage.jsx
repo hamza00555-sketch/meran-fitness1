@@ -84,6 +84,22 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const handleRemoveEx = (exId) =>
     onUpdateActive(prev => ({ ...prev, exercises: prev.exercises.filter(e => e.id !== exId) }))
 
+  const handleMoveSet = (fromExId, si, toExId) => {
+    onUpdateActive(prev => {
+      const fromEx = prev.exercises.find(e => e.id === fromExId)
+      const set    = fromEx?.sets[si]
+      if (!set) return prev
+      return {
+        ...prev,
+        exercises: prev.exercises.map(ex => {
+          if (ex.id === fromExId) return { ...ex, sets: ex.sets.filter((_, i) => i !== si) }
+          if (ex.id === toExId)   return { ...ex, sets: [...ex.sets, { ...set, done: false }] }
+          return ex
+        }),
+      }
+    })
+  }
+
   const handleAddExercise = ({ muscle, name, numSets }) => {
     const ex = buildExercise({ muscle, name, numSets })
     onUpdateActive(prev => ({ ...prev, exercises: [...prev.exercises, ex] }))
@@ -218,6 +234,8 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           onAddSet={() => handleAddSet(ex.id)}
           onRemoveSet={si => handleRemoveSet(ex.id, si)}
           onRemove={() => handleRemoveEx(ex.id)}
+          allExercises={exercises}
+          onMoveSet={(si, toExId) => handleMoveSet(ex.id, si, toExId)}
         />
       ))}
 

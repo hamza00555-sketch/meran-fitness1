@@ -69,10 +69,11 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, allExercises = [], onMoveSet }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(false)
   const [copied,    setCopied]    = useState(false)
+  const [movingSet, setMovingSet] = useState(null) // index of set being moved
 
   const group  = MUSCLE_GROUPS[ex.muscle] || {}
   const color  = group.color || 'var(--cyan)'
@@ -236,82 +237,126 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
 
           {/* Set rows */}
           {ex.sets.map((s, si) => (
-            <div
-              key={si}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '20px 1fr 32px 1fr 32px 42px',
-                gap: 4, marginBottom: 7, alignItems: 'center',
-                opacity: s.done ? 0.45 : 1,
-                transition: 'opacity 0.25s',
-              }}
-            >
-              {/* # */}
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
-                textAlign: 'center',
-              }}>{si + 1}</div>
-
-              {/* Weight */}
-              <input
-                type="number" inputMode="decimal"
-                value={s.weight}
-                onChange={e => onUpdateSet(si, 'weight', e.target.value)}
-                placeholder={lastWeight !== null ? String(lastWeight) : '0'}
-                disabled={s.done}
+            <div key={si}>
+              <div
                 style={{
-                  background: s.done ? 'var(--bg)' : 'var(--bg3)',
-                  border: `1px solid ${s.done ? 'var(--border)' : (s.weight ? color + '55' : 'var(--border)')}`,
-                  borderRadius: 8, padding: '9px 4px',
-                  color: s.done ? 'var(--text3)' : 'var(--text)',
-                  fontFamily: 'var(--font-mono)', fontSize: 13,
-                  textAlign: 'center', outline: 'none', width: '100%',
-                  transition: 'border-color 0.2s',
+                  display: 'grid',
+                  gridTemplateColumns: '20px 1fr 32px 1fr 32px 42px',
+                  gap: 4, marginBottom: movingSet === si ? 2 : 7, alignItems: 'center',
+                  opacity: s.done ? 0.55 : 1,
+                  transition: 'opacity 0.25s',
                 }}
-                onFocus={e => !s.done && (e.target.style.borderColor = color)}
-                onBlur={e => e.target.style.borderColor = s.weight ? color + '55' : 'var(--border)'}
-              />
+              >
+                {/* # — tap to open move picker */}
+                <button
+                  onClick={() => setMovingSet(movingSet === si ? null : si)}
+                  title="نقل إلى تمرين آخر"
+                  style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 11,
+                    textAlign: 'center', cursor: 'pointer',
+                    background: movingSet === si ? color : 'none',
+                    border: movingSet === si ? `1px solid ${color}` : '1px solid transparent',
+                    borderRadius: 5, color: movingSet === si ? '#0a0a0a' : 'var(--text3)',
+                    width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: 0, transition: 'all 0.15s',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >{movingSet === si ? '⇄' : si + 1}</button>
 
-              {/* Weight stepper */}
-              <Stepper disabled={s.done} onUp={() => stepWeight(si, 2.5)} onDown={() => stepWeight(si, -2.5)} />
+                {/* Weight */}
+                <input
+                  type="number" inputMode="decimal"
+                  value={s.weight}
+                  onChange={e => onUpdateSet(si, 'weight', e.target.value)}
+                  placeholder={lastWeight !== null ? String(lastWeight) : '0'}
+                  disabled={s.done}
+                  style={{
+                    background: s.done ? 'var(--bg)' : 'var(--bg3)',
+                    border: `1px solid ${s.done ? 'var(--border)' : (s.weight ? color + '55' : 'var(--border)')}`,
+                    borderRadius: 8, padding: '9px 4px',
+                    color: s.done ? 'var(--text3)' : 'var(--text)',
+                    fontFamily: 'var(--font-mono)', fontSize: 13,
+                    textAlign: 'center', outline: 'none', width: '100%',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={e => !s.done && (e.target.style.borderColor = color)}
+                  onBlur={e => e.target.style.borderColor = s.weight ? color + '55' : 'var(--border)'}
+                />
+                <Stepper disabled={s.done} onUp={() => stepWeight(si, 2.5)} onDown={() => stepWeight(si, -2.5)} />
 
-              {/* Reps */}
-              <input
-                type="number" inputMode="numeric"
-                value={s.reps}
-                onChange={e => onUpdateSet(si, 'reps', e.target.value)}
-                placeholder="0"
-                disabled={s.done}
-                style={{
-                  background: s.done ? 'var(--bg)' : 'var(--bg3)',
-                  border: `1px solid ${s.done ? 'var(--border)' : (s.reps ? color + '55' : 'var(--border)')}`,
-                  borderRadius: 8, padding: '9px 4px',
-                  color: s.done ? 'var(--text3)' : 'var(--text)',
-                  fontFamily: 'var(--font-mono)', fontSize: 13,
-                  textAlign: 'center', outline: 'none', width: '100%',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={e => !s.done && (e.target.style.borderColor = color)}
-                onBlur={e => e.target.style.borderColor = s.reps ? color + '55' : 'var(--border)'}
-              />
+                {/* Reps */}
+                <input
+                  type="number" inputMode="numeric"
+                  value={s.reps}
+                  onChange={e => onUpdateSet(si, 'reps', e.target.value)}
+                  placeholder="0"
+                  disabled={s.done}
+                  style={{
+                    background: s.done ? 'var(--bg)' : 'var(--bg3)',
+                    border: `1px solid ${s.done ? 'var(--border)' : (s.reps ? color + '55' : 'var(--border)')}`,
+                    borderRadius: 8, padding: '9px 4px',
+                    color: s.done ? 'var(--text3)' : 'var(--text)',
+                    fontFamily: 'var(--font-mono)', fontSize: 13,
+                    textAlign: 'center', outline: 'none', width: '100%',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={e => !s.done && (e.target.style.borderColor = color)}
+                  onBlur={e => e.target.style.borderColor = s.reps ? color + '55' : 'var(--border)'}
+                />
+                <Stepper disabled={s.done} onUp={() => stepReps(si, 1)} onDown={() => stepReps(si, -1)} />
 
-              {/* Reps stepper */}
-              <Stepper disabled={s.done} onUp={() => stepReps(si, 1)} onDown={() => stepReps(si, -1)} />
+                {/* Done button */}
+                <button
+                  onClick={() => handleDone(si, !s.done)}
+                  style={{
+                    width: 42, height: 42, borderRadius: '50%',
+                    border: `2px solid ${s.done ? 'var(--green)' : 'var(--border2)'}`,
+                    background: s.done ? 'var(--green)' : 'transparent',
+                    cursor: 'pointer', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, color: s.done ? '#0a0a0a' : 'var(--text3)',
+                    transition: 'all 0.2s',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >{s.done ? '✓' : ''}</button>
+              </div>
 
-              {/* Done button */}
-              <button
-                onClick={() => handleDone(si, !s.done)}
-                style={{
-                  width: 42, height: 42, borderRadius: '50%',
-                  border: `2px solid ${s.done ? 'var(--green)' : 'var(--border2)'}`,
-                  background: s.done ? 'var(--green)' : 'transparent',
-                  cursor: 'pointer', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 16, color: s.done ? '#0a0a0a' : 'var(--text3)',
-                  transition: 'all 0.2s',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >{s.done ? '✓' : ''}</button>
+              {/* Move picker — inline dropdown */}
+              {movingSet === si && allExercises.filter(e => e.id !== ex.id).length > 0 && (
+                <div style={{
+                  marginBottom: 8, marginRight: 24,
+                  background: 'var(--bg3)', border: `1px solid ${color}55`,
+                  borderRadius: 10, overflow: 'hidden',
+                }}>
+                  <div style={{
+                    fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)',
+                    padding: '6px 10px 4px',
+                  }}>نقل Set {si + 1} إلى:</div>
+                  {allExercises.filter(e => e.id !== ex.id).map(target => (
+                    <button
+                      key={target.id}
+                      onClick={() => {
+                        onMoveSet?.(si, target.id)
+                        setMovingSet(null)
+                      }}
+                      style={{
+                        width: '100%', background: 'none',
+                        border: 'none', borderTop: '1px solid var(--border)',
+                        padding: '9px 10px', textAlign: 'right',
+                        fontFamily: 'var(--font-mono)', fontSize: 12,
+                        color: 'var(--text2)', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}
+                      onPointerDown={e => e.currentTarget.style.background = 'var(--bg2)'}
+                      onPointerUp={e => e.currentTarget.style.background = 'none'}
+                      onPointerLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <span style={{ color: MUSCLE_GROUPS[target.muscle]?.color || 'var(--cyan)', fontSize: 10 }}>●</span>
+                      {target.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 
