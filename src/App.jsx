@@ -245,6 +245,14 @@ export default function App() {
     setActive(prev => prev ? updater(prev) : prev)
   }, [])
 
+  const updateSession = useCallback((sessionId, updater) => {
+    setSessions(prev => prev.map(s => s.id === sessionId ? updater(s) : s))
+  }, [])
+
+  const deleteSession = useCallback((sessionId) => {
+    setSessions(prev => prev.filter(s => s.id !== sessionId))
+  }, [])
+
   // ── Challenge completion ──────────────────────────────────────
   const handleCompleteChallenge = useCallback((challengeId, xpReward) => {
     setChallengeState(prev => ({
@@ -387,6 +395,8 @@ export default function App() {
             onGoBack={() => { setActive(null); setShowRest(false); setTab('home') }}
             isResting={showRest}
             exerciseMapping={exerciseMapping}
+            onUpdateSession={updateSession}
+            onDeleteSession={deleteSession}
           />
         )}
         {tab === 'exercises' && <ExercisesPage sessions={sessions} exerciseMapping={exerciseMapping} />}

@@ -6,7 +6,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {} }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, onUpdateSession, onDeleteSession }) {
   const [showAdd,      setShowAdd]      = useState(false)
   const [showRoutines, setShowRoutines] = useState(false)
   const [elapsed,      setElapsed]      = useState(0)
@@ -35,7 +35,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
   // ── History View ─────────────────────────────────────────────
   if (!active) {
-    return <HistoryView sessions={sessions} onStartWorkout={() => setShowRoutines(true)} showRoutines={showRoutines} setShowRoutines={setShowRoutines} />
+    return <HistoryView sessions={sessions} onStartWorkout={() => setShowRoutines(true)} showRoutines={showRoutines} setShowRoutines={setShowRoutines} onUpdateSession={onUpdateSession} onDeleteSession={onDeleteSession} />
   }
 
   // ── Helpers ──────────────────────────────────────────────────
@@ -270,8 +270,52 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 }
 
 // ── History sub-view ──────────────────────────────────────────
-function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }) {
-  const [expanded, setExpanded] = useState(null)
+function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, onUpdateSession, onDeleteSession }) {
+  const [expanded,   setExpanded]   = useState(null)
+  const [editingId,  setEditingId]  = useState(null)
+  const [editData,   setEditData]   = useState(null)
+  const [confirmDel, setConfirmDel] = useState(null) // session id pending delete
+
+  const startEdit = (e, session) => {
+    e.stopPropagation()
+    setEditingId(session.id)
+    setExpanded(session.id)
+    setEditData(session.exercises.map(ex => ({ ...ex, sets: ex.sets.map(s => ({ ...s })) })))
+  }
+
+  const cancelEdit = (e) => {
+    e?.stopPropagation()
+    setEditingId(null)
+    setEditData(null)
+  }
+
+  const saveEdit = (e, sessionId) => {
+    e.stopPropagation()
+    const cleaned = editData.filter(ex => ex.sets.some(s => s.done))
+    onUpdateSession?.(sessionId, s => ({ ...s, exercises: cleaned }))
+    setEditingId(null)
+    setEditData(null)
+  }
+
+  const updSet = (ei, si, field, val) =>
+    setEditData(prev => prev.map((ex, i) => i !== ei ? ex : {
+      ...ex, sets: ex.sets.map((s, j) => j !== si ? s : { ...s, [field]: val })
+    }))
+
+  const delSet = (ei, si) =>
+    setEditData(prev => prev.map((ex, i) => i !== ei ? ex : {
+      ...ex, sets: ex.sets.filter((_, j) => j !== si)
+    }))
+
+  const delExercise = (ei) =>
+    setEditData(prev => prev.filter((_, i) => i !== ei))
+
+  const inputStyle = {
+    background: 'var(--bg3)', border: '1px solid var(--border2)',
+    borderRadius: 7, padding: '4px 7px',
+    color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 12,
+    outline: 'none', width: 58, textAlign: 'center',
+  }
 
   if (!sessions.length) {
     return (
@@ -284,9 +328,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
           padding: '12px 16px calc(var(--safe-bottom) + 76px)',
           background: 'linear-gradient(transparent, var(--bg) 40%)',
         }}>
-          <button className="btn-cyan" onClick={onStartWorkout}>
-            ⚔️ ابدأ التمرين
-          </button>
+          <button className="btn-cyan" onClick={onStartWorkout}>⚔️ ابدأ التمرين</button>
         </div>
         {showRoutines && <RoutinesModal onSelect={() => {}} onClose={() => setShowRoutines(false)} />}
       </div>
@@ -297,26 +339,28 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
     <div style={{ paddingBottom: 120 }}>
       <SectionTitle>سجل الجلسات</SectionTitle>
       {sessions.map(s => {
-        const muscles   = [...new Set(s.exercises.map(e => e.muscle))]
-        const allSets   = s.exercises.flatMap(e => e.sets)
-        const doneSets  = allSets.filter(ss => ss.done).length
-        const vol       = sessionVolume(s)
-        const isOpen    = expanded === s.id
+        const muscles  = [...new Set(s.exercises.map(e => e.muscle))]
+        const allSets  = s.exercises.flatMap(e => e.sets)
+        const doneSets = allSets.filter(ss => ss.done).length
+        const vol      = sessionVolume(s)
+        const isOpen   = expanded === s.id
+        const isEditing = editingId === s.id
 
         return (
           <Card
             key={s.id}
-            style={{ marginBottom: 3, padding: 5, cursor: 'pointer' }}
-            onClick={() => setExpanded(isOpen ? null : s.id)}
+            style={{ marginBottom: 3, padding: 5, cursor: isEditing ? 'default' : 'pointer',
+              border: isEditing ? '1px solid var(--cyan-md)' : undefined }}
+            onClick={() => { if (!isEditing) setExpanded(isOpen ? null : s.id) }}
           >
+            {/* ── Session header ── */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                   {fmtDate(s.date)}
                 </div>
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
-                  {fmtDuration(s.duration)}
-                  {vol > 0 ? ` · ${(vol / 1000).toFixed(1)} طن` : ''}
+                  {fmtDuration(s.duration)}{vol > 0 ? ` · ${(vol / 1000).toFixed(1)} طن` : ''}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {muscles.map(m => (
@@ -329,30 +373,81 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
                   ))}
                 </div>
               </div>
-              <div style={{ textAlign: 'center', marginRight: 8 }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--cyan)' }}>
+
+              {/* action buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginRight: 4 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--cyan)', textAlign: 'center' }}>
                   {doneSets}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>sets</div>
+                {!isEditing && (
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      onClick={e => startEdit(e, s)}
+                      title="تعديل"
+                      style={{
+                        background: 'var(--bg3)', border: '1px solid var(--border)',
+                        borderRadius: 7, width: 28, height: 28, cursor: 'pointer',
+                        color: 'var(--text2)', fontSize: 13,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >✏️</button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setConfirmDel(s.id) }}
+                      title="حذف الجلسة"
+                      style={{
+                        background: 'var(--bg3)', border: '1px solid var(--border)',
+                        borderRadius: 7, width: 28, height: 28, cursor: 'pointer',
+                        color: '#EF4444', fontSize: 13,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >🗑️</button>
+                  </div>
+                )}
               </div>
             </div>
 
-            {isOpen && (
+            {/* ── Delete session confirm ── */}
+            {confirmDel === s.id && (
+              <div onClick={e => e.stopPropagation()} style={{
+                marginTop: 10, padding: '10px 12px',
+                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 10,
+              }}>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: '#EF4444', marginBottom: 8 }}>
+                  حذف هذه الجلسة نهائياً؟
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); onDeleteSession?.(s.id); setConfirmDel(null) }}
+                    style={{
+                      flex: 1, background: '#EF4444', border: 'none', borderRadius: 8,
+                      padding: '7px', color: 'white',
+                      fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
+                    }}
+                  >نعم، احذف</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setConfirmDel(null) }}
+                    style={{
+                      flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
+                      borderRadius: 8, padding: '7px', color: 'var(--text2)',
+                      fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
+                    }}
+                  >إلغاء</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Expanded: read-only or edit ── */}
+            {isOpen && !isEditing && (
               <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
                 {s.exercises.map((ex, ei) => (
                   <div key={ei} style={{ marginBottom: 10 }}>
-                    <div style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 12,
-                      color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--cyan)',
-                      marginBottom: 4,
-                    }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--cyan)', marginBottom: 4 }}>
                       {ex.name}
                     </div>
                     {ex.sets.filter(ss => ss.done).map((ss, si) => (
-                      <div key={si} style={{
-                        fontFamily: 'var(--font-mono)', fontSize: 11,
-                        color: 'var(--text3)', marginBottom: 2, paddingRight: 8,
-                      }}>
+                      <div key={si} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', marginBottom: 2, paddingRight: 8 }}>
                         ✓ Set {si + 1}: {ss.weight || '—'}kg × {ss.reps || '—'} reps
                       </div>
                     ))}
@@ -361,9 +456,83 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines }
               </div>
             )}
 
-            <div style={{ textAlign: 'center', marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
-              {isOpen ? '▲' : '▼'}
-            </div>
+            {/* ── Edit mode ── */}
+            {isEditing && editData && (
+              <div onClick={e => e.stopPropagation()} style={{ borderTop: '1px solid var(--cyan-md)', marginTop: 12, paddingTop: 12 }}>
+                {editData.map((ex, ei) => (
+                  <div key={ei} style={{ marginBottom: 14, background: 'var(--bg2)', borderRadius: 10, padding: '10px 10px 6px' }}>
+                    {/* Exercise header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--cyan)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ex.name}
+                      </span>
+                      <button
+                        onClick={() => delExercise(ei)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 15, padding: '0 4px', flexShrink: 0 }}
+                        title="حذف التمرين"
+                      >🗑️</button>
+                    </div>
+                    {/* Column labels */}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 4, paddingRight: 4 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', width: 36 }}>SET</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', width: 58, textAlign: 'center' }}>KG</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', width: 58, textAlign: 'center' }}>REPS</span>
+                    </div>
+                    {/* Sets */}
+                    {ex.sets.map((ss, si) => (
+                      <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', width: 36, flexShrink: 0 }}>
+                          {si + 1}
+                        </span>
+                        <input
+                          value={ss.weight || ''}
+                          onChange={e => updSet(ei, si, 'weight', e.target.value)}
+                          placeholder="—"
+                          style={inputStyle}
+                        />
+                        <span style={{ color: 'var(--text3)', fontSize: 13 }}>×</span>
+                        <input
+                          value={ss.reps || ''}
+                          onChange={e => updSet(ei, si, 'reps', e.target.value)}
+                          placeholder="—"
+                          style={inputStyle}
+                        />
+                        <button
+                          onClick={() => delSet(ei, si)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, padding: '0 2px', flexShrink: 0 }}
+                        >✕</button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                {/* Save / Cancel */}
+                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                  <button
+                    onClick={e => saveEdit(e, s.id)}
+                    style={{
+                      flex: 1, background: 'var(--grad-primary)', border: 'none', borderRadius: 10,
+                      padding: '10px', color: 'white',
+                      fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >✓ حفظ التعديلات</button>
+                  <button
+                    onClick={cancelEdit}
+                    style={{
+                      background: 'var(--bg2)', border: '1px solid var(--border)',
+                      borderRadius: 10, padding: '10px 16px', color: 'var(--text2)',
+                      fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
+                    }}
+                  >إلغاء</button>
+                </div>
+              </div>
+            )}
+
+            {!isEditing && (
+              <div style={{ textAlign: 'center', marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
+                {isOpen ? '▲' : '▼'}
+              </div>
+            )}
           </Card>
         )
       })}
