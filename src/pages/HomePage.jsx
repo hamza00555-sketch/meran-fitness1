@@ -495,6 +495,14 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'currentColor', animation: 'pulseDot 1.5s ease-in-out infinite' }} />
               متابعة الجلسة
             </button>
+          ) : currentPlanDay ? (
+            <button className="btn-cyan" onClick={() => onStartPlannedWorkout(currentPlanDay)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 10, paddingBottom: 10 }}>
+              <span style={{ fontSize: 15, fontWeight: 800 }}>⚡ ابدأ تمرين اليوم</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.8, fontWeight: 400 }}>
+                {currentPlanDay.name}
+              </span>
+            </button>
           ) : (
             <button className="btn-cyan" onClick={onStartWorkout}>
               ⚡ ابدأ التمرين
