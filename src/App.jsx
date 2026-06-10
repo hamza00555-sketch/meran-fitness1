@@ -77,7 +77,8 @@ export default function App() {
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
 
-  const prevLevelRef = useRef(levelFromXP(xp))
+  const prevLevelRef  = useRef(levelFromXP(xp))
+  const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
 
   // ── Persist to localStorage ───────────────────────────────────
   useEffect(() => { ls.set('hf_sessions', sessions) },             [sessions])
@@ -156,6 +157,12 @@ export default function App() {
     if (label) pushAlert('⭐', `${label} +${amount} XP`)
   }, [showXPFloat, pushAlert])
 
+  // XP during a live workout — tracked so it can be refunded on تراجع
+  const addWorkoutXP = useCallback((amount, label = '') => {
+    addXP(amount, label)
+    sessionXPRef.current += amount
+  }, [addXP])
+
   // ── Achievement checker ───────────────────────────────────────
   const checkAchievements = useCallback((newSessions, newXP, newStreak) => {
     setUnlockedAchievements(prev => {
@@ -180,6 +187,7 @@ export default function App() {
 
   // ── Session management ────────────────────────────────────────
   const startPlannedWorkout = useCallback((planDay) => {
+    sessionXPRef.current = 0
     const exercises = (planDay.exercises || []).map(ex =>
       buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3 })
     )
@@ -201,6 +209,7 @@ export default function App() {
   }, [pushAlert])
 
   const startWorkout = useCallback((exercises = []) => {
+    sessionXPRef.current = 0
     const session = {
       id:        Date.now(),
       date:      new Date().toISOString(),
@@ -220,12 +229,12 @@ export default function App() {
       const newSessions = [finished, ...prev]
       const streak = calcStreak(newSessions)
 
-      // XP for session
-      const setsDone = finished.exercises.flatMap(e => e.sets).filter(s => s.done).length
-      const sessionXP = 50 + setsDone * 10 + Math.floor(duration / 30) * 30
+      // Bonus XP at session finish (per-set XP already awarded live)
+      const finishBonus = 50 + Math.floor(duration / 30) * 30
       setTimeout(() => {
-        addXP(sessionXP, '✓ جلسة مكتملة')
-        checkAchievements(newSessions, xp + sessionXP, streak)
+        addXP(finishBonus, '✓ جلسة مكتملة')
+        checkAchievements(newSessions, xp + sessionXPRef.current + finishBonus, streak)
+        sessionXPRef.current = 0
       }, 200)
 
       return newSessions
@@ -391,8 +400,14 @@ export default function App() {
             onFinish={finishSession}
             onShowRest={() => { setShowRest(true); setRestKey(k => k + 1) }}
             onStartPlannedWorkout={startPlannedWorkout}
-            addXP={addXP}
-            onGoBack={() => { setActive(null); setShowRest(false); setTab('home') }}
+            addXP={addWorkoutXP}
+            onGoBack={() => {
+              if (sessionXPRef.current > 0) {
+                setXP(prev => Math.max(0, prev - sessionXPRef.current))
+                sessionXPRef.current = 0
+              }
+              setActive(null); setShowRest(false); setTab('home')
+            }}
             isResting={showRest}
             exerciseMapping={exerciseMapping}
             onUpdateSession={updateSession}
