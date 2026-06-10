@@ -120,6 +120,11 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const totalSets = allSets.length
   const pct = totalSets > 0 ? (doneSets / totalSets) * 100 : 0
 
+  // Active exercise: any done set but not all done → dim others
+  const activeExId = exercises.find(ex =>
+    ex.sets.some(s => s.done) && !ex.sets.every(s => s.done)
+  )?.id ?? null
+
   return (
     <div style={{ paddingBottom: 120 }}>
 
@@ -236,6 +241,8 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           onRemove={() => handleRemoveEx(ex.id)}
           allExercises={exercises}
           onMoveSet={(si, toExId) => handleMoveSet(ex.id, si, toExId)}
+          dimmed={activeExId !== null && ex.id !== activeExId}
+          isComplete={ex.sets.length > 0 && ex.sets.every(s => s.done)}
         />
       ))}
 

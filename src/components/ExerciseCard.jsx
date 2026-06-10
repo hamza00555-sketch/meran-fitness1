@@ -69,7 +69,7 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, allExercises = [], onMoveSet }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, allExercises = [], onMoveSet, dimmed = false, isComplete = false }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(false)
   const [copied,    setCopied]    = useState(false)
@@ -126,6 +126,9 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
         borderRadius: 16,
         overflow: 'hidden',
         marginBottom: 12,
+        opacity: dimmed ? 0.35 : 1,
+        filter: dimmed ? 'brightness(0.5)' : 'none',
+        transition: 'opacity 0.3s, filter 0.3s',
       }}>
         {/* Color accent bar */}
         <div style={{ height: 2, background: color }} />
@@ -189,6 +192,18 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                     {maxWeight !== null && maxWeight !== lastWeight && (
                       <> · أعلى <span style={{ color, fontWeight: 700 }}>{maxWeight}kg</span></>
                     )}
+                  </span>
+                )}
+
+                {isComplete && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.45)',
+                    borderRadius: 10, padding: '2px 8px',
+                    fontSize: 10, color: '#FBBF24', fontWeight: 700,
+                    fontFamily: 'var(--font-ar)',
+                  }}>
+                    ⬆️ جرب ارفع الوزن المرة الجاية
                   </span>
                 )}
               </div>
