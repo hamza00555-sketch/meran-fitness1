@@ -134,10 +134,9 @@ export default function App() {
     el.className = 'xp-float'
     el.textContent = `+${amount} XP`
     el.style.left = '50%'
-    el.style.top  = '40%'
-    el.style.transform = 'translateX(-50%)'
+    el.style.top  = '35%'
     document.body.appendChild(el)
-    setTimeout(() => el.remove(), 1500)
+    setTimeout(() => el.remove(), 1600)
   }, [])
 
   // ── Add XP ───────────────────────────────────────────────────
