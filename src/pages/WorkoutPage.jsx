@@ -63,7 +63,6 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           setTimeout(() => setPrFlash(null), 2800)
         }
       }
-      if (addXP) addXP(10, '✓ سيت مكتمل')
       onShowRest()
     }
     updateEx(exId, ex => ({
