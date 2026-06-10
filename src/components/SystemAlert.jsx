@@ -20,11 +20,13 @@ export default function SystemAlert({ alerts: queue, onRemove }) {
 
   return (
     <div style={{
-      position: 'fixed', top: 0, left: '50%',
+      position: 'fixed',
+      top: 'calc(var(--safe-top) + 8px)',
+      left: '50%',
       transform: 'translateX(-50%)',
       width: '100%', maxWidth: 560,
       zIndex: 900,
-      padding: '8px 12px 0',
+      padding: '0 12px',
       pointerEvents: 'none',
     }}>
       <div
