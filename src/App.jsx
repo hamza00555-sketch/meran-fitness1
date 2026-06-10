@@ -73,7 +73,7 @@ export default function App() {
   const [showRest,   setShowRest]   = useState(false)
   const [showLevelUp,setShowLevelUp]= useState(false)
   const [levelUpNum, setLevelUpNum] = useState(1)
-  const [alerts,     setAlerts]     = useState([])
+  const [alertQueue, setAlertQueue] = useState([])
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
 
@@ -120,12 +120,19 @@ export default function App() {
 
   // ── Alert helper ──────────────────────────────────────────────
   const pushAlert = useCallback((icon, msg) => {
-    const id = Date.now() + Math.random()
-    setAlerts(prev => [...prev, { id, icon, msg }])
+    setAlertQueue(prev => {
+      const [head, ...rest] = prev
+      // Same icon as current → merge in place, bump timer
+      if (head && head.icon === icon) {
+        return [{ ...head, msg, count: (head.count || 1) + 1, bumpAt: Date.now() }, ...rest]
+      }
+      // Different icon → queue behind
+      return [...prev, { id: Date.now() + Math.random(), icon, msg, count: 1, bumpAt: Date.now() }]
+    })
   }, [])
 
-  const removeAlert = useCallback((id) => {
-    setAlerts(prev => prev.filter(a => a.id !== id))
+  const removeAlert = useCallback(() => {
+    setAlertQueue(prev => prev.slice(1))
   }, [])
 
   // ── XP float animation ────────────────────────────────────────
@@ -552,7 +559,7 @@ export default function App() {
       {/* ── Overlays ─────────────────────────────────────────────── */}
       {showRest    && <RestTimer key={restKey} onClose={() => setShowRest(false)} />}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
-      <SystemAlert alerts={alerts} onRemove={removeAlert} />
+      <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
     </div>
   )
 }
