@@ -3,7 +3,7 @@ import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax } from '../utils.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
 export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, onUpdateSession, onDeleteSession }) {
@@ -101,15 +101,17 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   }
 
   const handleAddExercise = ({ muscle, name, numSets }) => {
-    const ex = buildExercise({ muscle, name, numSets })
+    const { lastWeight } = getExerciseStats(sessions, name, exerciseMapping)
+    const ex = buildExercise({ muscle, name, numSets, prevWeight: lastWeight ?? '' })
     onUpdateActive(prev => ({ ...prev, exercises: [...prev.exercises, ex] }))
     setShowAdd(false)
   }
 
   const handleLoadRoutine = (routine) => {
-    const exercises = routine.exercises.map(ex =>
-      buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || 3 })
-    )
+    const exercises = routine.exercises.map(ex => {
+      const { lastWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
+      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || 3, prevWeight: lastWeight ?? '' })
+    })
     onUpdateActive(prev => ({ ...prev, exercises }))
     setShowRoutines(false)
   }
