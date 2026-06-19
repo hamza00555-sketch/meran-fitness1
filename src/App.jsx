@@ -8,7 +8,7 @@ import {
   GREETINGS, NAV_TABS, ACHIEVEMENTS,
   DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
   NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS,
-  DEFAULT_EXERCISE_MAPPING,
+  DEFAULT_EXERCISE_MAPPING, APP_VERSION,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 
@@ -37,6 +37,7 @@ import RestTimer        from './components/RestTimer.jsx'
 import RoutinesModal    from './components/RoutinesModal.jsx'
 import LevelUpScreen    from './components/LevelUpScreen.jsx'
 import SystemAlert      from './components/SystemAlert.jsx'
+import WhatsNewModal    from './components/WhatsNewModal.jsx'
 
 // Stable greeting index per session
 const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
@@ -76,6 +77,7 @@ export default function App() {
   const [alertQueue, setAlertQueue] = useState([])
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
+  const [showWhatsNew, setShowWhatsNew] = useState(() => ls.get('hf_seen_version') !== APP_VERSION)
 
   const prevLevelRef  = useRef(levelFromXP(xp))
   const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
@@ -117,6 +119,12 @@ export default function App() {
       }))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── WhatsNew dismiss ─────────────────────────────────────────
+  const dismissWhatsNew = useCallback(() => {
+    ls.set('hf_seen_version', APP_VERSION)
+    setShowWhatsNew(false)
+  }, [])
 
   // ── Alert helper ──────────────────────────────────────────────
   const pushAlert = useCallback((icon, msg) => {
@@ -560,6 +568,7 @@ export default function App() {
       {showRest    && <RestTimer key={restKey} onClose={() => setShowRest(false)} />}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
+      {showWhatsNew && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
     </div>
   )
 }
