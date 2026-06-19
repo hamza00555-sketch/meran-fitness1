@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise,
+  ls, calcStreak, buildExercise, getExerciseStats,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday,
 } from './utils.js'
@@ -202,9 +202,10 @@ export default function App() {
   // ── Session management ────────────────────────────────────────
   const startPlannedWorkout = useCallback((planDay) => {
     sessionXPRef.current = 0
-    const exercises = (planDay.exercises || []).map(ex =>
-      buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3 })
-    )
+    const exercises = (planDay.exercises || []).map(ex => {
+      const { lastWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
+      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight: lastWeight ?? '' })
+    })
     const session = {
       id:           Date.now(),
       date:         new Date().toISOString(),
@@ -215,7 +216,7 @@ export default function App() {
     }
     setActive(session)
     setTab('workout')
-  }, [planIndex])
+  }, [planIndex, sessions, exerciseMapping])
 
   const skipPlanDay = useCallback(() => {
     setPlanIndex(prev => prev + 1)
