@@ -1,3 +1,6 @@
+// ── App version — bump this string after each update to trigger WhatsNew ──
+export const APP_VERSION = '2.1'
+
 // ── Greetings (45 Arabic motivational phrases — use {name} as placeholder) ──
 export const GREETINGS = [
   'يلا {name} 💪 اليوم بنكسر الجيم!',
