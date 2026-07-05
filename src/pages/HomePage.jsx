@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
 import { xpProgress, getRank, getCommitmentLevel, getExerciseStats } from '../utils.js'
@@ -95,7 +96,7 @@ function findVideoUrl(name) {
 
 // ── Day Preview bottom sheet ──────────────────────────────────────────
 function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onClose }) {
-  return (
+  return createPortal(
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 750,
@@ -225,7 +226,8 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onCl
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
