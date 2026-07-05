@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
-import { xpProgress, getRank, getCommitmentLevel } from '../utils.js'
+import { xpProgress, getRank, getCommitmentLevel, getExerciseStats } from '../utils.js'
 import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.js'
 
 function PlanProgressCard({ plan, planIndex }) {
@@ -83,60 +84,233 @@ function PlanProgressCard({ plan, planIndex }) {
   )
 }
 
-function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip }) {
+// ── Helper: find videoUrl for an exercise name across all muscle groups ──
+function findVideoUrl(name) {
+  for (const group of Object.values(MUSCLE_GROUPS)) {
+    const ex = group.exercises?.find(e => e.name === name)
+    if (ex?.videoUrl) return ex.videoUrl
+  }
+  return null
+}
+
+// ── Day Preview bottom sheet ──────────────────────────────────────────
+function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onClose }) {
   return (
-    <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)', borderTop: '3px solid var(--cyan)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <div>
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 750,
+        background: 'rgba(0,0,0,0.68)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          width: '100%', maxWidth: 560,
+          background: 'var(--bg2)',
+          borderRadius: '24px 24px 0 0',
+          border: '1px solid var(--border2)',
+          borderBottom: 'none',
+          maxHeight: '88dvh',
+          display: 'flex', flexDirection: 'column',
+          animation: 'slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+          boxShadow: '0 -8px 48px rgba(0,0,0,0.5)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border2)', margin: '12px auto 0', flexShrink: 0 }} />
+
+        {/* Header */}
+        <div style={{ padding: '14px 20px 12px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 3 }}>
-            PLAN · {dayNum}/{totalDays}
+            تمارين اليوم
           </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800 }}>{day.name}</div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 19, fontWeight: 800, color: 'var(--text)' }}>
+            {day.name}
+          </div>
         </div>
-        <div style={{
-          background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-          borderRadius: 20, padding: '3px 10px',
-          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)',
-        }}>{day.exercises.length} تمارين</div>
-      </div>
 
-      <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
-        {Array.from({ length: totalDays }).map((_, i) => (
-          <div key={i} style={{
-            flex: 1, height: 3, borderRadius: 2,
-            background: i < (dayNum - 1) % totalDays || dayNum > totalDays
-              ? 'var(--cyan)' : i === (dayNum - 1) % totalDays
-              ? 'var(--cyan)' : 'var(--bg3)',
-            opacity: i === (dayNum - 1) % totalDays ? 1 : i < (dayNum - 1) % totalDays ? 0.5 : 0.15,
-          }} />
-        ))}
-      </div>
+        {/* Exercise list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+          {day.exercises.map((ex, i) => {
+            const muscle   = MUSCLE_GROUPS[ex.muscle]
+            const videoUrl = findVideoUrl(ex.name)
+            const { lastWeight, maxWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
+            const color = muscle?.color || '#5EC32A'
+            return (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 20px',
+                borderBottom: i < day.exercises.length - 1 ? '1px solid var(--border)' : 'none',
+              }}>
+                {/* Muscle emoji box */}
+                <div style={{
+                  width: 44, height: 44, flexShrink: 0, borderRadius: 12,
+                  background: color + '1A',
+                  border: `1px solid ${color}40`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22,
+                }}>{muscle?.emoji || '💪'}</div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
-        {day.exercises.map((ex, i) => (
-          <span key={i} style={{
-            background: 'var(--bg3)', border: '1px solid var(--border)',
-            borderRadius: 20, padding: '3px 10px',
-            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
-          }}>{ex.name}{ex.sets ? ` ×${ex.sets}` : ''}</span>
-        ))}
-      </div>
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
+                    color: 'var(--text)', marginBottom: 4,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>{ex.name}</div>
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={onStart} style={{
-          flex: 1, padding: '11px',
-          background: 'var(--grad-primary)', border: 'none', borderRadius: 12,
-          color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
-          cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
-        }}>⚡ ابدأ</button>
-        <button onClick={onSkip} style={{
-          padding: '11px 14px',
-          background: 'var(--bg2)', border: '1px solid var(--border2)',
-          borderRadius: 12, color: 'var(--text3)',
-          fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-        }}>⏭️ تخطي</button>
+                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* Muscle label tag */}
+                    <span style={{
+                      background: color + '1A', border: `1px solid ${color}40`,
+                      borderRadius: 20, padding: '1px 7px',
+                      fontFamily: 'var(--font-ar)', fontSize: 10, color, fontWeight: 700,
+                    }}>{muscle?.label || ex.muscle}</span>
+
+                    {/* Sets */}
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
+                      ×{ex.sets || 3} سيت
+                    </span>
+
+                    {/* Weight history */}
+                    {lastWeight != null && (
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
+                        آخر <span style={{ color: 'var(--text2)' }}>{lastWeight}kg</span>
+                        {maxWeight != null && maxWeight !== lastWeight && (
+                          <> · <span style={{ color: 'var(--gold)' }}>🏆{maxWeight}kg</span></>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* YouTube button */}
+                {videoUrl && (
+                  <a
+                    href={videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flexShrink: 0, width: 36, height: 36, borderRadius: 10,
+                      background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.28)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      textDecoration: 'none', fontSize: 16,
+                    }}
+                  >▶️</a>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* CTA */}
+        <div style={{ padding: '12px 20px calc(var(--safe-bottom) + 12px)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={onStart} style={{
+              flex: 1, padding: '14px',
+              background: 'var(--grad-primary)', border: 'none', borderRadius: 14,
+              color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 16,
+              cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
+            }}>⚡ ابدأ التمرين</button>
+            <button onClick={onSkip} style={{
+              padding: '14px 16px',
+              background: 'var(--bg3)', border: '1px solid var(--border2)',
+              borderRadius: 14, color: 'var(--text3)',
+              fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
+            }}>⏭️ تخطي</button>
+          </div>
+        </div>
       </div>
-    </Card>
+    </div>
+  )
+}
+
+// ── Plan Day Card ─────────────────────────────────────────────────────
+function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], exerciseMapping = {} }) {
+  const [showSheet, setShowSheet] = useState(false)
+
+  return (
+    <>
+      <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)', borderTop: '3px solid var(--cyan)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 3 }}>
+              PLAN · {dayNum}/{totalDays}
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800 }}>{day.name}</div>
+          </div>
+          {/* Tappable exercises badge → opens sheet */}
+          <button
+            onClick={() => setShowSheet(true)}
+            style={{
+              background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
+              borderRadius: 20, padding: '3px 10px',
+              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            {day.exercises.length} تمارين
+            <span style={{ fontSize: 9, opacity: 0.8 }}>←</span>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
+          {Array.from({ length: totalDays }).map((_, i) => (
+            <div key={i} style={{
+              flex: 1, height: 3, borderRadius: 2,
+              background: i < (dayNum - 1) % totalDays || dayNum > totalDays
+                ? 'var(--cyan)' : i === (dayNum - 1) % totalDays
+                ? 'var(--cyan)' : 'var(--bg3)',
+              opacity: i === (dayNum - 1) % totalDays ? 1 : i < (dayNum - 1) % totalDays ? 0.5 : 0.15,
+            }} />
+          ))}
+        </div>
+
+        {/* Chips — tappable to open sheet */}
+        <div
+          onClick={() => setShowSheet(true)}
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12, cursor: 'pointer' }}
+        >
+          {day.exercises.map((ex, i) => (
+            <span key={i} style={{
+              background: 'var(--bg3)', border: '1px solid var(--border)',
+              borderRadius: 20, padding: '3px 10px',
+              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
+            }}>{ex.name}{ex.sets ? ` ×${ex.sets}` : ''}</span>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={onStart} style={{
+            flex: 1, padding: '11px',
+            background: 'var(--grad-primary)', border: 'none', borderRadius: 12,
+            color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
+            cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
+          }}>⚡ ابدأ</button>
+          <button onClick={onSkip} style={{
+            padding: '11px 14px',
+            background: 'var(--bg2)', border: '1px solid var(--border2)',
+            borderRadius: 12, color: 'var(--text3)',
+            fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
+          }}>⏭️ تخطي</button>
+        </div>
+      </Card>
+
+      {showSheet && (
+        <DayPreviewSheet
+          day={day}
+          sessions={sessions}
+          exerciseMapping={exerciseMapping}
+          onStart={() => { setShowSheet(false); onStart() }}
+          onSkip={() => { setShowSheet(false); onSkip() }}
+          onClose={() => setShowSheet(false)}
+        />
+      )}
+    </>
   )
 }
 
@@ -191,7 +365,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {} }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   const today       = new Date().getDay()
@@ -418,6 +592,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           totalDays={planTotal}
           onStart={() => onStartPlannedWorkout(currentPlanDay)}
           onSkip={onSkipPlanDay}
+          sessions={sessions}
+          exerciseMapping={exerciseMapping}
         />
       )}
 

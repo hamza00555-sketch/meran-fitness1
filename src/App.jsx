@@ -399,6 +399,7 @@ export default function App() {
             active={active}
             plan={plan}
             planIndex={planIndex}
+            exerciseMapping={exerciseMapping}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}
