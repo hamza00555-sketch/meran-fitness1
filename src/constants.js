@@ -930,7 +930,7 @@ export const BUILT_IN_PLANS = [
     goal:         'muscle',
     weeklySchedule: [
       {
-        name: 'Day 1 — صدر، أكتاف، ترايسبس',
+        name: 'Push — صدر، أكتاف، ترايسبس',
         exercises: [
           { name: 'Hammer Strength Machine Bench Press', muscle: 'Chest',     sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
           { name: 'Machine Incline Press',               muscle: 'Chest',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
@@ -941,7 +941,7 @@ export const BUILT_IN_PLANS = [
         ],
       },
       {
-        name: 'Day 2 — ظهر، بايسبس',
+        name: 'Pull — ظهر، بايسبس',
         exercises: [
           { name: 'Lat Pulldown',          muscle: 'Back',   sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
           { name: 'Cable Row',             muscle: 'Back',   sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
@@ -951,7 +951,7 @@ export const BUILT_IN_PLANS = [
         ],
       },
       {
-        name: 'Day 3 — أرجل',
+        name: 'Legs — أرجل',
         exercises: [
           { name: 'Hack Squat',             muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 150 },
           { name: 'Leg Press',              muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 150 },
