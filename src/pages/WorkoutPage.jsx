@@ -26,9 +26,9 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
         pausedMsRef.current += Date.now() - pauseStartRef.current
         pauseStartRef.current = null
       }
-      const tick = () => setElapsed(Math.round((Date.now() - active.id - pausedMsRef.current) / 60000))
+      const tick = () => setElapsed(Math.floor((Date.now() - active.id - pausedMsRef.current) / 1000))
       tick()
-      timerRef.current = setInterval(tick, 10000)
+      timerRef.current = setInterval(tick, 1000)
     }
     return () => clearInterval(timerRef.current)
   }, [active?.id, isResting])
@@ -120,6 +120,14 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const allSets   = exercises.flatMap(ex => ex.sets)
   const doneSets  = allSets.filter(s => s.done).length
   const totalSets = allSets.length
+
+  const fmtElapsed = (secs) => {
+    const h = Math.floor(secs / 3600)
+    const m = Math.floor((secs % 3600) / 60)
+    const s = secs % 60
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
   const pct = totalSets > 0 ? (doneSets / totalSets) * 100 : 0
 
   // Active exercise: any done set but not all done → dim others
@@ -160,8 +168,14 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
             }} />
             LIVE SESSION
           </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
-            {elapsed} دقيقة · {exercises.length} تمرين
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700,
+              color: 'var(--cyan)', letterSpacing: 1,
+            }}>{fmtElapsed(elapsed)}</span>
+            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+              · {exercises.length} تمرين
+            </span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
