@@ -1,5 +1,5 @@
 // ── App version — bump this string after each update to trigger WhatsNew ──
-export const APP_VERSION = '2.1'
+export const APP_VERSION = '2.2'
 
 // ── Greetings (45 Arabic motivational phrases — use {name} as placeholder) ──
 export const GREETINGS = [
@@ -116,6 +116,9 @@ export const MUSCLE_GROUPS = {
       { name: 'Chest Dip',           videoUrl: 'https://www.youtube.com/results?search_query=Chest+Dip+proper+form+shorts', tips: ['أمِل الجسم للأمام لاستهداف الصدر', 'المرفقان للخارج قليلاً', 'لا تنزل تحت 90 درجة في البداية'] },
       { name: 'Pec Deck',            videoUrl: 'https://www.youtube.com/results?search_query=Pec+Deck+proper+form+shorts', tips: ['اسند الظهر كاملاً على المسند', 'الحركة فقط من الصدر لا من الكوعين', 'لا تعود للخلف أكثر مما يسمح المفصل'] },
       { name: 'Landmine Press',      videoUrl: 'https://www.youtube.com/results?search_query=Landmine+Press+proper+form+shorts', tips: ['القدم المقابلة للأمام لثبات أفضل', 'اضغط للأعلى وللأمام بشكل مائل', 'يستهدف الصدر العلوي والكتف الأمامي'] },
+      { name: 'Hammer Strength Machine Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Hammer+Strength+Chest+Press+proper+form+shorts', tips: ['اسند الظهر كاملاً على المسند', 'الحركة متماثلة تعمل كل جانب باستقلالية', 'ممتاز للمبتدئين لثباته وأمانه'] },
+      { name: 'Machine Incline Press',               videoUrl: 'https://www.youtube.com/results?search_query=Machine+Incline+Press+proper+form+shorts', tips: ['اضبط المقعد بحيث المقبض عند مستوى الصدر العلوي', 'اسند الظهر كاملاً طوال الحركة', 'يستهدف الصدر العلوي بفعالية'] },
+      { name: 'Pec Deck Fly',                        videoUrl: 'https://www.youtube.com/results?search_query=Pec+Deck+Fly+proper+form+shorts', tips: ['اسند الظهر كاملاً على المسند', 'الحركة قوس واسع كأنك تعانق شجرة', 'توقف ثانية عند الضم للضغط على الصدر'] },
       { name: 'Barbell Bench Press',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Bench+Press+proper+form+shorts', tips: ['اثبت الكتفين على المقعد طوال الحركة', 'المسكة أعرض من الكتفين قليلاً', 'نزّل البار لمنتصف الصدر وليس الحلق'] },
       { name: 'Dumbbell Incline Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Incline+Bench+Press+proper+form+shorts', tips: ['زاوية 30-45 درجة للاستهداف الأمثل', 'الدمبلات تلتقي في الأعلى', 'لا ترفع الأرداف عن المقعد'] },
       { name: 'Machine Chest Fly (Pec Deck)', videoUrl: 'https://www.youtube.com/results?search_query=Pec+Deck+Machine+proper+form+shorts', tips: ['اسند الظهر كاملاً', 'الحركة قوس واسع كأنك تعانق شجرة', 'توقف ثانية عند الضم للضغط على الصدر'] },
@@ -141,6 +144,7 @@ export const MUSCLE_GROUPS = {
       { name: 'Supinated Lat Pulldown',     videoUrl: 'https://www.youtube.com/results?search_query=Supinated+Lat+Pulldown+proper+form+shorts', tips: ['المسكة العكسية تفعّل البايسبس والعضلة العريضة معاً', 'اسحب للصدر مع فتح الصدر', 'الانزلاق البطيء للأعلى يزيد التوتر'] },
       { name: 'Straight Arm Cable Pulldown',videoUrl: 'https://www.youtube.com/results?search_query=Straight+Arm+Pulldown+proper+form+shorts', tips: ['الذراعان مفرودتان طوال الحركة', 'الحركة من الكتف لا من الكوع', 'يعزل العضلة العريضة بشكل رائع'] },
       { name: 'Dumbbell Shrug',             videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Shrug+proper+form+shorts', tips: ['ارفع الكتفين للأذنين بشكل عمودي', 'لا تدور الكتفين — الحركة عمودية فقط', 'توقف ثانية في الأعلى للضغط على المصيدة'] },
+      { name: 'Machine Pullover',           videoUrl: 'https://www.youtube.com/results?search_query=Machine+Pullover+proper+form+shorts', tips: ['أمسك المقبض فوق الرأس وابدأ الحركة من الكتف', 'يعزل العضلة العريضة بفعالية عالية', 'اسند الظهر والرأس على المسند طوال الحركة'] },
     ],
   },
   Shoulders: {
@@ -155,6 +159,7 @@ export const MUSCLE_GROUPS = {
       { name: 'Upright Row',           videoUrl: 'https://www.youtube.com/results?search_query=Upright+Row+proper+form+shorts', tips: ['الأيدي أقرب من عرض الكتفين', 'المرفقان للأعلى دائماً', 'احذر: قد يسبب ضغطاً على الكتف إذا أُسيء استخدامه'] },
       { name: 'Cable Lateral Raise',   videoUrl: 'https://www.youtube.com/results?search_query=Cable+Lateral+Raise+proper+form+shorts', tips: ['البكرة من الأسفل لتوتر مستمر', 'الجسم مائل قليلاً للجانب الآخر', 'أفضل من الدمبل للشعور بالضغط المستمر'] },
       { name: 'Machine Shoulder Press',        videoUrl: 'https://www.youtube.com/results?search_query=Machine+Shoulder+Press+proper+form+shorts', tips: ['اضبط ارتفاع المقعد بحيث المقبض عند الكتف', 'اسند الظهر كاملاً على المسند', 'مناسب للمبتدئين وللتضخيم'] },
+      { name: 'Machine Lateral Raise',         videoUrl: 'https://www.youtube.com/results?search_query=Machine+Lateral+Raise+proper+form+shorts', tips: ['اضبط المقعد بحيث المرفقان عند مستوى الكتف', 'الحركة بطيئة ومتحكمة في الاتجاهين', 'يعزل الدالية الجانبية أكثر من الدمبل'] },
       { name: 'Seated Dumbbell Overhead Press', videoUrl: 'https://www.youtube.com/results?search_query=Seated+Dumbbell+Overhead+Press+form+shorts', tips: ['اسند الظهر على المقعد المنتصب', 'ابدأ بالمرفقين على 90 درجة', 'ارفع للأعلى دون تصادم الدمبلات'] },
       { name: 'Machine Reverse Fly',            videoUrl: 'https://www.youtube.com/results?search_query=Machine+Reverse+Fly+proper+form+shorts', tips: ['اضبط المقعد حتى المقبضان أمام الصدر', 'ابسط الذراعين للجانبين مع الضغط خلف الكتف', 'لا تستخدم الزخم — الحركة بطيئة ومتحكمة'] },
       { name: 'Dumbbell Lateral Raise',         videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Lateral+Raise+proper+form+shorts', tips: ['لا ترفع الأكتاف — أبقِها منخفضة', 'المرفقان مثنيان قليلاً لحماية المفصل', 'ارفع حتى مستوى الكتف فقط'] },
@@ -184,6 +189,7 @@ export const MUSCLE_GROUPS = {
       { name: 'Lying Leg Curl',            videoUrl: 'https://www.youtube.com/results?search_query=Lying+Leg+Curl+proper+form+shorts', tips: ['الوركان ملاصقان للمسند طوال الحركة', 'اثنِ حتى 90 درجة أو أكثر', 'الإرجاع البطيء للمدى الكامل'] },
       { name: 'Dumbbell Calf Raise',       videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Calf+Raise+proper+form+shorts', tips: ['ارفع على أصابع القدم بالكامل', 'الكعب ينزل للأسفل لمدى كامل', 'جرب على درجة لزيادة المدى'] },
       { name: 'Machine Hip Adduction',     videoUrl: 'https://www.youtube.com/results?search_query=Hip+Adduction+Machine+proper+form+shorts', tips: ['الحركة من الوركين لا من الركبتين', 'الإرجاع بالتحكم لا تترك الوزن يسقط', 'يستهدف عضلات الفخذ الداخلية'] },
+      { name: 'Machine Glute Kickbacks',   videoUrl: 'https://www.youtube.com/results?search_query=Machine+Glute+Kickback+proper+form+shorts', tips: ['اسند الصدر على المسند وثبّت الوضعية', 'ارفع الساق للخلف مع ضغط الأرداف في الأعلى', 'الحركة من الأردف لا من أسفل الظهر'] },
     ],
   },
   Biceps: {
@@ -200,6 +206,8 @@ export const MUSCLE_GROUPS = {
       { name: 'Barbell Reverse Curl',       videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Reverse+Curl+proper+form+shorts', tips: ['المسكة ظهرية — الإبهام للأسفل', 'يستهدف عضلة العضد والساعد الأمامي', 'المرفقان ثابتان جانب الجذع'] },
       { name: 'Alternating Dumbbell Curl',  videoUrl: 'https://www.youtube.com/results?search_query=Alternating+Dumbbell+Curl+proper+form+shorts', tips: ['تناوب الذراعين لتركيز أكبر على كل جانب', 'دوران المعصم في الأعلى للضغط الأقصى', 'الإرجاع بالتحكم لا تسقط الدمبل'] },
       { name: 'Dumbbell Concentration Curl',videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Concentration+Curl+proper+form+shorts', tips: ['الكوع على الفخذ الداخلي ثابت تماماً', 'تركيز كامل على البايسبس بلا غش', 'اعمل بإبطاء لأقصى استشعار'] },
+      { name: 'Machine Preacher Curl',      videoUrl: 'https://www.youtube.com/results?search_query=Machine+Preacher+Curl+proper+form+shorts', tips: ['الذراع ملاصقة للمسند لمنع الغش تماماً', 'اثنِ حتى الأعلى واضغط البايسبس ثانية', 'لا تفرد المرفق كلياً لحماية الوتر'] },
+      { name: 'Cable Hammer Curls',         videoUrl: 'https://www.youtube.com/results?search_query=Cable+Hammer+Curl+proper+form+shorts', tips: ['الحبل يحافظ على التوتر طوال الحركة', 'الإمساك محايد — الإبهام للأعلى', 'يستهدف عضلة العضد والساعد مع البايسبس'] },
     ],
   },
   Triceps: {
@@ -216,6 +224,7 @@ export const MUSCLE_GROUPS = {
       { name: 'Cable Triceps Pushdown',           videoUrl: 'https://www.youtube.com/results?search_query=Cable+Triceps+Pushdown+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اضغط للأسفل حتى الامتداد الكامل', 'التوتر مستمر بفضل الكابل'] },
       { name: 'Skull Crushers',                   videoUrl: 'https://www.youtube.com/results?search_query=Skull+Crushers+proper+form+shorts', tips: ['المرفقان ثابتان وموجهان للأعلى', 'انزل البار للجبهة أو خلف الرأس', 'الإرجاع بالتحكم لحماية الكوع'] },
       { name: 'Cable Triceps Kickback',            videoUrl: 'https://www.youtube.com/results?search_query=Cable+Triceps+Kickback+proper+form+shorts', tips: ['الكوع ثابت جانب الجذع', 'امتداد كامل للخلف في كل تكرار', 'الجذع موازٍ للأرض لعزل الترايسبس'] },
+      { name: 'Tricep Rope Pushdown',              videoUrl: 'https://www.youtube.com/results?search_query=Tricep+Rope+Pushdown+proper+form+shorts', tips: ['افتح الحبل للجانبين في الأسفل لامتداد أكبر', 'المرفقان ثابتان جانب الجذع طوال الحركة', 'الحبل يعطي نطاقاً أوسع من البار'] },
     ],
   },
   Core: {
@@ -910,6 +919,50 @@ export const XP_RATES = {
 
 // ── Built-in Workout Programs ─────────────────────────────────
 export const BUILT_IN_PLANS = [
+  {
+    planId:       'machine_beginner_3day',
+    planName:     'خطة المبتدأ — ماشينات فقط',
+    description:  'برنامج 3 أيام أسبوعياً للمبتدئين باستخدام الماشينات فقط — آمن وفعال لبناء القاعدة العضلية بدون خوف من الإصابة.',
+    durationWeeks: 6,
+    daysPerWeek:  '3',
+    difficulty:   'مبتدئ',
+    tags:         ['ماشينات', '3 أيام', 'مبتدئ', 'آمن للمفاصل'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Day 1 — صدر، أكتاف، ترايسبس',
+        exercises: [
+          { name: 'Hammer Strength Machine Bench Press', muscle: 'Chest',     sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Machine Incline Press',               muscle: 'Chest',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+          { name: 'Pec Deck Fly',                        muscle: 'Chest',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+          { name: 'Machine Shoulder Press',              muscle: 'Shoulders', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Machine Lateral Raise',               muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+          { name: 'Tricep Rope Pushdown',                muscle: 'Triceps',   sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Day 2 — ظهر، بايسبس',
+        exercises: [
+          { name: 'Lat Pulldown',          muscle: 'Back',   sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Cable Row',             muscle: 'Back',   sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Machine Pullover',      muscle: 'Back',   sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Machine Preacher Curl', muscle: 'Biceps', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Cable Hammer Curls',    muscle: 'Biceps', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Day 3 — أرجل',
+        exercises: [
+          { name: 'Hack Squat',             muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 150 },
+          { name: 'Leg Press',              muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 150 },
+          { name: 'Leg Curl',               muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Leg Extension',          muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Machine Glute Kickbacks',muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Calf Raise',             muscle: 'Legs', sets: 3, repsMin: 15, repsMax: 15, restSeconds: 60  },
+        ],
+      },
+    ],
+  },
   {
     planId:       'ppl_alex_lueth_v2',
     planName:     'Push Pull Legs — Alex Lueth',
