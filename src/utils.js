@@ -57,7 +57,16 @@ export const calcStreak = (sessions) => {
 }
 
 // ── Exercise name resolver (alias → standard name) ────────────
-export const resolveExerciseName = (name, mapping = {}) => mapping[name] || name
+export const resolveExerciseName = (name, mapping = {}) => {
+  if (!name) return ''
+  const exact = mapping[name]
+  if (exact) return exact.toLowerCase()
+  const lower = name.toLowerCase()
+  for (const [k, v] of Object.entries(mapping)) {
+    if (k.toLowerCase() === lower) return v.toLowerCase()
+  }
+  return lower
+}
 
 // ── Exercise history stats ────────────────────────────────────
 export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
@@ -69,7 +78,7 @@ export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) !== resolved) continue
       const ws = (ex.sets || [])
-        .filter(s => s.done && parseFloat(s.weight) > 0)
+        .filter(s => parseFloat(s.weight) > 0)
         .map(s => parseFloat(s.weight))
       if (!ws.length) continue
       const sMax = Math.max(...ws)
@@ -106,7 +115,7 @@ export const getHistoricalMax = (sessions, exerciseName, mapping = {}) => {
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) === resolved) {
         for (const s of ex.sets || []) {
-          if (s.done) max = Math.max(max, parseFloat(s.weight) || 0)
+          if (parseFloat(s.weight) > 0) max = Math.max(max, parseFloat(s.weight))
         }
       }
     }

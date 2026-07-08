@@ -250,6 +250,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           key={ex.id}
           exercise={ex}
           sessions={sessions || []}
+          exerciseMapping={exerciseMapping}
           onUpdateSet={(si, field, val) => handleUpdateSet(ex.id, si, field, val)}
           onDoneSet={(si, done) => handleDoneSet(ex.id, si, done)}
           onAddSet={() => handleAddSet(ex.id)}
@@ -397,6 +398,15 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
             {/* ── Session header ── */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
+                {s.planDayName && (
+                  <span style={{
+                    display: 'inline-block',
+                    background: 'rgba(0,210,255,0.08)', border: '1px solid rgba(0,210,255,0.25)',
+                    borderRadius: 20, padding: '2px 9px',
+                    fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)',
+                    fontWeight: 700, marginBottom: 5, letterSpacing: 0.3,
+                  }}>{s.planDayName.split('—')[0].trim()}</span>
+                )}
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                   {fmtDate(s.date)}
                 </div>
