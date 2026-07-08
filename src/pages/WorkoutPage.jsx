@@ -250,6 +250,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           key={ex.id}
           exercise={ex}
           sessions={sessions || []}
+          exerciseMapping={exerciseMapping}
           onUpdateSet={(si, field, val) => handleUpdateSet(ex.id, si, field, val)}
           onDoneSet={(si, done) => handleDoneSet(ex.id, si, done)}
           onAddSet={() => handleAddSet(ex.id)}

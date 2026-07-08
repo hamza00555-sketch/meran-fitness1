@@ -69,7 +69,7 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, allExercises = [], onMoveSet, dimmed = false, isComplete = false }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(false)
   const [copied,    setCopied]    = useState(false)
@@ -91,8 +91,8 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
   }
 
   const { lastWeight, maxWeight } = useMemo(
-    () => getExerciseStats(sessions, ex.name),
-    [sessions, ex.name],
+    () => getExerciseStats(sessions, ex.name, exerciseMapping),
+    [sessions, ex.name, exerciseMapping],
   )
 
   const handleDone = (si, done) => {
