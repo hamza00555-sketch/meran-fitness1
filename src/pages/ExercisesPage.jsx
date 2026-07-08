@@ -8,11 +8,13 @@ function buildProgress(sessions, mapping = {}) {
   const sorted = [...(sessions || [])].sort((a, b) => a.id - b.id)
   for (const session of sorted) {
     for (const ex of session.exercises || []) {
-      const doneSets = (ex.sets || []).filter(s => s.done && parseFloat(s.weight) > 0)
-      if (!doneSets.length) continue
-      const maxW = Math.max(...doneSets.map(s => parseFloat(s.weight)))
-      const totalReps = doneSets.reduce((t, s) => t + (parseInt(s.reps) || 0), 0)
-      const key = mapping[ex.name] || ex.name
+      const validSets = (ex.sets || []).filter(s => parseFloat(s.weight) > 0)
+      if (!validSets.length) continue
+      const maxW = Math.max(...validSets.map(s => parseFloat(s.weight)))
+      const totalReps = validSets.reduce((t, s) => t + (parseInt(s.reps) || 0), 0)
+      const lowerName = ex.name?.toLowerCase() || ''
+      const mappedKey = Object.entries(mapping).find(([k]) => k.toLowerCase() === lowerName)?.[1]
+      const key = mappedKey || ex.name
       if (!map[key]) map[key] = { name: key, muscle: ex.muscle, aliases: new Set(), entries: [] }
       map[key].aliases.add(ex.name)
       map[key].entries.push({ sessionId: session.id, date: session.date, maxW, sets: doneSets.length, totalReps })
@@ -53,6 +55,19 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
       grouped[eq].sort((a, b) => b.allMax - a.allMax)
     }
     return grouped
+  }, [progress])
+
+  // Build name → last-session weight map for the "all" tab
+  const lastWeightMap = useMemo(() => {
+    const map = {}
+    for (const ex of progress) {
+      if (!ex.entries.length) continue
+      const last = ex.entries[ex.entries.length - 1]
+      // store under the resolved key AND all known aliases
+      map[ex.name.toLowerCase()] = last.maxW
+      for (const alias of ex.aliases || []) map[alias.toLowerCase()] = last.maxW
+    }
+    return map
   }, [progress])
 
   const groups = Object.entries(MUSCLE_GROUPS).map(([key, g]) => ({
@@ -138,31 +153,39 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                     border: `1px solid ${g.color}30`, borderTop: '1px solid var(--border)',
                     overflow: 'hidden',
                   }}>
-                    {g.filtered.map((ex, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setInfoEx({ ...ex, muscle: g.key })}
-                        style={{
-                          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                          background: 'none', border: 'none',
-                          borderBottom: i < g.filtered.length - 1 ? '1px solid var(--border)' : 'none',
-                          padding: '11px 14px', cursor: 'pointer', textAlign: 'right',
-                        }}
-                      >
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{ex.name}</div>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {ex.videoUrl && (
-                              <span style={{ background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.25)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FF4444' }}>▶ YouTube</span>
-                            )}
-                            {ex.tips?.length > 0 && (
-                              <span style={{ background: g.color + '15', border: `1px solid ${g.color}35`, borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-ar)', fontSize: 12, color: g.color }}>⚡ {ex.tips.length} نصائح</span>
-                            )}
+                    {g.filtered.map((ex, i) => {
+                      const lw = lastWeightMap[ex.name.toLowerCase()]
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setInfoEx({ ...ex, muscle: g.key })}
+                          style={{
+                            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                            background: 'none', border: 'none',
+                            borderBottom: i < g.filtered.length - 1 ? '1px solid var(--border)' : 'none',
+                            padding: '11px 14px', cursor: 'pointer', textAlign: 'right',
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{ex.name}</div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                              {ex.videoUrl && (
+                                <span style={{ background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.25)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FF4444' }}>▶ YouTube</span>
+                              )}
+                              {ex.tips?.length > 0 && (
+                                <span style={{ background: g.color + '15', border: `1px solid ${g.color}35`, borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-ar)', fontSize: 12, color: g.color }}>⚡ {ex.tips.length} نصائح</span>
+                              )}
+                              {lw != null && (
+                                <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+                                  آخر <span style={{ color: 'var(--cyan)', fontWeight: 700 }}>{lw}kg</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <span style={{ color: 'var(--text3)', fontSize: 14 }}>ℹ</span>
-                      </button>
-                    ))}
+                          <span style={{ color: 'var(--text3)', fontSize: 14 }}>ℹ</span>
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -360,13 +383,20 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                           {trend !== 0 && (
                             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: trend > 0 ? 'var(--green)' : 'var(--red)' }}>
                               {trend > 0 ? '▲' : '▼'}{Math.abs(trend)}
                             </span>
                           )}
+                          {last.maxW !== ex.allMax && (
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 9, color: 'var(--text3)', marginBottom: 1 }}>آخر</div>
+                              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text2)' }}>{last.maxW}kg</div>
+                            </div>
+                          )}
                           <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 9, color: 'var(--text3)', marginBottom: 1 }}>أعلى</div>
                             <div style={{
                               fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 800,
                               color: isGroupPR ? '#F59E0B' : 'var(--cyan)',
