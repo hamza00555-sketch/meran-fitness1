@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday,
 } from './utils.js'
@@ -220,7 +220,8 @@ export default function App() {
     sessionXPRef.current = 0
     const lastWeightsMap = ls.get('hf_last_weights', {})
     const exercises = (planDay.exercises || []).map(ex => {
-      const fromSnapshot = lastWeightsMap[ex.name.toLowerCase()]
+      const canonical = resolveExerciseName(ex.name, exerciseMapping)
+      const fromSnapshot = lastWeightsMap[canonical] ?? lastWeightsMap[ex.name.toLowerCase()]
       const prevWeight = fromSnapshot != null
         ? fromSnapshot
         : (getExerciseStats(sessions, ex.name, exerciseMapping).lastWeight ?? '')
@@ -264,7 +265,10 @@ export default function App() {
     const snapshot = {}
     for (const ex of finished.exercises || []) {
       const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
-      if (ws.length) snapshot[ex.name.toLowerCase()] = ws[ws.length - 1]
+      if (ws.length) {
+        const canonical = resolveExerciseName(ex.name, exerciseMapping)
+        snapshot[canonical] = ws[ws.length - 1]
+      }
     }
     if (Object.keys(snapshot).length) {
       ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
@@ -293,7 +297,7 @@ export default function App() {
     setActive(null)
     setTab('home')
     pushAlert('🎉', 'جلسة مكتملة! عمل رائع!')
-  }, [active, addXP, checkAchievements, pushAlert, xp])
+  }, [active, exerciseMapping, addXP, checkAchievements, pushAlert, xp])
 
   const updateActive = useCallback((updater) => {
     setActive(prev => prev ? updater(prev) : prev)
