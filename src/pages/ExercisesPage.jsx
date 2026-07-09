@@ -17,7 +17,7 @@ function buildProgress(sessions, mapping = {}) {
       const key = mappedKey || ex.name
       if (!map[key]) map[key] = { name: key, muscle: ex.muscle, aliases: new Set(), entries: [] }
       map[key].aliases.add(ex.name)
-      map[key].entries.push({ sessionId: session.id, date: session.date, maxW, sets: doneSets.length, totalReps })
+      map[key].entries.push({ sessionId: session.id, date: session.date, maxW, sets: validSets.length, totalReps })
     }
   }
   return Object.values(map).map(ex => ({ ...ex, aliases: [...ex.aliases] }))
