@@ -3,7 +3,7 @@ import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats } from '../utils.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, ls } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
 export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, onUpdateSession, onDeleteSession }) {
@@ -100,18 +100,23 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
     })
   }
 
+  const getLastW = (name) => {
+    const snap = ls.get('hf_last_weights', {})
+    const fromSnap = snap[name.toLowerCase()]
+    if (fromSnap != null) return fromSnap
+    return getExerciseStats(sessions, name, exerciseMapping).lastWeight ?? ''
+  }
+
   const handleAddExercise = ({ muscle, name, numSets }) => {
-    const { lastWeight } = getExerciseStats(sessions, name, exerciseMapping)
-    const ex = buildExercise({ muscle, name, numSets, prevWeight: lastWeight ?? '' })
+    const ex = buildExercise({ muscle, name, numSets, prevWeight: getLastW(name) })
     onUpdateActive(prev => ({ ...prev, exercises: [...prev.exercises, ex] }))
     setShowAdd(false)
   }
 
   const handleLoadRoutine = (routine) => {
-    const exercises = routine.exercises.map(ex => {
-      const { lastWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
-      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || 3, prevWeight: lastWeight ?? '' })
-    })
+    const exercises = routine.exercises.map(ex =>
+      buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || 3, prevWeight: getLastW(ex.name) })
+    )
     onUpdateActive(prev => ({ ...prev, exercises }))
     setShowRoutines(false)
   }

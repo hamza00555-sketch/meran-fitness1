@@ -218,9 +218,13 @@ export default function App() {
   // ── Session management ────────────────────────────────────────
   const startPlannedWorkout = useCallback((planDay) => {
     sessionXPRef.current = 0
+    const lastWeightsMap = ls.get('hf_last_weights', {})
     const exercises = (planDay.exercises || []).map(ex => {
-      const { lastWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
-      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight: lastWeight ?? '' })
+      const fromSnapshot = lastWeightsMap[ex.name.toLowerCase()]
+      const prevWeight = fromSnapshot != null
+        ? fromSnapshot
+        : (getExerciseStats(sessions, ex.name, exerciseMapping).lastWeight ?? '')
+      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight })
     })
     const session = {
       id:           Date.now(),
@@ -255,6 +259,16 @@ export default function App() {
     if (!active) return
     const duration = Math.round((Date.now() - active.id) / 60000)
     const finished = { ...active, duration }
+
+    // Snapshot definitive weights at the exact moment of finishing
+    const snapshot = {}
+    for (const ex of finished.exercises || []) {
+      const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
+      if (ws.length) snapshot[ex.name.toLowerCase()] = ws[ws.length - 1]
+    }
+    if (Object.keys(snapshot).length) {
+      ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
+    }
 
     setSessions(prev => {
       const newSessions = [finished, ...prev]
