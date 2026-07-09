@@ -3,14 +3,15 @@ import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, ls } from '../utils.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, ls } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
 
 export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, onUpdateSession, onDeleteSession }) {
-  const [showAdd,      setShowAdd]      = useState(false)
-  const [showRoutines, setShowRoutines] = useState(false)
-  const [elapsed,      setElapsed]      = useState(0)
-  const [prFlash,      setPrFlash]      = useState(null) // exercise name that just hit PR
+  const [showAdd,       setShowAdd]       = useState(false)
+  const [showRoutines,  setShowRoutines]  = useState(false)
+  const [elapsed,       setElapsed]       = useState(0)
+  const [prFlash,       setPrFlash]       = useState(null) // exercise name that just hit PR
+  const [confirmBack,   setConfirmBack]   = useState(false)
   const timerRef      = useRef(null)
   const pausedMsRef   = useRef(0)
   const pauseStartRef = useRef(null)
@@ -35,7 +36,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
   // ── History View ─────────────────────────────────────────────
   if (!active) {
-    return <HistoryView sessions={sessions} onStartWorkout={() => setShowRoutines(true)} showRoutines={showRoutines} setShowRoutines={setShowRoutines} onUpdateSession={onUpdateSession} onDeleteSession={onDeleteSession} />
+    return <HistoryView sessions={sessions} onStartWorkout={() => setShowRoutines(true)} showRoutines={showRoutines} setShowRoutines={setShowRoutines} onUpdateSession={onUpdateSession} onDeleteSession={onDeleteSession} exerciseMapping={exerciseMapping} />
   }
 
   // ── Helpers ──────────────────────────────────────────────────
@@ -102,7 +103,8 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
   const getLastW = (name) => {
     const snap = ls.get('hf_last_weights', {})
-    const fromSnap = snap[name.toLowerCase()]
+    const canonical = resolveExerciseName(name, exerciseMapping)
+    const fromSnap = snap[canonical] ?? snap[name.toLowerCase()]
     if (fromSnap != null) return fromSnap
     return getExerciseStats(sessions, name, exerciseMapping).lastWeight ?? ''
   }
@@ -194,7 +196,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
             }}
           >⏱️ راحة</button>
           <button
-            onClick={onGoBack}
+            onClick={() => setConfirmBack(true)}
             style={{
               background: 'var(--bg2)', border: '1px solid var(--border)',
               borderRadius: 10, padding: '8px 14px',
@@ -295,7 +297,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
       }}>
         <div style={{ pointerEvents: 'all', display: 'flex', gap: 8 }}>
           <button
-            onClick={onGoBack}
+            onClick={() => setConfirmBack(true)}
             style={{
               flex: '0 0 auto',
               background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -312,12 +314,44 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
       {showAdd      && <AddExerciseModal onAdd={handleAddExercise} onClose={() => setShowAdd(false)} />}
       {showRoutines && <RoutinesModal onSelect={handleLoadRoutine} onClose={() => setShowRoutines(false)} />}
+
+      {confirmBack && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }} onClick={() => setConfirmBack(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'var(--bg2)', borderRadius: 20, padding: 24, maxWidth: 320, width: '100%',
+            border: '1px solid var(--border)',
+          }}>
+            <p style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
+              تأكيد الخروج
+            </p>
+            <p style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text2)', textAlign: 'center', marginBottom: 20 }}>
+              سيتم فقدان التمرين الحالي. هل أنت متأكد؟
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmBack(false)} style={{
+                flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)',
+                borderRadius: 12, padding: '12px', color: 'var(--text2)',
+                fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
+              }}>إلغاء</button>
+              <button onClick={() => { setConfirmBack(false); onGoBack() }} style={{
+                flex: 1, background: '#EF4444', border: 'none',
+                borderRadius: 12, padding: '12px', color: 'white',
+                fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}>خروج</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── History sub-view ──────────────────────────────────────────
-function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, onUpdateSession, onDeleteSession }) {
+function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, onUpdateSession, onDeleteSession, exerciseMapping = {} }) {
   const [expanded,   setExpanded]   = useState(null)
   const [editingId,  setEditingId]  = useState(null)
   const [editData,   setEditData]   = useState(null)
@@ -340,6 +374,23 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
     e.stopPropagation()
     const cleaned = editData.filter(ex => ex.sets.some(s => s.done))
     onUpdateSession?.(sessionId, s => ({ ...s, exercises: cleaned }))
+
+    // Update weight snapshot if this is the most recent session
+    const mostRecentId = sessions.length > 0 ? Math.max(...sessions.map(s => s.id)) : null
+    if (sessionId === mostRecentId) {
+      const snapshot = {}
+      for (const ex of cleaned) {
+        const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
+        if (ws.length) {
+          const canonical = resolveExerciseName(ex.name, exerciseMapping)
+          snapshot[canonical] = ws[ws.length - 1]
+        }
+      }
+      if (Object.keys(snapshot).length) {
+        ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
+      }
+    }
+
     setEditingId(null)
     setEditData(null)
   }

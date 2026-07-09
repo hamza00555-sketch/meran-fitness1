@@ -11,7 +11,9 @@ export const ls = {
     }
   },
   set: (key, val) => {
-    try { localStorage.setItem(key, JSON.stringify(val)) } catch {}
+    try { localStorage.setItem(key, JSON.stringify(val)) } catch (e) {
+      if (e && e.name === 'QuotaExceededError') console.warn('hf: storage full, could not save', key)
+    }
   },
 }
 
@@ -59,9 +61,10 @@ export const calcStreak = (sessions) => {
 // ── Exercise name resolver (alias → standard name) ────────────
 export const resolveExerciseName = (name, mapping = {}) => {
   if (!name) return ''
-  const exact = mapping[name]
+  const trimmed = name.trim()
+  const exact = mapping[trimmed]
   if (exact) return exact.toLowerCase()
-  const lower = name.toLowerCase()
+  const lower = trimmed.toLowerCase()
   for (const [k, v] of Object.entries(mapping)) {
     if (k.toLowerCase() === lower) return v.toLowerCase()
   }
@@ -92,7 +95,7 @@ export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
 // ── Session volume ────────────────────────────────────────────
 export const sessionVolume = (session) => {
   if (!session || !session.exercises) return 0
-  return session.exercises.flatMap(ex => ex.sets).reduce((total, s) => {
+  return session.exercises.flatMap(ex => ex.sets || []).reduce((total, s) => {
     if (!s.done) return total
     const w = parseFloat(s.weight) || 0
     const r = parseInt(s.reps) || 0
