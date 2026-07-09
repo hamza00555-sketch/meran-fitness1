@@ -81,6 +81,8 @@ export default function App() {
 
   const prevLevelRef  = useRef(levelFromXP(xp))
   const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
+  const activeRef     = useRef(active)
+  useEffect(() => { activeRef.current = active }, [active])
 
   // ── Persist to localStorage ───────────────────────────────────
   useEffect(() => { ls.set('hf_sessions', sessions) },             [sessions])
@@ -198,6 +200,20 @@ export default function App() {
       return newUnlocked
     })
   }, [addXP, pushAlert])
+
+  // ── Auto-backup every 10 min during active workout ───────────
+  useEffect(() => {
+    if (!active) return
+    const id = setInterval(() => {
+      const cur = activeRef.current
+      if (!cur) return
+      const backups = ls.get('hf_weight_backups', [])
+      backups.unshift({ savedAt: Date.now(), sessionId: cur.id, exercises: cur.exercises })
+      ls.set('hf_weight_backups', backups.slice(0, 5))
+      pushAlert('💾', 'حُفظت أوزانك تلقائياً')
+    }, 10 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [active?.id, pushAlert])
 
   // ── Session management ────────────────────────────────────────
   const startPlannedWorkout = useCallback((planDay) => {
