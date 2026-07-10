@@ -25,6 +25,19 @@ const CALORIE_ADJUST = {
   endurance: 150, recomp: 0, maintain: 0,
 }
 
+// Most commonly tracked body measurements (all in cm)
+const BODY_MEASUREMENTS = [
+  { id: 'neck',     label: 'الرقبة',   emoji: '🧣', color: 'var(--cyan)'   },
+  { id: 'shoulders',label: 'الأكتاف',  emoji: '🦾', color: 'var(--blue)'   },
+  { id: 'chest',    label: 'الصدر',    emoji: '🫁', color: 'var(--purple)' },
+  { id: 'biceps',   label: 'البايسبس', emoji: '💪', color: 'var(--gold)'   },
+  { id: 'forearm',  label: 'الساعد',   emoji: '🤜', color: 'var(--orange)' },
+  { id: 'waist',    label: 'الخصر',    emoji: '📏', color: 'var(--green)'  },
+  { id: 'hips',     label: 'الأرداف',  emoji: '🍑', color: 'var(--red)'    },
+  { id: 'thigh',    label: 'الفخذ',    emoji: '🦵', color: 'var(--cyan)'   },
+  { id: 'calf',     label: 'السمانة',  emoji: '🦶', color: 'var(--blue)'   },
+]
+
 const TRAINING_SYSTEMS = [
   { id: 'ppl',        label: 'PPL',               desc: 'Push / Pull / Legs' },
   { id: 'upper-lower',label: 'Upper-Lower',        desc: 'أعلى / أسفل الجسم' },
@@ -64,8 +77,18 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
 
   const saveEdit = () => {
     if (!editField) return
-    const update = { ...profile, [editField]: editValue }
-    if (editField === 'weight') update.lastWeightUpdate = new Date().toISOString()
+    let update
+    if (editField.startsWith('m_')) {
+      const id = editField.slice(2)
+      update = {
+        ...profile,
+        measurements: { ...(profile?.measurements || {}), [id]: editValue },
+        lastMeasurementsUpdate: new Date().toISOString(),
+      }
+    } else {
+      update = { ...profile, [editField]: editValue }
+      if (editField === 'weight') update.lastWeightUpdate = new Date().toISOString()
+    }
     onUpdateProfile(update)
     setEditField(null)
   }
@@ -307,6 +330,83 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         </div>
       </div>
       {/* ════════════════════════════════════════════════════════ */}
+
+      {/* ── Body Measurements ─────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg1)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', marginBottom: 14,
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '18px 20px 14px',
+          borderBottom: '1px solid var(--border)',
+        }}>
+          <div style={{
+            width: 4, height: 24, background: 'var(--purple)',
+            borderRadius: 3, flexShrink: 0,
+          }} />
+          <div style={{ flex: 1 }}>
+            <span style={{
+              fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800,
+              color: 'var(--text)',
+            }}>قياسات الجسم</span>
+            {profile?.lastMeasurementsUpdate && (
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                آخر تحديث: {new Date(profile.lastMeasurementsUpdate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })}
+              </div>
+            )}
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)' }}>cm</span>
+        </div>
+
+        <div style={{ padding: '16px 20px 20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+            {BODY_MEASUREMENTS.map(m => {
+              const val = profile?.measurements?.[m.id]
+              const hasValue = val !== null && val !== undefined && val !== ''
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => startEdit(`m_${m.id}`, val)}
+                  style={{
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderTop: `3px solid ${m.color}`,
+                    borderRadius: 12,
+                    padding: '12px 10px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s',
+                  }}
+                  onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)' }}
+                  onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                >
+                  <div style={{ fontSize: 20, marginBottom: 6 }}>{m.emoji}</div>
+                  {hasValue ? (
+                    <div style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800,
+                      color: m.color, lineHeight: 1, marginBottom: 4,
+                    }}>
+                      {val}
+                      <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text3)', marginRight: 2 }}>سم</span>
+                    </div>
+                  ) : (
+                    <div style={{
+                      fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
+                      marginBottom: 4,
+                    }}>—</div>
+                  )}
+                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+                    {m.label}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* ── Training Schedule ─────────────────────────────────── */}
       <Card style={{ padding: 6, marginBottom: 4 }}>
@@ -624,8 +724,11 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
     trainingSystem: 'select-system',
   }
 
-  const label    = FIELD_LABELS[field] || field
-  const type     = FIELD_TYPES[field]  || 'text'
+  const measurement = field.startsWith('m_')
+    ? BODY_MEASUREMENTS.find(m => m.id === field.slice(2))
+    : null
+  const label    = measurement ? `${measurement.label} (سم)` : (FIELD_LABELS[field] || field)
+  const type     = measurement ? 'number' : (FIELD_TYPES[field] || 'text')
 
   return (
     <div
