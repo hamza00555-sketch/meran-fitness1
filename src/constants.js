@@ -1046,6 +1046,66 @@ export const BUILT_IN_PLANS = [
       },
     ],
   },
+  {
+    planId:       'home_workout_explosive',
+    planName:     'التمارين المنزلية + انفجارية',
+    description:  'خطة 4 أيام أسبوعياً تجمع بين تدريب القوة وبناء العضلات والقوة الانفجارية. تعتمد على الدمبل والباربل والعقلة ووزن الجسم فقط — مثالية للتدريب في المنزل دون الحاجة لأجهزة الجيم.',
+    durationWeeks: 8,
+    daysPerWeek:  '4',
+    difficulty:   'متوسط',
+    tags:         ['منزلي', 'بناء عضلات', 'قوة انفجارية', 'دمبل', 'باربل', 'عقلة', '4 أيام'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Upper A — صدر، ظهر، كتف، ذراعين',
+        exercises: [
+          { name: 'Pull-Up',                    muscle: 'Back',      sets: 4, repsMin: 5,  repsMax: 10, restSeconds: 120 },
+          { name: 'Bench Press',                muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 12, restSeconds: 120 },
+          { name: 'Unilateral Dumbbell Row',    muscle: 'Back',      sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Incline Dumbbell Press',     muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Lateral Raise',     muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Dumbbell Curl',              muscle: 'Biceps',    sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+          { name: 'Overhead Triceps Extension', muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Lower A — أرجل، مؤخرة، سمانة، بطن',
+        exercises: [
+          { name: 'Barbell Squat',              muscle: 'Legs', sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+          { name: 'Bulgarian Split Squat',      muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Dumbbell Romanian Deadlift', muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Lying Leg Curl',             muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+          { name: 'Dumbbell Calf Raise',        muscle: 'Legs', sets: 4, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Plank',                      muscle: 'Core', sets: 3, repsMin: 30, repsMax: 60, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Upper B — ظهر، كتف، صدر، ذراعين',
+        exercises: [
+          { name: 'Barbell Bent Over Row',    muscle: 'Back',      sets: 4, repsMin: 6,  repsMax: 12, restSeconds: 120 },
+          { name: 'Dumbbell Shoulder Press',  muscle: 'Shoulders', sets: 3, repsMin: 6,  repsMax: 12, restSeconds: 90  },
+          { name: 'Incline Dumbbell Press',   muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Pull-Up',                  muscle: 'Back',      sets: 3, repsMin: 5,  repsMax: 10, restSeconds: 120 },
+          { name: 'Dumbbell Reverse Fly',     muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Hammer Curl',              muscle: 'Biceps',    sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+          { name: 'Skull Crushers',           muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Explosive Full Body — انفجاري، مؤخرة، بطن',
+        exercises: [
+          { name: 'Squat Jump',          muscle: 'Legs',      sets: 4, repsMin: 3,  repsMax: 5,  restSeconds: 120 },
+          { name: 'Broad Jump',          muscle: 'Legs',      sets: 4, repsMin: 3,  repsMax: 3,  restSeconds: 120 },
+          { name: 'Explosive Push-Up',   muscle: 'Chest',     sets: 4, repsMin: 3,  repsMax: 6,  restSeconds: 120 },
+          { name: 'Dumbbell Jump Squat', muscle: 'Legs',      sets: 3, repsMin: 4,  repsMax: 6,  restSeconds: 90  },
+          { name: 'Dumbbell Push Press', muscle: 'Shoulders', sets: 3, repsMin: 5,  repsMax: 8,  restSeconds: 90  },
+          { name: 'Barbell Hip Thrust',  muscle: 'Legs',      sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Dumbbell Calf Raise', muscle: 'Legs',      sets: 3, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Hanging Leg Raise',   muscle: 'Core',      sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+        ],
+      },
+    ],
+  },
 ]
 
 // ── Default Exercise Mapping (aliases → standard names) ───────
@@ -1124,4 +1184,12 @@ export const DEFAULT_EXERCISE_MAPPING = {
   'Barbell Hip Thrust':               'Hip Thrust',
   'Bulgarian Split Squat (Quad Bias)':'Bulgarian Split Squat',
   'Smith Machine Squat':              'Barbell Squat',
+  // ── Explosive / Plyometric ────────────────────────────────────
+  'Jump Squat':                       'Squat Jump',
+  'Box Jump':                         'Squat Jump',
+  'Plyometric Push-Up':               'Explosive Push-Up',
+  'Clapping Push-Up':                 'Explosive Push-Up',
+  'Jump Squat (Dumbbell)':            'Dumbbell Jump Squat',
+  'Push Press':                       'Dumbbell Push Press',
+  'Dumbbell Push-Press':              'Dumbbell Push Press',
 }
