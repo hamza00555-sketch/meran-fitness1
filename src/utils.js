@@ -1,19 +1,83 @@
 import { RANKS, COMMITMENT_LEVELS } from './constants.js'
 
+// ── Multi-user storage namespacing ────────────────────────────
+// Every hf_* key is namespaced by the active user so each person
+// on the same device has fully isolated data (sessions, weights,
+// XP, plans...). The first user ('default') keeps the legacy
+// un-prefixed keys, so existing data is untouched.
+const GLOBAL_KEYS = new Set([
+  'hf_users', 'hf_current_user',           // user registry itself
+  'hf_notif_enabled', 'hf_notif_scheduled', // device-level settings
+])
+
+export const getCurrentUserId = () => {
+  try { return localStorage.getItem('hf_current_user') || 'default' } catch { return 'default' }
+}
+
+const nsKey = (key) => {
+  if (GLOBAL_KEYS.has(key)) return key
+  const id = getCurrentUserId()
+  return id === 'default' ? key : `u:${id}:${key}`
+}
+
+export const getUsers = () => {
+  try {
+    const v = localStorage.getItem('hf_users')
+    const arr = v ? JSON.parse(v) : null
+    if (Array.isArray(arr) && arr.length) return arr
+  } catch {}
+  return [{ id: 'default', name: 'المستخدم الرئيسي' }]
+}
+
+export const saveUsers = (users) => {
+  try { localStorage.setItem('hf_users', JSON.stringify(users)) } catch {}
+}
+
+export const switchUser = (id) => {
+  try { localStorage.setItem('hf_current_user', id) } catch {}
+}
+
+// All keys that belong to a single user's data
+export const PER_USER_KEYS = [
+  'hf_sessions', 'hf_xp', 'hf_active', 'hf_profile', 'hf_unlocked',
+  'hf_challenges', 'hf_plan', 'hf_plan_index', 'hf_photos',
+  'hf_exercise_mapping', 'hf_last_weights', 'hf_weight_backups',
+  'hf_seen_version',
+]
+
+export const deleteUserData = (id) => {
+  try {
+    if (id === 'default') {
+      PER_USER_KEYS.forEach(k => localStorage.removeItem(k))
+    } else {
+      const prefix = `u:${id}:`
+      const doomed = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && k.startsWith(prefix)) doomed.push(k)
+      }
+      doomed.forEach(k => localStorage.removeItem(k))
+    }
+  } catch {}
+}
+
 // ── localStorage helpers ──────────────────────────────────────
 export const ls = {
   get: (key, def) => {
     try {
-      const v = localStorage.getItem(key)
+      const v = localStorage.getItem(nsKey(key))
       return v !== null ? JSON.parse(v) : def
     } catch {
       return def
     }
   },
   set: (key, val) => {
-    try { localStorage.setItem(key, JSON.stringify(val)) } catch (e) {
+    try { localStorage.setItem(nsKey(key), JSON.stringify(val)) } catch (e) {
       if (e && e.name === 'QuotaExceededError') console.warn('hf: storage full, could not save', key)
     }
+  },
+  remove: (key) => {
+    try { localStorage.removeItem(nsKey(key)) } catch {}
   },
 }
 
