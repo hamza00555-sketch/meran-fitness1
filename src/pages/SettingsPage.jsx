@@ -10,7 +10,7 @@ const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الل
 export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [nameInput, setNameInput] = useState(profile?.name || 'حمزة')
+  const [nameInput, setNameInput] = useState(profile?.name || '')
   const [notifEnabled, setNotifEnabled] = useState(() => {
     try { return localStorage.getItem('hf_notif_enabled') === 'true' } catch { return false }
   })

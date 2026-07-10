@@ -157,7 +157,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           </div>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900 }}>
-              {profile?.name || 'حمزة'}
+              {profile?.name || 'البطل'}
             </div>
             <div style={{ marginTop: 5 }}>
               <RankBadge rank={rank} />
