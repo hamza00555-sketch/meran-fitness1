@@ -28,7 +28,7 @@ export default function AIPanel({ onImport, onClose }) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
-          system: `أنت مدرب لياقة بدنية محترف. المستخدم اسمه حمزة. تحدث بالعربية.
+          system: `أنت مدرب لياقة بدنية محترف. تحدث بالعربية.
 
 عندما يطلب المستخدم روتيناً أو برنامجاً أو قائمة تمارين، أعطِ ردك كـ JSON فقط بدون أي نص إضافي قبله أو بعده:
 {
