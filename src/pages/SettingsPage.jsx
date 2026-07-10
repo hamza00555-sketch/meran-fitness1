@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
 import { WEEK_DAYS_SHORT, GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
-import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData } from '../utils.js'
+import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
@@ -18,6 +18,11 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     if (!('Notification' in window)) return 'unsupported'
     return Notification.permission
   })
+  const [users, setUsers]               = useState(getUsers)
+  const [addingUser, setAddingUser]     = useState(false)
+  const [newUserName, setNewUserName]   = useState('')
+  const [confirmDelUser, setConfirmDelUser] = useState(null)
+  const currentUserId = getCurrentUserId()
   const [importing, setImporting] = useState(false)
   const [importingPlan, setImportingPlan] = useState(false)
   const [importingMapping, setImportingMapping] = useState(false)
@@ -228,8 +233,33 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
   }
 
   const handleReset = () => {
-    ['hf_sessions','hf_xp','hf_active','hf_profile','hf_unlocked','hf_challenges','hf_photos'].forEach(k => localStorage.removeItem(k))
+    // ls.remove is user-namespaced — clears only the active user's data
+    PER_USER_KEYS.forEach(k => ls.remove(k))
     window.location.reload()
+  }
+
+  const handleSwitchUser = (id) => {
+    if (id === currentUserId) return
+    switchUser(id)
+    window.location.reload()
+  }
+
+  const handleAddUser = () => {
+    const name = newUserName.trim()
+    if (!name) return
+    const u = { id: uid(), name }
+    saveUsers([...users, u])
+    switchUser(u.id)
+    window.location.reload()
+  }
+
+  const handleDeleteUser = (id) => {
+    if (id === currentUserId) return
+    deleteUserData(id)
+    const next = users.filter(u => u.id !== id)
+    saveUsers(next)
+    setUsers(next)
+    setConfirmDelUser(null)
   }
 
   const workoutHourDisplay = (() => {
@@ -252,6 +282,100 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       </div>
 
       <div>
+
+        {/* ── Users ──────────────────────────────────────────── */}
+        <div style={{ marginBottom: 10 }}>
+          <SectionTitle>المستخدمون</SectionTitle>
+          <Card style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.7, padding: '0 4px' }}>
+              كل مستخدم له بياناته الخاصة المعزولة تماماً — جلسات، أوزان، XP، وخطط. بدّل بالضغط على الاسم.
+            </div>
+            {users.map(u => {
+              const isActive = u.id === currentUserId
+              const isConfirming = confirmDelUser === u.id
+              return (
+                <div key={u.id} style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                  <button
+                    onClick={() => handleSwitchUser(u.id)}
+                    style={{
+                      flex: 1, display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '12px 14px', borderRadius: 10, textAlign: 'right',
+                      background: isActive ? 'var(--cyan-lo)' : 'var(--bg3)',
+                      border: `2px solid ${isActive ? 'var(--cyan)' : 'var(--border)'}`,
+                      color: isActive ? 'var(--cyan)' : 'var(--text2)',
+                      fontFamily: 'var(--font-ar)', fontSize: 15,
+                      fontWeight: isActive ? 800 : 500, cursor: isActive ? 'default' : 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>{isActive ? '👤' : '👥'}</span>
+                    <span style={{ flex: 1 }}>{u.name}</span>
+                    {isActive && <span style={{ fontSize: 11, fontWeight: 700 }}>نشط ✓</span>}
+                  </button>
+                  {!isActive && (
+                    <button
+                      onClick={() => isConfirming ? handleDeleteUser(u.id) : setConfirmDelUser(u.id)}
+                      onBlur={() => setConfirmDelUser(null)}
+                      style={{
+                        flexShrink: 0, padding: '0 12px', borderRadius: 10,
+                        background: isConfirming ? 'var(--red)' : 'var(--red-lo)',
+                        border: `1px solid ${isConfirming ? 'var(--red)' : 'var(--red-md)'}`,
+                        color: isConfirming ? 'white' : 'var(--red)',
+                        fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        transition: 'all 0.15s',
+                      }}
+                    >{isConfirming ? 'تأكيد؟' : '🗑'}</button>
+                  )}
+                </div>
+              )
+            })}
+
+            {addingUser ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  autoFocus
+                  value={newUserName}
+                  onChange={e => setNewUserName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddUser() }}
+                  placeholder="اسم المستخدم الجديد..."
+                  style={{
+                    flex: 1, background: 'var(--bg3)',
+                    border: '1px solid var(--border2)', borderRadius: 10,
+                    padding: '12px 14px', color: 'var(--text)',
+                    fontFamily: 'var(--font-ar)', fontSize: 15, outline: 'none',
+                    direction: 'rtl', textAlign: 'right',
+                  }}
+                />
+                <button
+                  onClick={handleAddUser}
+                  style={{
+                    flexShrink: 0, padding: '0 16px', borderRadius: 10,
+                    background: 'var(--grad-primary)', border: 'none', color: 'white',
+                    fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  }}
+                >إضافة</button>
+                <button
+                  onClick={() => { setAddingUser(false); setNewUserName('') }}
+                  style={{
+                    flexShrink: 0, padding: '0 12px', borderRadius: 10,
+                    background: 'var(--bg3)', border: '1px solid var(--border)',
+                    color: 'var(--text3)', fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
+                  }}
+                >✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAddingUser(true)}
+                style={{
+                  padding: '12px 14px', borderRadius: 10,
+                  background: 'var(--bg3)', border: '1px dashed var(--border2)',
+                  color: 'var(--cyan)', fontFamily: 'var(--font-ar)',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'center',
+                }}
+              >+ إضافة مستخدم جديد</button>
+            )}
+          </Card>
+        </div>
 
         {/* ── Player Name ─────────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
