@@ -42,7 +42,7 @@ export const PER_USER_KEYS = [
   'hf_sessions', 'hf_xp', 'hf_active', 'hf_profile', 'hf_unlocked',
   'hf_challenges', 'hf_plan', 'hf_plan_index', 'hf_photos',
   'hf_exercise_mapping', 'hf_last_weights', 'hf_weight_backups',
-  'hf_seen_version',
+  'hf_seen_version', 'hf_weights_reset_v2', 'hf_weights_reset_at',
 ]
 
 export const deleteUserData = (id) => {
@@ -135,13 +135,19 @@ export const resolveExerciseName = (name, mapping = {}) => {
   return lower
 }
 
+// Sessions before this stamp are ignored for weight suggestions
+// and PR stats (set by "تصفير الأوزان" — history itself is kept).
+export const getWeightsResetAt = () => ls.get('hf_weights_reset_at', 0)
+
 // ── Exercise history stats ────────────────────────────────────
 export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
   const resolved = resolveExerciseName(exerciseName, mapping)
+  const resetAt  = getWeightsResetAt()
   let lastWeight = null
   let maxWeight  = null
   let lastId     = 0
   for (const session of sessions || []) {
+    if ((session.id || 0) < resetAt) continue
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) !== resolved) continue
       const ws = (ex.sets || [])
@@ -177,8 +183,10 @@ export const blankSet = (prevWeight = '') => ({
 // ── Historical max weight for an exercise across completed sessions ──
 export const getHistoricalMax = (sessions, exerciseName, mapping = {}) => {
   const resolved = resolveExerciseName(exerciseName, mapping)
+  const resetAt  = getWeightsResetAt()
   let max = 0
   for (const session of sessions || []) {
+    if ((session.id || 0) < resetAt) continue
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) === resolved) {
         for (const s of ex.sets || []) {

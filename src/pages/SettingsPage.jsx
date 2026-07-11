@@ -9,6 +9,7 @@ const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الل
 
 export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping }) {
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmWeights, setConfirmWeights] = useState(false)
   const [saved, setSaved] = useState(false)
   const [nameInput, setNameInput] = useState(profile?.name || '')
   const [notifEnabled, setNotifEnabled] = useState(() => {
@@ -230,6 +231,13 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       setPromptCopied(true)
       setTimeout(() => setPromptCopied(false), 2000)
     })
+  }
+
+  const handleResetWeights = () => {
+    ls.remove('hf_last_weights')
+    ls.remove('hf_weight_backups')
+    ls.set('hf_weights_reset_at', Date.now())
+    window.location.reload()
   }
 
   const handleReset = () => {
@@ -917,6 +925,28 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 <div style={{ fontWeight: 700 }}>{importing ? 'جاري الاستيراد...' : 'استيراد البيانات'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
                   استعادة بياناتك من ملف نسخة احتياطية
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => confirmWeights ? handleResetWeights() : setConfirmWeights(true)}
+              onBlur={() => setConfirmWeights(false)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                background: confirmWeights ? 'var(--orange-lo)' : 'var(--bg3)',
+                border: `1px solid ${confirmWeights ? 'var(--orange)' : 'var(--border2)'}`,
+                borderRadius: 12, padding: '14px 16px',
+                color: confirmWeights ? 'var(--orange)' : 'var(--text)', cursor: 'pointer',
+                fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600,
+                textAlign: 'right',
+              }}
+            >
+              <span style={{ fontSize: 20 }}>🔄</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>{confirmWeights ? 'اضغط مرة أخرى للتأكيد' : 'تصفير الأوزان المحفوظة'}</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                  مسح الأوزان المقترحة — سجل الجلسات والإنجازات لا يتأثر
                 </div>
               </div>
             </button>

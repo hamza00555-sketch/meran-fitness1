@@ -1112,8 +1112,11 @@ export const BUILT_IN_PLANS = [
 // Used to unify exercise variants for shared PR tracking.
 // Keys are alias names, values are the Standard Name to group under.
 // User can extend this via Settings → Import Mapping.
+// RULE: merge ONLY name variants of the same movement on the SAME
+// equipment. Machine / cable / dumbbell / barbell versions of a
+// movement use very different loads and must NEVER share weights.
 export const DEFAULT_EXERCISE_MAPPING = {
-  // ── Triceps ──────────────────────────────────────────────────
+  // ── Triceps (pushdown = cable station by definition) ─────────
   'Cable Triceps Pushdown':           'Triceps Pushdown',
   'Rope Pushdown':                    'Triceps Pushdown',
   'Cable Pushdown':                   'Triceps Pushdown',
@@ -1125,20 +1128,14 @@ export const DEFAULT_EXERCISE_MAPPING = {
   'Cable Overhead Triceps Extension': 'Overhead Triceps Extension',
   'Skull Crushers':                   'Skull Crusher',
   'Lying Barbell Triceps Extensions': 'Skull Crusher',
-  'Cable Triceps Kickback':           'Triceps Kickback',
-  'Cable Kickback':                   'Triceps Kickback',
+  'Cable Kickback':                   'Cable Triceps Kickback',
   // ── Chest ────────────────────────────────────────────────────
   'Barbell Bench Press':              'Bench Press',
-  'Hammer Strength Machine Bench Press': 'Bench Press',
-  'Pec Deck':                         'Chest Fly',
-  'Pec Deck Fly':                     'Chest Fly',
-  'Cable Fly':                        'Chest Fly',
-  'Dumbbell Fly':                     'Chest Fly',
-  'Machine Fly':                      'Chest Fly',
-  'Machine Chest Fly (Pec Deck)':     'Chest Fly',
-  'Cable Chest Fly (High-to-Low)':    'Chest Fly',
-  'Dumbbell Incline Bench Press':     'Incline Bench Press',
-  'Machine Incline Press':            'Incline Bench Press',
+  'Pec Deck Fly':                     'Pec Deck',
+  'Machine Fly':                      'Pec Deck',
+  'Machine Chest Fly (Pec Deck)':     'Pec Deck',
+  'Cable Chest Fly (High-to-Low)':    'Cable Fly',
+  'Dumbbell Incline Bench Press':     'Incline Dumbbell Press',
   // ── Back ─────────────────────────────────────────────────────
   'Supinated Lat Pulldown':           'Lat Pulldown',
   'Wide Grip Pulldown':               'Lat Pulldown',
@@ -1149,47 +1146,31 @@ export const DEFAULT_EXERCISE_MAPPING = {
   'Barbell Bent Over Row':            'Barbell Row',
   'Straight Arm Cable Pulldown':      'Straight Arm Pulldown',
   'Unilateral Dumbbell Row':          'Dumbbell Row',
-  'Dumbbell Shrug':                   'Shrug',
-  // ── Shoulders ────────────────────────────────────────────────
+  // ── Shoulders (lateral/reverse fly convention = dumbbell) ────
   'Dumbbell Lateral Raise':           'Lateral Raise',
-  'Cable Lateral Raise':              'Lateral Raise',
-  'Machine Lateral Raise':            'Lateral Raise',
   'Side Raise':                       'Lateral Raise',
   'Dumbbell Reverse Fly':             'Reverse Fly',
-  'Machine Reverse Fly':              'Reverse Fly',
   'Rear Delt Fly':                    'Reverse Fly',
-  'Seated Dumbbell Overhead Press':   'Overhead Press',
-  'Dumbbell OHP':                     'Overhead Press',
-  'Machine Shoulder Press':           'Overhead Press',
+  'Seated Dumbbell Overhead Press':   'Dumbbell Shoulder Press',
+  'Dumbbell OHP':                     'Dumbbell Shoulder Press',
   // ── Biceps ───────────────────────────────────────────────────
   'Alternating Dumbbell Curl':        'Dumbbell Curl',
   'Dumbbell Concentration Curl':      'Concentration Curl',
   'Barbell Reverse Curl':             'Reverse Curl',
-  'Cable Hammer Curls':               'Hammer Curl',
-  'Machine Preacher Curl':            'Preacher Curl',
   // ── Legs ─────────────────────────────────────────────────────
   'Barbell Back Squat':               'Barbell Squat',
-  'Dumbbell Romanian Deadlift (RDL)': 'Romanian Deadlift',
-  'Dumbbell Romanian Deadlift':       'Romanian Deadlift',
-  'Dumbbell Lunge':                   'Lunge',
+  'Dumbbell Romanian Deadlift (RDL)': 'Dumbbell Romanian Deadlift',
   'Machine Hip Abduction':            'Hip Abduction',
   'Machine Hip Adduction':            'Hip Adduction',
-  'Seated Leg Curl':                  'Leg Curl',
-  'Lying Leg Curl':                   'Leg Curl',
   'Calf Raise':                       'Standing Calf Raise',
-  'Smith Machine Calf Raise':         'Standing Calf Raise',
-  'Feet Elevated Smith Machine Calf Raise': 'Standing Calf Raise',
-  'Dumbbell Calf Raise':              'Standing Calf Raise',
-  'Feet Elevated Dumbbell Calf Raise':'Standing Calf Raise',
+  'Feet Elevated Smith Machine Calf Raise': 'Smith Machine Calf Raise',
+  'Feet Elevated Dumbbell Calf Raise':'Dumbbell Calf Raise',
   'Barbell Hip Thrust':               'Hip Thrust',
   'Bulgarian Split Squat (Quad Bias)':'Bulgarian Split Squat',
-  'Smith Machine Squat':              'Barbell Squat',
   // ── Explosive / Plyometric ────────────────────────────────────
   'Jump Squat':                       'Squat Jump',
-  'Box Jump':                         'Squat Jump',
   'Plyometric Push-Up':               'Explosive Push-Up',
   'Clapping Push-Up':                 'Explosive Push-Up',
   'Jump Squat (Dumbbell)':            'Dumbbell Jump Squat',
-  'Push Press':                       'Dumbbell Push Press',
   'Dumbbell Push-Press':              'Dumbbell Push Press',
 }

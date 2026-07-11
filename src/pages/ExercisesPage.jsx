@@ -1,11 +1,14 @@
 import { useState, useMemo } from 'react'
 import { MUSCLE_GROUPS } from '../constants.js'
-import { detectEquipment, EQUIPMENT_LABELS } from '../utils.js'
+import { detectEquipment, EQUIPMENT_LABELS, getWeightsResetAt } from '../utils.js'
 import ExerciseInfoModal from '../components/ExerciseInfoModal.jsx'
 
 function buildProgress(sessions, mapping = {}) {
   const map = {}
-  const sorted = [...(sessions || [])].sort((a, b) => a.id - b.id)
+  const resetAt = getWeightsResetAt()
+  const sorted = [...(sessions || [])]
+    .filter(s => (s.id || 0) >= resetAt)
+    .sort((a, b) => a.id - b.id)
   for (const session of sorted) {
     for (const ex of session.exercises || []) {
       const validSets = (ex.sets || []).filter(s => parseFloat(s.weight) > 0)
