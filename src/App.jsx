@@ -42,6 +42,23 @@ import WhatsNewModal    from './components/WhatsNewModal.jsx'
 // Stable greeting index per session
 const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
 
+// One-time weights reset (v2): the old exercise mapping wrongly
+// merged machine/cable/dumbbell/barbell variants, polluting saved
+// weight suggestions. Clear the snapshot, backups, and the stored
+// stale mapping so suggestions rebuild from the precise mapping.
+// Runs once per user (flag is per-user namespaced).
+if (!ls.get('hf_weights_reset_v2', false)) {
+  ls.remove('hf_last_weights')
+  ls.remove('hf_weight_backups')
+  ls.remove('hf_exercise_mapping')
+  // Only users with existing sessions get the history cutoff —
+  // fresh users have nothing to reset
+  if ((ls.get('hf_sessions', []) || []).length) {
+    ls.set('hf_weights_reset_at', Date.now())
+  }
+  ls.set('hf_weights_reset_v2', true)
+}
+
 // Default profile
 const DEFAULT_PROFILE = {
   name: 'البطل',
