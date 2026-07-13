@@ -168,8 +168,8 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onCl
                     {/* Muscle label tag */}
                     <span style={{
                       background: color + '1A', border: `1px solid ${color}40`,
-                      borderRadius: 20, padding: '1px 7px',
-                      fontFamily: 'var(--font-ar)', fontSize: 10, color, fontWeight: 700,
+                      borderRadius: 20, padding: '2px 10px',
+                      fontFamily: 'var(--font-ar)', fontSize: 13, color, fontWeight: 700,
                     }}>{muscle?.label || ex.muscle}</span>
 
                     {/* Sets */}
@@ -644,7 +644,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             return (
               <div key={muscle} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                  <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 600 }}>
+                  <span style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
                     {g.emoji} {g.label}
                   </span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text3)' }}>

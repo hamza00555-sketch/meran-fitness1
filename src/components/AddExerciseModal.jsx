@@ -50,7 +50,7 @@ export default function AddExerciseModal({ onAdd, onClose }) {
                       border: `1px solid ${isActive ? g.color : 'var(--border)'}`,
                       borderRadius: 20, padding: '6px 14px',
                       color: isActive ? g.color : 'var(--text3)',
-                      fontSize: 12, fontFamily: 'var(--font-ar)',
+                      fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-ar)',
                       cursor: 'pointer', whiteSpace: 'nowrap',
                       transition: 'all 0.15s', flexShrink: 0,
                     }}
