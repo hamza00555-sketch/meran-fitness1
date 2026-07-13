@@ -166,7 +166,7 @@ export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
 export const sessionVolume = (session) => {
   if (!session || !session.exercises) return 0
   return session.exercises.flatMap(ex => ex.sets || []).reduce((total, s) => {
-    if (!s.done) return total
+    if (!s.done && !(parseFloat(s.weight) > 0)) return total
     const w = parseFloat(s.weight) || 0
     const r = parseInt(s.reps) || 0
     return total + w * r

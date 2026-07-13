@@ -218,6 +218,18 @@ export default function App() {
     })
   }, [addXP, pushAlert])
 
+  // ── Achievements safety net ──────────────────────────────────
+  // Re-check whenever sessions change (app load, history edits,
+  // imports) — not only at finishSession. Idempotent: already
+  // unlocked achievements are skipped, so no duplicate awards.
+  useEffect(() => {
+    if (!sessions.length) return
+    const t = setTimeout(() => {
+      checkAchievements(sessions, xp, calcStreak(sessions))
+    }, 1000)
+    return () => clearTimeout(t)
+  }, [sessions]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Auto-backup every 10 min during active workout ───────────
   useEffect(() => {
     if (!active) return
