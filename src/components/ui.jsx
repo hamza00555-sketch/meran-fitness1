@@ -95,12 +95,12 @@ export function Btn({
 export function Badge({ children, color = '#5EC32A' }) {
   return (
     <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 3,
+      display: 'inline-flex', alignItems: 'center', gap: 4,
       background: color + '20', color,
       border: `1px solid ${color}38`,
-      borderRadius: 20, padding: '2px 9px',
-      fontSize: 11, fontFamily: 'var(--font-mono)',
-      fontWeight: 600, whiteSpace: 'nowrap',
+      borderRadius: 20, padding: '3px 11px',
+      fontSize: 13.5, fontFamily: 'var(--font-ar)',
+      fontWeight: 700, whiteSpace: 'nowrap',
     }}>{children}</span>
   )
 }

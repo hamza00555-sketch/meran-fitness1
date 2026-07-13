@@ -142,8 +142,8 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                     : <span style={{ fontSize: 66 }}>{g.emoji}</span>
                   }
                   <div style={{ flex: 1, textAlign: 'right' }}>
-                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: g.color }}>{g.label}</span>
-                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginRight: 8 }}>{g.filtered.length} تمرين</span>
+                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 19, fontWeight: 800, color: g.color }}>{g.label}</span>
+                    <span style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginRight: 8 }}>{g.filtered.length} تمرين</span>
                   </div>
                   {!query && (
                     <span style={{ color: 'var(--text3)', fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
@@ -217,8 +217,8 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                   display: 'flex', alignItems: 'center', gap: 8,
                   marginBottom: 8, paddingRight: 4,
                 }}>
-                  <span style={{ fontSize: 18 }}>{g.emoji}</span>
-                  <span style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: g.color }}>{g.label}</span>
+                  <span style={{ fontSize: 20 }}>{g.emoji}</span>
+                  <span style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800, color: g.color }}>{g.label}</span>
                   <div style={{ flex: 1, height: 1, background: g.color + '25' }} />
                 </div>
 
