@@ -69,7 +69,7 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(false)
   const [copied,    setCopied]    = useState(false)
@@ -120,16 +120,19 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
 
   return (
     <>
-      <div style={{
-        background: 'var(--bg2)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        overflow: 'hidden',
-        marginBottom: 12,
-        opacity: dimmed ? 0.35 : 1,
-        filter: dimmed ? 'brightness(0.5)' : 'none',
-        transition: 'opacity 0.3s, filter 0.3s',
-      }}>
+      <div
+        onClick={() => { if (dimmed) onFocus?.() }}
+        style={{
+          background: 'var(--bg2)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          overflow: 'hidden',
+          marginBottom: 12,
+          opacity: dimmed ? 0.35 : 1,
+          filter: dimmed ? 'brightness(0.5)' : 'none',
+          transition: 'opacity 0.3s, filter 0.3s',
+          cursor: dimmed ? 'pointer' : 'default',
+        }}>
         {/* Color accent bar */}
         <div style={{ height: 2, background: color }} />
 
