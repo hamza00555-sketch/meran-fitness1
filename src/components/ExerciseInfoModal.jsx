@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { MUSCLE_GROUPS } from '../constants.js'
 
 export default function ExerciseInfoModal({ exercise, onClose }) {
@@ -22,7 +23,9 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
     return m ? m[1] : null
   })() : null
 
-  return (
+  // Portal to body: page containers keep a transform from the enter
+  // animation, which would trap position:fixed inside the page.
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -186,6 +189,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
