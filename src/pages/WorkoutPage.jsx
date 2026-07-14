@@ -12,6 +12,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const [elapsed,       setElapsed]       = useState(0)
   const [prFlash,       setPrFlash]       = useState(null) // exercise name that just hit PR
   const [confirmBack,   setConfirmBack]   = useState(false)
+  const [focusExId,     setFocusExId]     = useState(null)
   const timerRef      = useRef(null)
   const pausedMsRef   = useRef(0)
   const pauseStartRef = useRef(null)
@@ -137,10 +138,13 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   }
   const pct = totalSets > 0 ? (doneSets / totalSets) * 100 : 0
 
-  // Active exercise: any done set but not all done → dim others
-  const activeExId = exercises.find(ex =>
-    ex.sets.some(s => s.done) && !ex.sets.every(s => s.done)
-  )?.id ?? null
+  // Active exercise = the one the user last interacted with (typed a
+  // weight/rep, ticked a set, added a set). Others dim until either
+  // this one is fully done or the user taps/edits another card —
+  // supports jumping between machines when the gym is crowded.
+  const focusedEx = exercises.find(e => e.id === focusExId)
+  const focusStillActive = focusedEx && focusedEx.sets.length > 0 && !focusedEx.sets.every(s => s.done)
+  const activeExId = focusStillActive ? focusExId : null
 
   return (
     <div style={{ paddingBottom: 120 }}>
@@ -258,14 +262,15 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           exercise={ex}
           sessions={sessions || []}
           exerciseMapping={exerciseMapping}
-          onUpdateSet={(si, field, val) => handleUpdateSet(ex.id, si, field, val)}
-          onDoneSet={(si, done) => handleDoneSet(ex.id, si, done)}
-          onAddSet={() => handleAddSet(ex.id)}
+          onUpdateSet={(si, field, val) => { setFocusExId(ex.id); handleUpdateSet(ex.id, si, field, val) }}
+          onDoneSet={(si, done) => { setFocusExId(ex.id); handleDoneSet(ex.id, si, done) }}
+          onAddSet={() => { setFocusExId(ex.id); handleAddSet(ex.id) }}
           onRemoveSet={si => handleRemoveSet(ex.id, si)}
-          onRemove={() => handleRemoveEx(ex.id)}
+          onRemove={() => { if (focusExId === ex.id) setFocusExId(null); handleRemoveEx(ex.id) }}
           allExercises={exercises}
           onMoveSet={(si, toExId) => handleMoveSet(ex.id, si, toExId)}
           dimmed={activeExId !== null && ex.id !== activeExId}
+          onFocus={() => setFocusExId(ex.id)}
           isComplete={ex.sets.length > 0 && ex.sets.every(s => s.done)}
         />
       ))}
