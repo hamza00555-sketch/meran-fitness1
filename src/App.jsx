@@ -375,13 +375,14 @@ export default function App() {
     }}>
       {/* ── Header ──────────────────────────────────────────────── */}
       <header style={{
-        background: 'rgba(8,11,20,0.94)',
+        background: '#080B14',
         borderBottom: '1px solid rgba(94,195,42,0.12)',
         padding: `calc(var(--safe-top) + 14px) 18px 14px`,
         position: 'sticky', top: 0, zIndex: 100,
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
         boxShadow: '0 1px 0 rgba(94,195,42,0.08)',
+        // No backdrop-filter: on iOS it makes this bar composite into a
+        // layer that goes stale during scroll and paints at a wrong offset.
+        transform: 'translateZ(0)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -572,17 +573,19 @@ export default function App() {
       {/* ── Bottom Navigation ────────────────────────────────────── */}
       <nav style={{
         position: 'fixed', bottom: 0,
-        left: '50%', transform: 'translateX(-50%)',
+        left: 0, right: 0,
         width: '100%', maxWidth: 560,
-        background: 'rgba(8,11,20,0.96)',
+        background: '#080B14',
         borderTop: '1px solid rgba(94,195,42,0.10)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
         boxShadow: '0 -1px 0 rgba(94,195,42,0.06)',
         display: 'flex',
         padding: `10px 6px calc(env(safe-area-inset-bottom, 0px) + 10px)`,
         zIndex: 200,
         margin: '0 auto',
+        // Centered with margin instead of translateX(-50%), and promoted to
+        // its own layer, so iOS keeps repainting it correctly while scrolling.
+        transform: 'translateZ(0)',
+        willChange: 'transform',
       }}>
         {NAV_TABS.map(t => {
           const isActive = tab === t.id
