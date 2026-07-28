@@ -1094,6 +1094,67 @@ export const BUILT_IN_PLANS = [
   },
 ]
 
+// ── Exercise Alternatives (machine busy / unavailable) ────────
+// Ordered fallbacks for the same muscle + movement pattern. The
+// "استبدال التمرين" button cycles: original → 1 → 2 → 3 → original.
+// Sets, reps, and rest never change — only the exercise name.
+export const EXERCISE_ALTERNATIVES = {
+  // ── Push day ────────────────────────────────────────────────
+  'Hammer Strength Machine Bench Press': [
+    'Chest Press Machine', 'Smith Machine Bench Press', 'Cable Chest Press',
+  ],
+  'Machine Incline Press': [
+    'Smith Machine Incline Bench Press', 'Incline Dumbbell Press', 'Low-to-High Cable Press',
+  ],
+  'Pec Deck': [
+    'Cable Fly', 'Standing Cable Fly', 'Resistance Band Fly',
+  ],
+  'Machine Shoulder Press': [
+    'Smith Machine Shoulder Press', 'Seated Dumbbell Shoulder Press', 'Cable Shoulder Press',
+  ],
+  'Machine Lateral Raise': [
+    'Cable Lateral Raise', 'Dumbbell Lateral Raise', 'Leaning Cable Lateral Raise',
+  ],
+  'Triceps Pushdown': [
+    'Rope Triceps Pushdown', 'Overhead Cable Triceps Extension', 'Assisted Dips',
+  ],
+  // ── Pull day ────────────────────────────────────────────────
+  'Lat Pulldown': [
+    'Assisted Pull-Up Machine', 'Single Arm Lat Pulldown', 'Straight Arm Pulldown',
+  ],
+  'Seated Cable Row': [
+    'Chest Supported Row Machine', 'Hammer Strength Row', 'Single Arm Cable Row',
+  ],
+  'Machine Pullover': [
+    'Straight Arm Cable Pulldown', 'Lat Prayer Pulldown', 'Dumbbell Pullover',
+  ],
+  'Machine Preacher Curl': [
+    'Cable Preacher Curl', 'EZ Bar Preacher Curl', 'Seated Dumbbell Curl',
+  ],
+  'Cable Hammer Curls': [
+    'Dumbbell Hammer Curl', 'Rope Hammer Curl', 'Cross Body Hammer Curl',
+  ],
+  // ── Legs day ────────────────────────────────────────────────
+  'Hack Squat': [
+    'Leg Press', 'Smith Machine Squat', 'Goblet Squat',
+  ],
+  'Leg Press': [
+    'Hack Squat', 'Smith Machine Squat', 'Bulgarian Split Squat',
+  ],
+  'Leg Curl': [
+    'Seated Leg Curl', 'Nordic Curl (Assisted)', 'Stability Ball Leg Curl',
+  ],
+  'Leg Extension': [
+    'Spanish Squat', 'Assisted Sissy Squat', 'Split Squat',
+  ],
+  'Machine Glute Kickbacks': [
+    'Cable Glute Kickback', 'Smith Machine Glute Kickback', 'Bulgarian Split Squat',
+  ],
+  'Standing Calf Raise': [
+    'Seated Calf Raise', 'Leg Press Calf Raise', 'Smith Machine Calf Raise',
+  ],
+}
+
 // ── Default Exercise Mapping (aliases → standard names) ───────
 // Used to unify exercise variants for shared PR tracking.
 // Keys are alias names, values are the Standard Name to group under.

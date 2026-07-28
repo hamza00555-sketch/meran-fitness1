@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
-import { xpProgress, getRank, getCommitmentLevel, getExerciseStats } from '../utils.js'
-import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS } from '../constants.js'
+import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex } from '../utils.js'
+import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
 
 function PlanProgressCard({ plan, planIndex }) {
   const schedule      = plan.weeklySchedule
@@ -95,7 +95,7 @@ function findVideoUrl(name) {
 }
 
 // ── Day Preview bottom sheet ──────────────────────────────────────────
-function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onClose }) {
+function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, onCycleSub, onStart, onSkip, onClose }) {
   return createPortal(
     <div
       style={{
@@ -138,8 +138,12 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onCl
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
           {day.exercises.map((ex, i) => {
             const muscle   = MUSCLE_GROUPS[ex.muscle]
-            const videoUrl = findVideoUrl(ex.name)
-            const { lastWeight, maxWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
+            const shownName = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
+            const swapped   = shownName !== ex.name
+            const alts      = EXERCISE_ALTERNATIVES[ex.name] || []
+            const subIdx    = exerciseSubs[ex.name] || 0
+            const videoUrl = findVideoUrl(shownName)
+            const { lastWeight, maxWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
             const color = muscle?.color || '#5EC32A'
             return (
               <div key={i} style={{
@@ -160,9 +164,16 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onCl
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
-                    color: 'var(--text)', marginBottom: 4,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{ex.name}</div>
+                    color: swapped ? 'var(--gold)' : 'var(--text)', marginBottom: 4,
+                    lineHeight: 1.35, overflowWrap: 'anywhere',
+                  }}>{swapped && '⇄ '}{shownName}</div>
+
+                  {swapped && (
+                    <div style={{
+                      fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)',
+                      marginBottom: 4, lineHeight: 1.35, overflowWrap: 'anywhere',
+                    }}>بدلاً من {ex.name}</div>
+                  )}
 
                   <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
                     {/* Muscle label tag */}
@@ -188,6 +199,25 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onCl
                     )}
                   </div>
                 </div>
+
+                {/* Swap exercise (machine unavailable) */}
+                {alts.length > 0 && (
+                  <button
+                    onClick={() => onCycleSub?.(ex.name, nextSubIndex(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES))}
+                    title={subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي'}
+                    style={{
+                      flexShrink: 0, height: 36, borderRadius: 10, padding: '0 10px',
+                      background: swapped ? 'var(--gold-lo)' : 'var(--bg3)',
+                      border: `1px solid ${swapped ? 'var(--gold-md)' : 'var(--border2)'}`,
+                      color: swapped ? 'var(--gold)' : 'var(--text3)',
+                      display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+                      fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
+                    }}
+                  >
+                    <span style={{ fontSize: 14 }}>⇄</span>
+                    {swapped ? `${subIdx}/${alts.length}` : 'استبدال'}
+                  </button>
+                )}
 
                 {/* YouTube button */}
                 {videoUrl && (
@@ -232,7 +262,7 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, onStart, onSkip, onCl
 }
 
 // ── Plan Day Card ─────────────────────────────────────────────────────
-function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], exerciseMapping = {} }) {
+function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub }) {
   const [showSheet, setShowSheet] = useState(false)
 
   return (
@@ -277,13 +307,19 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], e
           onClick={() => setShowSheet(true)}
           style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12, cursor: 'pointer' }}
         >
-          {day.exercises.map((ex, i) => (
-            <span key={i} style={{
-              background: 'var(--bg3)', border: '1px solid var(--border)',
-              borderRadius: 20, padding: '3px 10px',
-              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
-            }}>{ex.name}{ex.sets ? ` ×${ex.sets}` : ''}</span>
-          ))}
+          {day.exercises.map((ex, i) => {
+            const shown = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
+            const swapped = shown !== ex.name
+            return (
+              <span key={i} style={{
+                background: swapped ? 'var(--gold-lo)' : 'var(--bg3)',
+                border: `1px solid ${swapped ? 'var(--gold-md)' : 'var(--border)'}`,
+                borderRadius: 20, padding: '3px 10px',
+                fontFamily: 'var(--font-mono)', fontSize: 11,
+                color: swapped ? 'var(--gold)' : 'var(--text2)',
+              }}>{swapped ? '⇄ ' : ''}{shown}{ex.sets ? ` ×${ex.sets}` : ''}</span>
+            )
+          })}
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
@@ -307,6 +343,8 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], e
           day={day}
           sessions={sessions}
           exerciseMapping={exerciseMapping}
+          exerciseSubs={exerciseSubs}
+          onCycleSub={onCycleSub}
           onStart={() => { setShowSheet(false); onStart() }}
           onSkip={() => { setShowSheet(false); onSkip() }}
           onClose={() => setShowSheet(false)}
@@ -367,7 +405,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {} }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   const today       = new Date().getDay()
@@ -596,6 +634,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           onSkip={onSkipPlanDay}
           sessions={sessions}
           exerciseMapping={exerciseMapping}
+          exerciseSubs={exerciseSubs}
+          onCycleSub={onCycleSub}
         />
       )}
 
