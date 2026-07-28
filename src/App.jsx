@@ -2,13 +2,13 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName,
   levelFromXP, xpProgress, getTodayChallenges,
-  scheduleNotificationsForToday,
+  scheduleNotificationsForToday, applySubsToDay,
 } from './utils.js'
 import {
   GREETINGS, NAV_TABS, ACHIEVEMENTS,
   DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
   NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS,
-  DEFAULT_EXERCISE_MAPPING, APP_VERSION,
+  DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 
@@ -85,6 +85,7 @@ export default function App() {
   const [plan,                setPlan]                = useState(() => ls.get('hf_plan', null))
   const [planIndex,           setPlanIndex]           = useState(() => ls.get('hf_plan_index', 0))
   const [exerciseMapping,     setExerciseMapping]     = useState(() => ({ ...DEFAULT_EXERCISE_MAPPING, ...ls.get('hf_exercise_mapping', {}) }))
+  const [exerciseSubs,        setExerciseSubs]        = useState(() => ls.get('hf_exercise_subs', {}))
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
@@ -112,6 +113,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_plan_index',       planIndex)       }, [planIndex])
   useEffect(() => { ls.set('hf_photos',           photos)          }, [photos])
   useEffect(() => { ls.set('hf_exercise_mapping', exerciseMapping) }, [exerciseMapping])
+  useEffect(() => { ls.set('hf_exercise_subs',    exerciseSubs)    }, [exerciseSubs])
 
   // ── Schedule daily notifications ─────────────────────────────
   useEffect(() => {
@@ -248,7 +250,8 @@ export default function App() {
   const startPlannedWorkout = useCallback((planDay) => {
     sessionXPRef.current = 0
     const lastWeightsMap = ls.get('hf_last_weights', {})
-    const exercises = (planDay.exercises || []).map(ex => {
+    const planExercises = applySubsToDay(planDay.exercises, exerciseSubs, EXERCISE_ALTERNATIVES)
+    const exercises = planExercises.map(ex => {
       const canonical = resolveExerciseName(ex.name, exerciseMapping)
       const fromSnapshot = lastWeightsMap[canonical] ?? lastWeightsMap[ex.name.toLowerCase()]
       const prevWeight = fromSnapshot != null
@@ -266,7 +269,7 @@ export default function App() {
     }
     setActive(session)
     setTab('workout')
-  }, [planIndex, sessions, exerciseMapping])
+  }, [planIndex, sessions, exerciseMapping, exerciseSubs])
 
   const skipPlanDay = useCallback(() => {
     setPlanIndex(prev => prev + 1)
@@ -463,6 +466,8 @@ export default function App() {
             plan={plan}
             planIndex={planIndex}
             exerciseMapping={exerciseMapping}
+            exerciseSubs={exerciseSubs}
+            onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}

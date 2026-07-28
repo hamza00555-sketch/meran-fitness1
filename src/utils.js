@@ -43,6 +43,7 @@ export const PER_USER_KEYS = [
   'hf_challenges', 'hf_plan', 'hf_plan_index', 'hf_photos',
   'hf_exercise_mapping', 'hf_last_weights', 'hf_weight_backups',
   'hf_seen_version', 'hf_weights_reset_v2', 'hf_weights_reset_at',
+  'hf_exercise_subs',
 ]
 
 export const deleteUserData = (id) => {
@@ -138,6 +139,29 @@ export const resolveExerciseName = (name, mapping = {}) => {
 // Sessions before this stamp are ignored for weight suggestions
 // and PR stats (set by "تصفير الأوزان" — history itself is kept).
 export const getWeightsResetAt = () => ls.get('hf_weights_reset_at', 0)
+
+// ── Exercise substitutions (machine unavailable) ──────────────
+// subs maps an original plan exercise name → index into its
+// alternatives list (1-based). 0 / missing means "use the original".
+export const substitutedName = (name, subs = {}, alternatives = {}) => {
+  const idx = subs[name] || 0
+  if (!idx) return name
+  return alternatives[name]?.[idx - 1] || name
+}
+
+// Next index in the cycle: original → 1 → 2 → ... → original
+export const nextSubIndex = (name, subs = {}, alternatives = {}) => {
+  const total = alternatives[name]?.length || 0
+  if (!total) return 0
+  return ((subs[name] || 0) + 1) % (total + 1)
+}
+
+// Resolve a whole plan day's exercises through the user's substitutions
+export const applySubsToDay = (exercises, subs = {}, alternatives = {}) =>
+  (exercises || []).map(ex => {
+    const name = substitutedName(ex.name, subs, alternatives)
+    return name === ex.name ? ex : { ...ex, name, originalName: ex.name }
+  })
 
 // ── Exercise history stats ────────────────────────────────────
 export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
