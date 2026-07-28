@@ -1,40 +1,95 @@
 import { useState, useEffect, useRef } from 'react'
-import { playBeep } from '../utils.js'
+import { playBeep, ls } from '../utils.js'
 import { REST_PRESETS } from '../constants.js'
 
-export default function RestTimer({ onClose }) {
-  const [selected,  setSelected]  = useState(90)
-  const [remaining, setRemaining] = useState(90)
-  const [running,   setRunning]   = useState(true)
-  const intervalRef = useRef(null)
+const STORE = 'hf_rest_timer'
 
+// The countdown is driven by wall-clock time, not by counting interval
+// ticks: browsers suspend timers while the app is backgrounded, which
+// used to freeze the rest timer until you came back. `endsAt` is an
+// absolute timestamp, so time keeps passing while you're away — and the
+// state is persisted so it survives the app being closed entirely.
+const secondsLeft = (endsAt) => Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+
+const loadSaved = () => {
+  const s = ls.get(STORE, null)
+  if (!s || typeof s.selected !== 'number') return null
+  if (s.pausedLeft == null && typeof s.endsAt !== 'number') return null
+  return s
+}
+
+export default function RestTimer({ onClose }) {
+  const saved = useRef(loadSaved()).current
+
+  const [selected,   setSelected]   = useState(saved?.selected ?? 90)
+  const [endsAt,     setEndsAt]     = useState(saved?.endsAt ?? Date.now() + (saved?.selected ?? 90) * 1000)
+  const [pausedLeft, setPausedLeft] = useState(saved?.pausedLeft ?? null)
+  const [, forceTick] = useState(0)
+  const beepedRef = useRef(false)
+
+  const remaining = pausedLeft != null ? pausedLeft : secondsLeft(endsAt)
+  const done      = remaining === 0
+  const running   = pausedLeft == null && !done
+
+  // Persist so a suspended / relaunched app resumes the same countdown
   useEffect(() => {
-    if (running && remaining > 0) {
-      intervalRef.current = setInterval(() => setRemaining(r => r - 1), 1000)
-    } else if (remaining === 0 && running) {
-      setRunning(false)
-      playBeep(4)
+    ls.set(STORE, { selected, endsAt, pausedLeft })
+  }, [selected, endsAt, pausedLeft])
+
+  // Re-read the clock 4×/second: keeps the display honest and makes it
+  // snap to the correct value the instant the app is resumed.
+  useEffect(() => {
+    if (!running) return
+    const id = setInterval(() => forceTick(t => t + 1), 250)
+    return () => clearInterval(id)
+  }, [running])
+
+  // Recompute the moment the app becomes visible again
+  useEffect(() => {
+    const sync = () => forceTick(t => t + 1)
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    window.addEventListener('pageshow', sync)
+    return () => {
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+      window.removeEventListener('pageshow', sync)
     }
-    return () => clearInterval(intervalRef.current)
-  }, [running, remaining])
+  }, [])
+
+  // Alert once when the rest ends — on return too, if it ended while away
+  useEffect(() => {
+    if (!done || beepedRef.current) return
+    beepedRef.current = true
+    playBeep(4)
+    if (document.hidden) {
+      navigator.serviceWorker?.ready
+        .then(reg => reg.showNotification('⏱️ انتهت الراحة', {
+          body: 'ارجع للتمرين — السيت التالي جاهز.',
+          icon: '/icon-192.png', badge: '/icon-192.png',
+          dir: 'rtl', lang: 'ar', tag: 'rest-done', vibrate: [180, 80, 180],
+        }))
+        .catch(() => {})
+    }
+  }, [done])
 
   const start = (t) => {
-    clearInterval(intervalRef.current)
     const time = t !== undefined ? t : selected
+    beepedRef.current = false
     setSelected(time)
-    setRemaining(time)
-    setRunning(true)
+    setPausedLeft(null)
+    setEndsAt(Date.now() + time * 1000)
   }
-  const pause  = () => { setRunning(false); clearInterval(intervalRef.current) }
-  const resume = () => setRunning(true)
+  const pause  = () => setPausedLeft(secondsLeft(endsAt))
+  const resume = () => { setEndsAt(Date.now() + pausedLeft * 1000); setPausedLeft(null) }
+  const close  = () => { ls.remove(STORE); onClose() }
 
-  const pct  = remaining / selected
+  const pct  = selected > 0 ? remaining / selected : 0
   const R = 18, CX = 22, CY = 22
   const circ = 2 * Math.PI * R
-  const dash  = circ * pct
-  const done  = remaining === 0
-  const mins  = Math.floor(remaining / 60)
-  const secs  = remaining % 60
+  const dash = circ * pct
+  const mins = Math.floor(remaining / 60)
+  const secs = remaining % 60
 
   return (
     <div style={{
@@ -67,7 +122,7 @@ export default function RestTimer({ onClose }) {
             strokeDasharray={circ}
             strokeDashoffset={circ - dash}
             transform={`rotate(-90 ${CX} ${CY})`}
-            style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.3s' }}
+            style={{ transition: 'stroke-dashoffset 0.25s linear, stroke 0.3s' }}
           />
         </svg>
 
@@ -82,7 +137,7 @@ export default function RestTimer({ onClose }) {
 
         {/* Label */}
         <div style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 12, color: done ? '#22C55E' : 'var(--text3)' }}>
-          {done ? '✓ انتهت الراحة!' : 'استراحة'}
+          {done ? '✓ انتهت الراحة!' : running ? 'استراحة' : 'موقوف'}
         </div>
 
         {/* Controls */}
@@ -98,7 +153,7 @@ export default function RestTimer({ onClose }) {
               }}
             >⏸</button>
           )}
-          {!running && remaining > 0 && (
+          {!running && !done && (
             <button
               onClick={resume}
               style={{
@@ -111,7 +166,7 @@ export default function RestTimer({ onClose }) {
           )}
           {done && (
             <button
-              onClick={onClose}
+              onClick={close}
               style={{
                 background: 'rgba(34,197,94,0.12)', border: '1px solid #22C55E50',
                 borderRadius: 8, padding: '0 12px', height: 32,
@@ -122,7 +177,7 @@ export default function RestTimer({ onClose }) {
             >تمام ✓</button>
           )}
           <button
-            onClick={onClose}
+            onClick={close}
             style={{
               background: 'var(--bg2)', border: '1px solid var(--border)',
               borderRadius: 8, width: 32, height: 32,

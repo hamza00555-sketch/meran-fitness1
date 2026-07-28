@@ -89,7 +89,17 @@ export default function App() {
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
-  const [showRest,   setShowRest]   = useState(false)
+  const [showRest,   setShowRest]   = useState(() => {
+    // A rest timer left running when the app was closed keeps counting
+    // on wall-clock time — bring it back so it isn't silently lost.
+    const t = ls.get('hf_rest_timer', null)
+    if (!t) return false
+    if (t.pausedLeft != null) return t.pausedLeft > 0
+    if (typeof t.endsAt !== 'number') return false
+    // Still counting, or only just finished — coming back a few seconds
+    // late should still greet you with "انتهت الراحة" rather than silence.
+    return Date.now() - t.endsAt < 120_000
+  })
   const [showLevelUp,setShowLevelUp]= useState(false)
   const [levelUpNum, setLevelUpNum] = useState(1)
   const [alertQueue, setAlertQueue] = useState([])
@@ -483,7 +493,7 @@ export default function App() {
             planIndex={planIndex}
             onUpdateActive={updateActive}
             onFinish={finishSession}
-            onShowRest={() => { setShowRest(true); setRestKey(k => k + 1) }}
+            onShowRest={() => { ls.remove('hf_rest_timer'); setShowRest(true); setRestKey(k => k + 1) }}
             onStartPlannedWorkout={startPlannedWorkout}
             addXP={addWorkoutXP}
             onGoBack={() => {
