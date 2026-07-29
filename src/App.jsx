@@ -11,6 +11,7 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS } from './recovery.js'
 
 const NAV_ICONS = {
   home:         HomeIcon,
@@ -86,6 +87,17 @@ export default function App() {
   const [planIndex,           setPlanIndex]           = useState(() => ls.get('hf_plan_index', 0))
   const [exerciseMapping,     setExerciseMapping]     = useState(() => ({ ...DEFAULT_EXERCISE_MAPPING, ...ls.get('hf_exercise_mapping', {}) }))
   const [exerciseSubs,        setExerciseSubs]        = useState(() => ls.get('hf_exercise_subs', {}))
+  // Recovery config. Migrates existing users off the old weekday
+  // picker by reading how many days a week they had selected —
+  // workout history and plan order are left completely untouched.
+  const [recoveryCfg, setRecoveryCfg] = useState(() => {
+    const saved = ls.get('hf_recovery', null)
+    if (saved) return { ...DEFAULT_RECOVERY, ...saved }
+    const legacy = ls.get('hf_profile', null)?.trainingDays
+    const perWeek = Array.isArray(legacy) && legacy.length >= 3 && legacy.length <= 6
+      ? legacy.length : DEFAULT_RECOVERY.daysPerWeek
+    return { ...DEFAULT_RECOVERY, daysPerWeek: perWeek }
+  })
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
@@ -124,6 +136,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_photos',           photos)          }, [photos])
   useEffect(() => { ls.set('hf_exercise_mapping', exerciseMapping) }, [exerciseMapping])
   useEffect(() => { ls.set('hf_exercise_subs',    exerciseSubs)    }, [exerciseSubs])
+  useEffect(() => { ls.set('hf_recovery',         recoveryCfg)     }, [recoveryCfg])
 
   // ── Schedule daily notifications ─────────────────────────────
   useEffect(() => {
@@ -369,7 +382,19 @@ export default function App() {
   }, [pushAlert])
 
   // ── Derived values ────────────────────────────────────────────
+  const recovery = computeRecovery(sessions, recoveryCfg)
+  // Legacy streak kept for achievements/challenges; the UI shows the
+  // two explicit streaks the recovery engine produces.
   const streak  = calcStreak(sessions)
+
+  const overrideRecoveryDay = useCallback(() => {
+    const today = new Date().toISOString().split('T')[0]
+    setRecoveryCfg(prev => ({
+      ...prev,
+      overrides: [...new Set([...(prev.overrides || []), today])].slice(-60),
+    }))
+    pushAlert('💪', 'التعافي جزء من الخطة — لكن القرار لك')
+  }, [pushAlert])
   const { level } = xpProgress(xp)
 
   return (
@@ -479,6 +504,8 @@ export default function App() {
             exerciseMapping={exerciseMapping}
             exerciseSubs={exerciseSubs}
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
+            recovery={recovery}
+            onOverrideRecovery={overrideRecoveryDay}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}
@@ -534,6 +561,7 @@ export default function App() {
             xp={xp}
             streak={streak}
             level={level}
+            recovery={recovery}
             onUpdateProfile={handleUpdateProfile}
             onGoToPhotos={() => setTab('photos')}
           />
@@ -551,6 +579,8 @@ export default function App() {
             onImportPlan={(p) => { setPlan(p); setPlanIndex(0); pushAlert('📋', `تم استيراد خطة: ${p.planName}`) }}
             onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
             exerciseMapping={exerciseMapping}
+            recoveryCfg={recoveryCfg}
+            onUpdateRecovery={(patch) => setRecoveryCfg(prev => ({ ...prev, ...patch }))}
             onImportMapping={(newMapping) => {
               setExerciseMapping(prev => ({ ...prev, ...newMapping }))
               pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
