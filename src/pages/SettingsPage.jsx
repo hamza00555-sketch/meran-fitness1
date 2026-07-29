@@ -1,13 +1,14 @@
 import { useState, useRef } from 'react'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
-import { WEEK_DAYS_SHORT, GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
+import { GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
+import { TRAINING_FREQUENCIES, patternFor } from '../recovery.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmWeights, setConfirmWeights] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -40,14 +41,6 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
     onUpdateProfile({ ...profile, [key]: val })
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
-  }
-
-  const toggleTrainingDay = (day) => {
-    const days = [...(profile?.trainingDays || [])]
-    const idx = days.indexOf(day)
-    if (idx > -1) days.splice(idx, 1)
-    else days.push(day)
-    update('trainingDays', days.sort((a, b) => a - b))
   }
 
   const handleExport = () => {
@@ -406,34 +399,90 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
           </Card>
         </div>
 
-        {/* ── Training Days ──────────────────────────────────── */}
+        {/* ── Training frequency (drives the recovery engine) ── */}
         <div style={{ marginBottom: 10 }}>
-          <SectionTitle>أيام التمرين الأسبوعية</SectionTitle>
-          <Card style={{ padding: 5 }}>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-              {WEEK_DAYS_SHORT.map((day, idx) => {
-                const isActive = (profile?.trainingDays || []).includes(idx)
+          <SectionTitle>كم يوماً تريد أن تتمرن؟</SectionTitle>
+          <Card style={{ padding: 12 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.8, marginBottom: 10, padding: '0 4px' }}>
+              أيام الراحة لم تعد مرتبطة بأيام الأسبوع. التطبيق يقرر يوم التعافي حسب التمارين التي أكملتها فعلاً.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {TRAINING_FREQUENCIES.map(f => {
+                const isActive = recoveryCfg.daysPerWeek === f.id
                 return (
                   <button
-                    key={idx}
-                    onClick={() => toggleTrainingDay(idx)}
+                    key={f.id}
+                    onClick={() => onUpdateRecovery?.({ daysPerWeek: f.id })}
                     style={{
-                      flex: 1, height: 48,
-                      borderRadius: 10,
+                      flex: '1 1 calc(50% - 4px)', padding: '12px 10px', borderRadius: 12,
                       background: isActive ? 'var(--cyan-lo)' : 'var(--bg3)',
                       border: `2px solid ${isActive ? 'var(--cyan)' : 'var(--border)'}`,
-                      color: isActive ? 'var(--cyan)' : 'var(--text3)',
-                      fontFamily: 'var(--font-mono)', fontSize: 11,
-                      fontWeight: isActive ? 800 : 400,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      boxShadow: isActive ? '0 0 10px var(--cyan-glow)' : 'none',
+                      color: isActive ? 'var(--cyan)' : 'var(--text2)',
+                      cursor: 'pointer', transition: 'all 0.15s', textAlign: 'right',
                     }}
                   >
-                    {day}
+                    <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: isActive ? 800 : 600 }}>
+                      {f.label} أسبوعياً
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                      {f.desc}
+                    </div>
                   </button>
                 )
               })}
+              <button
+                onClick={() => onUpdateRecovery?.({
+                  daysPerWeek: 'custom',
+                  customPattern: recoveryCfg.customPattern?.length ? recoveryCfg.customPattern : [2],
+                })}
+                style={{
+                  flex: '1 1 100%', padding: '12px 10px', borderRadius: 12,
+                  background: recoveryCfg.daysPerWeek === 'custom' ? 'var(--cyan-lo)' : 'var(--bg3)',
+                  border: `2px solid ${recoveryCfg.daysPerWeek === 'custom' ? 'var(--cyan)' : 'var(--border)'}`,
+                  color: recoveryCfg.daysPerWeek === 'custom' ? 'var(--cyan)' : 'var(--text2)',
+                  cursor: 'pointer', transition: 'all 0.15s', textAlign: 'right',
+                }}
+              >
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: recoveryCfg.daysPerWeek === 'custom' ? 800 : 600 }}>
+                  إعداد مخصص
+                </div>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                  حدد عدد التمارين المتتالية قبل كل يوم راحة
+                </div>
+              </button>
+            </div>
+
+            {recoveryCfg.daysPerWeek === 'custom' && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', marginBottom: 8 }}>
+                  تمارين متتالية قبل يوم الراحة
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[1, 2, 3, 4, 5].map(n => {
+                    const isActive = (recoveryCfg.customPattern || [2])[0] === n
+                    return (
+                      <button
+                        key={n}
+                        onClick={() => onUpdateRecovery?.({ customPattern: [n] })}
+                        style={{
+                          flex: 1, padding: '10px 0', borderRadius: 10,
+                          background: isActive ? 'var(--cyan-lo)' : 'var(--bg3)',
+                          border: `2px solid ${isActive ? 'var(--cyan)' : 'var(--border)'}`,
+                          color: isActive ? 'var(--cyan)' : 'var(--text3)',
+                          fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                        }}
+                      >{n}</button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div style={{
+              marginTop: 12, background: 'var(--bg3)', borderRadius: 10, padding: '10px 14px',
+              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.8,
+            }}>
+              الدورة الحالية: {patternFor(recoveryCfg).map(n => `${n} تمارين ← راحة`).join(' ← ')}
             </div>
           </Card>
         </div>

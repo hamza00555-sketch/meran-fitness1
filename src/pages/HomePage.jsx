@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
 import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex } from '../utils.js'
-import { MUSCLE_GROUPS, WEEK_DAYS_SHORT, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
+import { MUSCLE_GROUPS, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
+import { DAY_STATUS } from '../recovery.js'
 
 function PlanProgressCard({ plan, planIndex }) {
   const schedule      = plan.weeklySchedule
@@ -405,12 +406,13 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
-  const today       = new Date().getDay()
-  const trainingDays = profile?.trainingDays || []
-  const isTodayTraining = trainingDays.includes(today)
+  // Training vs recovery comes from the recovery engine — real completed
+  // workouts and the chosen frequency — never from the weekday.
+  const isRecoveryDay   = recovery?.status === DAY_STATUS.RECOVERY
+  const isTodayTraining = !isRecoveryDay
 
   const monthAgo = Date.now() - 30 * 86400000
   const monthSessions = sessions.filter(s => new Date(s.date) > monthAgo)
@@ -603,12 +605,16 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               color: isTodayTraining ? 'var(--cyan)' : 'var(--text2)',
               marginBottom: 5,
             }}>
-              {isTodayTraining ? 'يوم تمرين 💪' : 'يوم راحة'}
+              {recovery?.status === DAY_STATUS.COMPLETED ? 'تمرين مكتمل ✓'
+                : isRecoveryDay ? 'اليوم يوم تعافٍ'
+                : 'اليوم يوم تمرين 💪'}
             </div>
             <div className="hp-sub" style={{ fontFamily: 'var(--font-ar)' }}>
-              {isTodayTraining
-                ? 'اليوم مقرر له التمرين — حان الوقت!'
-                : 'استرح واستعد ليوم القوة القادم'}
+              {recovery?.status === DAY_STATUS.COMPLETED
+                ? 'أنهيت تمرين اليوم — أحسنت!'
+                : isRecoveryDay
+                ? `أكملت ${recovery.workoutStreak} تمارين متتالية. خذ اليوم للراحة، وغداً تكمل خطتك.`
+                : 'التمرين التالي في خطتك جاهز — حان الوقت!'}
             </div>
           </div>
 
@@ -624,8 +630,53 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         <PlanProgressCard plan={plan} planIndex={planIndex ?? 0} />
       )}
 
+      {/* ── Recovery day: next workout shown inactive ─────────── */}
+      {isRecoveryDay && !active && (
+        <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)', borderTop: '3px solid var(--purple)' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--purple)', letterSpacing: 2, marginBottom: 6 }}>
+            التمرين القادم بعد التعافي
+          </div>
+          {currentPlanDay ? (
+            <>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800, color: 'var(--text3)', marginBottom: 8 }}>
+                {currentPlanDay.name}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12, opacity: 0.45 }}>
+                {currentPlanDay.exercises.map((ex, i) => (
+                  <span key={i} style={{
+                    background: 'var(--bg3)', border: '1px solid var(--border)',
+                    borderRadius: 20, padding: '3px 10px',
+                    fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
+                  }}>{substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)}</span>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)', marginBottom: 12 }}>
+              تمرينك القادم محفوظ — يبدأ غداً من حيث توقفت.
+            </div>
+          )}
+          <div style={{
+            background: 'var(--purple-lo)', border: '1px solid var(--purple-md)',
+            borderRadius: 12, padding: '10px 14px', marginBottom: 12,
+            fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.7,
+          }}>
+            🌙 لن يُحتسب هذا اليوم تمريناً فائتاً، ولن يكسر ستريك الالتزام.
+          </div>
+          <button
+            onClick={onOverrideRecovery}
+            style={{
+              width: '100%', padding: '11px',
+              background: 'var(--bg3)', border: '1px dashed var(--border2)',
+              borderRadius: 12, color: 'var(--text2)',
+              fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}
+          >أشعر أنني قادر على التمرين</button>
+        </Card>
+      )}
+
       {/* ── Plan Day Card ─────────────────────────────────────── */}
-      {currentPlanDay && !active && (
+      {currentPlanDay && !active && !isRecoveryDay && (
         <PlanDayCard
           day={currentPlanDay}
           dayNum={planDayNum}
@@ -639,38 +690,68 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         />
       )}
 
-      {/* ── Weekly Schedule ───────────────────────────────────── */}
+      {/* ── Recovery cycle + streaks ──────────────────────────── */}
       <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }}>
-        <SectionTitle>الجدول الأسبوعي</SectionTitle>
-        <div style={{ display: 'flex', gap: 5, justifyContent: 'space-between' }}>
-          {WEEK_DAYS_SHORT.map((day, idx) => {
-            const isToday    = idx === today
-            const isTraining = trainingDays.includes(idx)
+        <SectionTitle>دورة التعافي</SectionTitle>
+
+        {/* Where you are in the current cycle */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+          {Array.from({ length: recovery?.cycleLimit || 0 }).map((_, i) => {
+            const filled = i < (recovery?.workoutStreak || 0)
             return (
-              <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: '50%',
-                  background: isToday ? 'var(--cyan)' : isTraining ? 'var(--cyan-lo)' : 'var(--bg3)',
-                  border: isToday ? '2px solid var(--cyan)' : isTraining ? '2px solid var(--border2)' : '1px solid var(--border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: isToday ? '#F0F4FF' : isTraining ? 'var(--cyan)' : 'var(--text3)',
-                  transition: 'all 0.2s',
-                  boxShadow: isToday
-                    ? '0 0 20px var(--cyan-md), 0 0 40px var(--cyan-glow)'
-                    : isTraining ? '0 0 10px var(--cyan-glow)' : 'none',
-                  animation: isToday ? 'glowPulse 2.5s ease-in-out infinite' : 'none',
-                }}>
-                  {isTraining
-                    ? <DumbbellIcon size={16} color={isToday ? '#F0F4FF' : 'var(--cyan)'} />
-                    : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: isToday ? 800 : 400 }}>{day}</span>
-                  }
-                </div>
-                {isToday && (
-                  <div className="pulse-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--cyan)' }} />
-                )}
+              <div key={i} style={{
+                width: 38, height: 38, borderRadius: '50%',
+                background: filled ? 'var(--cyan-lo)' : 'var(--bg3)',
+                border: `2px solid ${filled ? 'var(--cyan)' : 'var(--border)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: filled ? '0 0 10px var(--cyan-glow)' : 'none',
+                transition: 'all 0.2s',
+              }}>
+                <DumbbellIcon size={16} color={filled ? 'var(--cyan)' : 'var(--text3)'} />
               </div>
             )
           })}
+          <div style={{
+            width: 38, height: 38, borderRadius: '50%',
+            background: isRecoveryDay ? 'var(--purple-lo)' : 'var(--bg3)',
+            border: `2px solid ${isRecoveryDay ? 'var(--purple)' : 'var(--border)'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 16,
+            boxShadow: isRecoveryDay ? '0 0 10px var(--purple-md)' : 'none',
+            animation: isRecoveryDay ? 'glowPulse 2.5s ease-in-out infinite' : 'none',
+          }}>🌙</div>
+        </div>
+
+        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7, marginBottom: 12 }}>
+          {isRecoveryDay
+            ? 'اكتملت الدورة — اليوم راحة، وغداً تبدأ دورة جديدة.'
+            : `${recovery?.cycleLimit || 0} تمارين ثم يوم راحة · أنجزت ${recovery?.workoutStreak || 0}`}
+        </div>
+
+        {/* The two distinct streaks */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{
+            flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
+            borderTop: '3px solid var(--cyan)', borderRadius: 12, padding: '12px 10px', textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800, color: 'var(--cyan)' }}>
+              {recovery?.workoutStreak || 0}
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
+              تمارين متتالية
+            </div>
+          </div>
+          <div style={{
+            flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
+            borderTop: '3px solid var(--gold)', borderRadius: 12, padding: '12px 10px', textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800, color: 'var(--gold)' }}>
+              {recovery?.consistencyStreak || 0}
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
+              أيام التزام
+            </div>
+          </div>
         </div>
       </Card>
 
@@ -713,6 +794,13 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'currentColor', animation: 'pulseDot 1.5s ease-in-out infinite' }} />
               متابعة الجلسة
             </button>
+          ) : isRecoveryDay ? (
+            // A recovery day must not push a start-workout CTA; training
+            // today is available deliberately via the override above.
+            <div style={{
+              textAlign: 'center', padding: '12px',
+              fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
+            }}>🌙 اليوم للتعافي — غداً تكمل خطتك</div>
           ) : currentPlanDay ? (
             <button className="btn-cyan" onClick={() => onStartPlannedWorkout(currentPlanDay)}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 10, paddingBottom: 10 }}>

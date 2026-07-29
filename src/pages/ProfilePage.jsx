@@ -6,7 +6,7 @@ import {
   calcBMI, bmiCategory, calcAge, fmtDuration,
   sessionVolume, calcStreak,
 } from '../utils.js'
-import { GOALS, WEEK_DAYS_SHORT } from '../constants.js'
+import { GOALS } from '../constants.js'
 
 const ACTIVITY_LEVELS = [
   { id: 'sedentary',   label: 'قليل الحركة',   mult: 1.2,   desc: 'مكتب / لا رياضة' },
@@ -46,7 +46,7 @@ const TRAINING_SYSTEMS = [
   { id: 'custom',     label: 'مخصص',               desc: 'حسب الجدول الشخصي' },
 ]
 
-export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile, onGoToPhotos }) {
+export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile, onGoToPhotos, recovery }) {
   const [editField,  setEditField]  = useState(null)
   const [editValue,  setEditValue]  = useState('')
   const [activity,   setActivity]   = useState('moderate')
@@ -408,36 +408,17 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         </div>
       </div>
 
-      {/* ── Training Schedule ─────────────────────────────────── */}
+      {/* ── Training rhythm (recovery engine) ─────────────────── */}
       <Card style={{ padding: 6, marginBottom: 4 }}>
-        <SectionTitle>جدول التدريب</SectionTitle>
-        <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between', marginBottom: 12 }}>
-          {WEEK_DAYS_SHORT.map((day, idx) => {
-            const isTraining = (profile?.trainingDays || []).includes(idx)
-            return (
-              <div key={idx} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              }}>
-                <div style={{
-                  width: 38, height: 38, borderRadius: '50%',
-                  background: isTraining ? 'var(--cyan-lo)' : 'var(--bg3)',
-                  border: `2px solid ${isTraining ? 'var(--cyan)' : 'var(--border)'}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14,
-                  color: isTraining ? 'var(--cyan)' : 'var(--text3)',
-                  boxShadow: isTraining ? '0 0 8px var(--cyan-glow)' : 'none',
-                }}>
-                  {isTraining ? '⚔️' : day}
-                </div>
-              </div>
-            )
-          })}
+        <SectionTitle>إيقاع التدريب</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <StatBox label="تمارين متتالية" value={recovery?.workoutStreak ?? 0} color="var(--cyan)" />
+          <StatBox label="أيام التزام"    value={recovery?.consistencyStreak ?? 0} color="var(--gold)" />
         </div>
-        {profile?.workoutTime && (
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
-            وقت التدريب المفضل: {profile.workoutTime}
-          </div>
-        )}
+        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.8 }}>
+          دورة التعافي: {(recovery?.pattern || []).map(n => `${n} تمارين ← راحة`).join(' ← ') || '—'}
+          {profile?.workoutTime && <><br/>وقت التدريب المفضل: {profile.workoutTime}</>}
+        </div>
       </Card>
 
       {/* ── Lifetime Stats ────────────────────────────────────── */}
