@@ -13,6 +13,7 @@ import {
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS } from './recovery.js'
 import { todayKey } from './day.js'
+import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 
 const NAV_ICONS = {
   home:         HomeIcon,
@@ -91,6 +92,7 @@ export default function App() {
   // Recovery config. Migrates existing users off the old weekday
   // picker by reading how many days a week they had selected —
   // workout history and plan order are left completely untouched.
+  const [repTarget, setRepTarget] = useState(() => ({ ...DEFAULT_REP_TARGET, ...ls.get('hf_rep_target', {}) }))
   const [recoveryCfg, setRecoveryCfg] = useState(() => {
     const saved = ls.get('hf_recovery', null)
     if (saved) return { ...DEFAULT_RECOVERY, ...saved }
@@ -138,6 +140,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_exercise_mapping', exerciseMapping) }, [exerciseMapping])
   useEffect(() => { ls.set('hf_exercise_subs',    exerciseSubs)    }, [exerciseSubs])
   useEffect(() => { ls.set('hf_recovery',         recoveryCfg)     }, [recoveryCfg])
+  useEffect(() => { ls.set('hf_rep_target',       repTarget)       }, [repTarget])
 
   // ── Schedule daily notifications ─────────────────────────────
   useEffect(() => {
@@ -281,7 +284,8 @@ export default function App() {
       const prevWeight = fromSnapshot != null
         ? fromSnapshot
         : (getExerciseStats(sessions, ex.name, exerciseMapping).lastWeight ?? '')
-      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight })
+      const prog = analyzeProgression(sessions, ex.name, exerciseMapping, repTarget)
+      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight, prevReps: prog.suggestedReps })
     })
     const session = {
       id:           Date.now(),
@@ -293,7 +297,7 @@ export default function App() {
     }
     setActive(session)
     setTab('workout')
-  }, [planIndex, sessions, exerciseMapping, exerciseSubs])
+  }, [planIndex, sessions, exerciseMapping, exerciseSubs, repTarget])
 
   const skipPlanDay = useCallback(() => {
     setPlanIndex(prev => prev + 1)
@@ -534,6 +538,7 @@ export default function App() {
             }}
             isResting={showRest}
             exerciseMapping={exerciseMapping}
+            repTarget={repTarget}
             onUpdateSession={updateSession}
             onDeleteSession={deleteSession}
           />
@@ -583,6 +588,8 @@ export default function App() {
             exerciseMapping={exerciseMapping}
             recoveryCfg={recoveryCfg}
             onUpdateRecovery={(patch) => setRecoveryCfg(prev => ({ ...prev, ...patch }))}
+            repTarget={repTarget}
+            onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
             onImportMapping={(newMapping) => {
               setExerciseMapping(prev => ({ ...prev, ...newMapping }))
               pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)

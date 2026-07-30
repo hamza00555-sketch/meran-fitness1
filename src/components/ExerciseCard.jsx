@@ -69,7 +69,7 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus, progression = null }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(false)
   const [copied,    setCopied]    = useState(false)
@@ -168,6 +168,31 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
               {/* Badges row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Badge color={color}>{emoji} {label}</Badge>
+
+                {/* Double progression: cleared the top of the rep range
+                    last time, so it is time to add weight */}
+                {progression?.readyToIncrease && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'var(--gold-lo)', border: '1px solid var(--gold)',
+                    borderRadius: 10, padding: '2px 9px',
+                    fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--gold)', fontWeight: 700,
+                  }} title={`أكملت ${progression.setsAtTop} من ${progression.totalSets} سيت بـ ${progression.target.top} عدة`}>
+                    ⬆️ ارفع وزنك
+                  </span>
+                )}
+
+                {/* Pushing reps at the same weight before adding load */}
+                {!progression?.readyToIncrease && progression?.sessionsAtWeight >= 2 && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
+                    borderRadius: 10, padding: '2px 9px',
+                    fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--cyan)', fontWeight: 700,
+                  }} title={`${progression.sessionsAtWeight} جلسات على ${progression.workingWeight}kg`}>
+                    🎯 حاول {progression.target.top} عدة
+                  </span>
+                )}
 
                 {/* YouTube tag */}
                 {ytUrl && (

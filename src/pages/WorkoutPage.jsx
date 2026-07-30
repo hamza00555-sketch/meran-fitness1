@@ -5,8 +5,9 @@ import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, ls } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
+import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, onUpdateSession, onDeleteSession }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, onUpdateSession, onDeleteSession }) {
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
   const [elapsed,       setElapsed]       = useState(0)
@@ -77,7 +78,8 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const handleAddSet = (exId) =>
     updateEx(exId, ex => {
       const prev = ex.sets.at(-1)?.weight || ''
-      return { ...ex, sets: [...ex.sets, blankSet(prev)] }
+      const prevReps = ex.sets[ex.sets.length - 1]?.reps || ''
+      return { ...ex, sets: [...ex.sets, blankSet(prev, prevReps)] }
     })
 
   const handleRemoveSet = (exId, si) =>
@@ -110,15 +112,18 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
     return getExerciseStats(sessions, name, exerciseMapping).lastWeight ?? ''
   }
 
+  const getSuggestedReps = (name) =>
+    analyzeProgression(sessions, name, exerciseMapping, repTarget).suggestedReps
+
   const handleAddExercise = ({ muscle, name, numSets }) => {
-    const ex = buildExercise({ muscle, name, numSets, prevWeight: getLastW(name) })
+    const ex = buildExercise({ muscle, name, numSets, prevWeight: getLastW(name), prevReps: getSuggestedReps(name) })
     onUpdateActive(prev => ({ ...prev, exercises: [...prev.exercises, ex] }))
     setShowAdd(false)
   }
 
   const handleLoadRoutine = (routine) => {
     const exercises = routine.exercises.map(ex =>
-      buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || 3, prevWeight: getLastW(ex.name) })
+      buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || 3, prevWeight: getLastW(ex.name), prevReps: getSuggestedReps(ex.name) })
     )
     onUpdateActive(prev => ({ ...prev, exercises }))
     setShowRoutines(false)
@@ -262,6 +267,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           exercise={ex}
           sessions={sessions || []}
           exerciseMapping={exerciseMapping}
+          progression={analyzeProgression(sessions, ex.name, exerciseMapping, repTarget)}
           onUpdateSet={(si, field, val) => { setFocusExId(ex.id); handleUpdateSet(ex.id, si, field, val) }}
           onDoneSet={(si, done) => { setFocusExId(ex.id); handleDoneSet(ex.id, si, done) }}
           onAddSet={() => { setFocusExId(ex.id); handleAddSet(ex.id) }}

@@ -44,7 +44,7 @@ export const PER_USER_KEYS = [
   'hf_challenges', 'hf_plan', 'hf_plan_index', 'hf_photos',
   'hf_exercise_mapping', 'hf_last_weights', 'hf_weight_backups',
   'hf_seen_version', 'hf_weights_reset_v2', 'hf_weights_reset_at',
-  'hf_exercise_subs', 'hf_rest_timer', 'hf_recovery',
+  'hf_exercise_subs', 'hf_rest_timer', 'hf_recovery', 'hf_rep_target',
 ]
 
 export const deleteUserData = (id) => {
@@ -199,9 +199,9 @@ export const sessionVolume = (session) => {
 }
 
 // ── Blank set ─────────────────────────────────────────────────
-export const blankSet = (prevWeight = '') => ({
+export const blankSet = (prevWeight = '', prevReps = '') => ({
   weight: prevWeight,
-  reps: '',
+  reps: prevReps === null || prevReps === undefined ? '' : String(prevReps),
   done: false,
 })
 
@@ -249,11 +249,11 @@ export const EQUIPMENT_LABELS = {
 }
 
 // ── Build exercise ────────────────────────────────────────────
-export const buildExercise = ({ muscle, name, numSets = 3, prevWeight = '' }) => ({
+export const buildExercise = ({ muscle, name, numSets = 3, prevWeight = '', prevReps = '' }) => ({
   id: uid(),
   muscle,
   name,
-  sets: Array.from({ length: numSets }, () => blankSet(prevWeight)),
+  sets: Array.from({ length: numSets }, () => blankSet(prevWeight, prevReps)),
 })
 
 // ── XP / Level formulas ───────────────────────────────────────

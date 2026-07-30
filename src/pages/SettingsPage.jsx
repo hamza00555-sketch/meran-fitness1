@@ -4,12 +4,13 @@ import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
 import { GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
 import { TRAINING_FREQUENCIES, patternFor } from '../recovery.js'
 import { todayKey } from '../day.js'
+import { REP_TARGETS, repTargetOf, DEFAULT_REP_TARGET } from '../progression.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmWeights, setConfirmWeights] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -484,6 +485,92 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.8,
             }}>
               الدورة الحالية: {patternFor(recoveryCfg).map(n => `${n} تمارين ← راحة`).join(' ← ')}
+            </div>
+          </Card>
+        </div>
+
+        {/* ── Rep range (drives the double-progression engine) ── */}
+        <div style={{ marginBottom: 10 }}>
+          <SectionTitle>عدد التكرارات المناسب</SectionTitle>
+          <Card style={{ padding: 12 }}>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.8, marginBottom: 10, padding: '0 4px' }}>
+              يثبت التطبيق الوزن ويرفع التكرارات حتى تصل لأعلى المدى، ثم ينصحك برفع الوزن والرجوع لأول المدى.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {REP_TARGETS.map(t => {
+                const isActive = repTarget.id === t.id
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => onUpdateRepTarget?.({ id: t.id, base: t.base, top: t.top })}
+                    style={{
+                      flex: '1 1 calc(50% - 4px)', padding: '12px 10px', borderRadius: 12,
+                      background: isActive ? 'var(--cyan-lo)' : 'var(--bg3)',
+                      border: `2px solid ${isActive ? 'var(--cyan)' : 'var(--border)'}`,
+                      color: isActive ? 'var(--cyan)' : 'var(--text2)',
+                      cursor: 'pointer', transition: 'all 0.15s', textAlign: 'right',
+                    }}
+                  >
+                    <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: isActive ? 800 : 600 }}>
+                      {t.label}
+                    </div>
+                    <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                      {t.desc}
+                    </div>
+                  </button>
+                )
+              })}
+              <button
+                onClick={() => onUpdateRepTarget?.({ id: 'custom', base: repTarget.base || 12, top: repTarget.top || 15 })}
+                style={{
+                  flex: '1 1 100%', padding: '12px 10px', borderRadius: 12,
+                  background: repTarget.id === 'custom' ? 'var(--cyan-lo)' : 'var(--bg3)',
+                  border: `2px solid ${repTarget.id === 'custom' ? 'var(--cyan)' : 'var(--border)'}`,
+                  color: repTarget.id === 'custom' ? 'var(--cyan)' : 'var(--text2)',
+                  cursor: 'pointer', transition: 'all 0.15s', textAlign: 'right',
+                }}
+              >
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: repTarget.id === 'custom' ? 800 : 600 }}>
+                  إعداد مخصص
+                </div>
+                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                  حدد أقل وأعلى عدد تكرارات بنفسك
+                </div>
+              </button>
+            </div>
+
+            {repTarget.id === 'custom' && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 12 }}>
+                {[
+                  { key: 'base', label: 'من (الأدنى)' },
+                  { key: 'top',  label: 'إلى (الأعلى)' },
+                ].map(f => (
+                  <div key={f.key} style={{ flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>
+                      {f.label}
+                    </div>
+                    <input
+                      type="number" inputMode="numeric" min={1} max={50}
+                      value={repTarget[f.key] ?? ''}
+                      onChange={e => onUpdateRepTarget?.({ [f.key]: parseInt(e.target.value) || 0 })}
+                      style={{
+                        width: '100%', background: 'var(--bg3)',
+                        border: '1px solid var(--border2)', borderRadius: 10,
+                        padding: '10px 12px', color: 'var(--text)',
+                        fontFamily: 'var(--font-mono)', fontSize: 16, outline: 'none',
+                        textAlign: 'center', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{
+              marginTop: 12, background: 'var(--bg3)', borderRadius: 10, padding: '10px 14px',
+              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.8,
+            }}>
+              ابدأ بـ {repTargetOf(repTarget).base} عدة · بعد جلستين على نفس الوزن يقترح {repTargetOf(repTarget).top} عدة · وعند إتمام نصف السيتات بـ {repTargetOf(repTarget).top} يظهر تاق «ارفع وزنك»
             </div>
           </Card>
         </div>
