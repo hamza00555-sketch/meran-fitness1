@@ -250,10 +250,10 @@ export default function App() {
   useEffect(() => {
     if (!sessions.length) return
     const t = setTimeout(() => {
-      checkAchievements(sessions, xp, calcStreak(sessions))
+      checkAchievements(sessions, xp, computeRecovery(sessions, recoveryCfg).consistencyStreak)
     }, 1000)
     return () => clearTimeout(t)
-  }, [sessions]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessions, recoveryCfg]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Auto-backup every 10 min during active workout ───────────
   useEffect(() => {
@@ -331,7 +331,7 @@ export default function App() {
 
     setSessions(prev => {
       const newSessions = [finished, ...prev]
-      const streak = calcStreak(newSessions)
+      const streak = computeRecovery(newSessions, recoveryCfg).consistencyStreak
 
       // Bonus XP at session finish (per-set XP already awarded live)
       const finishBonus = 50 + Math.floor(duration / 30) * 30
@@ -352,7 +352,7 @@ export default function App() {
     setActive(null)
     setTab('home')
     pushAlert('🎉', 'جلسة مكتملة! عمل رائع!')
-  }, [active, exerciseMapping, addXP, checkAchievements, pushAlert, xp])
+  }, [active, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
 
   const updateActive = useCallback((updater) => {
     setActive(prev => prev ? updater(prev) : prev)
@@ -383,9 +383,10 @@ export default function App() {
 
   // ── Derived values ────────────────────────────────────────────
   const recovery = computeRecovery(sessions, recoveryCfg)
-  // Legacy streak kept for achievements/challenges; the UI shows the
-  // two explicit streaks the recovery engine produces.
-  const streak  = calcStreak(sessions)
+  // The streak shown everywhere is the CONSISTENCY streak: a recovery
+  // day taken as planned keeps it alive. calcStreak() counted raw
+  // consecutive calendar days, so any rest day wiped it.
+  const streak  = recovery.consistencyStreak
 
   const overrideRecoveryDay = useCallback(() => {
     const today = new Date().toISOString().split('T')[0]

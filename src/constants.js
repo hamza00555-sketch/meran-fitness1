@@ -639,32 +639,32 @@ export const ACHIEVEMENTS = [
   // ── Streak ────────────────────────────────────────────────────
   {
     id: 'c1', cat: 'streak', rarity: 'common',
-    icon: '🔥', title: '3 أيام متواصلة', desc: 'تدرب 3 أيام متتالية', xp: 100,
+    icon: '🔥', title: '3 أيام متواصلة', desc: 'التزم بخطتك 3 أيام متتالية — تمريناً أو راحة', xp: 100,
     check: (s, xp, streak) => streak >= 3,
   },
   {
     id: 'c2', cat: 'streak', rarity: 'common',
-    icon: '🔥🔥', title: 'أسبوع نار', desc: 'تدرب 7 أيام متتالية', xp: 250,
+    icon: '🔥🔥', title: 'أسبوع نار', desc: 'التزم بخطتك 7 أيام متتالية — تمريناً أو راحة', xp: 250,
     check: (s, xp, streak) => streak >= 7,
   },
   {
     id: 'c3', cat: 'streak', rarity: 'rare',
-    icon: '🔥🔥🔥', title: 'أسبوعان متواصلان', desc: 'تدرب 14 يوماً متتالياً', xp: 450,
+    icon: '🔥🔥🔥', title: 'أسبوعان متواصلان', desc: 'التزم بخطتك 14 يوماً متتالياً — تمريناً أو راحة', xp: 450,
     check: (s, xp, streak) => streak >= 14,
   },
   {
     id: 'c4', cat: 'streak', rarity: 'epic',
-    icon: '🌙', title: 'شهر النار', desc: 'تدرب 30 يوماً متتالياً', xp: 800,
+    icon: '🌙', title: 'شهر النار', desc: 'التزم بخطتك 30 يوماً متتالياً — تمريناً أو راحة', xp: 800,
     check: (s, xp, streak) => streak >= 30,
   },
   {
     id: 'c5', cat: 'streak', rarity: 'legendary',
-    icon: '⚡', title: 'لا يُوقَف', desc: 'تدرب 60 يوماً متتالياً', xp: 2000,
+    icon: '⚡', title: 'لا يُوقَف', desc: 'التزم بخطتك 60 يوماً متتالياً — تمريناً أو راحة', xp: 2000,
     check: (s, xp, streak) => streak >= 60,
   },
   {
     id: 'c6', cat: 'streak', rarity: 'legendary',
-    icon: '🌟', title: 'أسطورة اليد الحديدية', desc: 'تدرب 100 يوم متتالٍ', xp: 3000,
+    icon: '🌟', title: 'أسطورة اليد الحديدية', desc: 'التزم بخطتك 100 يوم متتالٍ — تمريناً أو راحة', xp: 3000,
     check: (s, xp, streak) => streak >= 100,
   },
   {
