@@ -3,6 +3,7 @@ import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
 import { GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
 import { TRAINING_FREQUENCIES, patternFor } from '../recovery.js'
+import { todayKey } from '../day.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 
@@ -218,7 +219,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
   }
 
   const handleCopyPrompt = () => {
-    const template = JSON.stringify({ ...PLAN_TEMPLATE, startDate: new Date().toISOString().split('T')[0] }, null, 2)
+    const template = JSON.stringify({ ...PLAN_TEMPLATE, startDate: todayKey() }, null, 2)
     const prompt = AI_PLAN_PROMPT.replace('TEMPLATE_PLACEHOLDER', template)
     navigator.clipboard.writeText(prompt).then(() => {
       setPromptCopied(true)
@@ -607,7 +608,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                       >{isExpanded ? '▲ إخفاء' : '▼ عرض التمارين'}</button>
                       <button
                         onClick={() => {
-                          onImportPlan({ ...p, startDate: new Date().toISOString().split('T')[0] })
+                          onImportPlan({ ...p, startDate: todayKey() })
                         }}
                         style={{
                           flex: 2, padding: '9px',

@@ -1,4 +1,5 @@
 import { RANKS, COMMITMENT_LEVELS } from './constants.js'
+import { dayKey, todayKey } from './day.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
 // Every hf_* key is namespaced by the active user so each person
@@ -86,7 +87,7 @@ export const ls = {
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
 
 // ── Date helpers ──────────────────────────────────────────────
-export const todayISO = () => new Date().toISOString().split('T')[0]
+export const todayISO = todayKey
 
 export const fmtDate = (iso) => {
   if (!iso) return '—'
@@ -109,7 +110,7 @@ export const fmtDuration = (minutes) => {
 // ── Streak calculator ─────────────────────────────────────────
 export const calcStreak = (sessions) => {
   if (!sessions || !sessions.length) return 0
-  const days = [...new Set(sessions.map(s => s.date.split('T')[0]))]
+  const days = [...new Set(sessions.map(s => dayKey(s.date)))]
     .sort()
     .reverse()
   let streak = 0
@@ -375,9 +376,9 @@ export const scheduleNotificationsForToday = async (workoutTime, messages, worko
   const reg = await navigator.serviceWorker?.ready.catch(() => null)
   if (!reg) return
 
-  const todayKey = new Date().toISOString().split('T')[0]
-  if (localStorage.getItem('hf_notif_scheduled') === todayKey) return
-  localStorage.setItem('hf_notif_scheduled', todayKey)
+  const todayStamp = todayKey()
+  if (localStorage.getItem('hf_notif_scheduled') === todayStamp) return
+  localStorage.setItem('hf_notif_scheduled', todayStamp)
 
   const workoutHour = workoutTimeHours[workoutTime] ?? 17
   const schedule = [
@@ -458,14 +459,14 @@ export const playBeep = (count = 3) => {
 export const buildCalendarData = (sessions, weeks = 14) => {
   const counts = {}
   sessions.forEach(s => {
-    const d = s.date.split('T')[0]
+    const d = dayKey(s.date)
     counts[d] = (counts[d] || 0) + 1
   })
   const end = new Date(); end.setHours(0, 0, 0, 0)
   const start = new Date(end); start.setDate(start.getDate() - weeks * 7 + 1)
   const days = []
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const iso = d.toISOString().split('T')[0]
+    const iso = dayKey(d)
     days.push({ iso, count: counts[iso] || 0 })
   }
   return days

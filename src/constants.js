@@ -1,3 +1,5 @@
+import { dayKey, todayKey } from './day.js'
+
 // ── App version — bump this string after each update to trigger WhatsNew ──
 export const APP_VERSION = '2.2'
 
@@ -325,7 +327,7 @@ export const DAILY_CHALLENGE_POOL = [
     title: 'أنهِ جلسة اليوم',
     desc: 'أكمل جلسة تدريبية واحدة على الأقل اليوم',
     icon: '⚡', xp: 50, target: 1,
-    check: (sessions) => sessions.filter(s => s.date.split('T')[0] === new Date().toISOString().split('T')[0]).length,
+    check: (sessions) => sessions.filter(s => dayKey(s.date) === todayKey()).length,
   },
   {
     id: 'dc2', type: 'daily',
@@ -333,8 +335,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'أكمل 10 سيتات على الأقل في جلسة واحدة',
     icon: '🎯', xp: 40, target: 10,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return todaySessions.reduce((max, s) =>
         Math.max(max, s.exercises.flatMap(e => e.sets).filter(ss => ss.done || parseFloat(ss.weight) > 0).length), 0)
     },
@@ -345,8 +347,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'تدرب على 3 مجموعات عضلية مختلفة في يوم واحد',
     icon: '🦾', xp: 60, target: 3,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       const muscles = new Set(todaySessions.flatMap(s => s.exercises.map(e => e.muscle)))
       return muscles.size
     },
@@ -357,8 +359,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'أكمل جلسة تدريبية مدتها 45 دقيقة أو أكثر',
     icon: '⏱️', xp: 55, target: 45,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      return sessions.filter(s => s.date.split('T')[0] === today && s.duration >= 45).length > 0 ? 45 : 0
+      const today = todayKey()
+      return sessions.filter(s => dayKey(s.date) === today && s.duration >= 45).length > 0 ? 45 : 0
     },
   },
   {
@@ -367,8 +369,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'ارفع 500 كيلوغرام إجمالي في جلسة واحدة',
     icon: '💪', xp: 65, target: 500,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return Math.max(0, ...todaySessions.map(s =>
         s.exercises.flatMap(e => e.sets).reduce((t, ss) =>
           (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0)))
@@ -380,8 +382,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'قم بتمارين الصدر بـ 3 سيتات على الأقل',
     icon: '🫁', xp: 45, target: 3,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Chest').flatMap(e => e.sets.filter(ss => ss.done || parseFloat(ss.weight) > 0))).length
     },
   },
@@ -391,8 +393,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'قم بتمارين الأرجل بـ 3 سيتات على الأقل',
     icon: '🦵', xp: 45, target: 3,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Legs').flatMap(e => e.sets.filter(ss => ss.done || parseFloat(ss.weight) > 0))).length
     },
   },
@@ -402,8 +404,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'قم بـ 5 تمارين مختلفة في جلسة واحدة',
     icon: '📋', xp: 70, target: 5,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return Math.max(0, ...todaySessions.map(s => s.exercises.length))
     },
   },
@@ -413,8 +415,8 @@ export const DAILY_CHALLENGE_POOL = [
     desc: 'سجل وزن في كل سيت تكمله اليوم',
     icon: '⚖️', xp: 30, target: 1,
     check: (sessions) => {
-      const today = new Date().toISOString().split('T')[0]
-      const todaySessions = sessions.filter(s => s.date.split('T')[0] === today)
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       const hasSetsWithWeight = todaySessions.some(s =>
         s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) > 0)))
       return hasSetsWithWeight ? 1 : 0
@@ -565,7 +567,7 @@ export const ACHIEVEMENTS = [
     check: (sessions) => {
       const byday = {}
       sessions.forEach(s => {
-        const d = s.date.split('T')[0]
+        const d = dayKey(s.date)
         byday[d] = (byday[d] || 0) + 1
       })
       return Object.values(byday).some(c => c >= 3)
@@ -677,7 +679,7 @@ export const ACHIEVEMENTS = [
     icon: '🏆', title: '5 أيام هذا الأسبوع', desc: 'تدرب 5 أيام في أسبوع واحد', xp: 200,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
-      const days = new Set(sessions.filter(s => new Date(s.date) > weekAgo).map(s => s.date.split('T')[0]))
+      const days = new Set(sessions.filter(s => new Date(s.date) > weekAgo).map(s => dayKey(s.date)))
       return days.size >= 5
     },
   },
@@ -689,7 +691,7 @@ export const ACHIEVEMENTS = [
       const monthAgo = Date.now() - 30 * 86400000
       const monthSessions = sessions.filter(s => new Date(s.date) > monthAgo)
       if (monthSessions.length < 5) return false
-      const days = [...new Set(monthSessions.map(s => s.date.split('T')[0]))].sort()
+      const days = [...new Set(monthSessions.map(s => dayKey(s.date)))].sort()
       for (let i = 1; i < days.length; i++) {
         const diff = (new Date(days[i]) - new Date(days[i - 1])) / 86400000
         if (diff > 3) return false
@@ -702,7 +704,7 @@ export const ACHIEVEMENTS = [
     icon: '📆', title: 'الشهر كامل', desc: 'سجل جلسات في 20 يوم مختلف خلال شهر واحد', xp: 400,
     check: (sessions) => {
       const monthAgo = Date.now() - 30 * 86400000
-      const days = new Set(sessions.filter(s => new Date(s.date) > monthAgo).map(s => s.date.split('T')[0]))
+      const days = new Set(sessions.filter(s => new Date(s.date) > monthAgo).map(s => dayKey(s.date)))
       return days.size >= 20
     },
   },
@@ -796,7 +798,7 @@ export const NAV_TABS = [
 export const PLAN_TEMPLATE = {
   version: '1.0',
   planName: 'اسم الخطة',
-  startDate: new Date().toISOString().split('T')[0],
+  startDate: todayKey(),
   durationWeeks: 12,
   goal: 'muscle',
   weeklySchedule: [

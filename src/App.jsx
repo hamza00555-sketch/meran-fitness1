@@ -12,6 +12,7 @@ import {
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS } from './recovery.js'
+import { todayKey } from './day.js'
 
 const NAV_ICONS = {
   home:         HomeIcon,
@@ -389,7 +390,7 @@ export default function App() {
   const streak  = recovery.consistencyStreak
 
   const overrideRecoveryDay = useCallback(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayKey()
     setRecoveryCfg(prev => ({
       ...prev,
       overrides: [...new Set([...(prev.overrides || []), today])].slice(-60),

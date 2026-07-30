@@ -7,12 +7,14 @@
 // This engine never touches the plan sequence: if the last completed
 // workout was Push, the next one is Pull no matter how many days pass.
 
+import { dayKey, todayKey } from './day.js'
+
 const DAY = 86400000
 // Anchor at midday UTC so DST shifts can never move a date by a day.
 const stamp = (iso) => Date.parse(`${iso}T12:00:00Z`)
 export const dayDiff = (fromISO, toISO) => Math.round((stamp(toISO) - stamp(fromISO)) / DAY)
 export const addDays = (iso, n) => new Date(stamp(iso) + n * DAY).toISOString().split('T')[0]
-export const dateKey = (d) => String(d).split('T')[0]
+export const dateKey = dayKey
 
 // How many consecutive workouts before each recovery day. Treated as a
 // rolling cycle, not a fixed Saturday-to-Friday week.
@@ -47,7 +49,7 @@ export const DAY_STATUS = {
  * Replays the user's real workout history day by day to work out where
  * they are in their recovery cycle and what today should be.
  */
-export function computeRecovery(sessions = [], config = {}, today = new Date().toISOString().split('T')[0]) {
+export function computeRecovery(sessions = [], config = {}, today = todayKey()) {
   const pattern   = patternFor(config)
   const overrides = new Set(config.overrides || [])
   const workoutDates = new Set((sessions || []).map(s => dateKey(s.date)).filter(Boolean))
