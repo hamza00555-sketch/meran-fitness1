@@ -30,7 +30,7 @@ export const DEFAULT_RECOVERY = {
   // Optional rest days are a reward: one is earned for every
   // REST_CREDIT_EVERY days of consistency, and spending one protects
   // the streak on a day off the cycle had not yet earned.
-  restCredits: 1, creditMilestone: 0,
+  restCredits: 1, creditMilestone: 0, autoSpendFrom: null,
 }
 
 export const REST_CREDIT_EVERY = 5

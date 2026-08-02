@@ -412,29 +412,40 @@ export default function App() {
     })
   }, [recovery.consistencyStreak, pushAlert])
 
+  // ── Spend earned rest days automatically ─────────────────────
+  // A day you miss is covered by a stored rest day if you have one, so
+  // the streak survives without you having to open the app that day.
+  // With no balance left, the streak breaks — that is the whole point.
+  useEffect(() => {
+    setRecoveryCfg(prev => {
+      // Only ever cover days from when this started; never retro-drain
+      // the balance across a user's whole past history.
+      const from = prev.autoSpendFrom || todayKey()
+      if (!prev.autoSpendFrom) return { ...prev, autoSpendFrom: from }
+
+      const coverable = (recovery.missedDays || []).filter(d => d >= from)
+      if (!coverable.length) return prev
+
+      const credits = prev.restCredits ?? 0
+      if (credits < 1) return prev
+
+      const spend = coverable.slice(0, credits)   // oldest missed days first
+      setTimeout(() => pushAlert('🎟️',
+        spend.length === 1
+          ? `استُخدم يوم راحة من رصيدك — ستريكك محفوظ`
+          : `استُخدمت ${spend.length} أيام راحة من رصيدك`), 0)
+      return {
+        ...prev,
+        restCredits: credits - spend.length,
+        restDays: [...new Set([...(prev.restDays || []), ...spend])].slice(-120),
+      }
+    })
+  }, [recovery.missedDays, pushAlert])
+
   // The streak shown everywhere is the CONSISTENCY streak: a recovery
   // day taken as planned keeps it alive. calcStreak() counted raw
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
-
-  // Spend an earned rest day to protect the streak on a day off
-  const logRestDay = useCallback((day) => {
-    const target = day || todayKey()
-    let spent = false
-    setRecoveryCfg(prev => {
-      if ((prev.restCredits ?? 0) < 1) return prev
-      spent = true
-      return {
-        ...prev,
-        restCredits: (prev.restCredits ?? 0) - 1,
-        restDays: [...new Set([...(prev.restDays || []), target])].slice(-120),
-      }
-    })
-    setTimeout(() => {
-      if (spent) pushAlert('🌙', day ? 'تم تسجيلها راحة — ستريكك سليم' : 'يوم راحة مسجّل — ستريكك محفوظ')
-      else pushAlert('🎟️', 'لا يوجد رصيد أيام راحة — اكسب المزيد بالالتزام')
-    }, 0)
-  }, [pushAlert])
 
   const overrideRecoveryDay = useCallback(() => {
     const today = todayKey()
@@ -555,7 +566,6 @@ export default function App() {
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             recovery={recovery}
             onOverrideRecovery={overrideRecoveryDay}
-            onLogRestDay={logRestDay}
             restCredits={recoveryCfg.restCredits ?? 0}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
