@@ -393,6 +393,16 @@ export default function App() {
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
 
+  // Log a day as deliberate rest so it counts as sticking to the plan
+  const logRestDay = useCallback((day) => {
+    const target = day || todayKey()
+    setRecoveryCfg(prev => ({
+      ...prev,
+      restDays: [...new Set([...(prev.restDays || []), target])].slice(-120),
+    }))
+    pushAlert('🌙', day ? 'تم تسجيلها راحة — ستريكك سليم' : 'يوم راحة مسجّل — ستريكك محفوظ')
+  }, [pushAlert])
+
   const overrideRecoveryDay = useCallback(() => {
     const today = todayKey()
     setRecoveryCfg(prev => ({
@@ -512,6 +522,7 @@ export default function App() {
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             recovery={recovery}
             onOverrideRecovery={overrideRecoveryDay}
+            onLogRestDay={logRestDay}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}

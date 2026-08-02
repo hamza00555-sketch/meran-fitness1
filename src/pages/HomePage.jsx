@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
-import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex } from '../utils.js'
+import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex, fmtDate } from '../utils.js'
 import { MUSCLE_GROUPS, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
 
@@ -406,7 +406,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, onLogRestDay }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -578,6 +578,30 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         </div>
       </div>
 
+      {/* ── Streak rescue: a day off that was never logged ────── */}
+      {recovery?.brokenBy && !active && (
+        <Card style={{
+          padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)',
+          borderTop: '3px solid var(--gold)',
+        }}>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800, color: 'var(--gold)', marginBottom: 4 }}>
+            🌙 كان يوم راحة؟
+          </div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.8, marginBottom: 12 }}>
+            لم تسجّل تمريناً يوم {fmtDate(recovery.brokenBy)}. سجّله راحة وسيعود ستريكك كما كان.
+          </div>
+          <button
+            onClick={() => onLogRestDay?.(recovery.brokenBy)}
+            style={{
+              width: '100%', padding: '11px',
+              background: 'var(--gold-lo)', border: '1px solid var(--gold)',
+              borderRadius: 12, color: 'var(--gold)',
+              fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 800, cursor: 'pointer',
+            }}
+          >سجّلها يوم راحة</button>
+        </Card>
+      )}
+
       {/* ── Today Card ────────────────────────────────────────────
           Horizontal: title/desc RIGHT · illustration LEFT         */}
       <Card style={{
@@ -688,6 +712,20 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           exerciseSubs={exerciseSubs}
           onCycleSub={onCycleSub}
         />
+      )}
+
+      {/* ── Taking today off on purpose ───────────────────────── */}
+      {!active && isTodayTraining && recovery?.status !== DAY_STATUS.COMPLETED && !recovery?.loggedRestToday && (
+        <button
+          onClick={() => onLogRestDay?.()}
+          style={{
+            width: '100%', marginBottom: 'var(--hp-card-mb)',
+            background: 'none', border: '1px dashed var(--border2)',
+            borderRadius: 14, padding: '12px',
+            color: 'var(--text3)', fontFamily: 'var(--font-ar)',
+            fontSize: 13, cursor: 'pointer',
+          }}
+        >🌙 مرتاح اليوم؟ سجّلها راحة — لن يتأثر ستريكك</button>
       )}
 
       {/* ── Recovery cycle + streaks ──────────────────────────── */}

@@ -25,7 +25,7 @@ export const TRAINING_FREQUENCIES = [
   { id: 6, label: '٦ أيام', pattern: [3, 3], desc: '٣ تمارين · راحة · ٣ تمارين · راحة' },
 ]
 
-export const DEFAULT_RECOVERY = { daysPerWeek: 5, customPattern: [3, 2], overrides: [] }
+export const DEFAULT_RECOVERY = { daysPerWeek: 5, customPattern: [3, 2], overrides: [], restDays: [] }
 
 export const patternFor = (config = {}) => {
   const { daysPerWeek, customPattern } = config
@@ -52,6 +52,9 @@ export const DAY_STATUS = {
 export function computeRecovery(sessions = [], config = {}, today = todayKey()) {
   const pattern   = patternFor(config)
   const overrides = new Set(config.overrides || [])
+  // Days the user deliberately logged as rest. They count as keeping to
+  // the plan — an unplanned day off used to wipe the consistency streak.
+  const loggedRest = new Set(config.restDays || [])
   const workoutDates = new Set((sessions || []).map(s => dateKey(s.date)).filter(Boolean))
 
   const sortedDates = [...workoutDates].sort()
@@ -81,14 +84,15 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     const limit    = pattern[position % pattern.length]
     const expected = consecutive >= limit ? DAY_STATUS.RECOVERY : DAY_STATUS.WORKOUT
     const trained  = workoutDates.has(cursor)
-    dayLog.push({ date: cursor, expected, trained, override: trained && expected === DAY_STATUS.RECOVERY })
+    const logged = loggedRest.has(cursor)
+    dayLog.push({ date: cursor, expected, trained, logged, override: trained && expected === DAY_STATUS.RECOVERY })
 
     if (cursor === today) break // today is still unfolding — don't advance past it
 
     if (trained) {
       consecutive += 1
-    } else if (expected === DAY_STATUS.RECOVERY) {
-      position = (position + 1) % pattern.length   // planned rest → next cycle step
+    } else if (expected === DAY_STATUS.RECOVERY || logged) {
+      position = (position + 1) % pattern.length   // rest that was planned or logged
       consecutive = 0
     } else {
       position = 0                                  // unplanned break → fresh cycle
@@ -103,6 +107,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   let status
   if (didWorkoutToday)                                status = DAY_STATUS.COMPLETED
   else if (isOverride)                                status = DAY_STATUS.WORKOUT
+  else if (loggedRest.has(today))                     status = DAY_STATUS.REST_TAKEN
   else                                                status = todayEntry.expected
 
   // ── Streaks ────────────────────────────────────────────────
@@ -115,17 +120,21 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   for (let i = dayLog.length - 1; i >= 0; i--) {
     const e = dayLog[i]
     if (e.date === today) {
-      if (e.trained || e.expected === DAY_STATUS.RECOVERY) consistencyStreak++
+      if (e.trained || e.logged || e.expected === DAY_STATUS.RECOVERY) consistencyStreak++
       continue // a pending workout today neither counts nor breaks
     }
-    const complied = e.trained || e.expected === DAY_STATUS.RECOVERY
+    const complied = e.trained || e.logged || e.expected === DAY_STATUS.RECOVERY
     if (!complied) break
     consistencyStreak++
   }
 
   const past = dayLog.filter(e => e.date !== today)
   const recoveryDayHistory = past.filter(e => !e.trained && e.expected === DAY_STATUS.RECOVERY).map(e => e.date)
-  const restTakenHistory   = past.filter(e => !e.trained && e.expected === DAY_STATUS.WORKOUT).map(e => e.date)
+  const restTakenHistory   = past.filter(e => !e.trained && e.logged).map(e => e.date)
+  // A workout day that was neither trained nor logged as rest: this is
+  // what breaks the consistency streak, and what the UI offers to fix.
+  const missedDays = past.filter(e => !e.trained && !e.logged && e.expected === DAY_STATUS.WORKOUT).map(e => e.date)
+  const brokenBy   = missedDays.length ? missedDays[missedDays.length - 1] : null
   const lastRest = [...recoveryDayHistory, ...restTakenHistory].sort().pop() || null
   const lastWorkout = sortedDates[sortedDates.length - 1]
 
@@ -141,6 +150,9 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     daysSinceLastRest: lastRest ? dayDiff(lastRest, today) : null,
     recoveryDayHistory,
     restTakenHistory,
+    missedDays,
+    brokenBy,          // most recent day that broke the streak, if any
+    loggedRestToday: loggedRest.has(today),
     dayLog,
     isOverride,
   }
