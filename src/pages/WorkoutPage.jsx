@@ -3,11 +3,11 @@ import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, ls } from '../utils.js'
-import { MUSCLE_GROUPS, ROUTINES } from '../constants.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, ls } from '../utils.js'
+import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, onUpdateSession, onDeleteSession }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, exerciseSubs = {}, onCycleSub, onUpdateSession, onDeleteSession }) {
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
   const [elapsed,       setElapsed]       = useState(0)
@@ -114,6 +114,25 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
   const getSuggestedReps = (name) =>
     analyzeProgression(sessions, name, exerciseMapping, repTarget).suggestedReps
+
+  // Swap a machine mid-workout when it turns out to be occupied. Only
+  // offered while nothing is logged yet, so completed sets are never
+  // re-attributed to a different exercise.
+  const handleSwapLive = (exId) => {
+    const ex = exercises.find(e => e.id === exId)
+    if (!ex) return
+    const origin = ex.originalName || ex.name
+    const nextIdx = nextSubIndex(origin, exerciseSubs, EXERCISE_ALTERNATIVES)
+    const nextName = substitutedName(origin, { ...exerciseSubs, [origin]: nextIdx }, EXERCISE_ALTERNATIVES)
+    onCycleSub?.(origin, nextIdx)   // remember it for next time too
+    updateEx(exId, e => ({
+      ...e,
+      name: nextName,
+      originalName: origin,
+      // the new machine carries its own load history
+      sets: e.sets.map(() => blankSet(getLastW(nextName), getSuggestedReps(nextName))),
+    }))
+  }
 
   const handleAddExercise = ({ muscle, name, numSets }) => {
     const ex = buildExercise({ muscle, name, numSets, prevWeight: getLastW(name), prevReps: getSuggestedReps(name) })
@@ -268,6 +287,10 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           sessions={sessions || []}
           exerciseMapping={exerciseMapping}
           progression={analyzeProgression(sessions, ex.name, exerciseMapping, repTarget)}
+          alternatives={EXERCISE_ALTERNATIVES[ex.originalName || ex.name] || []}
+          subIndex={exerciseSubs[ex.originalName || ex.name] || 0}
+          originalName={ex.originalName}
+          onSwap={() => handleSwapLive(ex.id)}
           onUpdateSet={(si, field, val) => { setFocusExId(ex.id); handleUpdateSet(ex.id, si, field, val) }}
           onDoneSet={(si, done) => { setFocusExId(ex.id); handleDoneSet(ex.id, si, done) }}
           onAddSet={() => { setFocusExId(ex.id); handleAddSet(ex.id) }}

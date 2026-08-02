@@ -11,7 +11,7 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
-import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS } from './recovery.js'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, creditsEarnedFor, MAX_REST_CREDITS } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 
@@ -93,6 +93,9 @@ export default function App() {
   // picker by reading how many days a week they had selected —
   // workout history and plan order are left completely untouched.
   const [repTarget, setRepTarget] = useState(() => ({ ...DEFAULT_REP_TARGET, ...ls.get('hf_rep_target', {}) }))
+  // When each achievement was earned: { id: epochMs }. Stored separately
+  // so the existing unlocked-id list needs no migration.
+  const [unlockedAt, setUnlockedAt] = useState(() => ls.get('hf_unlocked_at', {}))
   const [recoveryCfg, setRecoveryCfg] = useState(() => {
     const saved = ls.get('hf_recovery', null)
     if (saved) return { ...DEFAULT_RECOVERY, ...saved }
@@ -141,6 +144,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_exercise_subs',    exerciseSubs)    }, [exerciseSubs])
   useEffect(() => { ls.set('hf_recovery',         recoveryCfg)     }, [recoveryCfg])
   useEffect(() => { ls.set('hf_rep_target',       repTarget)       }, [repTarget])
+  useEffect(() => { ls.set('hf_unlocked_at',      unlockedAt)      }, [unlockedAt])
 
   // ── Schedule daily notifications ─────────────────────────────
   useEffect(() => {
@@ -229,17 +233,22 @@ export default function App() {
   const checkAchievements = useCallback((newSessions, newXP, newStreak) => {
     setUnlockedAchievements(prev => {
       const newUnlocked = [...prev]
+      const stamps = {}
       let gained = 0
       ACHIEVEMENTS.forEach(a => {
         if (newUnlocked.includes(a.id)) return
         try {
           if (a.check(newSessions, newXP, newStreak)) {
             newUnlocked.push(a.id)
+            stamps[a.id] = Date.now()
             gained += a.xp
             pushAlert('🏆', `إنجاز: ${a.title}`)
           }
         } catch {}
       })
+      if (Object.keys(stamps).length) {
+        setUnlockedAt(p2 => ({ ...p2, ...stamps }))
+      }
       if (gained > 0) {
         setTimeout(() => addXP(gained, 'إنجازات'), 300)
       }
@@ -388,19 +397,43 @@ export default function App() {
 
   // ── Derived values ────────────────────────────────────────────
   const recovery = computeRecovery(sessions, recoveryCfg)
+  // ── Earn rest days for consistency ───────────────────────────
+  useEffect(() => {
+    const earned = creditsEarnedFor(recovery.consistencyStreak)
+    setRecoveryCfg(prev => {
+      const already = prev.creditMilestone ?? 0
+      if (earned <= already) return prev
+      const add = earned - already
+      const next = Math.min(MAX_REST_CREDITS, (prev.restCredits ?? 0) + add)
+      if (next !== (prev.restCredits ?? 0)) {
+        setTimeout(() => pushAlert('🎟️', `كسبت يوم راحة اختياري! الرصيد: ${next}`), 0)
+      }
+      return { ...prev, restCredits: next, creditMilestone: earned }
+    })
+  }, [recovery.consistencyStreak, pushAlert])
+
   // The streak shown everywhere is the CONSISTENCY streak: a recovery
   // day taken as planned keeps it alive. calcStreak() counted raw
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
 
-  // Log a day as deliberate rest so it counts as sticking to the plan
+  // Spend an earned rest day to protect the streak on a day off
   const logRestDay = useCallback((day) => {
     const target = day || todayKey()
-    setRecoveryCfg(prev => ({
-      ...prev,
-      restDays: [...new Set([...(prev.restDays || []), target])].slice(-120),
-    }))
-    pushAlert('🌙', day ? 'تم تسجيلها راحة — ستريكك سليم' : 'يوم راحة مسجّل — ستريكك محفوظ')
+    let spent = false
+    setRecoveryCfg(prev => {
+      if ((prev.restCredits ?? 0) < 1) return prev
+      spent = true
+      return {
+        ...prev,
+        restCredits: (prev.restCredits ?? 0) - 1,
+        restDays: [...new Set([...(prev.restDays || []), target])].slice(-120),
+      }
+    })
+    setTimeout(() => {
+      if (spent) pushAlert('🌙', day ? 'تم تسجيلها راحة — ستريكك سليم' : 'يوم راحة مسجّل — ستريكك محفوظ')
+      else pushAlert('🎟️', 'لا يوجد رصيد أيام راحة — اكسب المزيد بالالتزام')
+    }, 0)
   }, [pushAlert])
 
   const overrideRecoveryDay = useCallback(() => {
@@ -523,6 +556,7 @@ export default function App() {
             recovery={recovery}
             onOverrideRecovery={overrideRecoveryDay}
             onLogRestDay={logRestDay}
+            restCredits={recoveryCfg.restCredits ?? 0}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}
@@ -550,6 +584,8 @@ export default function App() {
             isResting={showRest}
             exerciseMapping={exerciseMapping}
             repTarget={repTarget}
+            exerciseSubs={exerciseSubs}
+            onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             onUpdateSession={updateSession}
             onDeleteSession={deleteSession}
           />
@@ -569,6 +605,7 @@ export default function App() {
             xp={xp}
             streak={streak}
             unlockedAchievements={unlockedAchievements}
+            unlockedAt={unlockedAt}
             level={level}
           />
         )}

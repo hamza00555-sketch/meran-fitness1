@@ -3,7 +3,7 @@ import { Card, SectionTitle } from '../components/ui.jsx'
 import { ACHIEVEMENTS, ACHIEVEMENT_CATS, RARITY_COLORS } from '../constants.js'
 import { calcStreak } from '../utils.js'
 
-export default function AchievementsPage({ sessions, xp, streak, unlockedAchievements, level }) {
+export default function AchievementsPage({ sessions, xp, streak, unlockedAchievements, unlockedAt = {}, level }) {
   const [catFilter, setCatFilter] = useState('all')
 
   const unlocked = unlockedAchievements || []
@@ -71,6 +71,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
             key={a.id}
             achievement={a}
             isUnlocked={isUnlocked}
+            earnedAt={unlockedAt[a.id]}
             rarity={rarity}
           />
         )
@@ -87,7 +88,17 @@ function getAchImg(a) {
 }
 
 // ── Achievement Card ──────────────────────────────────────────
-function AchievCard({ achievement: a, isUnlocked, rarity }) {
+// Date + time an achievement was earned, in the user's local timezone
+function fmtEarned(ms) {
+  try {
+    const d = new Date(ms)
+    const date = d.toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })
+    const time = d.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+    return `${date} · ${time}`
+  } catch { return '' }
+}
+
+function AchievCard({ achievement: a, isUnlocked, rarity, earnedAt }) {
   return (
     <Card
       style={{
@@ -128,6 +139,15 @@ function AchievCard({ achievement: a, isUnlocked, rarity }) {
             color: isUnlocked ? 'var(--text)' : 'var(--text3)',
             marginBottom: 3,
           }}>{a.title}</div>
+
+          {isUnlocked && earnedAt && (
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              color: 'var(--green)', marginBottom: 3, direction: 'rtl',
+            }}>
+              🕒 {fmtEarned(earnedAt)}
+            </div>
+          )}
 
           <div className="ap-sub" style={{ fontFamily: 'var(--font-ar)', marginBottom: 7 }}>
             {a.desc}

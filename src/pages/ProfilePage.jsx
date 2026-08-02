@@ -7,6 +7,7 @@ import {
   sessionVolume, calcStreak,
 } from '../utils.js'
 import { GOALS } from '../constants.js'
+import { toWesternDigits } from '../day.js'
 
 const ACTIVITY_LEVELS = [
   { id: 'sedentary',   label: 'قليل الحركة',   mult: 1.2,   desc: 'مكتب / لا رياضة' },
@@ -782,11 +783,11 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
           </select>
         ) : (
           <input
-            type={type}
+            type={type === 'number' ? 'text' : type}
             inputMode={type === 'number' ? 'decimal' : undefined}
             autoFocus
             value={value}
-            onChange={e => onChange(e.target.value)}
+            onChange={e => onChange(type === 'number' ? toWesternDigits(e.target.value) : e.target.value)}
             style={{
               width: '100%', background: 'var(--bg3)',
               border: '1px solid var(--cyan)', borderRadius: 10,

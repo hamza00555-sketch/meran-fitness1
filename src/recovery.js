@@ -25,7 +25,20 @@ export const TRAINING_FREQUENCIES = [
   { id: 6, label: '٦ أيام', pattern: [3, 3], desc: '٣ تمارين · راحة · ٣ تمارين · راحة' },
 ]
 
-export const DEFAULT_RECOVERY = { daysPerWeek: 5, customPattern: [3, 2], overrides: [], restDays: [] }
+export const DEFAULT_RECOVERY = {
+  daysPerWeek: 5, customPattern: [3, 2], overrides: [], restDays: [],
+  // Optional rest days are a reward: one is earned for every
+  // REST_CREDIT_EVERY days of consistency, and spending one protects
+  // the streak on a day off the cycle had not yet earned.
+  restCredits: 1, creditMilestone: 0,
+}
+
+export const REST_CREDIT_EVERY = 5
+export const MAX_REST_CREDITS  = 5
+
+// How many credits the streak has earned in total, and what is owed now.
+export const creditsEarnedFor = (consistencyStreak = 0) =>
+  Math.floor(consistencyStreak / REST_CREDIT_EVERY)
 
 export const patternFor = (config = {}) => {
   const { daysPerWeek, customPattern } = config

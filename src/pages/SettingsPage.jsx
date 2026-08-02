@@ -3,7 +3,7 @@ import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
 import { GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
 import { TRAINING_FREQUENCIES, patternFor } from '../recovery.js'
-import { todayKey } from '../day.js'
+import { todayKey, toWesternDigits } from '../day.js'
 import { REP_TARGETS, repTargetOf, DEFAULT_REP_TARGET } from '../progression.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
@@ -550,9 +550,9 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                       {f.label}
                     </div>
                     <input
-                      type="number" inputMode="numeric" min={1} max={50}
+                      type="text" inputMode="numeric"
                       value={repTarget[f.key] ?? ''}
-                      onChange={e => onUpdateRepTarget?.({ [f.key]: parseInt(e.target.value) || 0 })}
+                      onChange={e => onUpdateRepTarget?.({ [f.key]: parseInt(toWesternDigits(e.target.value)) || 0 })}
                       style={{
                         width: '100%', background: 'var(--bg3)',
                         border: '1px solid var(--border2)', borderRadius: 10,

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { Badge } from './ui.jsx'
 import { getExerciseStats } from '../utils.js'
+import { toWesternDigits } from '../day.js'
 import ExerciseInfoModal from './ExerciseInfoModal.jsx'
 
 // PR celebration overlay
@@ -69,7 +70,7 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus, progression = null }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus, progression = null, alternatives = [], subIndex = 0, originalName, onSwap }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(false)
   const [copied,    setCopied]    = useState(false)
@@ -165,9 +166,36 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                 >{copied ? '✓' : '⎘'}</button>
               </div>
 
+              {originalName && originalName !== ex.name && (
+                <div style={{
+                  fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)',
+                  marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>بدلاً من {originalName}</div>
+              )}
+
               {/* Badges row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Badge color={color}>{emoji} {label}</Badge>
+
+                {/* Swap the machine mid-workout — only while nothing is
+                    logged, so finished sets keep their real exercise */}
+                {alternatives.length > 0 && !ex.sets.some(st => st.done) && (
+                  <button
+                    onClick={onSwap}
+                    title={subIndex < alternatives.length ? `التالي: ${alternatives[subIndex]}` : 'رجوع للتمرين الأصلي'}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: originalName ? 'var(--gold-lo)' : 'var(--bg3)',
+                      border: `1px solid ${originalName ? 'var(--gold)' : 'var(--border2)'}`,
+                      borderRadius: 10, padding: '2px 9px',
+                      color: originalName ? 'var(--gold)' : 'var(--text3)',
+                      fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ⇄ {originalName ? `${subIndex}/${alternatives.length}` : 'استبدال'}
+                  </button>
+                )}
 
                 {/* Double progression: cleared the top of the rep range
                     last time, so it is time to add weight */}
@@ -308,9 +336,9 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
 
                 {/* Weight */}
                 <input
-                  type="number" inputMode="decimal"
+                  type="text" inputMode="decimal"
                   value={s.weight}
-                  onChange={e => onUpdateSet(si, 'weight', e.target.value)}
+                  onChange={e => onUpdateSet(si, 'weight', toWesternDigits(e.target.value))}
                   placeholder={lastWeight !== null ? String(lastWeight) : '0'}
                   disabled={s.done}
                   style={{
@@ -329,9 +357,9 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
 
                 {/* Reps */}
                 <input
-                  type="number" inputMode="numeric"
+                  type="text" inputMode="numeric"
                   value={s.reps}
-                  onChange={e => onUpdateSet(si, 'reps', e.target.value)}
+                  onChange={e => onUpdateSet(si, 'reps', toWesternDigits(e.target.value))}
                   placeholder="0"
                   disabled={s.done}
                   style={{

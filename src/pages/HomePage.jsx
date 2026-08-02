@@ -406,7 +406,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, onLogRestDay }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, onLogRestDay, restCredits = 0 }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -588,17 +588,21 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             🌙 كان يوم راحة؟
           </div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.8, marginBottom: 12 }}>
-            لم تسجّل تمريناً يوم {fmtDate(recovery.brokenBy)}. سجّله راحة وسيعود ستريكك كما كان.
+            لم تسجّل تمريناً يوم {fmtDate(recovery.brokenBy)}.
+            {restCredits > 0
+              ? ' استخدم يوم راحة من رصيدك وسيعود ستريكك كما كان.'
+              : ' رصيد أيام الراحة فارغ — تكسب يوماً كل ٥ أيام التزام.'}
           </div>
           <button
-            onClick={() => onLogRestDay?.(recovery.brokenBy)}
+            onClick={() => restCredits > 0 && onLogRestDay?.(recovery.brokenBy)}
+            disabled={restCredits < 1}
             style={{
               width: '100%', padding: '11px',
               background: 'var(--gold-lo)', border: '1px solid var(--gold)',
               borderRadius: 12, color: 'var(--gold)',
               fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 800, cursor: 'pointer',
             }}
-          >سجّلها يوم راحة</button>
+          >{restCredits > 0 ? `سجّلها يوم راحة (🎟️ ${restCredits})` : 'لا يوجد رصيد'}</button>
         </Card>
       )}
 
@@ -717,15 +721,20 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
       {/* ── Taking today off on purpose ───────────────────────── */}
       {!active && isTodayTraining && recovery?.status !== DAY_STATUS.COMPLETED && !recovery?.loggedRestToday && (
         <button
-          onClick={() => onLogRestDay?.()}
+          onClick={() => restCredits > 0 && onLogRestDay?.()}
+          disabled={restCredits < 1}
           style={{
             width: '100%', marginBottom: 'var(--hp-card-mb)',
             background: 'none', border: '1px dashed var(--border2)',
             borderRadius: 14, padding: '12px',
-            color: 'var(--text3)', fontFamily: 'var(--font-ar)',
-            fontSize: 13, cursor: 'pointer',
+            color: restCredits > 0 ? 'var(--gold)' : 'var(--text3)',
+            fontFamily: 'var(--font-ar)',
+            fontSize: 13, cursor: restCredits > 0 ? 'pointer' : 'not-allowed',
+            opacity: restCredits > 0 ? 1 : 0.6,
           }}
-        >🌙 مرتاح اليوم؟ سجّلها راحة — لن يتأثر ستريكك</button>
+        >{restCredits > 0
+            ? `🌙 مرتاح اليوم؟ سجّلها راحة · رصيدك ${restCredits}`
+            : '🌙 لا يوجد رصيد أيام راحة — اكسبه بالالتزام'}</button>
       )}
 
       {/* ── Recovery cycle + streaks ──────────────────────────── */}
@@ -764,6 +773,27 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           {isRecoveryDay
             ? 'اكتملت الدورة — اليوم راحة، وغداً تبدأ دورة جديدة.'
             : `${recovery?.cycleLimit || 0} تمارين ثم يوم راحة · أنجزت ${recovery?.workoutStreak || 0}`}
+        </div>
+
+        {/* Earned optional rest days */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: restCredits > 0 ? 'var(--gold-lo)' : 'var(--bg3)',
+          border: `1px solid ${restCredits > 0 ? 'var(--gold-md)' : 'var(--border)'}`,
+          borderRadius: 12, padding: '10px 14px', marginBottom: 12,
+        }}>
+          <span style={{ fontSize: 18 }}>🎟️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
+              color: restCredits > 0 ? 'var(--gold)' : 'var(--text3)',
+            }}>
+              {restCredits > 0 ? `${restCredits} أيام راحة اختيارية` : 'لا يوجد رصيد راحة'}
+            </div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+              تكسب يوماً كل ٥ أيام التزام · تحمي ستريكك في أي يوم تأخذه
+            </div>
+          </div>
         </div>
 
         {/* The two distinct streaks */}

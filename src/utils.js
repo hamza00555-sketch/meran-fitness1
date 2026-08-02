@@ -45,6 +45,7 @@ export const PER_USER_KEYS = [
   'hf_exercise_mapping', 'hf_last_weights', 'hf_weight_backups',
   'hf_seen_version', 'hf_weights_reset_v2', 'hf_weights_reset_at',
   'hf_exercise_subs', 'hf_rest_timer', 'hf_recovery', 'hf_rep_target',
+  'hf_unlocked_at',
 ]
 
 export const deleteUserData = (id) => {
