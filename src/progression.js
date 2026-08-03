@@ -96,7 +96,9 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
     if (reached >= Math.ceil(e.sets.length / 2)) break
     failedAtWeight++
   }
-  const readyToDecrease = !readyToIncrease && failedAtWeight > 2
+  // Two sessions falling short is the signal: the suggestion is waiting
+  // the next time this exercise comes up.
+  const readyToDecrease = !readyToIncrease && failedAtWeight >= 2
 
   // Roughly 10% lighter, rounded to the nearest 2.5kg plate step
   const suggestedWeight = readyToDecrease
