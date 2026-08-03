@@ -177,26 +177,6 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Badge color={color}>{emoji} {label}</Badge>
 
-                {/* Swap the machine mid-workout — only while nothing is
-                    logged, so finished sets keep their real exercise */}
-                {alternatives.length > 0 && !ex.sets.some(st => st.done) && (
-                  <button
-                    onClick={onSwap}
-                    title={subIndex < alternatives.length ? `التالي: ${alternatives[subIndex]}` : 'رجوع للتمرين الأصلي'}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      background: originalName ? 'var(--gold-lo)' : 'var(--bg3)',
-                      border: `1px solid ${originalName ? 'var(--gold)' : 'var(--border2)'}`,
-                      borderRadius: 10, padding: '2px 9px',
-                      color: originalName ? 'var(--gold)' : 'var(--text3)',
-                      fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ⇄ {originalName ? `${subIndex}/${alternatives.length}` : 'استبدال'}
-                  </button>
-                )}
-
                 {/* Double progression: cleared the top of the rep range
                     last time, so it is time to add weight */}
                 {progression?.readyToIncrease && (
@@ -458,6 +438,28 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                 onMouseOver={e => e.currentTarget.style.color = 'var(--red)'}
                 onMouseOut={e => e.currentTarget.style.color = 'var(--text3)'}
               >حذف آخر سيت</button>
+            )}
+
+            {/* Swap the machine mid-workout. Sits on its own down here
+                rather than crowding the badges. Hidden once a set is
+                ticked, so finished sets keep the exercise they were
+                actually performed on. */}
+            {alternatives.length > 0 && !ex.sets.some(st => st.done) && (
+              <button
+                onClick={onSwap}
+                title={subIndex < alternatives.length ? `التالي: ${alternatives[subIndex]}` : 'رجوع للتمرين الأصلي'}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: originalName ? 'var(--gold-lo)' : 'none',
+                  border: `1px dashed ${originalName ? 'var(--gold)' : 'var(--border)'}`,
+                  borderRadius: 8, padding: '5px 14px',
+                  color: originalName ? 'var(--gold)' : 'var(--text3)',
+                  fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                ⇄ {originalName ? `استبدال ${subIndex}/${alternatives.length}` : 'استبدال'}
+              </button>
             )}
 
             <div style={{ flex: 1 }} />
