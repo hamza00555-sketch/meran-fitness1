@@ -65,7 +65,8 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
 
   const empty = {
     workingWeight: null, sessionsAtWeight: 0, setsAtTop: 0, totalSets: 0,
-    suggestedReps: target.base, readyToIncrease: false, target,
+    suggestedReps: target.base, readyToIncrease: false, readyToDecrease: false,
+    failedAtWeight: 0, suggestedWeight: null, target,
   }
   if (!entries.length) return empty
 
@@ -85,13 +86,32 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   const setsAtTop = lastSets.filter(s => (parseInt(s.reps) || 0) >= target.top).length
   const readyToIncrease = setsAtTop >= Math.ceil(lastSets.length / 2)
 
+  // The other direction: if the bottom of the range keeps being out of
+  // reach at this weight, the weight is simply too heavy. Counts the
+  // run of most-recent sessions at this weight that fell short.
+  let failedAtWeight = 0
+  for (const e of entries) {
+    if (workingWeightOf(e.sets) !== workingWeight) break
+    const reached = e.sets.filter(s => (parseInt(s.reps) || 0) >= target.base).length
+    if (reached >= Math.ceil(e.sets.length / 2)) break
+    failedAtWeight++
+  }
+  const readyToDecrease = !readyToIncrease && failedAtWeight > 2
+
+  // Roughly 10% lighter, rounded to the nearest 2.5kg plate step
+  const suggestedWeight = readyToDecrease
+    ? Math.max(2.5, Math.round((workingWeight * 0.9) / 2.5) * 2.5)
+    : null
+
   const suggestedReps =
     readyToIncrease        ? target.base :  // heavier weight → restart at the bottom
+    readyToDecrease        ? target.base :  // lighter weight → aim for the bottom
     sessionsAtWeight >= 2  ? target.top  :  // settled at this weight → push reps
                              target.base
 
   return {
     workingWeight, sessionsAtWeight, setsAtTop, totalSets: lastSets.length,
-    suggestedReps, readyToIncrease, target,
+    suggestedReps, readyToIncrease, readyToDecrease, failedAtWeight,
+    suggestedWeight, target,
   }
 }

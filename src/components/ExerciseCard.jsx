@@ -190,8 +190,21 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                   </span>
                 )}
 
+                {/* The weight has been too heavy to reach the bottom of
+                    the range for a few sessions running */}
+                {progression?.readyToDecrease && (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'var(--orange-lo)', border: '1px solid var(--orange)',
+                    borderRadius: 10, padding: '2px 9px',
+                    fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--orange)', fontWeight: 700,
+                  }} title={`لم تصل ${progression.target.base} عدة في آخر ${progression.failedAtWeight} جلسات على ${progression.workingWeight}kg`}>
+                    ⬇️ نزّل وزنك{progression.suggestedWeight ? ` · ${progression.suggestedWeight}kg` : ''}
+                  </span>
+                )}
+
                 {/* Pushing reps at the same weight before adding load */}
-                {!progression?.readyToIncrease && progression?.sessionsAtWeight >= 2 && (
+                {!progression?.readyToIncrease && !progression?.readyToDecrease && progression?.sessionsAtWeight >= 2 && (
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
