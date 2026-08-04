@@ -177,43 +177,44 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <Badge color={color}>{emoji} {label}</Badge>
 
-                {/* Double progression: cleared the top of the rep range
-                    last time, so it is time to add weight */}
-                {progression?.readyToIncrease && (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: 'var(--gold-lo)', border: '1px solid var(--gold)',
-                    borderRadius: 10, padding: '2px 9px',
-                    fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--gold)', fontWeight: 700,
-                  }} title={`أكملت ${progression.setsAtTop} من ${progression.totalSets} سيت بـ ${progression.target.top} عدة`}>
-                    ⬆️ ارفع وزنك
-                  </span>
-                )}
-
-                {/* The weight has been too heavy to reach the bottom of
-                    the range for a few sessions running */}
-                {progression?.readyToDecrease && (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: 'var(--orange-lo)', border: '1px solid var(--orange)',
-                    borderRadius: 10, padding: '2px 9px',
-                    fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--orange)', fontWeight: 700,
-                  }} title={`لم تصل ${progression.target.base} عدة في آخر ${progression.failedAtWeight} جلسات على ${progression.workingWeight}kg`}>
-                    ⬇️ نزّل وزنك{progression.suggestedWeight ? ` · ${progression.suggestedWeight}kg` : ''}
-                  </span>
-                )}
-
-                {/* Pushing reps at the same weight before adding load */}
-                {!progression?.readyToIncrease && !progression?.readyToDecrease && progression?.sessionsAtWeight >= 2 && (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-                    borderRadius: 10, padding: '2px 9px',
-                    fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--cyan)', fontWeight: 700,
-                  }} title={`${progression.sessionsAtWeight} جلسات على ${progression.workingWeight}kg`}>
-                    🎯 حاول {progression.target.top} عدة
-                  </span>
-                )}
+                {/* Exactly one coaching hint, driven by progression.hint
+                    so two can never contradict each other. It pulses so a
+                    change of advice is noticed mid-workout. */}
+                {progression?.hint && (() => {
+                  const HINTS = {
+                    raise: {
+                      text: '⬆️ ارفع وزنك',
+                      color: 'var(--gold)', bg: 'var(--gold-lo)', glow: 'rgba(245,158,11,0.55)',
+                      title: `أكملت ${progression.setsAtTop} من ${progression.totalSets} سيت بـ ${progression.target.top} عدة`,
+                    },
+                    lower: {
+                      text: `⬇️ نزّل وزنك${progression.suggestedWeight ? ` · ${progression.suggestedWeight}kg` : ''}`,
+                      color: 'var(--orange)', bg: 'var(--orange-lo)', glow: 'rgba(249,115,22,0.55)',
+                      title: `لم تصل ${progression.target.base} عدة في آخر ${progression.failedAtWeight} جلسات على ${progression.workingWeight}kg`,
+                    },
+                    push: {
+                      text: `🎯 حاول ${progression.target.top} عدة`,
+                      color: 'var(--cyan)', bg: 'var(--cyan-lo)', glow: 'var(--cyan-md)',
+                      title: `${progression.sessionsAtWeight} جلسات على ${progression.workingWeight}kg`,
+                    },
+                  }
+                  const h = HINTS[progression.hint]
+                  if (!h) return null
+                  return (
+                    <span
+                      className="tag-pulse"
+                      title={h.title}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: h.bg, border: `1px solid ${h.color}`,
+                        borderRadius: 10, padding: '2px 9px',
+                        fontFamily: 'var(--font-ar)', fontSize: 12,
+                        color: h.color, fontWeight: 700,
+                        '--tag-glow': h.glow,
+                      }}
+                    >{h.text}</span>
+                  )
+                })()}
 
                 {/* YouTube tag */}
                 {ytUrl && (

@@ -66,7 +66,7 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   const empty = {
     workingWeight: null, sessionsAtWeight: 0, setsAtTop: 0, totalSets: 0,
     suggestedReps: target.base, readyToIncrease: false, readyToDecrease: false,
-    failedAtWeight: 0, suggestedWeight: null, target,
+    failedAtWeight: 0, suggestedWeight: null, target, hint: null,
   }
   if (!entries.length) return empty
 
@@ -111,9 +111,21 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
     sessionsAtWeight >= 2  ? target.top  :  // settled at this weight → push reps
                              target.base
 
+  // One coaching hint at a time. Deriving a single state here makes it
+  // structurally impossible for the card to show two contradictory tags
+  // (e.g. "push to 15" alongside "add weight").
+  //   raise → cleared the top of the range, time for more weight
+  //   lower → the bottom of the range keeps being out of reach
+  //   push  → settled at this weight, aim for the top of the range
+  const hint =
+    readyToIncrease       ? 'raise' :
+    readyToDecrease       ? 'lower' :
+    sessionsAtWeight >= 2 ? 'push'  :
+                            null
+
   return {
     workingWeight, sessionsAtWeight, setsAtTop, totalSets: lastSets.length,
     suggestedReps, readyToIncrease, readyToDecrease, failedAtWeight,
-    suggestedWeight, target,
+    suggestedWeight, target, hint,
   }
 }

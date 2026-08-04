@@ -364,6 +364,10 @@ export default function App() {
     }
 
     setActive(null)
+    // The workout is over — a rest timer left running has nothing left
+    // to rest for, so close it and clear its saved state.
+    setShowRest(false)
+    ls.remove('hf_rest_timer')
     setTab('home')
     pushAlert('🎉', 'جلسة مكتملة! عمل رائع!')
   }, [active, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])

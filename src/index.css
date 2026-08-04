@@ -130,6 +130,19 @@ input[type=number] { -moz-appearance: textfield; }
   0%,100% { box-shadow: 0 0 12px var(--cyan-glow); }
   50%      { box-shadow: 0 0 28px var(--cyan-md); }
 }
+/* Coaching tags on an exercise card: a soft pulse so a change of
+   advice is noticed mid-workout without being distracting. The tag's
+   own colour drives it via --tag-glow. */
+@keyframes tagPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--tag-glow); transform: scale(1); }
+  50%      { box-shadow: 0 0 14px 2px var(--tag-glow); transform: scale(1.04); }
+}
+.tag-pulse { animation: tagPulse 1.9s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tag-pulse { animation: none; box-shadow: 0 0 10px 1px var(--tag-glow); }
+}
+
 @keyframes xpFloat {
   0%   { opacity: 0; transform: translateX(-50%) translateY(0)    scale(0.6); }
   15%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.25); }
