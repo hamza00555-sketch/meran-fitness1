@@ -104,9 +104,13 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
 
     if (trained) {
       consecutive += 1
-    } else if (expected === DAY_STATUS.RECOVERY || logged) {
-      position = (position + 1) % pattern.length   // rest that was planned or logged
+    } else if (expected === DAY_STATUS.RECOVERY) {
+      position = (position + 1) % pattern.length   // the cycle's own rest day
       consecutive = 0
+    } else if (logged) {
+      // A rest day paid for with an earned credit is frozen out of the
+      // plan entirely: the cycle does not advance and the run of
+      // workouts is not reset, so tomorrow carries on from yesterday.
     } else {
       position = 0                                  // unplanned break → fresh cycle
       consecutive = 0
@@ -133,10 +137,13 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   for (let i = dayLog.length - 1; i >= 0; i--) {
     const e = dayLog[i]
     if (e.date === today) {
-      if (e.trained || e.logged || e.expected === DAY_STATUS.RECOVERY) consistencyStreak++
-      continue // a pending workout today neither counts nor breaks
+      if (e.trained || e.expected === DAY_STATUS.RECOVERY) consistencyStreak++
+      continue // a pending workout — or a frozen day — neither counts nor breaks
     }
-    const complied = e.trained || e.logged || e.expected === DAY_STATUS.RECOVERY
+    // A credited rest day holds the streak without adding to it: step
+    // straight over it and keep counting the days before it.
+    if (e.logged && !e.trained) continue
+    const complied = e.trained || e.expected === DAY_STATUS.RECOVERY
     if (!complied) break
     consistencyStreak++
   }

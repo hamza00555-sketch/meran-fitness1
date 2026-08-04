@@ -436,8 +436,8 @@ export default function App() {
       const spend = coverable.slice(0, credits)   // oldest missed days first
       setTimeout(() => pushAlert('🎟️',
         spend.length === 1
-          ? `استُخدم يوم راحة من رصيدك — ستريكك محفوظ`
-          : `استُخدمت ${spend.length} أيام راحة من رصيدك`), 0)
+          ? `استُخدم يوم راحة من رصيدك — ستريكك مجمّد لا مكسور`
+          : `استُخدمت ${spend.length} أيام راحة من رصيدك — ستريكك مجمّد`), 0)
       return {
         ...prev,
         restCredits: credits - spend.length,

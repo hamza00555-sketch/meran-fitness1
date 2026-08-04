@@ -745,7 +745,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
               {restCredits > 0
-                ? 'تكسب يوماً كل ٥ أيام التزام · يُصرف تلقائياً لو غبت يوماً'
+                ? 'تكسب يوماً كل ٥ أيام التزام · يُصرف تلقائياً لو غبت، فيجمّد ستريكك بلا زيادة ولا كسر'
                 : 'تكسب يوماً كل ٥ أيام التزام · بلا رصيد، الغياب يكسر الستريك'}
             </div>
           </div>
