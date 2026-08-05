@@ -1,5 +1,5 @@
 import { RANKS, COMMITMENT_LEVELS } from './constants.js'
-import { dayKey, todayKey } from './day.js'
+import { dayKey, todayKey, toWesternDigits } from './day.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
 // Every hf_* key is namespaced by the active user so each person
@@ -201,10 +201,15 @@ export const sessionVolume = (session) => {
 
 // ── Blank set ─────────────────────────────────────────────────
 export const blankSet = (prevWeight = '', prevReps = '') => ({
-  weight: prevWeight,
-  reps: prevReps === null || prevReps === undefined ? '' : String(prevReps),
+  weight: toWesternDigits(prevWeight ?? ''),
+  reps: prevReps === null || prevReps === undefined ? '' : toWesternDigits(String(prevReps)),
   done: false,
 })
+
+// Belt and braces: whatever path a number arrives by, it is stored in
+// ASCII digits. Arabic-Indic digits would silently break parseFloat and
+// take volume, stats and progression down with them.
+export const normalizeSetValue = (value) => toWesternDigits(value ?? '')
 
 // ── Historical max weight for an exercise across completed sessions ──
 export const getHistoricalMax = (sessions, exerciseName, mapping = {}) => {

@@ -6,6 +6,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, ls } from '../utils.js'
 import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { toWesternDigits } from '../day.js'
 
 export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, exerciseSubs = {}, onCycleSub, onUpdateSession, onDeleteSession }) {
   const [showAdd,       setShowAdd]       = useState(false)
@@ -51,7 +52,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const handleUpdateSet = (exId, si, field, val) =>
     updateEx(exId, ex => ({
       ...ex,
-      sets: ex.sets.map((s, i) => i === si ? { ...s, [field]: val } : s),
+      sets: ex.sets.map((s, i) => i === si ? { ...s, [field]: toWesternDigits(val) } : s),
     }))
 
   const handleDoneSet = (exId, si, done) => {
@@ -626,15 +627,17 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
                           {si + 1}
                         </span>
                         <input
+                          type="text" inputMode="decimal"
                           value={ss.weight || ''}
-                          onChange={e => updSet(ei, si, 'weight', e.target.value)}
+                          onChange={e => updSet(ei, si, 'weight', toWesternDigits(e.target.value))}
                           placeholder="—"
                           style={inputStyle}
                         />
                         <span style={{ color: 'var(--text3)', fontSize: 13 }}>×</span>
                         <input
+                          type="text" inputMode="numeric"
                           value={ss.reps || ''}
-                          onChange={e => updSet(ei, si, 'reps', e.target.value)}
+                          onChange={e => updSet(ei, si, 'reps', toWesternDigits(e.target.value))}
                           placeholder="—"
                           style={inputStyle}
                         />
