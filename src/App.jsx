@@ -406,13 +406,27 @@ export default function App() {
     const earned = creditsEarnedFor(recovery.consistencyStreak)
     setRecoveryCfg(prev => {
       const already = prev.creditMilestone ?? 0
-      if (earned <= already) return prev
-      const add = earned - already
-      const next = Math.min(MAX_REST_CREDITS, (prev.restCredits ?? 0) + add)
-      if (next !== (prev.restCredits ?? 0)) {
-        setTimeout(() => pushAlert('🎟️', `كسبت يوم راحة اختياري! الرصيد: ${next}`), 0)
+      if (earned === already) return prev
+
+      if (earned > already) {
+        const next = Math.min(MAX_REST_CREDITS, (prev.restCredits ?? 0) + (earned - already))
+        if (next !== (prev.restCredits ?? 0)) {
+          setTimeout(() => pushAlert('🎟️', `كسبت يوم راحة اختياري! الرصيد: ${next}`), 0)
+        }
+        return { ...prev, restCredits: next, creditMilestone: earned }
       }
-      return { ...prev, restCredits: next, creditMilestone: earned }
+
+      // The streak shrank, so a credit it had paid for is no longer
+      // earned — the milestone has to come back down with it, or the
+      // balance keeps a reward the streak no longer justifies.
+      // A broken streak (0) is the exception: wiping the balance there
+      // would punish twice and leave nothing to protect the next day.
+      if (recovery.consistencyStreak === 0) return { ...prev, creditMilestone: 0 }
+      return {
+        ...prev,
+        restCredits: Math.max(0, (prev.restCredits ?? 0) - (already - earned)),
+        creditMilestone: earned,
+      }
     })
   }, [recovery.consistencyStreak, pushAlert])
 
