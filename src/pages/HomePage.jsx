@@ -406,7 +406,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0 }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0 }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -745,8 +745,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
               {restCredits > 0
-                ? 'تكسب يوماً كل ٥ أيام التزام · يُصرف تلقائياً لو غبت، فيجمّد ستريكك بلا زيادة ولا كسر'
-                : 'تكسب يوماً كل ٥ أيام التزام · بلا رصيد، الغياب يكسر الستريك'}
+                ? 'يُصرف تلقائياً لو غبت، فيجمّد ستريكك بلا زيادة ولا كسر'
+                : `بعد ${5 - creditProgress} أيام التزام تكسب يوم راحة · بلا رصيد، الغياب يكسر الستريك`}
             </div>
           </div>
         </div>

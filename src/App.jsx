@@ -11,7 +11,7 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
-import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, creditsEarnedFor, MAX_REST_CREDITS } from './recovery.js'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, REST_CREDIT_EVERY } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 
@@ -401,42 +401,27 @@ export default function App() {
 
   // ── Derived values ────────────────────────────────────────────
   const recovery = computeRecovery(sessions, recoveryCfg)
-  // ── Earn rest days for consistency ───────────────────────────
-  useEffect(() => {
-    // While a missed day is still waiting for a credit, the streak reads
-    // a value that is about to change. Reacting to it hands out rewards
-    // the streak never earned, so let the spend settle first.
-    const pendingRepair = (recovery.missedDays || [])
-      .some(d => d >= (recoveryCfg.autoSpendFrom || '')) && (recoveryCfg.restCredits ?? 0) >= 1
-    if (pendingRepair) return
 
-    const earned = creditsEarnedFor(recovery.consistencyStreak)
-    setRecoveryCfg(prev => {
-      const already = prev.creditMilestone ?? 0
-      if (earned === already) return prev
-
-      if (earned > already) {
-        const next = Math.min(MAX_REST_CREDITS, (prev.restCredits ?? 0) + (earned - already))
-        if (next !== (prev.restCredits ?? 0)) {
-          setTimeout(() => pushAlert('🎟️', `كسبت يوم راحة اختياري! الرصيد: ${next}`), 0)
-        }
-        return { ...prev, restCredits: next, creditMilestone: earned }
-      }
-
-      // The streak shrank, so a credit it had paid for is no longer
-      // earned — the milestone has to come back down with it, or the
-      // balance keeps a reward the streak no longer justifies.
-      // A broken streak (0) is the exception: wiping the balance there
-      // would punish twice and leave nothing to protect the next day.
-      if (recovery.consistencyStreak === 0) return { ...prev, creditMilestone: 0 }
-      return {
-        ...prev,
-        restCredits: Math.max(0, (prev.restCredits ?? 0) - (already - earned)),
-        creditMilestone: earned,
-      }
+  // A missed day zeroes the streak, and the streak is what funds the
+  // rest-day balance — so the credit would vanish exactly when it is
+  // needed. Re-run the engine with the pending days treated as covered
+  // to see what the balance really is before deciding to spend it.
+  const pendingDays = (recovery.missedDays || [])
+    .filter(d => d >= (recoveryCfg.autoSpendFrom || ''))
+  let affordable = recovery.restCredits
+  if (pendingDays.length) {
+    const covered = computeRecovery(sessions, {
+      ...recoveryCfg,
+      restDays: [...(recoveryCfg.restDays || []), ...pendingDays],
     })
-  }, [recovery.consistencyStreak, recovery.missedDays, recoveryCfg.autoSpendFrom, recoveryCfg.restCredits, pushAlert])
-
+    // What that streak has earned, less what it had already spent —
+    // the pending days are what we are deciding to buy, so they must
+    // not be counted as spent while working out the budget.
+    const alreadySpent = covered.streakStart
+      ? (recoveryCfg.restDays || []).filter(d => d >= covered.streakStart).length
+      : 0
+    affordable = Math.max(0, covered.creditsEarned - alreadySpent)
+  }
   // ── Spend earned rest days automatically ─────────────────────
   // A day you miss is covered by a stored rest day if you have one, so
   // the streak survives without you having to open the app that day.
@@ -451,7 +436,7 @@ export default function App() {
       const coverable = (recovery.missedDays || []).filter(d => d >= from)
       if (!coverable.length) return prev
 
-      const credits = prev.restCredits ?? 0
+      const credits = affordable ?? 0
       if (credits < 1) return prev
 
       const spend = coverable.slice(0, credits)   // oldest missed days first
@@ -459,13 +444,13 @@ export default function App() {
         spend.length === 1
           ? `استُخدم يوم راحة من رصيدك — ستريكك مجمّد لا مكسور`
           : `استُخدمت ${spend.length} أيام راحة من رصيدك — ستريكك مجمّد`), 0)
+      // Only the spent days are recorded; the balance recomputes itself.
       return {
         ...prev,
-        restCredits: credits - spend.length,
         restDays: [...new Set([...(prev.restDays || []), ...spend])].slice(-120),
       }
     })
-  }, [recovery.missedDays, pushAlert])
+  }, [recovery.missedDays, affordable, pushAlert])
 
   // The streak shown everywhere is the CONSISTENCY streak: a recovery
   // day taken as planned keeps it alive. calcStreak() counted raw
@@ -591,7 +576,8 @@ export default function App() {
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             recovery={recovery}
             onOverrideRecovery={overrideRecoveryDay}
-            restCredits={recoveryCfg.restCredits ?? 0}
+            restCredits={recovery.restCredits}
+            creditProgress={recovery.consistencyStreak % REST_CREDIT_EVERY}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}

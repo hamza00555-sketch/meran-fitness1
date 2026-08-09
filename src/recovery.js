@@ -27,16 +27,14 @@ export const TRAINING_FREQUENCIES = [
 
 export const DEFAULT_RECOVERY = {
   daysPerWeek: 5, customPattern: [3, 2], overrides: [], restDays: [],
-  // Optional rest days are a reward: one is earned for every
-  // REST_CREDIT_EVERY days of consistency, and spending one protects
-  // the streak on a day off the cycle had not yet earned.
-  restCredits: 1, creditMilestone: 0, autoSpendFrom: null,
+  autoSpendFrom: null,
 }
 
 export const REST_CREDIT_EVERY = 5
 export const MAX_REST_CREDITS  = 5
 
-// How many credits the streak has earned in total, and what is owed now.
+// You start on zero and earn one rest day for every REST_CREDIT_EVERY
+// days of consistency.
 export const creditsEarnedFor = (consistencyStreak = 0) =>
   Math.floor(consistencyStreak / REST_CREDIT_EVERY)
 
@@ -79,6 +77,8 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       status: didWorkoutToday ? DAY_STATUS.COMPLETED : DAY_STATUS.WORKOUT,
       pattern, cyclePosition: 0, cycleLimit: pattern[0],
       consecutiveWorkoutDays: 0, workoutStreak: 0, consistencyStreak: 0,
+      restCredits: 0, spentInStreak: 0, creditsEarned: 0, streakStart: null,
+      missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
       recoveryDayHistory: [], restTakenHistory: [], dayLog: [],
       isOverride: false,
@@ -176,7 +176,24 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const lastRest = [...recoveryDayHistory, ...restTakenHistory].sort().pop() || null
   const lastWorkout = sortedDates[sortedDates.length - 1]
 
+  // ── Rest-day balance ───────────────────────────────────────
+  // Derived, never accumulated. Two counters that both mutate — one
+  // awarding, one spending — drifted every time the streak was read
+  // mid-recalculation, and a spend could end up paying out. This is a
+  // pure function of the streak and the days already spent from it:
+  //   earn one per REST_CREDIT_EVERY days, minus what this streak spent.
+  const spentInStreak = streakStart
+    ? [...loggedRest].filter(d => d >= streakStart).length
+    : 0
+  const restCredits = Math.max(0, Math.min(
+    MAX_REST_CREDITS,
+    creditsEarnedFor(consistencyStreak) - spentInStreak,
+  ))
+
   return {
+    restCredits,
+    spentInStreak,
+    creditsEarned: creditsEarnedFor(consistencyStreak),
     status,
     pattern,
     cyclePosition: position % pattern.length,
