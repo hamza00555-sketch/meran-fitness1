@@ -403,6 +403,13 @@ export default function App() {
   const recovery = computeRecovery(sessions, recoveryCfg)
   // ── Earn rest days for consistency ───────────────────────────
   useEffect(() => {
+    // While a missed day is still waiting for a credit, the streak reads
+    // a value that is about to change. Reacting to it hands out rewards
+    // the streak never earned, so let the spend settle first.
+    const pendingRepair = (recovery.missedDays || [])
+      .some(d => d >= (recoveryCfg.autoSpendFrom || '')) && (recoveryCfg.restCredits ?? 0) >= 1
+    if (pendingRepair) return
+
     const earned = creditsEarnedFor(recovery.consistencyStreak)
     setRecoveryCfg(prev => {
       const already = prev.creditMilestone ?? 0
@@ -428,7 +435,7 @@ export default function App() {
         creditMilestone: earned,
       }
     })
-  }, [recovery.consistencyStreak, pushAlert])
+  }, [recovery.consistencyStreak, recovery.missedDays, recoveryCfg.autoSpendFrom, recoveryCfg.restCredits, pushAlert])
 
   // ── Spend earned rest days automatically ─────────────────────
   // A day you miss is covered by a stored rest day if you have one, so

@@ -148,6 +148,24 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     consistencyStreak++
   }
 
+  // The earliest day still inside the current consistency streak, so the
+  // rest-day balance can be checked against what this streak has earned.
+  let streakStart = null
+  {
+    let counted = 0
+    for (let i = dayLog.length - 1; i >= 0; i--) {
+      const e = dayLog[i]
+      if (e.date === today) {
+        if (e.trained || e.expected === DAY_STATUS.RECOVERY) { counted++; streakStart = e.date }
+        continue
+      }
+      if (e.logged && !e.trained) { streakStart = e.date; continue }
+      if (!(e.trained || e.expected === DAY_STATUS.RECOVERY)) break
+      counted++; streakStart = e.date
+    }
+    if (!counted) streakStart = null
+  }
+
   const past = dayLog.filter(e => e.date !== today)
   const recoveryDayHistory = past.filter(e => !e.trained && e.expected === DAY_STATUS.RECOVERY).map(e => e.date)
   const restTakenHistory   = past.filter(e => !e.trained && e.logged).map(e => e.date)
@@ -171,6 +189,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     recoveryDayHistory,
     restTakenHistory,
     missedDays,
+    streakStart,       // first day of the running consistency streak
     brokenBy,          // most recent day that broke the streak, if any
     loggedRestToday: loggedRest.has(today),
     dayLog,
