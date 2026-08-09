@@ -1,36 +1,100 @@
 import { useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { Badge } from './ui.jsx'
 import { getExerciseStats } from '../utils.js'
 import { toWesternDigits } from '../day.js'
 import ExerciseInfoModal from './ExerciseInfoModal.jsx'
 
-// PR celebration overlay
-function PRFlash({ color }) {
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 500,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      pointerEvents: 'none',
-    }}>
-      <div style={{
-        position: 'absolute',
-        width: 120, height: 120, borderRadius: '50%',
-        background: color + '40',
-        animation: 'prRipple 0.6s ease-out forwards',
+// Weight-up celebration. Portaled to <body> and fixed to the viewport
+// so it lands dead-centre no matter how far down the exercise list the
+// user has scrolled — the old banner sat at the top and was missed.
+function PRFlash({ color, weight, prev, exerciseName }) {
+  const gained = prev != null && weight > prev ? Math.round((weight - prev) * 10) / 10 : null
+  const sparks = [
+    { dx: '-120px', dy: '-90px' },  { dx: '120px',  dy: '-90px' },
+    { dx: '-150px', dy: '30px' },   { dx: '150px',  dy: '30px' },
+    { dx: '-70px',  dy: '-140px' }, { dx: '70px',   dy: '-140px' },
+    { dx: '0px',    dy: '-160px' }, { dx: '0px',    dy: '120px' },
+  ]
+  return createPortal(
+    <div
+      className="pr-fade"
+      style={{
+        position: 'fixed', inset: 0, zIndex: 900,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        pointerEvents: 'none',
+        background: 'radial-gradient(circle at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 65%)',
+        animation: 'prFadeOut 2.2s ease forwards',
+      }}
+    >
+      {/* expanding shockwave */}
+      <div className="pr-shock" style={{
+        position: 'absolute', width: 150, height: 150, borderRadius: '50%',
+        border: `10px solid ${color}`,
+        animation: 'prShock 0.9s cubic-bezier(0.2,0.8,0.3,1) forwards',
       }} />
-      <div style={{
-        background: color, borderRadius: 20,
-        padding: '10px 24px',
-        fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800,
-        color: '#fff',
-        animation: 'prFlash 0.5s ease forwards',
-        boxShadow: `0 0 32px ${color}80`,
-        zIndex: 1,
+      {/* sunburst rays */}
+      <div className="pr-rays" style={{
+        position: 'absolute', width: 220, height: 220,
+        background: `conic-gradient(from 0deg, ${color}00 0deg, ${color}90 18deg, ${color}00 36deg,
+                     ${color}00 90deg, ${color}90 108deg, ${color}00 126deg,
+                     ${color}00 180deg, ${color}90 198deg, ${color}00 216deg,
+                     ${color}00 270deg, ${color}90 288deg, ${color}00 306deg)`,
+        borderRadius: '50%',
+        animation: 'prRays 1.1s ease-out forwards',
+      }} />
+      {/* flying sparks */}
+      {sparks.map((sp, i) => (
+        <div key={i} className="pr-spark" style={{
+          position: 'absolute', width: 9, height: 9, borderRadius: '50%',
+          background: i % 2 ? '#FFD166' : color,
+          boxShadow: `0 0 12px ${i % 2 ? '#FFD166' : color}`,
+          '--dx': sp.dx, '--dy': sp.dy,
+          animation: `prSpark ${0.75 + (i % 3) * 0.12}s ease-out forwards`,
+        }} />
+      ))}
+
+      {/* the badge itself */}
+      <div className="pr-burst" style={{
+        position: 'relative', zIndex: 2, textAlign: 'center',
+        animation: 'prBurst 0.55s cubic-bezier(0.2,1.4,0.4,1) forwards',
       }}>
-        🏆 رقم قياسي جديد!
+        <div style={{ fontSize: 54, lineHeight: 1, marginBottom: 4, filter: `drop-shadow(0 0 18px ${color})` }}>🏆</div>
+        <div style={{
+          background: `linear-gradient(135deg, ${color}, #FFD166)`,
+          borderRadius: 18, padding: '12px 26px',
+          fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900, color: '#08130A',
+          boxShadow: `0 0 44px ${color}, 0 10px 30px rgba(0,0,0,0.55)`,
+          whiteSpace: 'nowrap',
+        }}>
+          رقم قياسي جديد!
+        </div>
+        <div className="pr-weight" style={{
+          marginTop: 10,
+          fontFamily: 'var(--font-mono)', fontSize: 40, fontWeight: 800, color: '#fff',
+          textShadow: `0 0 26px ${color}`,
+          animation: 'prWeightPop 0.6s 0.12s cubic-bezier(0.2,1.5,0.4,1) both',
+        }}>
+          {weight}<span style={{ fontSize: 20, opacity: 0.85 }}>kg</span>
+        </div>
+        {gained != null && (
+          <div style={{
+            marginTop: 2, fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800,
+            color: '#FFD166', textShadow: '0 0 14px rgba(255,209,102,0.7)',
+          }}>
+            ↑ {gained}kg فوق رقمك السابق
+          </div>
+        )}
+        <div style={{
+          marginTop: 8, fontFamily: 'var(--font-ar)', fontSize: 13, color: '#DCE8FF', opacity: 0.9,
+          maxWidth: 260, marginInline: 'auto', lineHeight: 1.6,
+        }}>
+          {exerciseName} — الحد القادم بانتظارك 💥
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -72,7 +136,7 @@ function Stepper({ onUp, onDown, disabled }) {
 
 export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus, progression = null, alternatives = [], subIndex = 0, originalName, onSwap }) {
   const [showInfo,  setShowInfo]  = useState(false)
-  const [showPR,    setShowPR]    = useState(false)
+  const [showPR,    setShowPR]    = useState(null)
   const [copied,    setCopied]    = useState(false)
   const [movingSet, setMovingSet] = useState(null) // index of set being moved
 
@@ -100,8 +164,8 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
     if (done && maxWeight !== null) {
       const w = parseFloat(ex.sets[si]?.weight) || 0
       if (w > maxWeight) {
-        setShowPR(true)
-        setTimeout(() => setShowPR(false), 1800)
+        setShowPR({ weight: w, prev: maxWeight })
+        setTimeout(() => setShowPR(null), 2200)
       }
     }
     onDoneSet(si, done)
@@ -488,7 +552,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
         </div>
       </div>
 
-      {showPR   && <PRFlash color={color} />}
+      {showPR   && <PRFlash color={color} weight={showPR.weight} prev={showPR.prev} exerciseName={ex.name} />}
       {showInfo && <ExerciseInfoModal exercise={ex} onClose={() => setShowInfo(false)} />}
     </>
   )

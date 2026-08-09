@@ -82,9 +82,13 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   }
 
   // Did the last session clear the top of the range on half its sets?
+  // A single set reaching the top is a good set, not a signal — half the
+  // sets AND at least two of them, so one lucky set never moves the
+  // weight up. (A one-set exercise can only ever offer that one.)
   const lastSets  = entries[0].sets
   const setsAtTop = lastSets.filter(s => (parseInt(s.reps) || 0) >= target.top).length
-  const readyToIncrease = setsAtTop >= Math.ceil(lastSets.length / 2)
+  const needAtTop = Math.max(Math.min(2, lastSets.length), Math.ceil(lastSets.length / 2))
+  const readyToIncrease = setsAtTop >= needAtTop
 
   // The other direction: if the bottom of the range keeps being out of
   // reach at this weight, the weight is simply too heavy. Counts the
@@ -126,6 +130,6 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   return {
     workingWeight, sessionsAtWeight, setsAtTop, totalSets: lastSets.length,
     suggestedReps, readyToIncrease, readyToDecrease, failedAtWeight,
-    suggestedWeight, target, hint,
+    suggestedWeight, target, hint, needAtTop,
   }
 }

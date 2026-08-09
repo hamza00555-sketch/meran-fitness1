@@ -12,7 +12,6 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
   const [elapsed,       setElapsed]       = useState(0)
-  const [prFlash,       setPrFlash]       = useState(null) // exercise name that just hit PR
   const [confirmBack,   setConfirmBack]   = useState(false)
   const [focusExId,     setFocusExId]     = useState(null)
   const timerRef      = useRef(null)
@@ -59,14 +58,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
     if (done) {
       const ex  = exercises.find(e => e.id === exId)
       const set = ex?.sets[si]
-      const w   = parseFloat(set?.weight) || 0
-      if (w > 0 && ex) {
-        const histMax = getHistoricalMax(sessions, ex.name, exerciseMapping)
-        if (w > histMax) {
-          setPrFlash(ex.name)
-          setTimeout(() => setPrFlash(null), 2800)
-        }
-      }
+      // The celebration itself is raised by ExerciseCard, centred on screen.
       if (addXP) addXP(10, '✓ سيت مكتمل')
       onShowRest()
     }
@@ -173,23 +165,6 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
 
   return (
     <div style={{ paddingBottom: 120 }}>
-
-      {/* ── PR Flash Banner ── */}
-      {prFlash && (
-        <div style={{
-          position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)',
-          zIndex: 500, whiteSpace: 'nowrap',
-          background: 'linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)',
-          borderRadius: 22, padding: '10px 22px',
-          fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800, color: 'white',
-          boxShadow: '0 4px 28px rgba(245,158,11,0.55)',
-          animation: 'prFlash 0.4s ease forwards',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
-          🏆 رقم قياسي جديد!
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.9 }}>{prFlash}</span>
-        </div>
-      )}
 
       {/* Session Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>

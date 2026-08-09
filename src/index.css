@@ -143,6 +143,42 @@ input[type=number] { -moz-appearance: textfield; }
   .tag-pulse { animation: none; box-shadow: 0 0 10px 1px var(--tag-glow); }
 }
 
+/* ── Weight-up celebration ─────────────────────────────────────
+   Fires dead-centre when a set beats the old best. Meant to land like
+   a win: a burst of rays, a slam-in badge, and the new number. */
+@keyframes prBurst {
+  0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+  45%  { transform: scale(1.18) rotate(3deg);  opacity: 1; }
+  65%  { transform: scale(0.94) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg);     opacity: 1; }
+}
+@keyframes prRays {
+  0%   { transform: scale(0.3) rotate(0deg);   opacity: 0.9; }
+  100% { transform: scale(2.4) rotate(140deg); opacity: 0; }
+}
+@keyframes prShock {
+  0%   { transform: scale(0.2); opacity: 0.85; border-width: 10px; }
+  100% { transform: scale(2.8); opacity: 0;    border-width: 1px; }
+}
+@keyframes prWeightPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  55%  { transform: scale(1.3);  opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes prSpark {
+  0%   { transform: translate(0,0) scale(1);   opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
+@keyframes prFadeOut {
+  0%, 72% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-burst, .pr-rays, .pr-shock, .pr-weight, .pr-spark { animation: none !important; }
+  .pr-rays, .pr-shock, .pr-spark { display: none !important; }
+}
+
 @keyframes xpFloat {
   0%   { opacity: 0; transform: translateX(-50%) translateY(0)    scale(0.6); }
   15%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.25); }
