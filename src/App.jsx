@@ -11,7 +11,7 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
-import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, REST_CREDIT_EVERY } from './recovery.js'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, REST_CREDIT_EVERY, changeCooldownLeft } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 
@@ -457,6 +457,55 @@ export default function App() {
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
 
+  // ── Changing frequency or plan ───────────────────────────────
+  // Both keep the streak, because each past day is judged by the pattern
+  // that was in force then. One change is free per cooldown; a further
+  // change inside the window is allowed but ends the streak, and the
+  // caller has already confirmed that.
+  const applyFrequencyChange = useCallback((patch, { breakStreak = false } = {}) => {
+    const today = todayKey()
+    setRecoveryCfg(prev => {
+      const next = { ...prev, ...patch }
+      // Effective from today, never backdated — a change must not rescue
+      // a day already missed.
+      const segment = {
+        from: today,
+        daysPerWeek: next.daysPerWeek,
+        customPattern: next.customPattern,
+      }
+      const history = (prev.patternHistory || []).filter(seg => seg.from !== today)
+      // Seed the pre-change era so the past keeps being judged as it was.
+      if (!history.length && !(prev.patternHistory || []).length) {
+        history.push({
+          from: '1970-01-01',
+          daysPerWeek: prev.daysPerWeek,
+          customPattern: prev.customPattern,
+        })
+      }
+      return {
+        ...next,
+        patternHistory: [...history, segment].slice(-40),
+        lastSettingsChangeAt: today,
+        streakResetAt: breakStreak ? today : prev.streakResetAt,
+      }
+    })
+    pushAlert(breakStreak ? '⚠️' : '✅',
+      breakStreak ? 'تم التغيير — بدأ ستريك جديد' : 'تم التغيير — ستريكك محفوظ')
+  }, [pushAlert])
+
+  const applyPlanChange = useCallback((newPlan, { breakStreak = false } = {}) => {
+    const today = todayKey()
+    setPlan(newPlan)
+    setPlanIndex(0)
+    setRecoveryCfg(prev => ({
+      ...prev,
+      lastSettingsChangeAt: today,
+      streakResetAt: breakStreak ? today : prev.streakResetAt,
+    }))
+    pushAlert(breakStreak ? '⚠️' : '📋',
+      breakStreak ? `${newPlan.planName} — بدأ ستريك جديد` : `تم تفعيل: ${newPlan.planName}`)
+  }, [pushAlert])
+
   const overrideRecoveryDay = useCallback(() => {
     const today = todayKey()
     setRecoveryCfg(prev => ({
@@ -652,11 +701,13 @@ export default function App() {
             challengeState={challengeState}
             photos={photos}
             plan={plan}
-            onImportPlan={(p) => { setPlan(p); setPlanIndex(0); pushAlert('📋', `تم استيراد خطة: ${p.planName}`) }}
+            onImportPlan={applyPlanChange}
             onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
             exerciseMapping={exerciseMapping}
             recoveryCfg={recoveryCfg}
-            onUpdateRecovery={(patch) => setRecoveryCfg(prev => ({ ...prev, ...patch }))}
+            onUpdateRecovery={applyFrequencyChange}
+            changeCooldownLeft={changeCooldownLeft(recoveryCfg)}
+            currentStreak={recovery.consistencyStreak}
             repTarget={repTarget}
             onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
             onImportMapping={(newMapping) => {

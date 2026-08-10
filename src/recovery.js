@@ -28,6 +28,23 @@ export const TRAINING_FREQUENCIES = [
 export const DEFAULT_RECOVERY = {
   daysPerWeek: 5, customPattern: [3, 2], overrides: [], restDays: [],
   autoSpendFrom: null,
+  // Which pattern was in force on which day, oldest first. Without it a
+  // change of weekly frequency re-judges every day the user ever trained
+  // and can wipe a perfect streak. Absent (existing users) is read as a
+  // single segment covering all of history, so upgrading changes nothing.
+  patternHistory: [],
+  lastSettingsChangeAt: null,  // anchors the 30-day free-change window
+  streakResetAt: null,         // consistency is not counted before this day
+}
+
+// One free change of frequency or plan per this many days.
+export const SETTINGS_CHANGE_COOLDOWN = 30
+
+// Days still to wait for a free change; 0 means it is free now.
+export const changeCooldownLeft = (config = {}, today = todayKey()) => {
+  const last = config.lastSettingsChangeAt
+  if (!last) return 0
+  return Math.max(0, SETTINGS_CHANGE_COOLDOWN - dayDiff(last, today))
 }
 
 export const REST_CREDIT_EVERY = 5
@@ -46,6 +63,20 @@ export const patternFor = (config = {}) => {
   }
   return TRAINING_FREQUENCIES.find(f => f.id === daysPerWeek)?.pattern
     || TRAINING_FREQUENCIES.find(f => f.id === 5).pattern
+}
+
+// The pattern in force on a given day. Segments are { from, daysPerWeek,
+// customPattern } ordered oldest first; the last one starting on or before
+// the day wins. With no history the current config covers everything.
+export const patternForDay = (config = {}, day) => {
+  const hist = config.patternHistory
+  if (!Array.isArray(hist) || !hist.length) return patternFor(config)
+  let chosen = null
+  for (const seg of hist) {
+    if (!seg || !seg.from || seg.from > day) continue
+    if (!chosen || seg.from >= chosen.from) chosen = seg
+  }
+  return chosen ? patternFor(chosen) : patternFor(hist[0])
 }
 
 // Day classifications used across the app
@@ -94,7 +125,10 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const dayLog = []
 
   for (; dayDiff(cursor, today) >= 0; cursor = addDays(cursor, 1)) {
-    const limit    = pattern[position % pattern.length]
+    // Each day is judged by the pattern that was actually in force then,
+    // so changing the frequency never rewrites the past.
+    const dayPattern = patternForDay(config, cursor)
+    const limit    = dayPattern[position % dayPattern.length]
     const expected = consecutive >= limit ? DAY_STATUS.RECOVERY : DAY_STATUS.WORKOUT
     const trained  = workoutDates.has(cursor)
     const logged = loggedRest.has(cursor)
@@ -105,7 +139,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     if (trained) {
       consecutive += 1
     } else if (expected === DAY_STATUS.RECOVERY) {
-      position = (position + 1) % pattern.length   // the cycle's own rest day
+      position = (position + 1) % dayPattern.length // the cycle's own rest day
       consecutive = 0
     } else if (logged) {
       // A rest day paid for with an earned credit is frozen out of the
@@ -133,9 +167,14 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
 
   // Days the user did what the engine asked. A recovery day taken as
   // rest counts as a win and never breaks the streak.
+  const resetAt = config.streakResetAt || null
   let consistencyStreak = 0
   for (let i = dayLog.length - 1; i >= 0; i--) {
     const e = dayLog[i]
+    // A settings change made over quota deliberately ends the streak. The
+    // reset day itself does not count, so the streak reads 0 straight away
+    // and starts building again from the next day.
+    if (resetAt && e.date <= resetAt) break
     if (e.date === today) {
       if (e.trained || e.expected === DAY_STATUS.RECOVERY) consistencyStreak++
       continue // a pending workout — or a frozen day — neither counts nor breaks
@@ -155,6 +194,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     let counted = 0
     for (let i = dayLog.length - 1; i >= 0; i--) {
       const e = dayLog[i]
+      if (resetAt && e.date <= resetAt) break
       if (e.date === today) {
         if (e.trained || e.expected === DAY_STATUS.RECOVERY) { counted++; streakStart = e.date }
         continue

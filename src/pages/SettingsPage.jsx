@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
 import { GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
@@ -10,8 +11,11 @@ import { NOTIFICATION_MESSAGES } from '../constants.js'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, changeCooldownLeft = 0, currentStreak = 0, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget }) {
   const [confirmReset, setConfirmReset] = useState(false)
+  // Pending frequency/plan change awaiting confirmation.
+  // { kind: 'frequency'|'plan', label, apply }
+  const [pendingChange, setPendingChange] = useState(null)
   const [confirmWeights, setConfirmWeights] = useState(false)
   const [saved, setSaved] = useState(false)
   const [nameInput, setNameInput] = useState(profile?.name || '')
@@ -38,6 +42,15 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
   const planImportRef = useRef(null)
   const mappingImportRef = useRef(null)
   const pasteRef = useRef(null)
+
+  // Every frequency or plan switch goes through one confirmation, so the
+  // cost to the streak is always stated before it is paid.
+  const requestChange = (kind, label, apply) => setPendingChange({ kind, label, apply })
+  const confirmPendingChange = () => {
+    if (!pendingChange) return
+    pendingChange.apply({ breakStreak: changeCooldownLeft > 0 })
+    setPendingChange(null)
+  }
 
   const update = (key, val) => {
     onUpdateProfile({ ...profile, [key]: val })
@@ -133,7 +146,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         setPasteError('الـ JSON لا يحتوي على weeklySchedule — تأكد من البرومت')
         return
       }
-      onImportPlan(data)
+      requestChange('plan', data.planName || 'خطة مستوردة', opts => onImportPlan(data, opts))
       setPasteMode(false)
       if (pasteRef.current) pasteRef.current.value = ''
     } catch (err) {
@@ -165,7 +178,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
           alert('الملف لا يحتوي على خطة صالحة — تأكد من وجود weeklySchedule')
           return
         }
-        onImportPlan(data)
+        requestChange('plan', data.planName || 'خطة مستوردة', opts => onImportPlan(data, opts))
       } catch (err) {
         alert(`خطأ في قراءة الملف: ${err.message || 'تأكد من الملف'}`)
       } finally {
@@ -207,7 +220,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       if (!data.weeklySchedule || !Array.isArray(data.weeklySchedule)) {
         setPasteError('الـ JSON لا يحتوي على weeklySchedule'); setPasteMode(true); return
       }
-      onImportPlan(data)
+      requestChange('plan', data.planName || 'خطة مستوردة', opts => onImportPlan(data, opts))
     } catch (err) {
       // If clipboard permission denied or API unsupported, fall back to manual paste
       if (err.name === 'NotAllowedError' || err.name === 'SecurityError') {
@@ -414,7 +427,8 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 return (
                   <button
                     key={f.id}
-                    onClick={() => onUpdateRecovery?.({ daysPerWeek: f.id })}
+                    onClick={() => isActive || requestChange('frequency', `${f.label} أسبوعياً`,
+                      opts => onUpdateRecovery?.({ daysPerWeek: f.id }, opts))}
                     style={{
                       flex: '1 1 calc(50% - 4px)', padding: '12px 10px', borderRadius: 12,
                       background: isActive ? 'var(--cyan-lo)' : 'var(--bg3)',
@@ -433,10 +447,11 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 )
               })}
               <button
-                onClick={() => onUpdateRecovery?.({
-                  daysPerWeek: 'custom',
-                  customPattern: recoveryCfg.customPattern?.length ? recoveryCfg.customPattern : [2],
-                })}
+                onClick={() => recoveryCfg.daysPerWeek === 'custom' || requestChange('frequency', 'إعداد مخصص',
+                  opts => onUpdateRecovery?.({
+                    daysPerWeek: 'custom',
+                    customPattern: recoveryCfg.customPattern?.length ? recoveryCfg.customPattern : [2],
+                  }, opts))}
                 style={{
                   flex: '1 1 100%', padding: '12px 10px', borderRadius: 12,
                   background: recoveryCfg.daysPerWeek === 'custom' ? 'var(--cyan-lo)' : 'var(--bg3)',
@@ -465,7 +480,8 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                     return (
                       <button
                         key={n}
-                        onClick={() => onUpdateRecovery?.({ customPattern: [n] })}
+                        onClick={() => isActive || requestChange('frequency', `${n} تمارين ثم راحة`,
+                          opts => onUpdateRecovery?.({ customPattern: [n] }, opts))}
                         style={{
                           flex: 1, padding: '10px 0', borderRadius: 10,
                           background: isActive ? 'var(--cyan-lo)' : 'var(--bg3)',
@@ -485,6 +501,10 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.8,
             }}>
               الدورة الحالية: {patternFor(recoveryCfg).map(n => `${n} تمارين ← راحة`).join(' ← ')}
+              <br />
+              {changeCooldownLeft > 0
+                ? `⚠️ التغيير الآن يكسر ستريكك · التغيير المجاني بعد ${changeCooldownLeft} يوماً`
+                : '✅ لديك تغيير مجاني — ستريكك محفوظ'}
             </div>
           </Card>
         </div>
@@ -575,7 +595,80 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
           </Card>
         </div>
 
-        {/* ── Workout Time ───────────────────────────────────── */}
+        {/* ── Confirm a frequency or plan change ───────────────── */}
+      {pendingChange && createPortal(
+        <div
+          onClick={() => setPendingChange(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 950,
+            background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 420,
+              background: 'var(--bg2)', borderRadius: 20,
+              border: `1px solid ${changeCooldownLeft > 0 ? 'var(--red)' : 'var(--cyan)'}`,
+              padding: '20px 18px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+            }}
+          >
+            <div style={{ fontSize: 34, textAlign: 'center', marginBottom: 8 }}>
+              {changeCooldownLeft > 0 ? '⚠️' : '🔄'}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800,
+              color: changeCooldownLeft > 0 ? 'var(--red)' : 'var(--cyan)',
+              textAlign: 'center', marginBottom: 6,
+            }}>
+              {pendingChange.kind === 'plan' ? 'تغيير الخطة' : 'تغيير أيام التمرين'}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text2)',
+              textAlign: 'center', marginBottom: 14,
+            }}>{pendingChange.label}</div>
+
+            <div style={{
+              background: changeCooldownLeft > 0 ? 'var(--red-lo)' : 'var(--cyan-lo)',
+              border: `1px solid ${changeCooldownLeft > 0 ? 'var(--red-md)' : 'var(--cyan-md)'}`,
+              borderRadius: 12, padding: '12px 14px', marginBottom: 16,
+              fontFamily: 'var(--font-ar)', fontSize: 14, lineHeight: 1.9,
+              color: changeCooldownLeft > 0 ? 'var(--red)' : 'var(--text2)',
+            }}>
+              {changeCooldownLeft > 0
+                ? <>هذا التغيير <b>يكسر ستريكك ({currentStreak} يوماً)</b> ويبدأ من الصفر.<br />
+                    التغيير المجاني التالي بعد {changeCooldownLeft} يوماً.</>
+                : <>ستريكك ({currentStreak} يوماً) <b>محفوظ</b> — أيامك الماضية تبقى محسوبة بإعدادك القديم.<br />
+                    التغيير المجاني التالي بعد ٣٠ يوماً.</>}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={confirmPendingChange}
+                style={{
+                  flex: 1, padding: '13px', borderRadius: 12, border: 'none',
+                  background: changeCooldownLeft > 0 ? 'var(--red)' : 'var(--grad-primary)',
+                  color: '#fff', fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >{changeCooldownLeft > 0 ? 'غيّر واكسر الستريك' : 'تأكيد التغيير'}</button>
+              <button
+                onClick={() => setPendingChange(null)}
+                style={{
+                  padding: '13px 18px', borderRadius: 12,
+                  background: 'var(--bg3)', border: '1px solid var(--border2)',
+                  color: 'var(--text2)', fontFamily: 'var(--font-ar)', fontSize: 15, cursor: 'pointer',
+                }}
+              >إلغاء</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* ── Workout Time ───────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>وقت التمرين المفضل</SectionTitle>
           <Card style={{ padding: 5 }}>
@@ -694,9 +787,8 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                         }}
                       >{isExpanded ? '▲ إخفاء' : '▼ عرض التمارين'}</button>
                       <button
-                        onClick={() => {
-                          onImportPlan({ ...p, startDate: todayKey() })
-                        }}
+                        onClick={() => requestChange('plan', p.planName,
+                          opts => onImportPlan({ ...p, startDate: todayKey() }, opts))}
                         style={{
                           flex: 2, padding: '9px',
                           background: isActive ? 'var(--cyan-lo)' : 'var(--grad-primary)',
