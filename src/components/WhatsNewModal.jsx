@@ -1,48 +1,41 @@
-import Ico from '../assets/Ico.jsx'
-
 const FEATURES = [
   {
-    ico: 'palette',
-    title: 'أيقونات مران المخصّصة',
-    desc: 'حزمة أيقونات مرسومة بأسلوب التطبيق بدل رموز النظام — نزّلها مرة واحدة من الإعدادات وتعمل بعدها بدون إنترنت',
-  },
-  {
-    ico: 'robot',
+    icon: '🤖',
     title: 'خطة المبتدأ — ماشينات فقط',
-    desc: 'خطة جديدة 3 أيام أسبوعياً للمبتدئين بالماشينات فقط — ادخل الإعدادات ← "الخطط" وفعّلها',
+    desc: 'خطة جديدة 3 أيام أسبوعياً للمبتدئين بالماشينات فقط — ادخل الإعدادات ⚙️ → "الخطط" وفعّلها',
   },
   {
-    ico: 'clipboard',
+    icon: '📋',
     title: 'كيف تغير أو تبدأ خطة',
-    desc: 'اضغط زر الإعدادات من الرئيسية → مرر لقسم "الخطط" → اختر الخطة المناسبة واضغط "ابدأ هذه الخطة"',
+    desc: 'اضغط ⚙️ من الرئيسية → مرر لقسم "الخطط" → اختر الخطة المناسبة واضغط "ابدأ هذه الخطة"',
   },
   {
-    ico: 'brightness',
+    icon: '🔆',
     title: 'إضاءة التمرين النشط',
     desc: 'لما تبدأ سيت في تمرين، التمارين الثانية تنطفي تلقائياً وترجع كلها لما تخلص',
   },
   {
-    ico: 'arrow_up',
+    icon: '⬆️',
     title: 'تذكير رفع الوزن',
     desc: 'بعد ما تخلص كل سيتات تمرين يظهر كارد ذهبي يذكرك تجرب ترفع الوزن المرة الجاية',
   },
   {
-    ico: 'bolt',
+    icon: '⚡',
     title: 'آخر وزن يتعبأ تلقائياً',
     desc: 'لما تبدأ تمرين جديد خانات الوزن تتعبأ تلقائياً بآخر وزن استخدمته لكل تمرين',
   },
   {
-    ico: 'eye',
+    icon: '👁️',
     title: 'عرض تفاصيل اليوم قبل البداية',
     desc: 'اضغط على كارد اليوم في الرئيسية لترى التمارين مع تاق العضلة ويوتيوب وآخر وزن — قبل ما تبدأ',
   },
   {
-    ico: 'refresh',
+    icon: '🔄',
     title: 'نقل سيت بين التمارين',
     desc: 'اضغط على رقم السيت وانقله لتمرين ثاني لو غلطت وحطيته في الخانة الغلط',
   },
   {
-    ico: 'bell',
+    icon: '🔔',
     title: 'إشعار واحد في نفس الوقت',
     desc: 'الإشعارات تنتظر في طابور بدل ما تكدّس على الشاشة',
   },
@@ -93,7 +86,7 @@ export default function WhatsNewModal({ version, onClose }) {
             fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800,
             color: 'var(--text)',
           }}>
-            <Ico id="party" size={20} /> جديد في MERAN
+            🎉 جديد في MERAN
           </div>
         </div>
 
@@ -113,7 +106,7 @@ export default function WhatsNewModal({ version, onClose }) {
                 borderRadius: 12,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 20,
-              }}><Ico id={f.ico} size={20} /></div>
+              }}>{f.icon}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
@@ -143,7 +136,7 @@ export default function WhatsNewModal({ version, onClose }) {
               fontSize: 15, fontWeight: 800, cursor: 'pointer',
               boxShadow: '0 4px 20px rgba(94,195,42,0.35)',
             }}
-          ><Ico id="rocket" size={15} /> تم الاطلاع</button>
+          >تم الاطلاع 🚀</button>
         </div>
 
       </div>

@@ -1,8 +1,8 @@
-// End-to-end checks for the icon pack, on an iPhone-shaped context.
+// End-to-end checks for the art pack, on an iPhone-shaped context.
 // Requires a preview server and two built test packs:
 //
-//   node scripts/gen-placeholders.mjs /tmp/src  a
-//   node scripts/gen-placeholders.mjs /tmp/srcb b
+//   node tests/make-test-pack.mjs /tmp/src  0
+//   node tests/make-test-pack.mjs /tmp/srcb 7
 //   node scripts/build-manifest.mjs --src /tmp/src  --out /tmp/pack  --version test.1
 //   node scripts/build-manifest.mjs --src /tmp/srcb --out /tmp/pack2 --version test.2
 //   npm run build && npx vite preview --port 4173 &
@@ -29,9 +29,11 @@ const results = []
 const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
 
 const manifest = JSON.parse(await readFile(path.join(PACK, 'manifest.json'), 'utf8'))
-// The PNG variants are for OS notifications — the platform fetches
-// those itself, so the app never downloads or stores them.
 const TOTAL = manifest.assets.length
+// Two slots may share one picture, and content-addressing stores it
+// once. Transfers and stored blobs are counted in distinct hashes;
+// only the progress figures are counted in slots.
+const UNIQUE = new Set(manifest.assets.map(a => a.sha256)).size
 
 const browser = await chromium.launch()
 const errors = []
@@ -88,6 +90,8 @@ async function boot(page) {
     localStorage.setItem('hf_weights_reset_v2', 'true')
     localStorage.setItem('hf_seen_version', JSON.stringify(v))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة', goal: 'muscle' }))
+    // Unlocked achievements are where the artwork actually shows.
+    localStorage.setItem('hf_unlocked', JSON.stringify(['a1', 'a2', 'a3', 'b1', 'c1', 'd1']))
   }, APP_VERSION)
   await page.goto(APP, { waitUntil: 'networkidle' })
   await page.waitForTimeout(700)
@@ -164,39 +168,42 @@ const waitPhase = async (page, want, ms = 60000) => {
   await openSettings(page)
   ok('installs and reports ready', await waitPhase(page, 'ready') === 'ready')
 
-  ok('every asset is stored', await blobCount(page) === TOTAL, `${await blobCount(page)}/${TOTAL}`)
+  ok('every distinct picture is stored', await blobCount(page) === UNIQUE, `${await blobCount(page)}/${UNIQUE}`)
   const p = await pointer(page)
   ok('the pointer records the version', p?.packVersion === manifest.packVersion, JSON.stringify(p))
   ok('one manifest fetch', net.manifests === 1, String(net.manifests))
-  ok('each file fetched exactly once', net.files === TOTAL, `${net.files}/${TOTAL}`)
+  ok('each distinct file fetched exactly once', net.files === UNIQUE, `${net.files}/${UNIQUE}`)
 
-  // The point of the whole exercise: icons on screen are now the
-  // downloaded art, and no emoji fallback survives anywhere.
+  // The point of the whole exercise: the awards page now draws the
+  // downloaded artwork instead of emoji.
+  const gotoAwards = async () => {
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('nav button')].find(x => x.textContent.includes('جوائز'))
+      b && b.click()
+    })
+    await page.waitForTimeout(900)
+  }
+  await gotoAwards()
   const painted = await page.evaluate(() => {
-    const imgs = [...document.querySelectorAll('img[data-ico]')]
+    const imgs = [...document.querySelectorAll('img[data-art]')]
     return {
-      images: imgs.length,
+      art: imgs.length,
       blobs: imgs.filter(i => i.src.startsWith('blob:')).length,
-      emojiFallbacks: document.querySelectorAll('[data-ico-fallback="emoji"]').length,
-      svgFallbacks: document.querySelectorAll('[data-ico-fallback="svg"]').length,
+      ids: imgs.slice(0, 3).map(i => i.getAttribute('data-art')),
     }
   })
-  ok('icons repainted as downloaded art', painted.images > 5 && painted.blobs === painted.images,
+  ok('awards repainted as downloaded art', painted.art > 5 && painted.blobs === painted.art,
     JSON.stringify(painted))
-  ok('no emoji fallback is left on screen', painted.emojiFallbacks === 0, JSON.stringify(painted))
+  ok('each award draws its own slot', painted.ids.every(i => i.startsWith('ach_')),
+    JSON.stringify(painted.ids))
 
   const before = net.files
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForTimeout(1500)
   ok('a reload re-uses the stored pack', net.files === before, `${net.files} vs ${before}`)
-  const afterReload = await page.evaluate(() => ({
-    imgs: document.querySelectorAll('img[data-ico]').length,
-    emoji: document.querySelectorAll('[data-ico-fallback="emoji"]').length,
-    svg: document.querySelectorAll('[data-ico-fallback="svg"]').length,
-    tab: document.body.innerText.slice(0, 40),
-  }))
-  ok('icons are still art after a reload', afterReload.imgs > 5 && afterReload.emoji === 0,
-    JSON.stringify(afterReload))
+  await gotoAwards()
+  const afterReload = await page.evaluate(() => document.querySelectorAll('img[data-art]').length)
+  ok('artwork is still there after a reload', afterReload > 5, String(afterReload))
   ok('a reload does not re-offer',
     !await page.evaluate(() => !!document.querySelector('[data-pack-prompt]')))
   await ctx.close()
@@ -222,7 +229,7 @@ const waitPhase = async (page, want, ms = 60000) => {
   const net = await serve(page, PACK)
   await packBtn(page, 'install')
   ok('coming back online installs cleanly', await waitPhase(page, 'ready') === 'ready')
-  ok('a full pack after reconnect', net.files === TOTAL, `${net.files}/${TOTAL}`)
+  ok('a full pack after reconnect', net.files === UNIQUE, `${net.files}/${UNIQUE}`)
   await ctx.close()
 }
 
@@ -238,15 +245,15 @@ const waitPhase = async (page, want, ms = 60000) => {
   ok('a mid-download drop stops and reports', got === 'offline' || got === 'error', got)
 
   const stored = await blobCount(page)
-  ok('what arrived before the drop is kept', stored >= 15 && stored < TOTAL, `${stored}/${TOTAL}`)
+  ok('what arrived before the drop is kept', stored >= 15 && stored < UNIQUE, `${stored}/${UNIQUE}`)
 
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   const net2 = await serve(page, PACK)
   await packBtn(page, 'install')
   ok('the retry completes', await waitPhase(page, 'ready') === 'ready')
   ok('the retry fetches only what was missing',
-    net2.files === TOTAL - stored, `asked ${net2.files}, missing was ${TOTAL - stored}`)
-  ok('all files present after resume', await blobCount(page) === TOTAL)
+    net2.files === UNIQUE - stored, `asked ${net2.files}, missing was ${UNIQUE - stored}`)
+  ok('all files present after resume', await blobCount(page) === UNIQUE)
   await ctx.close()
 }
 
@@ -264,7 +271,7 @@ const waitPhase = async (page, want, ms = 60000) => {
     await page.evaluate(() => document.body.innerText.includes('ملف تالف')))
 
   const stored = await blobCount(page)
-  ok('the rest of the pack still installs', stored === TOTAL - 1, `${stored}/${TOTAL - 1}`)
+  ok('the rest of the pack still installs', stored === UNIQUE - 1, `${stored}/${UNIQUE - 1}`)
   const hasVictim = await page.evaluate((sha) => new Promise((resolve) => {
     const req = indexedDB.open('meran-assets')
     req.onsuccess = () => {
@@ -282,7 +289,8 @@ const waitPhase = async (page, want, ms = 60000) => {
 if (PACK2) {
   const m2 = JSON.parse(await readFile(path.join(PACK2, 'manifest.json'), 'utf8'))
   const oldShas = new Set(manifest.assets.map(a => a.sha256))
-  const changed = m2.assets.filter(a => !oldShas.has(a.sha256)).length
+  const changed = new Set(m2.assets.filter(a => !oldShas.has(a.sha256)).map(a => a.sha256)).size
+  const unique2 = new Set(m2.assets.map(a => a.sha256)).size
 
   const ctx = await browser.newContext(ctxOpts)
   const page = await newPage(ctx)
@@ -298,8 +306,8 @@ if (PACK2) {
   ok('the update completes', await waitPhase(page, 'ready') === 'ready')
   ok('an update fetches only the changed files',
     net2.files === changed, `asked ${net2.files}, changed ${changed}`)
-  ok('superseded blobs are collected', await blobCount(page) === m2.assets.length,
-    `${await blobCount(page)} vs ${m2.assets.length}`)
+  ok('superseded blobs are collected', await blobCount(page) === unique2,
+    `${await blobCount(page)} vs ${unique2}`)
   const p = await pointer(page)
   ok('the pointer moves to the new version', p?.packVersion === m2.packVersion, JSON.stringify(p))
   await ctx.close()
@@ -343,7 +351,7 @@ if (PACK2) {
 
   await packBtn(page, 'delete')
   ok('the delete sheet warns first',
-    await page.evaluate(() => document.body.innerText.includes('حذف حزمة الأيقونات؟')))
+    await page.evaluate(() => document.body.innerText.includes('حذف حزمة الصور؟')))
   await packBtn(page, 'delete-confirm')
   await page.waitForTimeout(1000)
   ok('delete empties the database', await blobCount(page) === 0)

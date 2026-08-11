@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import Ico from '../assets/Ico.jsx'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
@@ -326,7 +325,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                       transition: 'all 0.15s',
                     }}
                   >
-                    <Ico id={isActive ? 'person' : 'people'} size={18} />
+                    <span style={{ fontSize: 18 }}>{isActive ? '👤' : '👥'}</span>
                     <span style={{ flex: 1 }}>{u.name}</span>
                     {isActive && <span style={{ fontSize: 11, fontWeight: 700 }}>نشط ✓</span>}
                   </button>
@@ -342,7 +341,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                         fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                         transition: 'all 0.15s',
                       }}
-                    >{isConfirming ? 'تأكيد؟' : <Ico id="trash" size={14} />}</button>
+                    >{isConfirming ? 'تأكيد؟' : '🗑'}</button>
                   )}
                 </div>
               )
@@ -505,8 +504,8 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               الدورة الحالية: {patternFor(recoveryCfg).map(n => `${n} تمارين ← راحة`).join(' ← ')}
               <br />
               {changeCooldownLeft > 0
-                ? <><Ico id="warn" size={12} /> {`التغيير الآن يكسر ستريكك · التغيير المجاني بعد ${changeCooldownLeft} يوماً`}</>
-                : <><Ico id="check" size={12} /> لديك تغيير مجاني — ستريكك محفوظ</>}
+                ? `⚠️ التغيير الآن يكسر ستريكك · التغيير المجاني بعد ${changeCooldownLeft} يوماً`
+                : '✅ لديك تغيير مجاني — ستريكك محفوظ'}
             </div>
           </Card>
         </div>
@@ -617,8 +616,8 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
             }}
           >
-            <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              <Ico id={changeCooldownLeft > 0 ? 'warn' : 'refresh'} size={34} />
+            <div style={{ fontSize: 34, textAlign: 'center', marginBottom: 8 }}>
+              {changeCooldownLeft > 0 ? '⚠️' : '🔄'}
             </div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800,
@@ -761,7 +760,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                             background: 'var(--bg3)', border: '1px solid var(--border)',
                             borderRadius: 20, padding: '2px 9px',
                             fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text2)',
-                          }}><Ico id="stopwatch" size={11} /> {p.daysPerWeek} أيام/أسبوع</span>
+                          }}>⏱ {p.daysPerWeek} أيام/أسبوع</span>
                           <span style={{
                             background: 'var(--bg3)', border: '1px solid var(--border)',
                             borderRadius: 20, padding: '2px 9px',
@@ -800,7 +799,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                           fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                           boxShadow: isActive ? 'none' : '0 2px 10px rgba(94,195,42,0.3)',
                         }}
-                      >{isActive ? '✓ مفعّل حالياً' : <><Ico id="bolt" size={13} /> تفعيل البرنامج</>}</button>
+                      >{isActive ? '✓ مفعّل حالياً' : '⚡ تفعيل البرنامج'}</button>
                     </div>
                   </div>
 
@@ -847,7 +846,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 borderRadius: 12, padding: 14,
               }}>
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                  <Ico id="clipboard" size={14} /> {plan.planName}
+                  📋 {plan.planName}
                 </div>
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 1.7 }}>
                   {plan.durationWeeks} أسبوع · {plan.weeklySchedule?.length} أيام/أسبوع<br/>
@@ -880,7 +879,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 transition: 'all 0.2s',
               }}
             >
-              <Ico id={promptCopied ? 'check' : 'robot'} size={20} />
+              <span style={{ fontSize: 20 }}>{promptCopied ? '✅' : '🤖'}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>{promptCopied ? 'تم النسخ!' : 'نسخ البرومت للـ AI'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -901,7 +900,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 textAlign: 'right', width: '100%',
               }}
             >
-              <Ico id="clipboard" size={20} />
+              <span style={{ fontSize: 20 }}>📋</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>لصق الخطة من الحافظة</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -932,7 +931,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                   textAlign: 'right', width: '100%',
                 }}
               >
-                <Ico id="folder" size={20} />
+                <span style={{ fontSize: 20 }}>📂</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700 }}>{importingPlan ? 'جار الاستيراد...' : 'استيراد خطة من ملف'}</div>
                   <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -961,7 +960,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 />
                 {pasteError && (
                   <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)', lineHeight: 1.5 }}>
-                    <Ico id="warn" size={12} color="var(--red)" /> {pasteError}
+                    ⚠️ {pasteError}
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -998,7 +997,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                   width: '100%',
                 }}
               >
-                <Ico id="clipboard" size={20} />
+                <span style={{ fontSize: 20 }}>📋</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700 }}>لصق JSON من الـ AI</div>
                   <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -1048,11 +1047,11 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 background: 'var(--bg3)', borderRadius: 10, padding: '10px 14px',
                 fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', lineHeight: 2,
               }}>
-                <Ico id="sunrise" size={13} /> 8:00 — رسالة صباحية<br/>
-                <Ico id="bulb" size={13} /> 12:30 — نصيحة تمرين<br/>
-                <Ico id="droplet" size={13} /> 15:30 — تذكير الماء<br/>
-                <Ico id="swords" size={13} /> {workoutHourDisplay} — وقت التمرين<br/>
-                <Ico id="moon" size={13} /> 21:00 — مراجعة اليوم
+                🌅 8:00 — رسالة صباحية<br/>
+                💡 12:30 — نصيحة تمرين<br/>
+                💧 15:30 — تذكير الماء<br/>
+                ⚔️ {workoutHourDisplay} — وقت التمرين<br/>
+                🌙 21:00 — مراجعة اليوم
               </div>
             )}
 
@@ -1062,7 +1061,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 borderRadius: 10, padding: '10px 14px',
                 fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)', lineHeight: 1.6,
               }}>
-                <Ico id="warn" size={12} color="var(--red)" /> الإشعارات محظورة — افتح إعدادات الجهاز وأعطِ التطبيق إذن الإشعارات.
+                ⚠️ الإشعارات محظورة — افتح إعدادات الجهاز وأعطِ التطبيق إذن الإشعارات.
               </div>
             )}
 
@@ -1076,7 +1075,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
           </Card>
         </div>
 
-        {/* ── Icon pack ───────────────────────────────────────── */}
+        {/* ── Art pack ────────────────────────────────────────── */}
         <AssetPackSection />
 
         {/* ── Data Management ─────────────────────────────────── */}
@@ -1122,7 +1121,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 textAlign: 'right', opacity: importingMapping ? 0.6 : 1,
               }}
             >
-              <Ico id="map" size={20} />
+              <span style={{ fontSize: 20 }}>🗺️</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>{importingMapping ? 'جاري التحديث...' : 'استيراد خريطة التمارين'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -1176,7 +1175,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 textAlign: 'right',
               }}
             >
-              <Ico id="refresh" size={20} />
+              <span style={{ fontSize: 20 }}>🔄</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700 }}>{confirmWeights ? 'اضغط مرة أخرى للتأكيد' : 'تصفير الأوزان المحفوظة'}</div>
                 <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -1237,7 +1236,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
               textAlign: 'center',
             }}
           >
-            <div style={{ marginBottom: 12 }}><Ico id="warn" size={40} color="var(--red)" /></div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
               مسح كل البيانات؟
             </div>

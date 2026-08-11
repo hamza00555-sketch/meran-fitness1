@@ -35,10 +35,10 @@ export default function AssetPackPrompt({ onClose }) {
         }}
       >
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800, color: 'var(--text)' }}>
-          أيقونات مران المخصّصة
+          صور مران المخصّصة
         </div>
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text2)', lineHeight: 2 }}>
-          حزمة أيقونات مرسومة بأسلوب التطبيق بدل الرموز الافتراضية.
+          صور الجوائز ولحظات الاحتفال، مرسومة بأسلوب التطبيق.
           تُحمَّل مرة واحدة وتعمل بعدها بدون إنترنت — ويمكنك تنزيلها لاحقاً من
           الإعدادات.
         </div>

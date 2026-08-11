@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import Ico from '../assets/Ico.jsx'
 
 const DURATION = 3200 // ms before auto-dismiss
 
@@ -59,7 +58,7 @@ export default function SystemAlert({ alerts: queue, onRemove }) {
         </div>
 
         {/* Icon */}
-        <Ico id={current.icon} size={20} style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: 20, flexShrink: 0, lineHeight: 1 }}>{current.icon}</span>
 
         {/* Message */}
         <span

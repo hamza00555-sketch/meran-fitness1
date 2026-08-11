@@ -1,5 +1,5 @@
-// ── Settings › حزمة الأيقونات ─────────────────────────────────
-// Download, update, retry and remove the external icon pack.
+// ── Settings › حزمة الصور ─────────────────────────────────
+// Download, update, retry and remove the external art pack.
 // Follows the page's existing section rhythm and reuses ProgressBar
 // and the red error-box convention rather than inventing new ones.
 
@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from './ui.jsx'
 import { usePackState, installPack, deletePack, cancelInstall } from '../assets/pack.js'
-import { ALL_IDS } from '../assets/ids.js'
+import { ALL_SLOT_IDS } from '../assets/slots.js'
 import { getUsers } from '../utils.js'
 
 const mb = (bytes) => (bytes / 1048576).toFixed(1)
@@ -47,22 +47,22 @@ export default function AssetPackSection() {
 
   const busy = state.phase === 'downloading' || state.phase === 'checking' || state.phase === 'verifying'
   const label = LABELS[state.phase] || LABELS.unknown
-  const total = state.filesTotal || ALL_IDS.length
+  const total = state.filesTotal || ALL_SLOT_IDS.length
   const pct = total ? Math.round((state.filesDone / total) * 100) : 0
   const multiUser = getUsers().length > 1
 
   return (
     <div style={{ marginBottom: 10 }}>
-      <SectionTitle>حزمة الأيقونات</SectionTitle>
+      <SectionTitle>حزمة الصور</SectionTitle>
       <Card style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700 }}>
-              أيقونات مران المخصّصة
+              صور مران المخصّصة
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2, lineHeight: 1.7 }}>
-              تُحمَّل مرة واحدة على الجهاز وتعمل بعدها بدون إنترنت
+              صور الجوائز والاحتفالات — تُحمَّل مرة واحدة وتعمل بدون إنترنت
             </div>
           </div>
           <span data-pack-phase={state.phase} style={{
@@ -92,7 +92,7 @@ export default function AssetPackSection() {
             fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
             display: 'flex', justifyContent: 'space-between', gap: 8,
           }}>
-            <span>{state.filesDone} أيقونة</span>
+            <span>{state.filesDone} صورة</span>
             {state.packVersion && <span dir="ltr">v{state.packVersion}</span>}
           </div>
         )}
@@ -129,10 +129,10 @@ export default function AssetPackSection() {
               state.failed.length === 0
                 // Nothing individually failed, so the manifest itself
                 // never arrived — a different problem, and a different fix.
-                ? 'تعذّر الوصول إلى خادم الأيقونات. حاول مرة أخرى بعد قليل.'
+                ? 'تعذّر الوصول إلى خادم الصور. حاول مرة أخرى بعد قليل.'
                 : (
                   <>
-                    تعذّر تنزيل {state.failed.length} من {total} أيقونة.
+                    تعذّر تنزيل {state.failed.length} من {total} صورة.
                     <div style={{ marginTop: 4, opacity: 0.85 }}>
                       السبب: {FAIL_REASON[state.failed[0].reason] || 'خطأ غير معروف'}
                     </div>
@@ -187,10 +187,10 @@ export default function AssetPackSection() {
             }}
           >
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>
-              حذف حزمة الأيقونات؟
+              حذف حزمة الصور؟
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.8 }}>
-              سترجع الأيقونات الافتراضية، وتحتاج إنترنت لتنزيلها مرة أخرى.
+              سترجع الرموز الافتراضية، وتحتاج إنترنت لتنزيلها مرة أخرى.
               {multiUser && (
                 <div style={{ color: 'var(--gold)', marginTop: 6 }}>
                   الحزمة مشتركة بين كل المستخدمين على هذا الجهاز — الحذف يشملهم جميعاً.

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import Ico from '../assets/Ico.jsx'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
@@ -39,7 +38,7 @@ function PlanProgressCard({ plan, planIndex }) {
           fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
           color: isCompleted ? 'var(--gold)' : 'var(--cyan)',
         }}>
-          {isCompleted ? <><Ico id="trophy" size={11} /> مكتمل</> : `W${currentWeek}/${durationWeeks}`}
+          {isCompleted ? '🏆 مكتمل' : `W${currentWeek}/${durationWeeks}`}
         </div>
       </div>
 
@@ -160,7 +159,7 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, on
                   border: `1px solid ${color}40`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 22,
-                }}><Ico id={muscle?.ico || 'flex'} size={18} /></div>
+                }}>{muscle?.emoji || '💪'}</div>
 
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -195,7 +194,7 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, on
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
                         آخر <span style={{ color: 'var(--text2)' }}>{lastWeight}kg</span>
                         {maxWeight != null && maxWeight !== lastWeight && (
-                          <> · <span style={{ color: 'var(--gold)' }}><Ico id="trophy" size={11} color="var(--gold)" />{maxWeight}kg</span></>
+                          <> · <span style={{ color: 'var(--gold)' }}>🏆{maxWeight}kg</span></>
                         )}
                       </span>
                     )}
@@ -233,7 +232,7 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, on
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       textDecoration: 'none', fontSize: 16,
                     }}
-                  ><Ico id="play" size={13} /></a>
+                  >▶️</a>
                 )}
               </div>
             )
@@ -248,13 +247,13 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, on
               background: 'var(--grad-primary)', border: 'none', borderRadius: 14,
               color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 16,
               cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
-            }}><Ico id="bolt" size={14} /> ابدأ التمرين</button>
+            }}>⚡ ابدأ التمرين</button>
             <button onClick={onSkip} style={{
               padding: '14px 16px',
               background: 'var(--bg3)', border: '1px solid var(--border2)',
               borderRadius: 14, color: 'var(--text3)',
               fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-            }}><Ico id="skip" size={13} /> تخطي</button>
+            }}>⏭️ تخطي</button>
           </div>
         </div>
       </div>
@@ -330,13 +329,13 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], e
             background: 'var(--grad-primary)', border: 'none', borderRadius: 12,
             color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
             cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
-          }}><Ico id="bolt" size={14} /> ابدأ</button>
+          }}>⚡ ابدأ</button>
           <button onClick={onSkip} style={{
             padding: '11px 14px',
             background: 'var(--bg2)', border: '1px solid var(--border2)',
             borderRadius: 12, color: 'var(--text3)',
             fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-          }}><Ico id="skip" size={13} /> تخطي</button>
+          }}>⏭️ تخطي</button>
         </div>
       </Card>
 
@@ -544,7 +543,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
                 <span style={{
                   color: 'var(--orange)', fontFamily: 'var(--font-mono)',
                   fontSize: 12, fontWeight: 700,
-                }}><Ico id="flame" size={13} color="var(--orange)" /> {streak}</span>
+                }}>🔥 {streak}</span>
               )}
               <CommitmentFlames streak={streak} />
             </div>
@@ -555,7 +554,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
                 background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
                 borderRadius: 20, padding: '3px 10px',
                 fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)', fontWeight: 700,
-              }}><Ico id="star" size={13} color="var(--gold)" /> {xp.toLocaleString()}</div>
+              }}>⭐ {xp.toLocaleString()}</div>
               <div style={{
                 background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)',
                 borderRadius: 20, padding: '3px 10px',
@@ -608,7 +607,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             }}>
               {recovery?.status === DAY_STATUS.COMPLETED ? 'تمرين مكتمل ✓'
                 : isRecoveryDay ? 'اليوم يوم تعافٍ'
-                : 'اليوم يوم تمرين'}
+                : 'اليوم يوم تمرين 💪'}
             </div>
             <div className="hp-sub" style={{ fontFamily: 'var(--font-ar)' }}>
               {recovery?.status === DAY_STATUS.COMPLETED
@@ -662,7 +661,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             borderRadius: 12, padding: '10px 14px', marginBottom: 12,
             fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.7,
           }}>
-            <Ico id="moon" size={12} /> لن يُحتسب هذا اليوم تمريناً فائتاً، ولن يكسر ستريك الالتزام.
+            🌙 لن يُحتسب هذا اليوم تمريناً فائتاً، ولن يكسر ستريك الالتزام.
           </div>
           <button
             onClick={onOverrideRecovery}
@@ -720,7 +719,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             fontSize: 16,
             boxShadow: isRecoveryDay ? '0 0 10px var(--purple-md)' : 'none',
             animation: isRecoveryDay ? 'glowPulse 2.5s ease-in-out infinite' : 'none',
-          }}><Ico id="moon" size={30} /></div>
+          }}>🌙</div>
         </div>
 
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7, marginBottom: 12 }}>
@@ -736,7 +735,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           border: `1px solid ${restCredits > 0 ? 'var(--gold-md)' : 'var(--border)'}`,
           borderRadius: 12, padding: '10px 14px', marginBottom: 12,
         }}>
-          <Ico id="ticket" size={18} />
+          <span style={{ fontSize: 18 }}>🎟️</span>
           <div style={{ flex: 1 }}>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
@@ -790,7 +789,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               <div key={muscle} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                   <span style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
-                    <Ico id={g.ico} size={14} /> {g.label}
+                    {g.emoji} {g.label}
                   </span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text3)' }}>
                     {count} sets
@@ -824,18 +823,18 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             <div style={{
               textAlign: 'center', padding: '12px',
               fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
-            }}><Ico id="moon" size={13} /> اليوم للتعافي — غداً تكمل خطتك</div>
+            }}>🌙 اليوم للتعافي — غداً تكمل خطتك</div>
           ) : currentPlanDay ? (
             <button className="btn-cyan" onClick={() => onStartPlannedWorkout(currentPlanDay)}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 10, paddingBottom: 10 }}>
-              <span style={{ fontSize: 15, fontWeight: 800 }}><Ico id="bolt" size={14} /> ابدأ تمرين اليوم</span>
+              <span style={{ fontSize: 15, fontWeight: 800 }}>⚡ ابدأ تمرين اليوم</span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.8, fontWeight: 400 }}>
                 {currentPlanDay.name}
               </span>
             </button>
           ) : (
             <button className="btn-cyan" onClick={onStartWorkout}>
-              <Ico id="bolt" size={14} /> ابدأ التمرين
+              ⚡ ابدأ التمرين
             </button>
           )}
         </div>

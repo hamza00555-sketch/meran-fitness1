@@ -1,4 +1,4 @@
-// Node specs for the icon-pack runtime, run against the real ES
+// Node specs for the art-pack runtime, run against the real ES
 // modules — no bundler, no framework beyond node:test.
 //
 //   node --test tests/assets.test.mjs
@@ -16,7 +16,7 @@ const liveUrls = new Set()
 globalThis.URL.createObjectURL = () => { const u = `blob:test/${++urlSeq}`; liveUrls.add(u); return u }
 globalThis.URL.revokeObjectURL = (u) => { liveUrls.delete(u) }
 
-const { parseManifest, normalizeEmoji, SUPPORTED_SCHEMA } = await import('../src/assets/manifest.js')
+const { parseManifest, SUPPORTED_SCHEMA } = await import('../src/assets/manifest.js')
 const store = await import('../src/assets/store.js')
 const registry = await import('../src/assets/registry.js')
 const dl = await import('../src/assets/download.js')
@@ -31,10 +31,7 @@ async function makeManifest(ids, { schemaVersion = 1, packVersion = '1' } = {}) 
   const assets = []
   for (const id of ids) {
     const buf = bodyFor(id)
-    assets.push({
-      id, file: `i/${id}.webp`, sha256: await sha(buf),
-      bytes: buf.byteLength, emoji: [],
-    })
+    assets.push({ id, file: `i/${id}.webp`, sha256: await sha(buf), bytes: buf.byteLength })
   }
   return { schemaVersion, packVersion, baseUrl: 'https://cdn.test/', assets }
 }
@@ -78,28 +75,6 @@ test('a manifest left with no valid entries throws rather than installing nothin
   raw.assets[0].sha256 = 'x'
   assert.throws(() => parseManifest(raw), /manifest-empty/)
 })
-
-test('variation selectors are normalised, so 🗑️ and 🗑 are one icon', async () => {
-  assert.equal(normalizeEmoji('\u{1F5D1}️'), normalizeEmoji('\u{1F5D1}'))
-  const raw = await makeManifest(['trash'])
-  raw.assets[0].emoji = ['\u{1F5D1}️']
-  const m = parseManifest(raw)
-  assert.equal(m.emojiToId.get('\u{1F5D1}'), 'trash')
-})
-
-test('two assets claiming one emoji resolve to the first, deterministically', async () => {
-  const raw = await makeManifest(['a', 'b'])
-  raw.assets[0].emoji = ['\u{1F525}']
-  raw.assets[1].emoji = ['\u{1F525}']
-  const warn = console.warn; let warned = 0; console.warn = () => { warned++ }
-  try {
-    const m = parseManifest(raw)
-    assert.equal(m.emojiToId.get('\u{1F525}'), 'a')
-    assert.equal(warned, 1, 'a duplicate claim should be reported')
-  } finally { console.warn = warn }
-})
-
-// ══ store ═════════════════════════════════════════════════════
 
 test('a verified file is stored', async () => {
   await reset()
@@ -151,7 +126,7 @@ test('reconcile reports a partial install and names what is missing', async () =
   await store.verifyAndStore(m.assets[0], bodyFor('a'))
   await store.writeManifest({
     schemaVersion: 1, packVersion: '1', baseUrl: m.baseUrl,
-    assets: m.assets.map(a => ({ id: a.id, file: a.file, sha256: a.sha256, bytes: a.bytes, emoji: [] })),
+    assets: m.assets.map(a => ({ id: a.id, file: a.file, sha256: a.sha256, bytes: a.bytes })),
   })
   const rec = await store.reconcile()
   assert.equal(rec.installed, false)
@@ -299,6 +274,23 @@ test('an update transfers only the icons that changed', async () => {
   assert.equal(await countBlobs(), 3)
 })
 
+test('one picture shared by two slots is fetched once and published to both', async () => {
+  await reset()
+  const raw = await makeManifest(['ach_a1'])
+  // A second slot pointing at the same bytes — the same hash.
+  raw.assets.push({ ...raw.assets[0], id: 'ach_a2' })
+  const m = parseManifest(raw)
+
+  const f = stubFetch()
+  const res = await dl.ensureDownload(m)
+  assert.equal(res.ok, true)
+  assert.equal(f.calls.length, 1, 'the shared file is transferred once')
+  assert.equal(await countBlobs(), 1)
+  assert.ok(registry.urlFor('ach_a1'))
+  assert.ok(registry.urlFor('ach_a2'), 'both slots get the picture')
+  assert.equal(registry.getPackState().filesDone, 2, 'progress counts slots, not transfers')
+})
+
 test('progress only ever moves forward', async () => {
   await reset()
   const ids = Array.from({ length: 12 }, (_, i) => `p${i}`)
@@ -344,27 +336,23 @@ test('cancelling stops the run and leaves what already verified', async () => {
 test('a manifest survives the round trip through IndexedDB', async () => {
   // The structured clone drops the lookup Maps parseManifest builds.
   // Reading one back and handing it straight to the registry used to
-  // throw, leaving every icon un-hydrated after a reload with nothing
+  // throw, leaving every piece un-hydrated after a reload with nothing
   // in the log to say why.
   await reset()
-  const raw = await makeManifest(['flame'])
-  raw.assets[0].emoji = ['\u{1F525}']
-  const m = parseManifest(raw)
+  const m = parseManifest(await makeManifest(['ach_a1']))
   await store.writeManifest({
     schemaVersion: m.schemaVersion, packVersion: m.packVersion, baseUrl: m.baseUrl,
-    assets: m.assets.map(a => ({ id: a.id, file: a.file, sha256: a.sha256, bytes: a.bytes, emoji: a.emoji })),
+    assets: m.assets.map(a => ({ id: a.id, file: a.file, sha256: a.sha256, bytes: a.bytes })),
   })
 
   const back = await store.readManifest()
   assert.ok(back, 'a stored manifest reads back')
-  assert.ok(back.emojiToId instanceof Map, 'its lookup maps are rebuilt')
-  assert.equal(back.emojiToId.get('\u{1F525}'), 'flame')
+  assert.ok(back.byId instanceof Map, 'its lookup map is rebuilt')
 
   registry.applyManifest(back)
-  assert.equal(registry.idForEmoji('\u{1F525}'), 'flame')
   const n = registry.hydrate(back, new Map([[back.assets[0].sha256, new Blob(['x'])]]))
   assert.equal(n, 1)
-  assert.ok(registry.urlFor('flame'))
+  assert.ok(registry.urlFor('ach_a1'))
 })
 
 test('hydrate publishes a URL per stored asset and notifies once', async () => {

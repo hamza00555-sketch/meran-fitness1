@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import Ico from '../assets/Ico.jsx'
+import Art from '../assets/Art.jsx'
 import { Card } from '../components/ui.jsx'
 import { fmtDate } from '../utils.js'
 
@@ -77,7 +77,7 @@ export default function PhotosPage({ photos, setPhotos, onBack }) {
           borderRadius: 14, padding: '14px 18px', textAlign: 'center',
         }}>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800, color: 'var(--cyan)', marginBottom: 4 }}>
-            {daysDiff} يوم من الرحلة <Ico id="flame" size={12} />
+            {daysDiff} يوم من الرحلة 🔥
           </div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
             {photos.length} صورة مسجلة
@@ -121,7 +121,7 @@ export default function PhotosPage({ photos, setPhotos, onBack }) {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 800 }}>صور التقدم <Ico id="camera_flash" size={20} /></div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 800 }}>صور التقدم 📸</div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>{photos.length} صورة</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -157,14 +157,14 @@ export default function PhotosPage({ photos, setPhotos, onBack }) {
           className="btn-cyan"
           style={{ width: '100%', fontSize: 15 }}
         >
-          {adding ? <><Ico id="hourglass" size={14} /> جاري الحفظ...</> : <><Ico id="camera" size={14} /> التقط صورة أو اختر من المعرض</>}
+          {adding ? '⏳ جاري الحفظ...' : '📷 التقط صورة أو اختر من المعرض'}
         </button>
       </Card>
 
       {/* Empty state */}
       {photos.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ marginBottom: 12 }}><Ico id="camera_flash" size={48} /></div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}><Art id="empty_photos" size={110} fallback="📸" /></div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700, color: 'var(--text2)', marginBottom: 6 }}>
             لا توجد صور بعد
           </div>

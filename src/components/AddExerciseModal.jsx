@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import Ico from '../assets/Ico.jsx'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { Card, Overlay, CloseBtn } from './ui.jsx'
 
@@ -27,7 +26,7 @@ export default function AddExerciseModal({ onAdd, onClose }) {
         {/* Header */}
         <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}><Ico id="plus" size={17} /> إضافة تمرين</div>
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>➕ إضافة تمرين</div>
             <CloseBtn onClick={onClose} />
           </div>
         </div>
@@ -55,7 +54,7 @@ export default function AddExerciseModal({ onAdd, onClose }) {
                       cursor: 'pointer', whiteSpace: 'nowrap',
                       transition: 'all 0.15s', flexShrink: 0,
                     }}
-                  ><Ico id={g.ico} size={14} /> {g.label}</button>
+                  >{g.emoji} {g.label}</button>
                 )
               })}
             </div>
@@ -97,7 +96,7 @@ export default function AddExerciseModal({ onAdd, onClose }) {
                   fontFamily: 'var(--font-ar)', fontSize: 12,
                   cursor: 'pointer', textAlign: 'right',
                 }}
-              ><Ico id="pencil" size={14} /> تمرين مخصص</button>
+              >✏️ تمرين مخصص</button>
             </div>
 
             {isCustom && (
@@ -150,7 +149,7 @@ export default function AddExerciseModal({ onAdd, onClose }) {
             className="btn-cyan"
             style={{ opacity: canAdd ? 1 : 0.4, fontSize: 15 }}
           >
-            {canAdd ? <><Ico id="plus" size={14} /> إضافة: {finalName}</> : 'اختر تمريناً أولاً'}
+            {canAdd ? `➕ إضافة: ${finalName}` : 'اختر تمريناً أولاً'}
           </button>
         </div>
       </Card>

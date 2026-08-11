@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import Ico from '../assets/Ico.jsx'
+import Art from '../assets/Art.jsx'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { detectEquipment, EQUIPMENT_LABELS, getWeightsResetAt } from '../utils.js'
 import ExerciseInfoModal from '../components/ExerciseInfoModal.jsx'
@@ -84,9 +84,9 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
       {/* Tab switcher */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[
-          { id: 'all',       label: 'جميع التمارين', ico: 'books' },
-          { id: 'progress',  label: `تقدمي${progress.length > 0 ? ` (${progress.length})` : ''}`, ico: 'bar_chart' },
-          { id: 'equipment', label: 'معدات', ico: 'wrench' },
+          { id: 'all',       label: '📚 جميع التمارين' },
+          { id: 'progress',  label: `📊 تقدمي${progress.length > 0 ? ` (${progress.length})` : ''}` },
+          { id: 'equipment', label: '🔧 معدات' },
         ].map(t => (
           <button
             key={t.id}
@@ -100,7 +100,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
               fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: view === t.id ? 700 : 400,
               cursor: 'pointer', transition: 'all 0.15s',
             }}
-          ><Ico id={t.ico} size={14} /> {t.label}</button>
+          >{t.label}</button>
         ))}
       </div>
 
@@ -140,7 +140,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                 >
                   {g.img
                     ? <img src={g.img} style={{ width: 84, height: 84, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' }} alt="" />
-                    : <Ico id={g.ico} size={66} />
+                    : <span style={{ fontSize: 66 }}>{g.emoji}</span>
                   }
                   <div style={{ flex: 1, textAlign: 'right' }}>
                     <span style={{ fontFamily: 'var(--font-ar)', fontSize: 19, fontWeight: 800, color: g.color }}>{g.label}</span>
@@ -174,10 +174,10 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)', marginBottom: 3 }}>{ex.name}</div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                               {ex.videoUrl && (
-                                <span style={{ background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.25)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FF4444' }}><Ico id="play" size={10} color="#FF4444" /> YouTube</span>
+                                <span style={{ background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.25)', borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-mono)', fontSize: 10, color: '#FF4444' }}>▶ YouTube</span>
                               )}
                               {ex.tips?.length > 0 && (
-                                <span style={{ background: g.color + '15', border: `1px solid ${g.color}35`, borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-ar)', fontSize: 12, color: g.color }}><Ico id="bolt" size={11} color={g.color} /> {ex.tips.length} نصائح</span>
+                                <span style={{ background: g.color + '15', border: `1px solid ${g.color}35`, borderRadius: 6, padding: '1px 7px', fontFamily: 'var(--font-ar)', fontSize: 12, color: g.color }}>⚡ {ex.tips.length} نصائح</span>
                               )}
                               {lw != null && (
                                 <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
@@ -186,7 +186,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                               )}
                             </div>
                           </div>
-                          <Ico id="info" size={14} color="var(--text3)" />
+                          <span style={{ color: 'var(--text3)', fontSize: 14 }}>ℹ</span>
                         </button>
                       )
                     })}
@@ -205,7 +205,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
             textAlign: 'center', padding: '50px 20px',
             fontFamily: 'var(--font-ar)', color: 'var(--text3)', fontSize: 14,
           }}>
-            <div style={{ marginBottom: 12 }}><Ico id="bar_chart" size={40} /></div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}><Art id="empty_progress" size={96} fallback="📊" /></div>
             أنهِ جلسة تمرين أولاً لترى تقدمك هنا
           </div>
         ) : (
@@ -218,7 +218,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                   display: 'flex', alignItems: 'center', gap: 8,
                   marginBottom: 8, paddingRight: 4,
                 }}>
-                  <Ico id={g.ico} size={20} />
+                  <span style={{ fontSize: 20 }}>{g.emoji}</span>
                   <span style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800, color: g.color }}>{g.label}</span>
                   <div style={{ flex: 1, height: 1, background: g.color + '25' }} />
                 </div>
@@ -251,7 +251,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                               background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.35)',
                               borderRadius: 6, padding: '2px 7px',
                               fontFamily: 'var(--font-ar)', fontSize: 12, color: '#FBBF24',
-                            }}><Ico id="trophy" size={11} /> PR</span>
+                            }}>🏆 PR</span>
                           )}
                           {trend !== 0 && (
                             <span style={{
@@ -328,12 +328,12 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
       {view === 'equipment' && (
         Object.keys(progressByEquipment).length === 0 ? (
           <div style={{ textAlign: 'center', padding: '50px 20px', fontFamily: 'var(--font-ar)', color: 'var(--text3)', fontSize: 14 }}>
-            <div style={{ marginBottom: 12 }}><Ico id="wrench" size={40} /></div>
+            <div style={{ fontSize: 40, marginBottom: 12 }}><Art id="empty_equipment" size={96} fallback="🔧" /></div>
             أنهِ جلسات أولاً لترى تمارينك مجمّعة حسب المعدة
           </div>
         ) : (
           Object.entries(progressByEquipment).map(([eq, exercises]) => {
-            const label   = EQUIPMENT_LABELS[eq] || { ar: eq, ico: 'lifter' }
+            const label   = EQUIPMENT_LABELS[eq] || { ar: eq, emoji: '🏋️' }
             const groupPR = exercises[0]?.allMax || 0
             return (
               <div key={eq} style={{ marginBottom: 14 }}>
@@ -343,7 +343,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                   marginBottom: 8, paddingInline: 4,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Ico id={label.ico} size={20} />
+                    <span style={{ fontSize: 20 }}>{label.emoji}</span>
                     <span style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
                       {label.ar}
                     </span>
@@ -356,7 +356,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                     background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)',
                     borderRadius: 20, padding: '3px 10px',
                     fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F59E0B', fontWeight: 700,
-                  }}><Ico id="trophy" size={12} /> {groupPR}kg</div>
+                  }}>🏆 {groupPR}kg</div>
                 </div>
 
                 {/* Exercise rows */}
@@ -406,7 +406,7 @@ export default function ExercisesPage({ sessions = [], exerciseMapping = {} }) {
                               color: isGroupPR ? '#F59E0B' : 'var(--cyan)',
                             }}>{ex.allMax}kg</div>
                           </div>
-                          {isGroupPR && <Ico id="crown" size={14} />}
+                          {isGroupPR && <span style={{ fontSize: 14 }}>👑</span>}
                         </div>
                       </div>
                     )

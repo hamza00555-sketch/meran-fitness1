@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import Ico from '../assets/Ico.jsx'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { ACHIEVEMENTS, ACHIEVEMENT_CATS, RARITY_COLORS } from '../constants.js'
 import { calcStreak } from '../utils.js'
+import Art from '../assets/Art.jsx'
+import { achSlot } from '../assets/slots.js'
 
 export default function AchievementsPage({ sessions, xp, streak, unlockedAchievements, unlockedAt = {}, level }) {
   const [catFilter, setCatFilter] = useState('all')
@@ -29,7 +30,7 @@ export default function AchievementsPage({ sessions, xp, streak, unlockedAchieve
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 900, marginBottom: 3 }}>
-              جوائز <Ico id="trophy" size={19} />
+              جوائز 🏆
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
               أنجازاتك ومكافآتك
@@ -146,7 +147,7 @@ function AchievCard({ achievement: a, isUnlocked, rarity, earnedAt }) {
               fontFamily: 'var(--font-mono)', fontSize: 10,
               color: 'var(--green)', marginBottom: 3, direction: 'rtl',
             }}>
-              <Ico id="clock3" size={10} color="var(--green)" /> {fmtEarned(earnedAt)}
+              🕒 {fmtEarned(earnedAt)}
             </div>
           )}
 
@@ -173,28 +174,28 @@ function AchievCard({ achievement: a, isUnlocked, rarity, earnedAt }) {
         }}>
           {isUnlocked
             ? (
-              // Some achievements were tiers of the same idea, written as
-              // a repeated glyph. The tier is data now, so it can
-              // be shown as a count instead of three overlapping images.
-              <span style={{ position: 'relative', display: 'inline-flex' }}>
-                <Ico id={a.ico} size={44} style={{ width: 'clamp(30px,8vw,44px)', height: 'clamp(30px,8vw,44px)' }} />
-                {a.tier > 1 && (
-                  <span style={{
-                    position: 'absolute', insetInlineEnd: -6, bottom: -4,
-                    fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 800,
-                    color: rarity.color, background: 'var(--bg2)',
-                    border: `1px solid ${rarity.color}80`, borderRadius: 8,
-                    padding: '0 4px', lineHeight: 1.5,
-                  }}>×{a.tier}</span>
-                )}
-              </span>
+              // Its own artwork once the pack is installed; the emoji it
+              // has always used until then.
+              <Art
+                id={achSlot(a.id)}
+                style={{ width: '82%', height: '82%' }}
+                fallback={<span style={{ fontSize: 'clamp(30px,8vw,44px)' }}>{a.icon}</span>}
+              />
             )
             : (
               <>
-                <img
-                  src={getAchImg(a)}
-                  alt=""
-                  style={{ width: '78%', height: '78%', objectFit: 'contain', filter: 'grayscale(1)', opacity: 0.35 }}
+                {/* Locked: the same artwork, drained of colour — falls back
+                    to the generic category illustration already shipped. */}
+                <Art
+                  id={achSlot(a.id)}
+                  style={{ width: '78%', height: '78%', filter: 'grayscale(1)', opacity: 0.35 }}
+                  fallback={
+                    <img
+                      src={getAchImg(a)}
+                      alt=""
+                      style={{ width: '78%', height: '78%', objectFit: 'contain', filter: 'grayscale(1)', opacity: 0.35 }}
+                    />
+                  }
                 />
                 <div style={{
                   position: 'absolute', bottom: -4, right: -4,
@@ -202,7 +203,7 @@ function AchievCard({ achievement: a, isUnlocked, rarity, earnedAt }) {
                   background: 'var(--bg2)', border: '1px solid var(--border2)',
                   borderRadius: '50%', width: 22, height: 22,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}><Ico id="lock" size={13} /></div>
+                }}>🔒</div>
               </>
             )
           }

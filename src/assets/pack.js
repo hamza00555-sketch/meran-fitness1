@@ -180,16 +180,8 @@ const serialisable = (m) => ({
   packVersion: m.packVersion,
   baseUrl: m.baseUrl,
   assets: m.assets.map(a => ({
-    id: a.id, file: a.file, png: a.png, sha256: a.sha256,
-    bytes: a.bytes, emoji: a.emoji,
+    id: a.id, file: a.file, sha256: a.sha256, bytes: a.bytes,
   })),
 })
-
-/**
- * The https URL for an id, for OS notifications.
- * A blob: URL is useless there — the platform fetches the icon
- * outside the page — so notifications point at the CDN directly.
- */
-export const notificationIcon = (id) => registry.remoteUrlFor(id) || '/icon-192.png'
 
 export const __resetForTests = () => { booted = null }

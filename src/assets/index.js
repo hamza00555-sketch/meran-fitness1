@@ -1,7 +1,7 @@
-// Public surface of the icon-pack system.
-export { default as Ico, useIconUrl } from './Ico.jsx'
+// Public surface of the art-pack system.
+export { default as Art, useHasArt } from './Art.jsx'
 export {
   initPack, installPack, updatePack, deletePack, cancelInstall,
-  usePackState, notificationIcon, wasPrompted, markPrompted, MANIFEST_URL,
+  usePackState, wasPrompted, markPrompted, MANIFEST_URL,
 } from './pack.js'
-export { ASSETS, ALL_IDS, emojiFor, NOTIFICATION_IDS } from './ids.js'
+export { achSlot, allSlots, ALL_SLOT_IDS, SCENES, EMPTIES } from './slots.js'

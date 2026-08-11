@@ -40,7 +40,7 @@ class HttpError extends Error {
 async function fetchOne(asset, signal) {
   const res = await fetch(asset.url, { signal, cache: 'no-store', credentials: 'omit', mode: 'cors' })
   if (!res.ok) throw new HttpError(res.status)
-  const type = res.headers.get('content-type') || (asset.file.endsWith('.png') ? 'image/png' : 'image/webp')
+  const type = res.headers.get('content-type') || 'image/webp'
   return { buf: await res.arrayBuffer(), type }
 }
 
@@ -100,9 +100,20 @@ export function ensureDownload(manifest, opts) {
 
 async function run(manifest, signal, { onDone } = {}) {
   const have = await storedShas()
-  const todo = manifest.assets.filter(a => !have.has(a.sha256))
 
-  const bytesTotal = todo.reduce((n, a) => n + (a.bytes || 0), 0)
+  // Two slots can legitimately share one picture, and content-addressing
+  // means they share one hash. Fetch each distinct hash once and publish
+  // the result to every slot that uses it.
+  const wanted = new Map()   // sha -> { asset, ids: [] }
+  for (const a of manifest.assets) {
+    if (have.has(a.sha256)) continue
+    const entry = wanted.get(a.sha256)
+    if (entry) entry.ids.push(a.id)
+    else wanted.set(a.sha256, { asset: a, ids: [a.id] })
+  }
+  const todo = [...wanted.values()]
+
+  const bytesTotal = todo.reduce((n, t) => n + (t.asset.bytes || 0), 0)
 
   if (!todo.length) {
     registry.setPackState({ phase: 'ready', installed: true, packVersion: manifest.packVersion,
@@ -117,7 +128,10 @@ async function run(manifest, signal, { onDone } = {}) {
     return { ok: false, failed: [], reason: 'nospace' }
   }
 
-  let filesDone = manifest.assets.length - todo.length
+  // Progress is counted in slots, which is what the person sees, even
+  // though the transfers are counted in distinct files.
+  const slotsPending = todo.reduce((n, t) => n + t.ids.length, 0)
+  let filesDone = manifest.assets.length - slotsPending
   let bytesDone = 0
   const failed = []
 
@@ -142,7 +156,7 @@ async function run(manifest, signal, { onDone } = {}) {
       if (signal.aborted || gaveUp) return
       const i = cursor++
       if (i >= todo.length) return
-      const asset = todo[i]
+      const { asset, ids } = todo[i]
 
       const result = await acquire(asset, signal, (n) => {
         // bytesDone only ever moves forward: progress that jumps
@@ -152,11 +166,11 @@ async function run(manifest, signal, { onDone } = {}) {
 
       if (result.ok) {
         consecutiveNetFails = 0
-        filesDone++
+        filesDone += ids.length
         const rec = await getBlobRec(asset.sha256).catch(() => null)
-        if (rec?.blob) registry.put(asset.id, rec.blob)
+        if (rec?.blob) for (const id of ids) registry.put(id, rec.blob)
       } else {
-        failed.push({ id: asset.id, reason: result.reason })
+        for (const id of ids) failed.push({ id, reason: result.reason })
         if (result.reason === 'network') {
           if (++consecutiveNetFails >= NETWORK_GIVE_UP) gaveUp = true
         } else {

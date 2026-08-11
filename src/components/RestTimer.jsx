@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import Ico from '../assets/Ico.jsx'
 import { playBeep, ls } from '../utils.js'
 import { REST_PRESETS } from '../constants.js'
 
@@ -65,7 +64,7 @@ export default function RestTimer({ onClose }) {
     playBeep(4)
     if (document.hidden) {
       navigator.serviceWorker?.ready
-        .then(reg => reg.showNotification('انتهت الراحة', {
+        .then(reg => reg.showNotification('⏱️ انتهت الراحة', {
           body: 'ارجع للتمرين — السيت التالي جاهز.',
           icon: '/icon-192.png', badge: '/icon-192.png',
           dir: 'rtl', lang: 'ar', tag: 'rest-done', vibrate: [180, 80, 180],
@@ -152,7 +151,7 @@ export default function RestTimer({ onClose }) {
                 color: 'var(--text2)', cursor: 'pointer', fontSize: 13,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-            ><Ico id="pause" size={16} /></button>
+            >⏸</button>
           )}
           {!running && !done && (
             <button
@@ -163,7 +162,7 @@ export default function RestTimer({ onClose }) {
                 color: 'var(--cyan)', cursor: 'pointer', fontSize: 13,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
-            ><Ico id="play" size={16} /></button>
+            >▶</button>
           )}
           {done && (
             <button

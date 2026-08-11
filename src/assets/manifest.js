@@ -1,17 +1,10 @@
 // ── The pack manifest ─────────────────────────────────────────
-// Everything that makes the pack extensible lives here: the file
-// list, their hashes, and — crucially — which emoji each asset
-// stands in for. That mapping is data fetched at runtime, not code
-// in the bundle, so adding an icon later means publishing a new
-// manifest, not shipping a new build.
+// The file list, their hashes, and the slot id each file fills.
+// It is data fetched at runtime, not code in the bundle, so new or
+// re-drawn artwork ships by publishing a manifest rather than a new
+// build of the app.
 
 export const SUPPORTED_SCHEMA = 1
-
-// U+FE0F / U+FE0E only say "draw this as a picture" or "as text".
-// The same glyph with and without the selector must resolve to one
-// id, or half the call sites silently miss.
-export const normalizeEmoji = (s) =>
-  typeof s === 'string' ? s.replace(/[\uFE0E\uFE0F]/g, '') : ''
 
 const isHex64 = (s) => typeof s === 'string' && /^[0-9a-f]{64}$/i.test(s)
 
@@ -33,8 +26,6 @@ export function parseManifest(raw) {
   const baseUrl = raw.baseUrl.endsWith('/') ? raw.baseUrl : raw.baseUrl + '/'
   const assets = []
   const byId = new Map()
-  const emojiToId = new Map()
-  const claimed = new Map() // emoji -> first id that claimed it
 
   for (const a of raw.assets) {
     if (!a || typeof a.id !== 'string' || !a.id) continue
@@ -45,29 +36,10 @@ export function parseManifest(raw) {
     const asset = {
       id: a.id,
       file: a.file,
-      png: typeof a.png === 'string' ? a.png : null,
       sha256: a.sha256.toLowerCase(),
       bytes: Number(a.bytes) > 0 ? Number(a.bytes) : 0,
-      emoji: [],
       url: baseUrl + a.file,
-      pngUrl: typeof a.png === 'string' ? baseUrl + a.png : null,
     }
-
-    for (const e of Array.isArray(a.emoji) ? a.emoji : []) {
-      const key = normalizeEmoji(e)
-      if (!key) continue
-      asset.emoji.push(key)
-      // Two assets claiming the same emoji is a publishing mistake.
-      // Resolve it the same way every time so the UI can't flicker
-      // between builds, and say so loudly enough to get it fixed.
-      if (claimed.has(key)) {
-        console.warn(`meran/assets: emoji ${key} claimed by both "${claimed.get(key)}" and "${a.id}" — keeping the first`)
-        continue
-      }
-      claimed.set(key, a.id)
-      emojiToId.set(key, a.id)
-    }
-
     byId.set(a.id, asset)
     assets.push(asset)
   }
@@ -80,7 +52,6 @@ export function parseManifest(raw) {
     baseUrl,
     assets,
     byId,
-    emojiToId,
     totalBytes: assets.reduce((n, a) => n + a.bytes, 0),
   }
 }

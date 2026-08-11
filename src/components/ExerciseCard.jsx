@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import Ico from '../assets/Ico.jsx'
+import Art from '../assets/Art.jsx'
 import { createPortal } from 'react-dom'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { Badge } from './ui.jsx'
@@ -61,7 +61,9 @@ function PRFlash({ color, weight, prev, exerciseName }) {
         position: 'relative', zIndex: 2, textAlign: 'center',
         animation: 'prBurst 0.55s cubic-bezier(0.2,1.4,0.4,1) forwards',
       }}>
-        <div style={{ lineHeight: 1, marginBottom: 4, filter: `drop-shadow(0 0 18px ${color})` }}><Ico id="trophy" size={54} /></div>
+        <div style={{ fontSize: 54, lineHeight: 1, marginBottom: 4, filter: `drop-shadow(0 0 18px ${color})` }}>
+          <Art id="scene_pr" size={54} fallback="🏆" />
+        </div>
         <div style={{
           background: `linear-gradient(135deg, ${color}, #FFD166)`,
           borderRadius: 18, padding: '12px 26px',
@@ -91,7 +93,7 @@ function PRFlash({ color, weight, prev, exerciseName }) {
           marginTop: 8, fontFamily: 'var(--font-ar)', fontSize: 13, color: '#DCE8FF', opacity: 0.9,
           maxWidth: 260, marginInline: 'auto', lineHeight: 1.6,
         }}>
-          {exerciseName} — الحد القادم بانتظارك <Ico id="burst" size={14} />
+          {exerciseName} — الحد القادم بانتظارك 💥
         </div>
       </div>
     </div>,
@@ -144,7 +146,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
   const group  = MUSCLE_GROUPS[ex.muscle] || {}
   const color  = group.color || 'var(--cyan)'
   const label  = group.label || ex.muscle
-  const ico    = group.ico || 'lifter'
+  const emoji  = group.emoji || '🏋️'
   const exDef  = (group.exercises || []).find(e => e.name === ex.name) || {}
   const ytUrl  = exDef.videoUrl ||
     `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + ' proper form')}`
@@ -240,7 +242,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
 
               {/* Badges row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                <Badge color={color}><Ico id={ico} size={14} /> {label}</Badge>
+                <Badge color={color}>{emoji} {label}</Badge>
 
                 {/* Exactly one coaching hint, driven by progression.hint
                     so two can never contradict each other. It pulses so a
@@ -248,17 +250,17 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                 {progression?.hint && (() => {
                   const HINTS = {
                     raise: {
-                      ico: 'arrow_up', text: 'ارفع وزنك',
+                      text: '⬆️ ارفع وزنك',
                       color: 'var(--gold)', bg: 'var(--gold-lo)', glow: 'rgba(245,158,11,0.55)',
                       title: `أكملت ${progression.setsAtTop} من ${progression.totalSets} سيت بـ ${progression.target.top} عدة`,
                     },
                     lower: {
-                      ico: 'arrow_down', text: `نزّل وزنك${progression.suggestedWeight ? ` · ${progression.suggestedWeight}kg` : ''}`,
+                      text: `⬇️ نزّل وزنك${progression.suggestedWeight ? ` · ${progression.suggestedWeight}kg` : ''}`,
                       color: 'var(--orange)', bg: 'var(--orange-lo)', glow: 'rgba(249,115,22,0.55)',
                       title: `لم تصل ${progression.target.base} عدة في آخر ${progression.failedAtWeight} جلسات على ${progression.workingWeight}kg`,
                     },
                     push: {
-                      ico: 'core', text: `حاول ${progression.target.top} عدة`,
+                      text: `🎯 حاول ${progression.target.top} عدة`,
                       color: 'var(--cyan)', bg: 'var(--cyan-lo)', glow: 'var(--cyan-md)',
                       title: `${progression.sessionsAtWeight} جلسات على ${progression.workingWeight}kg`,
                     },
@@ -277,7 +279,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                         color: h.color, fontWeight: 700,
                         '--tag-glow': h.glow,
                       }}
-                    ><Ico id={h.ico} size={12} color={h.color} /> {h.text}</span>
+                    >{h.text}</span>
                   )
                 })()}
 
@@ -297,7 +299,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                     onMouseOver={e => e.currentTarget.style.background = 'rgba(255,0,0,0.18)'}
                     onMouseOut={e => e.currentTarget.style.background = 'rgba(255,0,0,0.10)'}
                   >
-                    <Ico id="play" size={10} color="#FF4444" /> YouTube
+                    ▶ YouTube
                   </a>
                 )}
 
@@ -318,7 +320,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                     fontSize: 10, color: '#FBBF24', fontWeight: 700,
                     fontFamily: 'var(--font-ar)',
                   }}>
-                    <Ico id="arrow_up" size={11} color="#FBBF24" /> جرب ارفع الوزن المرة الجاية
+                    ⬆️ جرب ارفع الوزن المرة الجاية
                   </span>
                 )}
               </div>
@@ -335,7 +337,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                 }}
                 onMouseOver={e => e.currentTarget.style.color = color}
                 onMouseOut={e => e.currentTarget.style.color = 'var(--text3)'}
-              ><Ico id="info" size={13} /></button>
+              >ℹ</button>
               <button
                 onClick={onRemove}
                 style={{

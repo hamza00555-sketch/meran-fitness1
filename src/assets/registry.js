@@ -12,10 +12,9 @@
 let version = 0
 const listeners = new Set()
 
-const urls   = new Map()   // asset id  -> object URL
-const idBy   = new Map()   // emoji     -> asset id
-const remote = new Map()   // asset id  -> absolute https URL (for OS notifications)
-const broken = new Set()   // asset ids whose <img> failed to decode
+const urls   = new Map()   // slot id -> object URL
+const remote = new Map()   // slot id -> absolute https URL
+const broken = new Set()   // slots whose <img> failed to decode
 
 let packState = {
   phase: 'unknown',   // unknown|idle|checking|downloading|verifying|ready|error|offline|nospace|unsupported
@@ -48,10 +47,9 @@ export function setPackState(patch) {
 }
 
 // ── Lookups (called during render — keep them cheap) ──────────
-export const urlFor      = (id) => (id && !broken.has(id) ? urls.get(id) : undefined)
+export const urlFor       = (id) => (id && !broken.has(id) ? urls.get(id) : undefined)
 export const remoteUrlFor = (id) => (id ? remote.get(id) : undefined)
-export const idForEmoji  = (emoji) => (emoji ? idBy.get(emoji) : undefined)
-export const isInstalled = () => packState.installed
+export const isInstalled  = () => packState.installed
 
 /** An <img> that failed to decode must not be retried every render. */
 export function markBroken(id) {
@@ -60,14 +58,10 @@ export function markBroken(id) {
   bump()
 }
 
-/** Teaches the registry the emoji→id and id→remote-URL maps from a manifest. */
+/** Teaches the registry the id→remote-URL map from a manifest. */
 export function applyManifest(manifest) {
-  idBy.clear()
   remote.clear()
   if (!manifest) { bump(); return }
-  const pairs = manifest.emojiToId
-    || (manifest.assets || []).flatMap(a => (a.emoji || []).map(e => [e, a.id]))
-  for (const [emoji, id] of pairs) if (!idBy.has(emoji)) idBy.set(emoji, id)
   for (const a of manifest.assets || []) remote.set(a.id, a.pngUrl || a.url)
   bump()
 }
@@ -120,7 +114,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const __resetForTests = () => {
-  revokeAll(); idBy.clear(); remote.clear(); listeners.clear()
+  revokeAll(); remote.clear(); listeners.clear()
   version = 0
   packState = { phase: 'unknown', installed: false, packVersion: null, filesDone: 0,
     filesTotal: 0, bytesDone: 0, bytesTotal: 0, verified: true, failed: [], error: null }

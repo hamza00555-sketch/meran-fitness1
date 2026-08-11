@@ -3,20 +3,16 @@
 //
 //   node scripts/build-manifest.mjs [--src assets-src] [--out pack]
 //                                   [--base https://assets.meran.app/]
-//                                   [--size 256] [--version 2026.08.11-1]
+//                                   [--size 512] [--version 2026.08.11-1]
 //
-// Input : assets-src/<id>.png — one file per id in src/assets/ids.js
-// Output: pack/i/<sha>.webp   — content-addressed, so a changed icon
+// Input : assets-src/<id>.png — one file per slot in src/assets/slots.js
+// Output: pack/i/<sha>.webp   — content-addressed, so a changed piece
 //                               is a different URL and everything can
 //                               be served immutable
-//         pack/i/<sha>.png    — extra PNG for the notification ids;
-//                               Android's notification decoder is
-//                               unreliable with WebP, and the OS
-//                               fetches those itself
 //         pack/manifest.json
 //
 // The filename being the hash is what makes updates cheap: the app
-// diffs hashes, so republishing 110 icons with 5 changed transfers 5.
+// diffs hashes, so republishing 48 pieces with 5 changed transfers 5.
 
 import { createHash } from 'node:crypto'
 import { readdir, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
@@ -33,7 +29,7 @@ const arg = (name, def) => {
 const SRC     = path.resolve(arg('src', 'assets-src'))
 const OUT     = path.resolve(arg('out', 'pack'))
 const BASE    = arg('base', process.env.ASSETS_BASE_URL || 'https://assets.meran.app/')
-const SIZE    = Number(arg('size', 256))
+const SIZE    = Number(arg('size', 512))
 const VERSION = arg('version', new Date().toISOString().slice(0, 10).replace(/-/g, '.') + '-1')
 const SCHEMA  = 1
 
@@ -46,13 +42,14 @@ try { sharp = (await import('sharp')).default } catch {
   console.warn('! sharp not installed — publishing source files unchanged')
 }
 
-// The id vocabulary is the contract; anything outside it is a typo.
-const idsUrl = pathToFileURL(path.resolve('src/assets/ids.js')).href
-const { ASSETS, NOTIFICATION_IDS } = await import(idsUrl)
+// The slot list is the contract; anything outside it is a typo.
+const slotsUrl = pathToFileURL(path.resolve('src/assets/slots.js')).href
+const { ALL_SLOT_IDS } = await import(slotsUrl)
+const KNOWN = new Set(ALL_SLOT_IDS)
 
 if (!existsSync(SRC)) {
   console.error(`✗ no source folder at ${SRC}`)
-  console.error('  Put one <id>.png per icon there. `node scripts/prompts.mjs` lists the ids.')
+  console.error('  Put one <id>.png per slot there. `node scripts/prompts.mjs` lists them.')
   process.exit(1)
 }
 
@@ -69,7 +66,7 @@ const fit = { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }
 const todo = []
 for (const file of files.sort()) {
   const id = file.replace(/\.[^.]+$/, '')
-  if (!ASSETS[id]) { problems.push(`unknown id "${id}" (not in src/assets/ids.js)`); continue }
+  if (!KNOWN.has(id)) { problems.push(`unknown slot "${id}" (not in src/assets/slots.js)`); continue }
   if (seen.has(id)) { problems.push(`duplicate source for "${id}"`); continue }
   seen.add(id)
   todo.push({ id, file })
@@ -85,23 +82,12 @@ async function convert({ id, file }) {
   const webpSha = sha256(webp)
   await writeFile(path.join(OUT, 'i', `${webpSha}.webp`), webp)
 
-  const entry = {
+  return {
     id,
     file: `i/${webpSha}.webp`,
     sha256: webpSha,
     bytes: webp.length,
-    emoji: [ASSETS[id].emoji.replace(/[\uFE0E\uFE0F]/g, '')],
   }
-
-  if (NOTIFICATION_IDS.includes(id)) {
-    const png = sharp
-      ? await sharp(source).resize(SIZE, SIZE, fit).png({ compressionLevel: 9 }).toBuffer()
-      : source
-    const pngSha = sha256(png)
-    await writeFile(path.join(OUT, 'i', `${pngSha}.png`), png)
-    entry.png = `i/${pngSha}.png`
-  }
-  return entry
 }
 
 // Encoding dominates the run time, so the files go through in
@@ -119,7 +105,7 @@ await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
 }))
 assets.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
-const missing = Object.keys(ASSETS).filter(id => !seen.has(id))
+const missing = ALL_SLOT_IDS.filter(id => !seen.has(id))
 
 const manifest = {
   schemaVersion: SCHEMA,
@@ -139,7 +125,7 @@ console.log(`  ${path.join(OUT, 'manifest.json')}`)
 // A partial pack publishes fine — the app falls back per icon — but
 // it should never be a surprise.
 if (missing.length) {
-  console.log(`\n· ${missing.length} ids have no art yet (they fall back in-app):`)
+  console.log(`\n· ${missing.length} slots have no art yet (they fall back in-app):`)
   console.log('  ' + missing.join(', '))
 }
 if (problems.length) {
