@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle } from '../components/ui.jsx'
 import { TrashIcon, ExportIcon, BellIcon } from '../components/Icons.jsx'
+import AssetPackSection from '../components/AssetPackSection.jsx'
 import { GYM_TYPES, WORKOUT_TIME_HOURS, PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../constants.js'
 import { TRAINING_FREQUENCIES, patternFor } from '../recovery.js'
 import { todayKey, toWesternDigits } from '../day.js'
@@ -1073,6 +1074,9 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
             )}
           </Card>
         </div>
+
+        {/* ── Icon pack ───────────────────────────────────────── */}
+        <AssetPackSection />
 
         {/* ── Data Management ─────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>

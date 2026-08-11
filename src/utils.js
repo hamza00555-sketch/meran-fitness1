@@ -9,6 +9,7 @@ import { dayKey, todayKey, toWesternDigits } from './day.js'
 const GLOBAL_KEYS = new Set([
   'hf_users', 'hf_current_user',           // user registry itself
   'hf_notif_enabled', 'hf_notif_scheduled', // device-level settings
+  'hf_pack', 'hf_pack_prompted',           // icon pack: one download per device
 ])
 
 export const getCurrentUserId = () => {

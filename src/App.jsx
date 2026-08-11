@@ -41,6 +41,8 @@ import RoutinesModal    from './components/RoutinesModal.jsx'
 import LevelUpScreen    from './components/LevelUpScreen.jsx'
 import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
+import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
+import { initPack, wasPrompted } from './assets/pack.js'
 
 // Stable greeting index per session
 const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
@@ -124,6 +126,8 @@ export default function App() {
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
   const [showWhatsNew, setShowWhatsNew] = useState(() => ls.get('hf_seen_version') !== APP_VERSION)
+  // Set by the boot reconciliation below, never by a stored flag alone.
+  const [packOffer,  setPackOffer]  = useState(false)
 
   const prevLevelRef  = useRef(levelFromXP(xp))
   const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
@@ -171,6 +175,21 @@ export default function App() {
       }))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Icon pack ────────────────────────────────────────────────
+  // Bring whatever art is already on the device onto the screen, then
+  // decide whether to offer the download. The answer comes from
+  // counting the stored blobs, not from a flag: iOS can evict
+  // script-writable storage without notice, and a flag left behind
+  // would leave the app convinced it has icons it no longer has.
+  useEffect(() => {
+    let alive = true
+    initPack().then(rec => {
+      if (!alive) return
+      if (!rec.installed && !wasPrompted()) setPackOffer(true)
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   // ── WhatsNew dismiss ─────────────────────────────────────────
   const dismissWhatsNew = useCallback(() => {
@@ -811,6 +830,8 @@ export default function App() {
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
       {showWhatsNew && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
+      {/* Queued behind the version notice so the two never stack. */}
+      {packOffer && !showWhatsNew && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
     </div>
   )
 }

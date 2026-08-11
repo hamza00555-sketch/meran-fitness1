@@ -201,3 +201,132 @@ export const ScaleIcon = ({ size = 24, color = 'currentColor' }) => (
     <line x1="12" y1="3" x2="12" y2="19"/>
   </svg>
 )
+
+// ── Fallback set for the icon pack ────────────────────────────
+// These back the ids that appear constantly — alerts, nav, streak
+// chrome. Because they ship in the bundle, those slots never show a
+// raw emoji, even on a fresh install with no network. The rest of
+// the pack falls back to emoji until it downloads. See Ico.jsx.
+
+const line = (color, w = 1.8) => ({
+  fill: 'none', stroke: color, strokeWidth: w,
+  strokeLinecap: 'round', strokeLinejoin: 'round',
+})
+
+export const CheckIcon = ({ size = 20, color = '#5EC32A' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color, 2.4)}>
+    <path d="M4 12.5l5.5 5.5L20 6" />
+  </svg>
+)
+
+export const WarnIcon = ({ size = 20, color = '#F59E0B' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color, 2)}>
+    <path d="M12 3.5L22 20H2L12 3.5z" />
+    <line x1="12" y1="10" x2="12" y2="14" />
+    <circle cx="12" cy="17" r="0.9" fill={color} stroke="none" />
+  </svg>
+)
+
+export const InfoIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color, 2)}>
+    <circle cx="12" cy="12" r="9" />
+    <line x1="12" y1="11" x2="12" y2="16.5" />
+    <circle cx="12" cy="7.6" r="0.9" fill={color} stroke="none" />
+  </svg>
+)
+
+export const PlayIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M7 4.5l12 7.5-12 7.5v-15z" />
+  </svg>
+)
+
+export const PauseIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <rect x="6" y="4.5" width="4" height="15" rx="1.2" />
+    <rect x="14" y="4.5" width="4" height="15" rx="1.2" />
+  </svg>
+)
+
+export const SkipIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M5 5l9 7-9 7V5z" />
+    <rect x="16" y="5" width="3" height="14" rx="1.2" />
+  </svg>
+)
+
+export const SaveIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+    <path d="M17 21v-8H7v8M7 3v5h8" />
+  </svg>
+)
+
+export const PartyIcon = ({ size = 20, color = '#F59E0B' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color, 2)}>
+    <path d="M3 21l5.5-13L18 17.5 3 21z" />
+    <path d="M14 3.5v2M19.5 6l-1.4 1.4M21 12h-2" />
+  </svg>
+)
+
+export const MapIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <path d="M9 4L3 6.5v14L9 18l6 2.5 6-2.5v-14L15 6.5 9 4z" />
+    <line x1="9" y1="4" x2="9" y2="18" />
+    <line x1="15" y1="6.5" x2="15" y2="20.5" />
+  </svg>
+)
+
+export const MoonIcon = ({ size = 20, color = '#3B9DE8' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 108.4 12.9c.7-.3 1.4-.9 2.1-2.4z" />
+  </svg>
+)
+
+export const TicketIcon = ({ size = 20, color = '#5EC32A' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <path d="M3 9V6.5A1.5 1.5 0 014.5 5h15A1.5 1.5 0 0121 6.5V9a3 3 0 000 6v2.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 17.5V15a3 3 0 000-6z" />
+    <line x1="14" y1="5" x2="14" y2="19" strokeDasharray="2 2.5" />
+  </svg>
+)
+
+export const BoxIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <path d="M21 8l-9-5-9 5 9 5 9-5z" />
+    <path d="M3 8v8l9 5 9-5V8" />
+    <line x1="12" y1="13" x2="12" y2="21" />
+  </svg>
+)
+
+export const CrownIcon = ({ size = 20, color = '#F59E0B' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M3 18h18l1.5-11-5.5 4-4.5-7-4.5 7L2 7l1 11z" />
+  </svg>
+)
+
+export const SwapIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color, 2)}>
+    <path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" />
+  </svg>
+)
+
+export const CameraIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <path d="M3 8.5A1.5 1.5 0 014.5 7h2.7l1.4-2h6.8l1.4 2h2.7A1.5 1.5 0 0121 8.5v9A1.5 1.5 0 0119.5 19h-15A1.5 1.5 0 013 17.5v-9z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </svg>
+)
+
+export const ClockIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5.5l3.5 2" />
+  </svg>
+)
+
+export const BookIcon = ({ size = 22, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" {...line(color)}>
+    <path d="M4 4.5A1.5 1.5 0 015.5 3H19v16H5.5A1.5 1.5 0 004 20.5v-16z" />
+    <path d="M4 20.5A1.5 1.5 0 015.5 19H19v2H5.5A1.5 1.5 0 014 20.5z" />
+  </svg>
+)
