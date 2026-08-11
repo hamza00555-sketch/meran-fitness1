@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Ico from '../assets/Ico.jsx'
 import { Card, SectionTitle, ProgressBar, RankBadge } from '../components/ui.jsx'
 import { AgeIcon, WeightIcon, HeightIcon, BodyFatIcon, TargetIcon, SystemIcon } from '../components/Icons.jsx'
 import {
@@ -28,15 +29,15 @@ const CALORIE_ADJUST = {
 
 // Most commonly tracked body measurements (all in cm)
 const BODY_MEASUREMENTS = [
-  { id: 'neck',     label: 'الرقبة',   emoji: '🧣', color: 'var(--cyan)'   },
-  { id: 'shoulders',label: 'الأكتاف',  emoji: '🦾', color: 'var(--blue)'   },
-  { id: 'chest',    label: 'الصدر',    emoji: '🫁', color: 'var(--purple)' },
-  { id: 'biceps',   label: 'البايسبس', emoji: '💪', color: 'var(--gold)'   },
-  { id: 'forearm',  label: 'الساعد',   emoji: '🤜', color: 'var(--orange)' },
-  { id: 'waist',    label: 'الخصر',    emoji: '📏', color: 'var(--green)'  },
-  { id: 'hips',     label: 'الأرداف',  emoji: '🍑', color: 'var(--red)'    },
-  { id: 'thigh',    label: 'الفخذ',    emoji: '🦵', color: 'var(--cyan)'   },
-  { id: 'calf',     label: 'السمانة',  emoji: '🦶', color: 'var(--blue)'   },
+  { id: 'neck',     label: 'الرقبة',   ico: 'scarf',      color: 'var(--cyan)'   },
+  { id: 'shoulders',label: 'الأكتاف',  ico: 'arm_mech',   color: 'var(--blue)'   },
+  { id: 'chest',    label: 'الصدر',    ico: 'lungs',      color: 'var(--purple)' },
+  { id: 'biceps',   label: 'البايسبس', ico: 'flex',       color: 'var(--gold)'   },
+  { id: 'forearm',  label: 'الساعد',   ico: 'fist_right', color: 'var(--orange)' },
+  { id: 'waist',    label: 'الخصر',    ico: 'ruler',      color: 'var(--green)'  },
+  { id: 'hips',     label: 'الأرداف',  ico: 'peach',      color: 'var(--red)'    },
+  { id: 'thigh',    label: 'الفخذ',    ico: 'leg',        color: 'var(--cyan)'   },
+  { id: 'calf',     label: 'السمانة',  ico: 'foot',       color: 'var(--blue)'   },
 ]
 
 const TRAINING_SYSTEMS = [
@@ -115,7 +116,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         }}>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: 'var(--orange)' }}>
-              ⚠️ تذكير تحديث الوزن
+              <Ico id="warn" size={14} color="var(--orange)" /> تذكير تحديث الوزن
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>
               {daysSince ? `آخر تحديث منذ ${daysSince} يوم` : 'لم تسجل وزنك بعد'}
@@ -173,7 +174,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
             borderRadius: 20, padding: '5px 14px',
             fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 700,
           }}>
-            ⭐ {xp.toLocaleString()} XP
+            <Ico id="star" size={13} color="var(--gold)" /> {xp.toLocaleString()} XP
           </div>
           <div style={{
             background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.3)',
@@ -384,7 +385,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
                   onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
                   onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
                 >
-                  <div style={{ fontSize: 20, marginBottom: 6 }}>{m.emoji}</div>
+                  <div style={{ marginBottom: 6 }}><Ico id={m.ico} size={20} color={m.color} /></div>
                   {hasValue ? (
                     <div style={{
                       fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800,
@@ -428,7 +429,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <StatBox label="إجمالي الجلسات" value={totalSessions} color="var(--cyan)" />
           <StatBox label="الحجم (طن)" value={`${(totalVolume / 1000).toFixed(1)}`} color="var(--gold)" />
-          <StatBox label="أفضل streak" value={`${bestStreak} 🔥`} color="var(--orange)" />
+          <StatBox label="أفضل streak" value={bestStreak} icon="flame" color="var(--orange)" />
           <StatBox label="إجمالي XP" value={xp.toLocaleString()} color="var(--purple)" />
         </div>
       </Card>
@@ -446,7 +447,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
           onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
           onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
         >
-          <div style={{ fontSize: 28 }}>📸</div>
+          <Ico id="camera_flash" size={28} />
           <div style={{ flex: 1, textAlign: 'right' }}>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>صور التقدم</div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
@@ -502,7 +503,7 @@ function ProteinCalc({ profile, activity, setActivity }) {
     <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--cyan)">
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ fontSize: 24 }}>🥩</div>
+        <Ico id="steak" size={24} />
         <div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800 }}>
             حاسبة البروتين
@@ -637,7 +638,7 @@ function VitalCard({ label, value, unit, color, Icon, onEdit }) {
           background: 'var(--bg3)', border: '1px solid var(--border2)',
           borderRadius: 7, padding: '3px 6px',
           color: 'var(--text3)', fontSize: 13, lineHeight: 1,
-        }}>✏️</div>
+        }}><Ico id="pencil" size={13} /></div>
       </div>
 
       {/* Value */}
@@ -669,7 +670,7 @@ function VitalCard({ label, value, unit, color, Icon, onEdit }) {
 }
 
 // ── Stat Box ──────────────────────────────────────────────────
-function StatBox({ label, value, color }) {
+function StatBox({ label, value, color, icon }) {
   return (
     <div style={{
       background: 'var(--bg2)', border: '1px solid var(--border)',
@@ -678,7 +679,8 @@ function StatBox({ label, value, color }) {
       <div style={{
         fontFamily: 'var(--font-mono)', fontSize: 24,
         fontWeight: 800, color, marginBottom: 6,
-      }}>{value}</div>
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      }}>{value}{icon && <Ico id={icon} size={20} color={color} />}</div>
       <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>{label}</div>
     </div>
   )
@@ -755,7 +757,7 @@ function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
                 >
                   {g.img
                     ? <img src={g.img} alt={g.label} style={{ width: 48, height: 48, objectFit: 'contain', filter: isSelected ? 'none' : 'grayscale(0.4) brightness(0.75)' }} />
-                    : <span style={{ fontSize: 28 }}>{g.icon}</span>
+                    : <Ico id={g.ico} size={28} />
                   }
                   <div style={{
                     fontFamily: 'var(--font-ar)', fontSize: 11, fontWeight: isSelected ? 700 : 400,

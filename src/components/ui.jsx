@@ -1,4 +1,5 @@
 // ── Shared UI Primitives ──────────────────────────────────────
+import Ico from '../assets/Ico.jsx'
 
 // Card
 export function Card({ children, style = {}, topColor, onClick, glass = false }) {
@@ -128,7 +129,7 @@ export function SectionTitle({ children, action }) {
 }
 
 // Empty State
-export function EmptyState({ icon, img, title, desc }) {
+export function EmptyState({ ico, icon, img, title, desc }) {
   return (
     <div style={{
       textAlign: 'center', padding: '50px 20px',
@@ -136,7 +137,9 @@ export function EmptyState({ icon, img, title, desc }) {
     }}>
       {img
         ? <img src={img} alt="" style={{ width: 140, height: 140, objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(94,195,42,0.2))' }} />
-        : <div className="icon-glow" style={{ fontSize: 52 }}>{icon}</div>
+        : <div className="icon-glow" style={{ fontSize: 52, lineHeight: 0 }}>
+            {ico ? <Ico id={ico} size={52} /> : icon}
+          </div>
       }
       <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 700, color: 'var(--text2)' }}>
         {title}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Ico from '../assets/Ico.jsx'
 import { Card, StatBox } from '../components/ui.jsx'
 import CalendarHeatmap from '../components/CalendarHeatmap.jsx'
 import BarChart from '../components/BarChart.jsx'
@@ -10,7 +11,7 @@ export default function StatsPage({ sessions }) {
 
   if (!sessions.length) return (
     <div style={{ textAlign: 'center', padding: '80px 20px 100px' }}>
-      <div style={{ fontSize: 52, marginBottom: 16 }}>📊</div>
+      <div style={{ marginBottom: 16 }}><Ico id="bar_chart" size={52} /></div>
       <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, color: 'var(--text3)' }}>
         ابدأ جلسات لتظهر الإحصائيات
       </div>
@@ -72,7 +73,7 @@ export default function StatsPage({ sessions }) {
         <StatBox label="إجمالي الجلسات"   value={sessions.length}              color="var(--orange)" />
         <StatBox label="هذا الأسبوع"      value={thisWeek}                     color="var(--green)"  />
         <StatBox label="Sets مكتملة"       value={totalSets}                    color="var(--blue)"   />
-        <StatBox label="Streak 🔥"         value={streak}                       color="var(--gold)"   />
+        <StatBox label="Streak"         value={streak}                       color="var(--gold)"   />
       </div>
 
       {/* Volume & avg */}
@@ -103,7 +104,7 @@ export default function StatsPage({ sessions }) {
       {/* Calendar heatmap */}
       <Card>
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 12 }}>
-          📅 نشاط ١٤ أسبوع
+          <Ico id="calendar" size={14} /> نشاط ١٤ أسبوع
         </div>
         <CalendarHeatmap sessions={sessions} />
       </Card>
@@ -111,7 +112,7 @@ export default function StatsPage({ sessions }) {
       {/* Volume bar chart */}
       <Card glow="var(--orange)">
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 14 }}>
-          📊 Volume آخر ١٠ جلسات (kg)
+          <Ico id="bar_chart" size={14} /> Volume آخر ١٠ جلسات (kg)
         </div>
         <BarChart data={volumeData} valueKey="value" labelKey="label" color="var(--orange)" />
       </Card>
@@ -119,7 +120,7 @@ export default function StatsPage({ sessions }) {
       {/* Muscle distribution */}
       <Card glow="var(--blue)">
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 14 }}>
-          🎯 توزيع العضلات
+          <Ico id="core" size={14} /> توزيع العضلات
         </div>
         {muscleSorted.map(([m, c]) => {
           const color = MUSCLE_GROUPS[m]?.color || 'var(--orange)'
@@ -128,7 +129,7 @@ export default function StatsPage({ sessions }) {
             <div key={m} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                 <span style={{ fontFamily: 'var(--font-ar)', fontSize: 13 }}>
-                  {MUSCLE_GROUPS[m]?.emoji} {m}
+                  <Ico id={MUSCLE_GROUPS[m]?.ico} size={12} /> {m}
                 </span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text4)' }}>
                   {c} sets · {pct}%
@@ -149,7 +150,7 @@ export default function StatsPage({ sessions }) {
       {/* 1RM tracker */}
       <Card glow="var(--gold)">
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text3)', marginBottom: 12 }}>
-          📈 تطور الـ 1RM المقدر
+          <Ico id="chart_up" size={14} /> تطور الـ 1RM المقدر
         </div>
         <select
           value={selectedEx}

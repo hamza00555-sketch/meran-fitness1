@@ -1,55 +1,55 @@
 import { dayKey, todayKey } from './day.js'
 
 // ── App version — bump this string after each update to trigger WhatsNew ──
-export const APP_VERSION = '2.2'
+export const APP_VERSION = '2.3'
 
 // ── Greetings (45 Arabic motivational phrases — use {name} as placeholder) ──
 export const GREETINGS = [
-  'يلا {name} 💪 اليوم بنكسر الجيم!',
-  'مرحبا {name} 🔥 جاهز تتفوق على أمس؟',
-  '{name}! الألم مؤقت، القوة دايمة 🏆',
-  'صباح العضلات يا {name} ⚡ بنشتغل اليوم؟',
-  '{name} في البيت 🔥 الجيم يستاهل جهدك',
-  'هيا {name}، الـ PRs ما تجي بدون عرق 🎯',
-  '{name} 🦾 كل سيت بيقربك من نسختك الأفضل',
-  'يا {name}، العظماء ما يستسلمون 👑',
-  '{name}! اليوم تكتب تاريخك في الجيم 📖',
-  'استيقظ يا {name}، الأوزان تنتظرك ⚔️',
-  '{name}، كل تمرين هو خطوة نحو الأسطورة 🌟',
-  'بسم الله يا {name}، اليوم نكسر أرقامنا 💥',
-  '{name} قيم لا يُكسر 🛡️ اليوم للجيم!',
-  'لا عذر اليوم يا {name}، الجيم أولاً 🥇',
-  '{name} البطل، الجيم ينتظر حضورك 🏟️',
-  'صح النوم يا {name} ⚡ وقت الشغل جاء!',
-  '{name}، من جد وجد، ومن زرع حصد 🌱',
-  'اليوم بنعمل شغلة يا {name} 💣',
-  '{name} 🔱 الإرادة أقوى من أي عقبة',
-  'يلا نشتغل يا {name}، التحدي يبدأ الآن ⚡',
-  '{name}، جسمك يشكرك على كل تمرين 💚',
-  'اليوم بنثبت إننا الأفضل يا {name} 👊',
-  '{name} 🦁 الأسد لا يتوقف، يواصل!',
-  'كل يوم تمرين هو استثمار يا {name} 📈',
-  '{name}، العقل يستسلم قبل الجسم بكثير 🧠💪',
-  '{name} 🎯 ركز على الهدف، النتائج بتجي!',
-  'اليوم جلسة نار يا {name} 🔥 لا رجعة!',
-  'قم يا {name}، المنافس ما ينام 👊',
-  '{name}، الانضباط يوصل للأحلام 🏆',
-  'اشحن طاقتك يا {name} ⚡ الجيم يستاهل أقصاك',
-  '{name} 💥 اليوم نكتب فصل جديد من القوة',
-  'الجيم عبادة يا {name}، وأنت أهل لها 🙏',
-  '{name} 🔱 حدودك في ذهنك، كسّرها اليوم',
-  'يوم جديد يا {name}، فرصة جديدة للتفوق ⭐',
-  '{name}، جسمك أقوى مما تتخيل 💪 ثق به',
-  '{name} 🥇 البطل لا ينتظر الوحي، يتحرك!',
-  'كل جلسة رصيد في حسابك يا {name} 📈',
-  '{name}، العظمة تبدأ بقرار واحد: اليوم أبدأ 🌟',
-  'لا تنتظر الدافع يا {name}، تحرك وسيجي 🔥',
-  '{name} 💪 الجيم مو رفاهية، هو أسلوب حياة',
-  'ما في وقت أفضل من الآن يا {name} ⏱️',
-  '{name}، كل عضلة بنيتها بدأت بخطوة شجاعة 🦾',
-  'روح اثبت لنفسك يا {name} 🏆 ما عليك أحد',
-  '{name} 🌙 حتى في أصعب الأيام، سيت واحد يكفي',
-  '{name}، التعب اللي تحس فيه اليوم هو القوة اللي تحسها بكرة 💚',
+  { text: 'يلا {name} · اليوم بنكسر الجيم!', ico: 'flex' },
+  { text: 'مرحبا {name} · جاهز تتفوق على أمس؟', ico: 'flame' },
+  { text: '{name}! الألم مؤقت، القوة دايمة', ico: 'trophy' },
+  { text: 'صباح العضلات يا {name} · بنشتغل اليوم؟', ico: 'bolt' },
+  { text: '{name} في البيت · الجيم يستاهل جهدك', ico: 'flame' },
+  { text: 'هيا {name}، الـ PRs ما تجي بدون عرق', ico: 'core' },
+  { text: '{name} · كل سيت بيقربك من نسختك الأفضل', ico: 'arm_mech' },
+  { text: 'يا {name}، العظماء ما يستسلمون', ico: 'crown' },
+  { text: '{name}! اليوم تكتب تاريخك في الجيم', ico: 'book_open' },
+  { text: 'استيقظ يا {name}، الأوزان تنتظرك', ico: 'swords' },
+  { text: '{name}، كل تمرين هو خطوة نحو الأسطورة', ico: 'star_glow' },
+  { text: 'بسم الله يا {name}، اليوم نكسر أرقامنا', ico: 'burst' },
+  { text: '{name} قيم لا يُكسر · اليوم للجيم!', ico: 'shield' },
+  { text: 'لا عذر اليوم يا {name}، الجيم أولاً', ico: 'medal_gold' },
+  { text: '{name} البطل، الجيم ينتظر حضورك', ico: 'arena' },
+  { text: 'صح النوم يا {name} · وقت الشغل جاء!', ico: 'bolt' },
+  { text: '{name}، من جد وجد، ومن زرع حصد', ico: 'sprout' },
+  { text: 'اليوم بنعمل شغلة يا {name}', ico: 'bomb' },
+  { text: '{name} · الإرادة أقوى من أي عقبة', ico: 'trident' },
+  { text: 'يلا نشتغل يا {name}، التحدي يبدأ الآن', ico: 'bolt' },
+  { text: '{name}، جسمك يشكرك على كل تمرين', ico: 'heart_green' },
+  { text: 'اليوم بنثبت إننا الأفضل يا {name}', ico: 'fist' },
+  { text: '{name} · الأسد لا يتوقف، يواصل!', ico: 'lion' },
+  { text: 'كل يوم تمرين هو استثمار يا {name}', ico: 'chart_up' },
+  { text: '{name}، العقل يستسلم قبل الجسم بكثير', ico: 'brain' },
+  { text: '{name} · ركز على الهدف، النتائج بتجي!', ico: 'core' },
+  { text: 'اليوم جلسة نار يا {name} · لا رجعة!', ico: 'flame' },
+  { text: 'قم يا {name}، المنافس ما ينام', ico: 'fist' },
+  { text: '{name}، الانضباط يوصل للأحلام', ico: 'trophy' },
+  { text: 'اشحن طاقتك يا {name} · الجيم يستاهل أقصاك', ico: 'bolt' },
+  { text: '{name} · اليوم نكتب فصل جديد من القوة', ico: 'burst' },
+  { text: 'الجيم عبادة يا {name}، وأنت أهل لها', ico: 'pray' },
+  { text: '{name} · حدودك في ذهنك، كسّرها اليوم', ico: 'trident' },
+  { text: 'يوم جديد يا {name}، فرصة جديدة للتفوق', ico: 'star' },
+  { text: '{name}، جسمك أقوى مما تتخيل · ثق به', ico: 'flex' },
+  { text: '{name} · البطل لا ينتظر الوحي، يتحرك!', ico: 'medal_gold' },
+  { text: 'كل جلسة رصيد في حسابك يا {name}', ico: 'chart_up' },
+  { text: '{name}، العظمة تبدأ بقرار واحد: اليوم أبدأ', ico: 'star_glow' },
+  { text: 'لا تنتظر الدافع يا {name}، تحرك وسيجي', ico: 'flame' },
+  { text: '{name} · الجيم مو رفاهية، هو أسلوب حياة', ico: 'flex' },
+  { text: 'ما في وقت أفضل من الآن يا {name}', ico: 'stopwatch' },
+  { text: '{name}، كل عضلة بنيتها بدأت بخطوة شجاعة', ico: 'arm_mech' },
+  { text: 'روح اثبت لنفسك يا {name} · ما عليك أحد', ico: 'trophy' },
+  { text: '{name} · حتى في أصعب الأيام، سيت واحد يكفي', ico: 'moon' },
+  { text: '{name}، التعب اللي تحس فيه اليوم هو القوة اللي تحسها بكرة', ico: 'heart_green' },
 ]
 
 // ── Ranks ─────────────────────────────────────────────────────
@@ -75,20 +75,20 @@ export const COMMITMENT_LEVELS = [
 
 // ── Goals ─────────────────────────────────────────────────────
 export const GOALS = [
-  { id: 'muscle',   label: 'بناء العضلات',    icon: '💪', desc: 'زيادة الكتلة العضلية والقوة',          img: '/assets/goalc_muscle.png' },
-  { id: 'fat_loss', label: 'حرق الدهون',      icon: '🔥', desc: 'تقليل نسبة الدهون وتحسين الجسم',      img: '/assets/goalc_fatloss.png' },
-  { id: 'strength', label: 'زيادة القوة',     icon: '⚔️', desc: 'رفع أوزان أثقل وتحسين الأداء',        img: '/assets/goalc_strength.png' },
-  { id: 'endurance',label: 'التحمل واللياقة', icon: '🏃', desc: 'تحسين اللياقة والقدرة على التحمل',    img: '/assets/goalc_endurance.png' },
-  { id: 'recomp',   label: 'إعادة التشكيل',   icon: '⚡', desc: 'بناء العضل وحرق الدهون معاً',         img: '/assets/goalc_recomp.png' },
-  { id: 'maintain', label: 'المحافظة',         icon: '🛡️', desc: 'الحفاظ على مستوى اللياقة الحالي',    img: '/assets/goalc_muscle.png' },
+  { id: 'muscle',   label: 'بناء العضلات',    ico: 'flex', desc: 'زيادة الكتلة العضلية والقوة',          img: '/assets/goalc_muscle.png' },
+  { id: 'fat_loss', label: 'حرق الدهون',      ico: 'flame', desc: 'تقليل نسبة الدهون وتحسين الجسم',      img: '/assets/goalc_fatloss.png' },
+  { id: 'strength', label: 'زيادة القوة',     ico: 'swords', desc: 'رفع أوزان أثقل وتحسين الأداء',        img: '/assets/goalc_strength.png' },
+  { id: 'endurance',label: 'التحمل واللياقة', ico: 'runner', desc: 'تحسين اللياقة والقدرة على التحمل',    img: '/assets/goalc_endurance.png' },
+  { id: 'recomp',   label: 'إعادة التشكيل',   ico: 'bolt', desc: 'بناء العضل وحرق الدهون معاً',         img: '/assets/goalc_recomp.png' },
+  { id: 'maintain', label: 'المحافظة',         ico: 'shield', desc: 'الحفاظ على مستوى اللياقة الحالي',    img: '/assets/goalc_muscle.png' },
 ]
 
 // ── Gym Types ─────────────────────────────────────────────────
 export const GYM_TYPES = [
-  { id: 'commercial', label: 'جيم تجاري',  icon: '🏋️' },
-  { id: 'home',       label: 'جيم منزلي',  icon: '🏠' },
-  { id: 'outdoor',    label: 'في الهواء',  icon: '🌳' },
-  { id: 'crossfit',   label: 'كروسفيت',    icon: '⚡' },
+  { id: 'commercial', label: 'جيم تجاري',  ico: 'lifter' },
+  { id: 'home',       label: 'جيم منزلي',  ico: 'house' },
+  { id: 'outdoor',    label: 'في الهواء',  ico: 'tree' },
+  { id: 'crossfit',   label: 'كروسفيت',    ico: 'bolt' },
 ]
 
 // ── Training Systems ──────────────────────────────────────────
@@ -107,7 +107,7 @@ export const WEEK_DAYS_SHORT = ['ح', 'ن', 'ث', 'أ', 'خ', 'ج', 'س']
 // ── Muscle Groups ─────────────────────────────────────────────
 export const MUSCLE_GROUPS = {
   Chest: {
-    label: 'الصدر', emoji: '🫁', color: '#FF6B35', img: '/assets/muscle_chest.png',
+    label: 'الصدر', ico: 'lungs', color: '#FF6B35', img: '/assets/muscle_chest.png',
     exercises: [
       { name: 'Bench Press',         videoUrl: 'https://www.youtube.com/results?search_query=Bench+Press+proper+form+shorts', tips: ['اثبت الكتفين على المقعد طوال الحركة', 'المسكة أعرض من الكتفين قليلاً', 'نزّل البار لمنتصف الصدر وليس الحلق'] },
       { name: 'Incline Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Incline+Bench+Press+proper+form+shorts', tips: ['زاوية 30-45 درجة للاستهداف الأمثل', 'الجزء العلوي من الصدر هو المحرك', 'لا ترفع الأرداف عن المقعد'] },
@@ -124,7 +124,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Back: {
-    label: 'الظهر', emoji: '🗂️', color: '#3B82F6', img: '/assets/muscle_back.png',
+    label: 'الظهر', ico: 'files', color: '#3B82F6', img: '/assets/muscle_back.png',
     exercises: [
       { name: 'Deadlift',             videoUrl: 'https://www.youtube.com/results?search_query=Deadlift+proper+form+shorts', tips: ['الظهر مستقيم طوال الحركة — لا قوس', 'البار يلصق بالجسم من البداية للنهاية', 'ابدأ بدفع الأرض بالأرجل وليس سحب الظهر'] },
       { name: 'Pull-Up',              videoUrl: 'https://www.youtube.com/results?search_query=Pull-Up+proper+form+shorts', tips: ['اسحب بالظهر لا بالذراعين', 'الكتفان للأسفل والخلف قبل بدء السحب', 'انزل بالتحكم البطيء للمدى الكامل'] },
@@ -143,7 +143,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Shoulders: {
-    label: 'الأكتاف', emoji: '🦾', color: '#A855F7', img: '/assets/muscle_shoulders.png',
+    label: 'الأكتاف', ico: 'arm_mech', color: '#A855F7', img: '/assets/muscle_shoulders.png',
     exercises: [
       { name: 'Overhead Press',        videoUrl: 'https://www.youtube.com/results?search_query=Overhead+Press+proper+form+shorts', tips: ['الظهر مستقيم لا تقوس أسفل الظهر', 'ارفع البار عمودياً فوق الرأس', 'اشد البطن لحماية أسفل الظهر'] },
       { name: 'Dumbbell OHP',          videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Overhead+Press+proper+form+shorts', tips: ['ابدأ بالمرفقين على زاوية 90 درجة', 'ارفع للأعلى مبتعداً عن الأذنين', 'الدمبلان يلتقيان في الأعلى دون تصادم'] },
@@ -161,7 +161,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Legs: {
-    label: 'الأرجل', emoji: '🦵', color: '#22C55E', img: '/assets/muscle_legs.png',
+    label: 'الأرجل', ico: 'leg', color: '#22C55E', img: '/assets/muscle_legs.png',
     exercises: [
       { name: 'Barbell Squat',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Squat+proper+form+shorts', tips: ['الظهر مستقيم طوال الحركة', 'الركبتان تتجهان نحو أصابع القدم', 'انزل حتى الفخذ موازٍ للأرض على الأقل'] },
       { name: 'Leg Press',             videoUrl: 'https://www.youtube.com/results?search_query=Leg+Press+proper+form+shorts', tips: ['القدمان بعرض الكتفين على اللوحة', 'لا تقفل الركبتين كلياً في الأعلى', 'الظهر ملاصق للمسند طوال الحركة'] },
@@ -185,7 +185,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Biceps: {
-    label: 'البايسبس', emoji: '💪', color: '#EAB308', img: '/assets/muscle_biceps.png',
+    label: 'البايسبس', ico: 'flex', color: '#EAB308', img: '/assets/muscle_biceps.png',
     exercises: [
       { name: 'Barbell Curl',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Curl+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اثنِ حتى الأعلى واضغط على البايسبس', 'لا تتأرجح بالجذع للمساعدة'] },
       { name: 'Dumbbell Curl',        videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Curl+proper+form+shorts', tips: ['يمكن تناوبهما أو معاً حسب الهدف', 'أضف دوران المعصم في الأعلى للضغط', 'الإرجاع بالتحكم لا تسقطهما'] },
@@ -202,7 +202,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Triceps: {
-    label: 'الترايسبس', emoji: '🔱', color: '#F97316', img: '/assets/muscle_triceps.png',
+    label: 'الترايسبس', ico: 'trident', color: '#F97316', img: '/assets/muscle_triceps.png',
     exercises: [
       { name: 'Triceps Pushdown',  videoUrl: 'https://www.youtube.com/results?search_query=Triceps+Pushdown+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اضغط للأسفل حتى الامتداد الكامل', 'الإرجاع بالتحكم لا تدع الوزن يرفعك'] },
       { name: 'Skull Crusher',     videoUrl: 'https://www.youtube.com/results?search_query=Skull+Crusher+proper+form+shorts', tips: ['المرفقان ثابتان وموجهان للأعلى', 'انزل البار خلف الرأس أو للجبهة', 'لا تسرع — خطر على الكوع إذا أُسيء'] },
@@ -216,7 +216,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Core: {
-    label: 'الكور', emoji: '🎯', color: '#EC4899', img: '/assets/muscle_core.png',
+    label: 'الكور', ico: 'core', color: '#EC4899', img: '/assets/muscle_core.png',
     exercises: [
       { name: 'Plank',              videoUrl: 'https://www.youtube.com/results?search_query=Plank+proper+form+shorts', tips: ['الجسم خط مستقيم من الرأس للقدمين', 'لا ترفع الوركين أو تخفضهما', 'اضغط البطن بشكل إرادي طوال المدة'] },
       { name: 'Crunches',           videoUrl: 'https://www.youtube.com/results?search_query=Crunches+proper+form+shorts', tips: ['لا تشد الرقبة بيديك', 'ارفع الكتفين لا الظهر كاملاً', 'التنفس منتظم: زفير عند الرفع'] },
@@ -232,7 +232,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Cardio: {
-    label: 'الكارديو', emoji: '❤️', color: '#EF4444', img: '/assets/cardio.png',
+    label: 'الكارديو', ico: 'heart', color: '#EF4444', img: '/assets/cardio.png',
     exercises: [
       { name: 'Treadmill Run',    videoUrl: 'https://www.youtube.com/results?search_query=Treadmill+Running+proper+form+shorts', tips: ['ابدأ بالمشي السريع للإحماء دقيقتين', 'الخطوة المتوسطة أفضل للمفاصل', 'المشي بزاوية ميل يحرق سعرات أكثر'] },
       { name: 'Rowing Machine',   videoUrl: 'https://www.youtube.com/results?search_query=Rowing+Machine+proper+form+shorts', tips: ['الترتيب: الأرجل ثم الظهر ثم الذراعين', 'لا تقوس الظهر — احذر من هذا', 'وتيرة 22-28 شوطاً في الدقيقة مثالية'] },
@@ -248,7 +248,7 @@ export const MUSCLE_GROUPS = {
 // ── Routines ──────────────────────────────────────────────────
 export const ROUTINES = [
   {
-    name: 'Chest Day 🫁',
+    name: 'Chest Day', ico: 'lungs',
     muscles: ['Chest', 'Triceps'],
     exercises: [
       { muscle: 'Chest',   name: 'Bench Press',         defaultSets: 4 },
@@ -260,7 +260,7 @@ export const ROUTINES = [
     ],
   },
   {
-    name: 'Pull Day 🗂️',
+    name: 'Pull Day', ico: 'files',
     muscles: ['Back', 'Biceps'],
     exercises: [
       { muscle: 'Back',   name: 'Deadlift',       defaultSets: 4 },
@@ -272,7 +272,7 @@ export const ROUTINES = [
     ],
   },
   {
-    name: 'Push Day 🦾',
+    name: 'Push Day', ico: 'arm_mech',
     muscles: ['Chest', 'Shoulders', 'Triceps'],
     exercises: [
       { muscle: 'Chest',     name: 'Bench Press',         defaultSets: 4 },
@@ -283,7 +283,7 @@ export const ROUTINES = [
     ],
   },
   {
-    name: 'Legs Day 🦵',
+    name: 'Legs Day', ico: 'leg',
     muscles: ['Legs'],
     exercises: [
       { muscle: 'Legs', name: 'Barbell Squat',      defaultSets: 4 },
@@ -295,7 +295,7 @@ export const ROUTINES = [
     ],
   },
   {
-    name: 'Full Body ⚡',
+    name: 'Full Body', ico: 'bolt',
     muscles: ['Chest', 'Back', 'Legs', 'Shoulders'],
     exercises: [
       { muscle: 'Chest',     name: 'Bench Press',    defaultSets: 3 },
@@ -307,7 +307,7 @@ export const ROUTINES = [
     ],
   },
   {
-    name: 'Upper Body 🏆',
+    name: 'Upper Body', ico: 'trophy',
     muscles: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
     exercises: [
       { muscle: 'Chest',     name: 'Bench Press',      defaultSets: 4 },
@@ -326,14 +326,14 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc1', type: 'daily',
     title: 'أنهِ جلسة اليوم',
     desc: 'أكمل جلسة تدريبية واحدة على الأقل اليوم',
-    icon: '⚡', xp: 50, target: 1,
+    ico: 'bolt', xp: 50, target: 1,
     check: (sessions) => sessions.filter(s => dayKey(s.date) === todayKey()).length,
   },
   {
     id: 'dc2', type: 'daily',
     title: '10 سيتات مكتملة',
     desc: 'أكمل 10 سيتات على الأقل في جلسة واحدة',
-    icon: '🎯', xp: 40, target: 10,
+    ico: 'core', xp: 40, target: 10,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -345,7 +345,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc3', type: 'daily',
     title: '3 مجموعات عضلية',
     desc: 'تدرب على 3 مجموعات عضلية مختلفة في يوم واحد',
-    icon: '🦾', xp: 60, target: 3,
+    ico: 'arm_mech', xp: 60, target: 3,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -357,7 +357,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc4', type: 'daily',
     title: 'جلسة 45 دقيقة',
     desc: 'أكمل جلسة تدريبية مدتها 45 دقيقة أو أكثر',
-    icon: '⏱️', xp: 55, target: 45,
+    ico: 'stopwatch', xp: 55, target: 45,
     check: (sessions) => {
       const today = todayKey()
       return sessions.filter(s => dayKey(s.date) === today && s.duration >= 45).length > 0 ? 45 : 0
@@ -367,7 +367,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc5', type: 'daily',
     title: '500 كجم حجم',
     desc: 'ارفع 500 كيلوغرام إجمالي في جلسة واحدة',
-    icon: '💪', xp: 65, target: 500,
+    ico: 'flex', xp: 65, target: 500,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -380,7 +380,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc6', type: 'daily',
     title: 'تمرين الصدر اليوم',
     desc: 'قم بتمارين الصدر بـ 3 سيتات على الأقل',
-    icon: '🫁', xp: 45, target: 3,
+    ico: 'lungs', xp: 45, target: 3,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -391,7 +391,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc7', type: 'daily',
     title: 'تمرين الأرجل اليوم',
     desc: 'قم بتمارين الأرجل بـ 3 سيتات على الأقل',
-    icon: '🦵', xp: 45, target: 3,
+    ico: 'leg', xp: 45, target: 3,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -402,7 +402,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc8', type: 'daily',
     title: '5 تمارين مختلفة',
     desc: 'قم بـ 5 تمارين مختلفة في جلسة واحدة',
-    icon: '📋', xp: 70, target: 5,
+    ico: 'clipboard', xp: 70, target: 5,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -413,7 +413,7 @@ export const DAILY_CHALLENGE_POOL = [
     id: 'dc9', type: 'daily',
     title: 'سجل وزن اليوم',
     desc: 'سجل وزن في كل سيت تكمله اليوم',
-    icon: '⚖️', xp: 30, target: 1,
+    ico: 'scale', xp: 30, target: 1,
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
@@ -430,7 +430,7 @@ export const WEEKLY_CHALLENGE_POOL = [
     id: 'wc1', type: 'weekly',
     title: '4 جلسات هذا الأسبوع',
     desc: 'أكمل 4 جلسات تدريبية خلال 7 أيام',
-    icon: '📅', xp: 150, target: 4,
+    ico: 'calendar', xp: 150, target: 4,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo).length
@@ -440,7 +440,7 @@ export const WEEKLY_CHALLENGE_POOL = [
     id: 'wc2', type: 'weekly',
     title: 'حجم 5000 كجم أسبوعي',
     desc: 'ارفع 5000 كيلوغرام إجمالي خلال الأسبوع',
-    icon: '🏋️', xp: 200, target: 5000,
+    ico: 'lifter', xp: 200, target: 5000,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo)
@@ -452,7 +452,7 @@ export const WEEKLY_CHALLENGE_POOL = [
     id: 'wc3', type: 'weekly',
     title: 'تدرب على كل مجموعة عضلية',
     desc: 'تدرب على 5 مجموعات عضلية مختلفة هذا الأسبوع',
-    icon: '🎯', xp: 180, target: 5,
+    ico: 'core', xp: 180, target: 5,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       const muscles = new Set(sessions.filter(s => new Date(s.date) > weekAgo)
@@ -464,7 +464,7 @@ export const WEEKLY_CHALLENGE_POOL = [
     id: 'wc4', type: 'weekly',
     title: 'ساعتان تدريب أسبوعياً',
     desc: 'اجمع 120 دقيقة من التدريب هذا الأسبوع',
-    icon: '⏰', xp: 160, target: 120,
+    ico: 'alarm', xp: 160, target: 120,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo)
@@ -479,7 +479,7 @@ export const BOSS_CHALLENGES = [
     id: 'bc1', type: 'boss',
     title: 'تحدي الشهر: 20 جلسة',
     desc: 'أكمل 20 جلسة تدريبية في شهر واحد — تحدي الزعيم!',
-    icon: '👹', xp: 500, target: 20,
+    ico: 'ogre', xp: 500, target: 20,
     check: (sessions) => {
       const monthAgo = Date.now() - 30 * 86400000
       return sessions.filter(s => new Date(s.date) > monthAgo).length
@@ -489,7 +489,7 @@ export const BOSS_CHALLENGES = [
     id: 'bc2', type: 'boss',
     title: 'تحدي الأسطورة: 10 طن',
     desc: 'ارفع 10,000 كيلوغرام في جلسة واحدة — إنجاز الأبطال!',
-    icon: '🏔️', xp: 750, target: 10000,
+    ico: 'mountain', xp: 750, target: 10000,
     check: (sessions) => {
       return Math.max(0, ...sessions.map(s =>
         s.exercises.flatMap(e => e.sets)
@@ -518,52 +518,52 @@ export const ACHIEVEMENTS = [
   // ── Sessions ──────────────────────────────────────────────────
   {
     id: 'a1', cat: 'sessions', rarity: 'common',
-    icon: '🌱', title: 'الخطوة الأولى', desc: 'أنهِ جلستك الأولى', xp: 100,
+    ico: 'sprout', title: 'الخطوة الأولى', desc: 'أنهِ جلستك الأولى', xp: 100,
     check: (sessions) => sessions.length >= 1,
   },
   {
     id: 'a2', cat: 'sessions', rarity: 'common',
-    icon: '🏋️', title: '5 جلسات', desc: 'أنهِ 5 جلسات تدريبية', xp: 150,
+    ico: 'lifter', title: '5 جلسات', desc: 'أنهِ 5 جلسات تدريبية', xp: 150,
     check: (sessions) => sessions.length >= 5,
   },
   {
     id: 'a3', cat: 'sessions', rarity: 'common',
-    icon: '📋', title: '10 جلسات', desc: 'أنهِ 10 جلسات تدريبية', xp: 200,
+    ico: 'clipboard', title: '10 جلسات', desc: 'أنهِ 10 جلسات تدريبية', xp: 200,
     check: (sessions) => sessions.length >= 10,
   },
   {
     id: 'a4', cat: 'sessions', rarity: 'rare',
-    icon: '🥈', title: '25 جلسة', desc: 'أنهِ 25 جلسة تدريبية', xp: 300,
+    ico: 'medal_silver', title: '25 جلسة', desc: 'أنهِ 25 جلسة تدريبية', xp: 300,
     check: (sessions) => sessions.length >= 25,
   },
   {
     id: 'a5', cat: 'sessions', rarity: 'rare',
-    icon: '🥇', title: '50 جلسة', desc: 'أنهِ 50 جلسة تدريبية', xp: 500,
+    ico: 'medal_gold', title: '50 جلسة', desc: 'أنهِ 50 جلسة تدريبية', xp: 500,
     check: (sessions) => sessions.length >= 50,
   },
   {
     id: 'a6', cat: 'sessions', rarity: 'epic',
-    icon: '💯', title: '100 جلسة', desc: 'أنهِ 100 جلسة تدريبية', xp: 800,
+    ico: 'hundred', title: '100 جلسة', desc: 'أنهِ 100 جلسة تدريبية', xp: 800,
     check: (sessions) => sessions.length >= 100,
   },
   {
     id: 'a7', cat: 'sessions', rarity: 'legendary',
-    icon: '🏆', title: 'مئتا جلسة', desc: 'أنهِ 200 جلسة تدريبية', xp: 1500,
+    ico: 'trophy', title: 'مئتا جلسة', desc: 'أنهِ 200 جلسة تدريبية', xp: 1500,
     check: (sessions) => sessions.length >= 200,
   },
   {
     id: 'a8', cat: 'sessions', rarity: 'common',
-    icon: '⏱️', title: 'ساعة في الجيم', desc: 'أكمل جلسة مدتها 60 دقيقة أو أكثر', xp: 120,
+    ico: 'stopwatch', title: 'ساعة في الجيم', desc: 'أكمل جلسة مدتها 60 دقيقة أو أكثر', xp: 120,
     check: (sessions) => sessions.some(s => (s.duration || 0) >= 60),
   },
   {
     id: 'a9', cat: 'sessions', rarity: 'rare',
-    icon: '🕐', title: 'ساعتان متواصلتان', desc: 'أكمل جلسة مدتها 120 دقيقة أو أكثر', xp: 250,
+    ico: 'clock', title: 'ساعتان متواصلتان', desc: 'أكمل جلسة مدتها 120 دقيقة أو أكثر', xp: 250,
     check: (sessions) => sessions.some(s => (s.duration || 0) >= 120),
   },
   {
     id: 'a10', cat: 'sessions', rarity: 'common',
-    icon: '🌅', title: 'رياضي الصباح', desc: 'سجل 3 جلسات في يوم واحد', xp: 180,
+    ico: 'sunrise', title: 'رياضي الصباح', desc: 'سجل 3 جلسات في يوم واحد', xp: 180,
     check: (sessions) => {
       const byday = {}
       sessions.forEach(s => {
@@ -576,43 +576,43 @@ export const ACHIEVEMENTS = [
   // ── Strength ──────────────────────────────────────────────────
   {
     id: 'b1', cat: 'strength', rarity: 'common',
-    icon: '🏋️', title: 'أول 100 كجم', desc: 'ارفع 100 كجم في أي تمرين', xp: 150,
+    ico: 'lifter', title: 'أول 100 كجم', desc: 'ارفع 100 كجم في أي تمرين', xp: 150,
     check: (sessions) => sessions.some(s =>
       s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 100))),
   },
   {
     id: 'b2', cat: 'strength', rarity: 'rare',
-    icon: '⚡', title: '140 كجم', desc: 'ارفع 140 كجم في أي تمرين', xp: 300,
+    ico: 'bolt', title: '140 كجم', desc: 'ارفع 140 كجم في أي تمرين', xp: 300,
     check: (sessions) => sessions.some(s =>
       s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 140))),
   },
   {
     id: 'b3', cat: 'strength', rarity: 'epic',
-    icon: '🦁', title: '180 كجم', desc: 'ارفع 180 كجم في أي تمرين', xp: 500,
+    ico: 'lion', title: '180 كجم', desc: 'ارفع 180 كجم في أي تمرين', xp: 500,
     check: (sessions) => sessions.some(s =>
       s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 180))),
   },
   {
     id: 'b4', cat: 'strength', rarity: 'legendary',
-    icon: '👑', title: 'تحدي 200 كجم', desc: 'ارفع 200 كجم في أي تمرين', xp: 1000,
+    ico: 'crown', title: 'تحدي 200 كجم', desc: 'ارفع 200 كجم في أي تمرين', xp: 1000,
     check: (sessions) => sessions.some(s =>
       s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 200))),
   },
   {
     id: 'b5', cat: 'strength', rarity: 'common',
-    icon: '🎯', title: '15 سيت في جلسة', desc: 'أكمل 15 سيت في جلسة واحدة', xp: 120,
+    ico: 'core', title: '15 سيت في جلسة', desc: 'أكمل 15 سيت في جلسة واحدة', xp: 120,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets).filter(ss => ss.done || parseFloat(ss.weight) > 0).length >= 15),
   },
   {
     id: 'b6', cat: 'strength', rarity: 'rare',
-    icon: '🔥', title: '30 سيت في جلسة', desc: 'أكمل 30 سيت في جلسة واحدة', xp: 250,
+    ico: 'flame', title: '30 سيت في جلسة', desc: 'أكمل 30 سيت في جلسة واحدة', xp: 250,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets).filter(ss => ss.done || parseFloat(ss.weight) > 0).length >= 30),
   },
   {
     id: 'b7', cat: 'strength', rarity: 'common',
-    icon: '🏗️', title: 'بناء الأساس', desc: 'قم بـ Deadlift و Bench Press في نفس الجلسة', xp: 130,
+    ico: 'crane', title: 'بناء الأساس', desc: 'قم بـ Deadlift و Bench Press في نفس الجلسة', xp: 130,
     check: (sessions) => sessions.some(s => {
       const names = s.exercises.map(e => e.name)
       return names.includes('Deadlift') && names.includes('Bench Press')
@@ -620,7 +620,7 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'b8', cat: 'strength', rarity: 'epic',
-    icon: '🦍', title: 'الثلاثية الكبرى', desc: 'قم بـ Deadlift و Squat و Bench Press في نفس الجلسة', xp: 400,
+    ico: 'gorilla', title: 'الثلاثية الكبرى', desc: 'قم بـ Deadlift و Squat و Bench Press في نفس الجلسة', xp: 400,
     check: (sessions) => sessions.some(s => {
       const names = s.exercises.map(e => e.name)
       return names.includes('Deadlift') && names.includes('Barbell Squat') && names.includes('Bench Press')
@@ -628,55 +628,55 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'b9', cat: 'strength', rarity: 'rare',
-    icon: '🌊', title: 'تنوع العضلات', desc: 'تدرب على 6 مجموعات عضلية مختلفة في جلسة واحدة', xp: 280,
+    ico: 'wave', title: 'تنوع العضلات', desc: 'تدرب على 6 مجموعات عضلية مختلفة في جلسة واحدة', xp: 280,
     check: (sessions) => sessions.some(s =>
       new Set(s.exercises.map(e => e.muscle)).size >= 6),
   },
   {
     id: 'b10', cat: 'strength', rarity: 'legendary',
-    icon: '🧠', title: 'عقل المحارب', desc: 'أكمل 500 سيت إجمالية عبر كل جلساتك', xp: 800,
+    ico: 'brain', title: 'عقل المحارب', desc: 'أكمل 500 سيت إجمالية عبر كل جلساتك', xp: 800,
     check: (sessions) =>
       sessions.flatMap(s => s.exercises.flatMap(e => e.sets)).filter(ss => ss.done || parseFloat(ss.weight) > 0).length >= 500,
   },
   // ── Streak ────────────────────────────────────────────────────
   {
     id: 'c1', cat: 'streak', rarity: 'common',
-    icon: '🔥', title: '3 أيام متواصلة', desc: 'التزم بخطتك 3 أيام متتالية — تمريناً أو راحة', xp: 100,
+    ico: 'flame', title: '3 أيام متواصلة', desc: 'التزم بخطتك 3 أيام متتالية — تمريناً أو راحة', xp: 100,
     check: (s, xp, streak) => streak >= 3,
   },
   {
     id: 'c2', cat: 'streak', rarity: 'common',
-    icon: '🔥🔥', title: 'أسبوع نار', desc: 'التزم بخطتك 7 أيام متتالية — تمريناً أو راحة', xp: 250,
+    ico: 'flame', tier: 2, title: 'أسبوع نار', desc: 'التزم بخطتك 7 أيام متتالية — تمريناً أو راحة', xp: 250,
     check: (s, xp, streak) => streak >= 7,
   },
   {
     id: 'c3', cat: 'streak', rarity: 'rare',
-    icon: '🔥🔥🔥', title: 'أسبوعان متواصلان', desc: 'التزم بخطتك 14 يوماً متتالياً — تمريناً أو راحة', xp: 450,
+    ico: 'flame', tier: 3, title: 'أسبوعان متواصلان', desc: 'التزم بخطتك 14 يوماً متتالياً — تمريناً أو راحة', xp: 450,
     check: (s, xp, streak) => streak >= 14,
   },
   {
     id: 'c4', cat: 'streak', rarity: 'epic',
-    icon: '🌙', title: 'شهر النار', desc: 'التزم بخطتك 30 يوماً متتالياً — تمريناً أو راحة', xp: 800,
+    ico: 'moon', title: 'شهر النار', desc: 'التزم بخطتك 30 يوماً متتالياً — تمريناً أو راحة', xp: 800,
     check: (s, xp, streak) => streak >= 30,
   },
   {
     id: 'c5', cat: 'streak', rarity: 'legendary',
-    icon: '⚡', title: 'لا يُوقَف', desc: 'التزم بخطتك 60 يوماً متتالياً — تمريناً أو راحة', xp: 2000,
+    ico: 'bolt', title: 'لا يُوقَف', desc: 'التزم بخطتك 60 يوماً متتالياً — تمريناً أو راحة', xp: 2000,
     check: (s, xp, streak) => streak >= 60,
   },
   {
     id: 'c6', cat: 'streak', rarity: 'legendary',
-    icon: '🌟', title: 'أسطورة اليد الحديدية', desc: 'التزم بخطتك 100 يوم متتالٍ — تمريناً أو راحة', xp: 3000,
+    ico: 'star_glow', title: 'أسطورة اليد الحديدية', desc: 'التزم بخطتك 100 يوم متتالٍ — تمريناً أو راحة', xp: 3000,
     check: (s, xp, streak) => streak >= 100,
   },
   {
     id: 'c7', cat: 'streak', rarity: 'common',
-    icon: '📅', title: 'عاد من جديد', desc: 'ابدأ من جديد بعد انقطاع — كل يوم فرصة جديدة', xp: 50,
+    ico: 'calendar', title: 'عاد من جديد', desc: 'ابدأ من جديد بعد انقطاع — كل يوم فرصة جديدة', xp: 50,
     check: (sessions) => sessions.length >= 1,
   },
   {
     id: 'c8', cat: 'streak', rarity: 'rare',
-    icon: '🏆', title: '5 أيام هذا الأسبوع', desc: 'تدرب 5 أيام في أسبوع واحد', xp: 200,
+    ico: 'trophy', title: '5 أيام هذا الأسبوع', desc: 'تدرب 5 أيام في أسبوع واحد', xp: 200,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       const days = new Set(sessions.filter(s => new Date(s.date) > weekAgo).map(s => dayKey(s.date)))
@@ -685,7 +685,7 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'c9', cat: 'streak', rarity: 'epic',
-    icon: '💎', title: 'ملتزم بالأهداف', desc: 'لا تغب عن الجيم أكثر من يومين متتاليين لمدة شهر', xp: 600,
+    ico: 'gem', title: 'ملتزم بالأهداف', desc: 'لا تغب عن الجيم أكثر من يومين متتاليين لمدة شهر', xp: 600,
     check: (sessions) => {
       if (sessions.length < 5) return false
       const monthAgo = Date.now() - 30 * 86400000
@@ -701,7 +701,7 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'c10', cat: 'streak', rarity: 'rare',
-    icon: '📆', title: 'الشهر كامل', desc: 'سجل جلسات في 20 يوم مختلف خلال شهر واحد', xp: 400,
+    ico: 'calendar_days', title: 'الشهر كامل', desc: 'سجل جلسات في 20 يوم مختلف خلال شهر واحد', xp: 400,
     check: (sessions) => {
       const monthAgo = Date.now() - 30 * 86400000
       const days = new Set(sessions.filter(s => new Date(s.date) > monthAgo).map(s => dayKey(s.date)))
@@ -711,68 +711,68 @@ export const ACHIEVEMENTS = [
   // ── Volume ────────────────────────────────────────────────────
   {
     id: 'd1', cat: 'volume', rarity: 'common',
-    icon: '📦', title: 'أول طن', desc: 'ارفع 1000 كجم في جلسة واحدة', xp: 150,
+    ico: 'box', title: 'أول طن', desc: 'ارفع 1000 كجم في جلسة واحدة', xp: 150,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets)
         .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0) >= 1000),
   },
   {
     id: 'd2', cat: 'volume', rarity: 'rare',
-    icon: '📦📦', title: '5 طن في جلسة', desc: 'ارفع 5000 كجم في جلسة واحدة', xp: 300,
+    ico: 'box', tier: 2, title: '5 طن في جلسة', desc: 'ارفع 5000 كجم في جلسة واحدة', xp: 300,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets)
         .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0) >= 5000),
   },
   {
     id: 'd3', cat: 'volume', rarity: 'epic',
-    icon: '🏔️', title: '10 طن في جلسة', desc: 'ارفع 10,000 كجم في جلسة واحدة', xp: 600,
+    ico: 'mountain', title: '10 طن في جلسة', desc: 'ارفع 10,000 كجم في جلسة واحدة', xp: 600,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets)
         .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0) >= 10000),
   },
   {
     id: 'd4', cat: 'volume', rarity: 'legendary',
-    icon: '🌋', title: 'جبل من الحديد', desc: 'ارفع 100,000 كجم إجمالي عبر كل جلساتك', xp: 1000,
+    ico: 'volcano', title: 'جبل من الحديد', desc: 'ارفع 100,000 كجم إجمالي عبر كل جلساتك', xp: 1000,
     check: (sessions) =>
       sessions.reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
         .reduce((tt, ss) => (ss.done || parseFloat(ss.weight) > 0) ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0) >= 100000,
   },
   {
     id: 'd5', cat: 'volume', rarity: 'legendary',
-    icon: '🪐', title: 'نجم الأثقال', desc: 'ارفع 1,000,000 كجم إجمالياً — مليون! ', xp: 5000,
+    ico: 'planet', title: 'نجم الأثقال', desc: 'ارفع 1,000,000 كجم إجمالياً — مليون! ', xp: 5000,
     check: (sessions) =>
       sessions.reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
         .reduce((tt, ss) => (ss.done || parseFloat(ss.weight) > 0) ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0) >= 1000000,
   },
   {
     id: 'd6', cat: 'volume', rarity: 'common',
-    icon: '⚖️', title: 'وزن ثابت', desc: 'دوّن الوزن في 10 سيتات', xp: 80,
+    ico: 'scale', title: 'وزن ثابت', desc: 'دوّن الوزن في 10 سيتات', xp: 80,
     check: (sessions) =>
       sessions.flatMap(s => s.exercises.flatMap(e => e.sets))
         .filter(ss => parseFloat(ss.weight) > 0).length >= 10,
   },
   {
     id: 'd7', cat: 'volume', rarity: 'rare',
-    icon: '📊', title: 'بيانات دقيقة', desc: 'دوّن الوزن في 100 سيت', xp: 200,
+    ico: 'bar_chart', title: 'بيانات دقيقة', desc: 'دوّن الوزن في 100 سيت', xp: 200,
     check: (sessions) =>
       sessions.flatMap(s => s.exercises.flatMap(e => e.sets))
         .filter(ss => parseFloat(ss.weight) > 0).length >= 100,
   },
   {
     id: 'd8', cat: 'volume', rarity: 'common',
-    icon: '🎪', title: 'تنوع ممتاز', desc: 'تدرب على 5 تمارين مختلفة تماماً', xp: 100,
+    ico: 'tent', title: 'تنوع ممتاز', desc: 'تدرب على 5 تمارين مختلفة تماماً', xp: 100,
     check: (sessions) =>
       new Set(sessions.flatMap(s => s.exercises.map(e => e.name))).size >= 5,
   },
   {
     id: 'd9', cat: 'volume', rarity: 'epic',
-    icon: '🧬', title: 'مكتبة الحركات', desc: 'تدرب على 20 تمريناً مختلفاً عبر جلساتك', xp: 400,
+    ico: 'dna', title: 'مكتبة الحركات', desc: 'تدرب على 20 تمريناً مختلفاً عبر جلساتك', xp: 400,
     check: (sessions) =>
       new Set(sessions.flatMap(s => s.exercises.map(e => e.name))).size >= 20,
   },
   {
     id: 'd10', cat: 'volume', rarity: 'epic',
-    icon: '🌊', title: 'موجة الحجم', desc: 'ارفع 50,000 كجم في أسبوع واحد', xp: 700,
+    ico: 'wave', title: 'موجة الحجم', desc: 'ارفع 50,000 كجم في أسبوع واحد', xp: 700,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo)
@@ -787,11 +787,11 @@ export const REST_PRESETS = [45, 60, 90, 120, 180]
 
 // ── Nav Tabs (RTL order: Profile | Achievements | Challenges | Workout | Home) ─
 export const NAV_TABS = [
-  { id: 'home',         label: 'الرئيسية', icon: '🏠' },
-  { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
-  { id: 'exercises',    label: 'التمارين', icon: '📚' },
-  { id: 'achievements', label: 'جوائز',    icon: '🏆' },
-  { id: 'profile',      label: 'الملف',    icon: '👤' },
+  { id: 'home',         label: 'الرئيسية', ico: 'house' },
+  { id: 'workout',      label: 'تمرين',    ico: 'swords' },
+  { id: 'exercises',    label: 'التمارين', ico: 'books' },
+  { id: 'achievements', label: 'جوائز',    ico: 'trophy' },
+  { id: 'profile',      label: 'الملف',    ico: 'person' },
 ]
 // Settings accessible via gear icon in header (not a nav tab)
 
@@ -853,40 +853,40 @@ TEMPLATE_PLACEHOLDER
 
 export const NOTIFICATION_MESSAGES = {
   morning: [
-    { title: '🌅 صباح التحدي', body: 'كل يوم فرصة جديدة تكون أقوى من أمس.' },
-    { title: '⚔️ يوم جديد', body: 'المحارب الحقيقي لا ينتظر الحافز — هو يصنعه.' },
-    { title: '💜 صباح الطاقة', body: 'بدنك ينتظر التحدي — أطعمه الحركة اليوم.' },
-    { title: '🔥 بداية النهار', body: 'الفرق بينك وبين أهدافك: الاستمرارية.' },
-    { title: '🌄 الصباح للأبطال', body: 'اليوم تكتب صفحة جديدة في رحلتك.' },
+    { title: 'صباح التحدي', ico: 'sunrise', body: 'كل يوم فرصة جديدة تكون أقوى من أمس.' },
+    { title: 'يوم جديد', ico: 'swords', body: 'المحارب الحقيقي لا ينتظر الحافز — هو يصنعه.' },
+    { title: 'صباح الطاقة', ico: 'heart_purple', body: 'بدنك ينتظر التحدي — أطعمه الحركة اليوم.' },
+    { title: 'بداية النهار', ico: 'flame', body: 'الفرق بينك وبين أهدافك: الاستمرارية.' },
+    { title: 'الصباح للأبطال', ico: 'sunrise_mountain', body: 'اليوم تكتب صفحة جديدة في رحلتك.' },
   ],
   tip: [
-    { title: '💡 نصيحة التمرين', body: 'استرح دقيقتين بين السيتات للعضلات الكبيرة.' },
-    { title: '📊 معلومة عضلية', body: 'العضلة تنمو وقت الراحة لا وقت التمرين — نم جيداً.' },
-    { title: '🔬 علم الجسم', body: 'الحمل التدريجي هو السر الوحيد للنمو العضلي.' },
-    { title: '⚡ تقنية السيت', body: 'البطء في الإرجاع أكثر فائدة من السرعة في الرفع.' },
-    { title: '🏋️ حكمة الجيم', body: 'الشكل الصحيح أهم من الوزن — الإصابة تضيع أشهر.' },
-    { title: '💧 تذكير مائي', body: 'اشرب ماءً الآن — الجفاف يقلل قوتك ٢٠٪.' },
-    { title: '🧠 نصيحة ذهنية', body: 'تخيل العضلة تعمل أثناء التمرين — أثبتها الأبحاث.' },
-    { title: '🥩 بروتين اليوم', body: 'تناول بروتيناً بعد التمرين بـ 30 دقيقة للحصول على أفضل نتيجة.' },
+    { title: 'نصيحة التمرين', ico: 'bulb', body: 'استرح دقيقتين بين السيتات للعضلات الكبيرة.' },
+    { title: 'معلومة عضلية', ico: 'bar_chart', body: 'العضلة تنمو وقت الراحة لا وقت التمرين — نم جيداً.' },
+    { title: 'علم الجسم', ico: 'microscope', body: 'الحمل التدريجي هو السر الوحيد للنمو العضلي.' },
+    { title: 'تقنية السيت', ico: 'bolt', body: 'البطء في الإرجاع أكثر فائدة من السرعة في الرفع.' },
+    { title: 'حكمة الجيم', ico: 'lifter', body: 'الشكل الصحيح أهم من الوزن — الإصابة تضيع أشهر.' },
+    { title: 'تذكير مائي', ico: 'droplet', body: 'اشرب ماءً الآن — الجفاف يقلل قوتك ٢٠٪.' },
+    { title: 'نصيحة ذهنية', ico: 'brain', body: 'تخيل العضلة تعمل أثناء التمرين — أثبتها الأبحاث.' },
+    { title: 'بروتين اليوم', ico: 'steak', body: 'تناول بروتيناً بعد التمرين بـ 30 دقيقة للحصول على أفضل نتيجة.' },
   ],
   hydration: [
-    { title: '💧 حان وقت الماء', body: 'اشرب ٥٠٠مل ماء الآن — جسمك يحتاجه.' },
-    { title: '🥤 تذكير مائي', body: 'الجفاف يقلل الأداء ٢٠٪ — اشرب الآن!' },
-    { title: '⚗️ الهيدرا أولاً', body: 'لا تنسَ الماء — هو الأساس قبل أي مكمل.' },
+    { title: 'حان وقت الماء', ico: 'droplet', body: 'اشرب ٥٠٠مل ماء الآن — جسمك يحتاجه.' },
+    { title: 'تذكير مائي', ico: 'cup', body: 'الجفاف يقلل الأداء ٢٠٪ — اشرب الآن!' },
+    { title: 'الهيدرا أولاً', ico: 'alembic', body: 'لا تنسَ الماء — هو الأساس قبل أي مكمل.' },
   ],
   workout: [
-    { title: '⚔️ حان وقت الجيم!', body: 'الجيم ينتظرك — هيا نحصد القوة اليوم!' },
-    { title: '💪 لا عذر اليوم!', body: 'أغلق الهاتف وافتح الشنطة — وقت التمرين.' },
-    { title: '🔥 النار تشتعل!', body: 'جسمك جاهز والجيم ينتظر — قم الآن.' },
-    { title: '⚡ انطلق يا بطل!', body: 'كل جلسة تمرين تقربك من النسخة الأفضل.' },
-    { title: '🏆 وقت الإنجاز!', body: 'المحاربون لا يتأخرون — حان دورك.' },
+    { title: 'حان وقت الجيم!', ico: 'swords', body: 'الجيم ينتظرك — هيا نحصد القوة اليوم!' },
+    { title: 'لا عذر اليوم!', ico: 'flex', body: 'أغلق الهاتف وافتح الشنطة — وقت التمرين.' },
+    { title: 'النار تشتعل!', ico: 'flame', body: 'جسمك جاهز والجيم ينتظر — قم الآن.' },
+    { title: 'انطلق يا بطل!', ico: 'bolt', body: 'كل جلسة تمرين تقربك من النسخة الأفضل.' },
+    { title: 'وقت الإنجاز!', ico: 'trophy', body: 'المحاربون لا يتأخرون — حان دورك.' },
   ],
   evening: [
-    { title: '🌙 مراجعة اليوم', body: 'هل أكملت تمرينك اليوم؟ سجّله في التطبيق.' },
-    { title: '⭐ يوم قوي آخر', body: 'الاستمرارية هي الفوز — فخور بك اليوم.' },
-    { title: '😴 قبل النوم', body: 'النوم الجيد = نمو عضلي أفضل — استرح مبكراً.' },
-    { title: '🗓️ جهّز لغد', body: 'جهّز شنطتك الآن حتى لا يكون لديك عذر غداً.' },
-    { title: '💜 احتفل بنفسك', body: 'كل يوم تستمر فيه هو انتصار — أنت رائع.' },
+    { title: 'مراجعة اليوم', ico: 'moon', body: 'هل أكملت تمرينك اليوم؟ سجّله في التطبيق.' },
+    { title: 'يوم قوي آخر', ico: 'star', body: 'الاستمرارية هي الفوز — فخور بك اليوم.' },
+    { title: 'قبل النوم', ico: 'sleep', body: 'النوم الجيد = نمو عضلي أفضل — استرح مبكراً.' },
+    { title: 'جهّز لغد', ico: 'calendar_spiral', body: 'جهّز شنطتك الآن حتى لا يكون لديك عذر غداً.' },
+    { title: 'احتفل بنفسك', ico: 'heart_purple', body: 'كل يوم تستمر فيه هو انتصار — أنت رائع.' },
   ],
 }
 

@@ -1,4 +1,5 @@
 import { getRank } from '../utils.js'
+import Ico from '../assets/Ico.jsx'
 
 export default function LevelUpScreen({ level, onDismiss }) {
   const rank = getRank(level)
@@ -35,7 +36,7 @@ export default function LevelUpScreen({ level, onDismiss }) {
         {/* Crown */}
         <div style={{ fontSize: 64, marginBottom: 16, lineHeight: 1 }}
           className="icon-glow">
-          👑
+          <Ico id="crown" size={64} />
         </div>
 
         {/* LEVEL UP text */}
@@ -92,7 +93,7 @@ export default function LevelUpScreen({ level, onDismiss }) {
             className="btn-cyan"
             style={{ maxWidth: 240, margin: '0 auto' }}
           >
-            استمر 💪
+            استمر
           </button>
         </div>
       </div>

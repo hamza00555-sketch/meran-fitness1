@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Ico from '../assets/Ico.jsx'
 import { Card, Badge, Btn } from '../components/ui.jsx'
 import { fmtDate, fmtTime, sessionVolume } from '../utils.js'
 import { MUSCLE_GROUPS } from '../constants.js'
@@ -8,7 +9,7 @@ export default function HistoryPage({ sessions, onDelete }) {
 
   if (!sessions.length) return (
     <div style={{ textAlign: 'center', padding: '80px 20px 100px' }}>
-      <div style={{ fontSize: 52, marginBottom: 16 }}>📋</div>
+      <div style={{ marginBottom: 16 }}><Ico id="clipboard" size={52} /></div>
       <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, color: 'var(--text3)' }}>
         لا يوجد سجل بعد
       </div>
@@ -46,7 +47,7 @@ export default function HistoryPage({ sessions, onDelete }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {muscles.map(m => (
                     <Badge key={m} color={MUSCLE_GROUPS[m]?.color || 'var(--orange)'}>
-                      {MUSCLE_GROUPS[m]?.emoji} {m}
+                      <Ico id={MUSCLE_GROUPS[m]?.ico} size={12} /> {m}
                     </Badge>
                   ))}
                 </div>
@@ -80,7 +81,7 @@ export default function HistoryPage({ sessions, onDelete }) {
             {/* Volume bar */}
             {vol > 0 && (
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text4)', marginBottom: isOpen ? 14 : 0 }}>
-                📦 {(vol / 1000).toFixed(2)} طن volume
+                <Ico id="box" size={12} /> {(vol / 1000).toFixed(2)} طن volume
               </div>
             )}
 
@@ -94,7 +95,7 @@ export default function HistoryPage({ sessions, onDelete }) {
                       color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--orange)',
                       marginBottom: 6,
                     }}>
-                      {ex.emoji} {ex.name}
+                      <Ico id={ex.ico} size={12} /> {ex.name}
                     </div>
                     {ex.sets.map((ss, si) => (
                       <div key={si} style={{
@@ -116,7 +117,7 @@ export default function HistoryPage({ sessions, onDelete }) {
                     variant="danger"
                     style={{ fontSize: 12, padding: '7px 14px' }}
                   >
-                    🗑️ حذف الجلسة
+                    <Ico id="trash" size={13} /> حذف الجلسة
                   </Btn>
                 </div>
               </div>

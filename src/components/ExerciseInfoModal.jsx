@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import Ico from '../assets/Ico.jsx'
 import { createPortal } from 'react-dom'
 import { MUSCLE_GROUPS } from '../constants.js'
 
@@ -11,7 +12,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
   const group = MUSCLE_GROUPS[exercise.muscle] || {}
   const color = group.color || 'var(--cyan)'
   const label = group.label || exercise.muscle
-  const emoji = group.emoji || '🏋️'
+  const ico = group.ico || 'lifter'
 
   const exDef = (group.exercises || []).find(e => e.name === exercise.name) || {}
   const videoUrl    = exDef.videoUrl ||
@@ -68,7 +69,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
               borderRadius: 20, padding: '3px 10px',
               fontSize: 12, color,
             }}>
-              {emoji} {label}
+              <Ico id={ico} size={15} /> {label}
             </span>
           </div>
           <button
@@ -97,7 +98,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
                 color: 'var(--text2)', marginBottom: 10,
                 display: 'flex', alignItems: 'center', gap: 6,
               }}>
-                <span style={{ fontSize: 14 }}>⚡</span> نصائح مهمة
+                <Ico id="bolt" size={14} /> نصائح مهمة
               </div>
               {tips.map((tip, i) => (
                 <div key={i} style={{
@@ -165,7 +166,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
               fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
               color, marginBottom: 4,
             }}>
-              {emoji} المجموعة العضلية: {label}
+              <Ico id={ico} size={14} /> المجموعة العضلية: {label}
             </div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
@@ -183,7 +184,7 @@ export default function ExerciseInfoModal({ exercise, onClose }) {
               fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
               lineHeight: 1.6,
             }}>
-              <span style={{ color: 'var(--purple)', fontWeight: 700 }}>🎨 قادماً: </span>
+              <span style={{ color: 'var(--purple)', fontWeight: 700 }}><Ico id="palette" size={13} color="var(--purple)" /> قادماً: </span>
               سيُستبدل بأنيميشن مخصص للتمرين
             </div>
           )}

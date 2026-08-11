@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Ico from '../assets/Ico.jsx'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES } from '../constants.js'
 
@@ -33,7 +34,7 @@ export default function ChallengesPage({ sessions, challengeState, onCompleteCha
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
-              تحديات ⚡
+              تحديات <Ico id="bolt" size={20} />
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
               أكمل التحديات واكسب XP
@@ -66,7 +67,7 @@ export default function ChallengesPage({ sessions, challengeState, onCompleteCha
       {/* ── Challenge Cards ───────────────────────────────────── */}
       {filteredChallenges.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div style={{ fontSize: 40, marginBottom: 10 }}>🎯</div>
+          <div style={{ marginBottom: 10 }}><Ico id="core" size={40} /></div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, color: 'var(--text3)' }}>
             لا توجد تحديات في هذا القسم
           </div>
@@ -93,9 +94,9 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
   const isDone = isCompleted || pct >= 100
 
   const typeConfig = {
-    daily: { color: '#22C55E',  icon: '⚡', label: 'يومي',    img: '/assets/challenge_daily.png' },
-    weekly:{ color: '#3B9DE8', icon: '📅', label: 'أسبوعي',  img: '/assets/challenge_weekly.png' },
-    boss:  { color: '#EF4444', icon: '👹', label: 'الزعيم',  img: '/assets/challenge_boss.png' },
+    daily: { color: '#22C55E', ico: 'bolt',     label: 'يومي',   img: '/assets/challenge_daily.png' },
+    weekly:{ color: '#3B9DE8', ico: 'calendar', label: 'أسبوعي', img: '/assets/challenge_weekly.png' },
+    boss:  { color: '#EF4444', ico: 'ogre',     label: 'الزعيم', img: '/assets/challenge_boss.png' },
   }
   const cfg = typeConfig[c.type] || typeConfig.daily
 
@@ -172,7 +173,7 @@ function ChallengeCard({ challenge: c, sessions, isCompleted, onComplete }) {
           className="btn-cyan"
           style={{ fontSize: 13 }}
         >
-          🎉 استلم المكافأة
+          <Ico id="party" size={14} /> استلم المكافأة
         </button>
       )}
     </Card>

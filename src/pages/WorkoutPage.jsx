@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Ico from '../assets/Ico.jsx'
 import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
@@ -198,7 +199,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
               color: 'var(--text2)', fontFamily: 'var(--font-ar)',
               fontSize: 12, cursor: 'pointer',
             }}
-          >⏱️ راحة</button>
+          ><Ico id="stopwatch" size={13} /> راحة</button>
           <button
             onClick={() => setConfirmBack(true)}
             style={{
@@ -239,7 +240,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           border: '1px dashed var(--border2)', borderRadius: 14,
           padding: '30px 20px', textAlign: 'center', marginBottom: 14,
         }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🏋️</div>
+          <div style={{ marginBottom: 8 }}><Ico id="lifter" size={36} /></div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)', marginBottom: 12 }}>
             أضف أول تمرين
           </div>
@@ -251,7 +252,7 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
               color: 'var(--text2)', fontFamily: 'var(--font-ar)',
               fontSize: 13, cursor: 'pointer',
             }}
-          >📋 روتين جاهز</button>
+          ><Ico id="clipboard" size={14} /> روتين جاهز</button>
         </div>
       )}
 
@@ -428,7 +429,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
   if (!sessions.length) {
     return (
       <div style={{ paddingBottom: 120 }}>
-        <EmptyState icon="📋" title="لا يوجد سجل بعد" desc="أنهِ جلسة لتظهر هنا" />
+        <EmptyState ico="clipboard" title="لا يوجد سجل بعد" desc="أنهِ جلسة لتظهر هنا" />
         <div style={{
           position: 'fixed', bottom: 0,
           left: '50%', transform: 'translateX(-50%)',
@@ -436,7 +437,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
           padding: '12px 16px calc(var(--safe-bottom) + 76px)',
           background: 'linear-gradient(transparent, var(--bg) 40%)',
         }}>
-          <button className="btn-cyan" onClick={onStartWorkout}>⚔️ ابدأ التمرين</button>
+          <button className="btn-cyan" onClick={onStartWorkout}><Ico id="swords" size={14} /> ابدأ التمرين</button>
         </div>
         {showRoutines && <RoutinesModal onSelect={() => {}} onClose={() => setShowRoutines(false)} />}
       </div>
@@ -484,7 +485,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
                     <Badge key={m} color={MUSCLE_GROUPS[m]?.color || 'var(--cyan)'}>
                       {MUSCLE_GROUPS[m]?.img
                         ? <img src={MUSCLE_GROUPS[m].img} style={{ width: 14, height: 14, objectFit: 'contain', borderRadius: 3 }} alt="" />
-                        : MUSCLE_GROUPS[m]?.emoji
+                        : <Ico id={MUSCLE_GROUPS[m]?.ico} size={14} />
                       } {MUSCLE_GROUPS[m]?.label || m}
                     </Badge>
                   ))}
@@ -508,7 +509,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
                         color: 'var(--text2)', fontSize: 13,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
-                    >✏️</button>
+                    ><Ico id="pencil" size={13} /></button>
                     <button
                       onClick={e => { e.stopPropagation(); setConfirmDel(s.id) }}
                       title="حذف الجلسة"
@@ -518,7 +519,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
                         color: '#EF4444', fontSize: 13,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
-                    >🗑️</button>
+                    ><Ico id="trash" size={13} /></button>
                   </div>
                 )}
               </div>
@@ -587,7 +588,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
                         onClick={() => delExercise(ei)}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 15, padding: '0 4px', flexShrink: 0 }}
                         title="حذف التمرين"
-                      >🗑️</button>
+                      ><Ico id="trash" size={13} /></button>
                     </div>
                     {/* Column labels */}
                     <div style={{ display: 'flex', gap: 6, marginBottom: 4, paddingRight: 4 }}>

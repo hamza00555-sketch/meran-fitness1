@@ -8,6 +8,7 @@ import {
   getBlobRec, putBlobRec, delBlobRec, allShas, countBlobs,
   getAllBlobRecs, getMeta, putMeta, clearAll, idbAvailable,
 } from './idb.js'
+import { parseManifest } from './manifest.js'
 
 // crypto.subtle only exists in a secure context. localhost counts;
 // `vite --host` on a LAN IP over plain HTTP does not — which is
@@ -85,7 +86,15 @@ export async function collectGarbage(manifest) {
   return doomed.length
 }
 
-export const readManifest    = () => getMeta('manifest')
+// A manifest goes into IndexedDB as plain data — the structured clone
+// drops the lookup Maps parseManifest builds. Re-parsing on the way out
+// means callers always get the same shape whether it came from the
+// network or from disk.
+export const readManifest = async () => {
+  const raw = await getMeta('manifest')
+  if (!raw) return undefined
+  try { return parseManifest(raw) } catch { return undefined }
+}
 export const writeManifest   = (m) => putMeta('manifest', m)
 export const readInstalled   = () => getMeta('installed')
 export const writeInstalled  = (v) => putMeta('installed', v)

@@ -1,4 +1,5 @@
 import { ROUTINES, MUSCLE_GROUPS } from '../constants.js'
+import Ico from '../assets/Ico.jsx'
 import { Card, Overlay, CloseBtn, Badge } from './ui.jsx'
 
 export default function RoutinesModal({ onSelect, onClose }) {
@@ -9,7 +10,7 @@ export default function RoutinesModal({ onSelect, onClose }) {
         <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>📋 روتينات جاهزة</div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}><Ico id="clipboard" size={18} /> روتينات جاهزة</div>
               <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
                 اختر وابدأ مباشرة
               </div>
@@ -50,7 +51,7 @@ export default function RoutinesModal({ onSelect, onClose }) {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 {r.muscles.map(m => (
                   <Badge key={m} color={MUSCLE_GROUPS[m]?.color || 'var(--cyan)'}>
-                    {MUSCLE_GROUPS[m]?.emoji} {MUSCLE_GROUPS[m]?.label || m}
+                    <Ico id={MUSCLE_GROUPS[m]?.ico} size={14} /> {MUSCLE_GROUPS[m]?.label || m}
                   </Badge>
                 ))}
               </div>

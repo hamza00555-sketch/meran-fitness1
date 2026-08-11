@@ -65,8 +65,10 @@ export function applyManifest(manifest) {
   idBy.clear()
   remote.clear()
   if (!manifest) { bump(); return }
-  for (const [emoji, id] of manifest.emojiToId) idBy.set(emoji, id)
-  for (const a of manifest.assets) remote.set(a.id, a.pngUrl || a.url)
+  const pairs = manifest.emojiToId
+    || (manifest.assets || []).flatMap(a => (a.emoji || []).map(e => [e, a.id]))
+  for (const [emoji, id] of pairs) if (!idBy.has(emoji)) idBy.set(emoji, id)
+  for (const a of manifest.assets || []) remote.set(a.id, a.pngUrl || a.url)
   bump()
 }
 

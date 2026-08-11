@@ -14,6 +14,11 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+// Seeded so the version notice never covers the pack prompt, and so a
+// version bump doesn't quietly break every scenario below.
+const { APP_VERSION } = await import(pathToFileURL(new URL('../src/constants.js', import.meta.url).pathname).href)
 
 const PACK  = process.env.PACK  || '/tmp/pack'
 const PACK2 = process.env.PACK2 || null
@@ -77,13 +82,13 @@ async function newPage(ctx) {
 const ctxOpts = { ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh' }
 
 async function boot(page) {
-  await page.addInitScript(() => {
+  await page.addInitScript((v) => {
     if (localStorage.getItem('__s')) return
     localStorage.setItem('__s', '1')
     localStorage.setItem('hf_weights_reset_v2', 'true')
-    localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
+    localStorage.setItem('hf_seen_version', JSON.stringify(v))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة', goal: 'muscle' }))
-  })
+  }, APP_VERSION)
   await page.goto(APP, { waitUntil: 'networkidle' })
   await page.waitForTimeout(700)
 }
@@ -153,8 +158,8 @@ const waitPhase = async (page, want, ms = 60000) => {
   await boot(page)
 
   ok('first run offers the pack',
-    await page.evaluate(() => document.body.innerText.includes('أيقونات مران المخصّصة')))
-  ok('the offer starts the download', await clickText(page, 'تنزيل الآن'))
+    await page.evaluate(() => !!document.querySelector('[data-pack-prompt]')))
+  ok('the offer starts the download', await packBtn(page, 'offer-accept'))
 
   await openSettings(page)
   ok('installs and reports ready', await waitPhase(page, 'ready') === 'ready')
@@ -165,12 +170,35 @@ const waitPhase = async (page, want, ms = 60000) => {
   ok('one manifest fetch', net.manifests === 1, String(net.manifests))
   ok('each file fetched exactly once', net.files === TOTAL, `${net.files}/${TOTAL}`)
 
+  // The point of the whole exercise: icons on screen are now the
+  // downloaded art, and no emoji fallback survives anywhere.
+  const painted = await page.evaluate(() => {
+    const imgs = [...document.querySelectorAll('img[data-ico]')]
+    return {
+      images: imgs.length,
+      blobs: imgs.filter(i => i.src.startsWith('blob:')).length,
+      emojiFallbacks: document.querySelectorAll('[data-ico-fallback="emoji"]').length,
+      svgFallbacks: document.querySelectorAll('[data-ico-fallback="svg"]').length,
+    }
+  })
+  ok('icons repainted as downloaded art', painted.images > 5 && painted.blobs === painted.images,
+    JSON.stringify(painted))
+  ok('no emoji fallback is left on screen', painted.emojiFallbacks === 0, JSON.stringify(painted))
+
   const before = net.files
   await page.reload({ waitUntil: 'networkidle' })
   await page.waitForTimeout(1500)
   ok('a reload re-uses the stored pack', net.files === before, `${net.files} vs ${before}`)
+  const afterReload = await page.evaluate(() => ({
+    imgs: document.querySelectorAll('img[data-ico]').length,
+    emoji: document.querySelectorAll('[data-ico-fallback="emoji"]').length,
+    svg: document.querySelectorAll('[data-ico-fallback="svg"]').length,
+    tab: document.body.innerText.slice(0, 40),
+  }))
+  ok('icons are still art after a reload', afterReload.imgs > 5 && afterReload.emoji === 0,
+    JSON.stringify(afterReload))
   ok('a reload does not re-offer',
-    !await page.evaluate(() => document.body.innerText.includes('أيقونات مران المخصّصة')))
+    !await page.evaluate(() => !!document.querySelector('[data-pack-prompt]')))
   await ctx.close()
 }
 
@@ -180,7 +208,7 @@ const waitPhase = async (page, want, ms = 60000) => {
   const page = await newPage(ctx)
   await serve(page, PACK, { dead: true })
   await boot(page)
-  await clickText(page, 'لاحقاً')
+  await packBtn(page, 'offer-later')
   await ctx.setOffline(true)
   await openSettings(page)
   await packBtn(page, 'install')
@@ -204,7 +232,7 @@ const waitPhase = async (page, want, ms = 60000) => {
   const page = await newPage(ctx)
   await serve(page, PACK, { abortAfter: 20 })
   await boot(page)
-  await clickText(page, 'تنزيل الآن')
+  await packBtn(page, 'offer-accept')
   await openSettings(page)
   const got = await waitPhase(page, ['offline', 'error'], 60000)
   ok('a mid-download drop stops and reports', got === 'offline' || got === 'error', got)
@@ -229,7 +257,7 @@ const waitPhase = async (page, want, ms = 60000) => {
   const victim = manifest.assets[3]
   await serve(page, PACK, { corrupt: [victim.file] })
   await boot(page)
-  await clickText(page, 'تنزيل الآن')
+  await packBtn(page, 'offer-accept')
   await openSettings(page)
   ok('a hash mismatch ends in an error state', await waitPhase(page, 'error') === 'error')
   ok('the failure is named as a corrupt file',
@@ -260,7 +288,7 @@ if (PACK2) {
   const page = await newPage(ctx)
   await serve(page, PACK)
   await boot(page)
-  await clickText(page, 'تنزيل الآن')
+  await packBtn(page, 'offer-accept')
   await openSettings(page)
   await waitPhase(page, 'ready')
 
@@ -283,7 +311,7 @@ if (PACK2) {
   const page = await newPage(ctx)
   const net = await serve(page, PACK)
   await boot(page)
-  await clickText(page, 'تنزيل الآن')
+  await packBtn(page, 'offer-accept')
   await openSettings(page)
   await waitPhase(page, 'ready')
   const before = net.files
@@ -299,7 +327,7 @@ if (PACK2) {
 
   ok('a second profile does not re-download', net.files === before, `${net.files} vs ${before}`)
   ok('a second profile is not re-asked',
-    !await page.evaluate(() => document.body.innerText.includes('أيقونات مران المخصّصة')))
+    !await page.evaluate(() => !!document.querySelector('[data-pack-prompt]')))
   await ctx.close()
 }
 
@@ -309,7 +337,7 @@ if (PACK2) {
   const page = await newPage(ctx)
   await serve(page, PACK)
   await boot(page)
-  await clickText(page, 'تنزيل الآن')
+  await packBtn(page, 'offer-accept')
   await openSettings(page)
   await waitPhase(page, 'ready')
 

@@ -8,8 +8,8 @@
 export const SUPPORTED_SCHEMA = 1
 
 // U+FE0F / U+FE0E only say "draw this as a picture" or "as text".
-// '🗑️' and '🗑' are the same icon and must resolve to the same id,
-// or half the call sites silently miss.
+// The same glyph with and without the selector must resolve to one
+// id, or half the call sites silently miss.
 export const normalizeEmoji = (s) =>
   typeof s === 'string' ? s.replace(/[\uFE0E\uFE0F]/g, '') : ''
 

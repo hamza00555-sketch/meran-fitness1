@@ -24,6 +24,7 @@ export default function AssetPackPrompt({ onClose }) {
       }}
     >
       <div
+        data-pack-prompt=""
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 480,
@@ -50,6 +51,7 @@ export default function AssetPackPrompt({ onClose }) {
               color: 'var(--text2)', fontFamily: 'var(--font-ar)',
               fontSize: 15, fontWeight: 700, cursor: 'pointer',
             }}
+            data-pack="offer-later"
           >لاحقاً</button>
           <button
             onClick={accept}
@@ -60,6 +62,7 @@ export default function AssetPackPrompt({ onClose }) {
               fontSize: 15, fontWeight: 800, cursor: 'pointer',
               boxShadow: '0 4px 20px rgba(94,195,42,0.35)',
             }}
+            data-pack="offer-accept"
           >تنزيل الآن</button>
         </div>
       </div>

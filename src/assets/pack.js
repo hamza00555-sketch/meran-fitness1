@@ -4,7 +4,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { ls } from '../utils.js'
-import { fetchManifest, parseManifest } from './manifest.js'
+import { fetchManifest } from './manifest.js'
 import {
   reconcile, loadAllBlobs, collectGarbage, writeManifest, readManifest,
   wipe, canHash, requestPersistence,
@@ -98,25 +98,21 @@ export function initPack() {
 
 // ── Fetching the manifest ─────────────────────────────────────
 async function loadManifest({ preferCached = false } = {}) {
+  // readManifest re-parses what IndexedDB gave back, so a cached
+  // manifest has the same shape as a freshly fetched one.
   if (preferCached) {
     const cached = await readManifest().catch(() => null)
-    if (cached) return reviveManifest(cached)
+    if (cached) return cached
   }
   registry.setPackState({ phase: 'checking', error: null })
   try {
-    const m = await fetchManifest(MANIFEST_URL)
-    return m
+    return await fetchManifest(MANIFEST_URL)
   } catch (e) {
     const cached = await readManifest().catch(() => null)
-    if (cached) return reviveManifest(cached)
+    if (cached) return cached
     throw e
   }
 }
-
-// Maps don't survive the structured clone into IndexedDB as the
-// parsed shape, so a cached manifest is re-parsed on the way out.
-const reviveManifest = (stored) =>
-  stored?.byId instanceof Map ? stored : parseManifest(stored.raw || stored)
 
 // ── Install / update ──────────────────────────────────────────
 /**

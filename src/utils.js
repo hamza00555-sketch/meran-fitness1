@@ -1,5 +1,8 @@
 import { RANKS, COMMITMENT_LEVELS } from './constants.js'
 import { dayKey, todayKey, toWesternDigits } from './day.js'
+// registry.js has no imports of its own, so this cannot close a cycle
+// back through utils.js the way importing pack.js would.
+import { remoteUrlFor } from './assets/registry.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
 // Every hf_* key is namespaced by the active user so each person
@@ -245,14 +248,14 @@ export const detectEquipment = (name) => {
 
 // ── Equipment labels (Arabic) ─────────────────────────────────
 export const EQUIPMENT_LABELS = {
-  'Barbell':          { ar: 'باربل',          emoji: '🏋️' },
-  'Dumbbell':         { ar: 'دمبل',            emoji: '💪' },
-  'Cable':            { ar: 'كابل',            emoji: '🔗' },
-  'Machine':          { ar: 'ماشين',           emoji: '🤖' },
-  'Smith Machine':    { ar: 'سميث ماشين',      emoji: '⚙️' },
-  'Resistance Band':  { ar: 'إيلاستيك',        emoji: '🟡' },
-  'Kettlebell':       { ar: 'كيتل بيل',        emoji: '🔔' },
-  'Bodyweight':       { ar: 'وزن الجسم',       emoji: '🤸' },
+  'Barbell':          { ar: 'باربل',          ico: 'lifter' },
+  'Dumbbell':         { ar: 'دمبل',            ico: 'flex' },
+  'Cable':            { ar: 'كابل',            ico: 'chain' },
+  'Machine':          { ar: 'ماشين',           ico: 'robot' },
+  'Smith Machine':    { ar: 'سميث ماشين',      ico: 'gear' },
+  'Resistance Band':  { ar: 'إيلاستيك',        ico: 'circle_yellow' },
+  'Kettlebell':       { ar: 'كيتل بيل',        ico: 'bell' },
+  'Bodyweight':       { ar: 'وزن الجسم',       ico: 'gymnast' },
 }
 
 // ── Build exercise ────────────────────────────────────────────
@@ -404,9 +407,13 @@ export const scheduleNotificationsForToday = async (workoutTime, messages, worko
       setTimeout(async () => {
         try {
           const msg = pickRandom(messages[type])
+          // A blob: URL is useless here — the platform fetches the icon
+          // outside the page — so this points at the CDN copy and falls
+          // back to the bundled app icon. iOS ignores `icon` entirely
+          // and always shows the home-screen icon; Android honours it.
           await reg.showNotification(msg.title, {
             body: msg.body,
-            icon: '/icon-192.png',
+            icon: remoteUrlFor(msg.ico) || '/icon-192.png',
             badge: '/icon-192.png',
             dir: 'rtl', lang: 'ar',
             tag: type,

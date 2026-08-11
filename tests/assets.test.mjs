@@ -341,6 +341,32 @@ test('cancelling stops the run and leaves what already verified', async () => {
 
 // ══ registry ══════════════════════════════════════════════════
 
+test('a manifest survives the round trip through IndexedDB', async () => {
+  // The structured clone drops the lookup Maps parseManifest builds.
+  // Reading one back and handing it straight to the registry used to
+  // throw, leaving every icon un-hydrated after a reload with nothing
+  // in the log to say why.
+  await reset()
+  const raw = await makeManifest(['flame'])
+  raw.assets[0].emoji = ['\u{1F525}']
+  const m = parseManifest(raw)
+  await store.writeManifest({
+    schemaVersion: m.schemaVersion, packVersion: m.packVersion, baseUrl: m.baseUrl,
+    assets: m.assets.map(a => ({ id: a.id, file: a.file, sha256: a.sha256, bytes: a.bytes, emoji: a.emoji })),
+  })
+
+  const back = await store.readManifest()
+  assert.ok(back, 'a stored manifest reads back')
+  assert.ok(back.emojiToId instanceof Map, 'its lookup maps are rebuilt')
+  assert.equal(back.emojiToId.get('\u{1F525}'), 'flame')
+
+  registry.applyManifest(back)
+  assert.equal(registry.idForEmoji('\u{1F525}'), 'flame')
+  const n = registry.hydrate(back, new Map([[back.assets[0].sha256, new Blob(['x'])]]))
+  assert.equal(n, 1)
+  assert.ok(registry.urlFor('flame'))
+})
+
 test('hydrate publishes a URL per stored asset and notifies once', async () => {
   await reset()
   const m = parseManifest(await makeManifest(['a', 'b']))

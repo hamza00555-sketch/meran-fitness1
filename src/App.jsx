@@ -10,15 +10,17 @@ import {
   NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS,
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
-import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
+import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon, BookIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, REST_CREDIT_EVERY, changeCooldownLeft } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 
+// The nav has always been line art, and a raster badge sitting beside
+// four strokes reads as a mistake. Every tab gets an SVG.
 const NAV_ICONS = {
   home:         HomeIcon,
   workout:      DumbbellIcon,
-  exercises:    null,
+  exercises:    BookIcon,
   challenges:   FlagIcon,
   achievements: TrophyIcon,
   profile:      PersonIcon,
@@ -42,6 +44,7 @@ import LevelUpScreen    from './components/LevelUpScreen.jsx'
 import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
+import Ico             from './assets/Ico.jsx'
 import { initPack, wasPrompted } from './assets/pack.js'
 
 // Stable greeting index per session
@@ -187,7 +190,11 @@ export default function App() {
     initPack().then(rec => {
       if (!alive) return
       if (!rec.installed && !wasPrompted()) setPackOffer(true)
-    }).catch(() => {})
+    }).catch(e => {
+      // Never swallow this silently: a throw in here used to leave the
+      // icons un-hydrated with no trace of why.
+      console.error('meran/assets: boot failed', e)
+    })
     return () => { alive = false }
   }, [])
 
@@ -239,7 +246,7 @@ export default function App() {
       return newXP
     })
     showXPFloat(amount)
-    if (label) pushAlert('⭐', `${label} +${amount} XP`)
+    if (label) pushAlert('star', `${label} +${amount} XP`)
   }, [showXPFloat, pushAlert])
 
   // XP during a live workout — tracked so it can be refunded on تراجع
@@ -261,7 +268,7 @@ export default function App() {
             newUnlocked.push(a.id)
             stamps[a.id] = Date.now()
             gained += a.xp
-            pushAlert('🏆', `إنجاز: ${a.title}`)
+            pushAlert('trophy', `إنجاز: ${a.title}`)
           }
         } catch {}
       })
@@ -296,7 +303,7 @@ export default function App() {
       const backups = ls.get('hf_weight_backups', [])
       backups.unshift({ savedAt: Date.now(), sessionId: cur.id, exercises: cur.exercises })
       ls.set('hf_weight_backups', backups.slice(0, 5))
-      pushAlert('💾', 'حُفظت أوزانك تلقائياً')
+      pushAlert('save', 'حُفظت أوزانك تلقائياً')
     }, 10 * 60 * 1000)
     return () => clearInterval(id)
   }, [active?.id, pushAlert])
@@ -329,7 +336,7 @@ export default function App() {
 
   const skipPlanDay = useCallback(() => {
     setPlanIndex(prev => prev + 1)
-    pushAlert('⏭️', 'تم تخطي يوم التمرين')
+    pushAlert('skip', 'تم تخطي يوم التمرين')
   }, [pushAlert])
 
   const startWorkout = useCallback((exercises = []) => {
@@ -369,7 +376,7 @@ export default function App() {
       // Bonus XP at session finish (per-set XP already awarded live)
       const finishBonus = 50 + Math.floor(duration / 30) * 30
       setTimeout(() => {
-        addXP(finishBonus, '✓ جلسة مكتملة')
+        addXP(finishBonus, 'جلسة مكتملة')
         checkAchievements(newSessions, xp + sessionXPRef.current + finishBonus, streak)
         sessionXPRef.current = 0
       }, 200)
@@ -388,7 +395,7 @@ export default function App() {
     setShowRest(false)
     ls.remove('hf_rest_timer')
     setTab('home')
-    pushAlert('🎉', 'جلسة مكتملة! عمل رائع!')
+    pushAlert('party', 'جلسة مكتملة! عمل رائع!')
   }, [active, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
 
   const updateActive = useCallback((updater) => {
@@ -409,13 +416,13 @@ export default function App() {
       ...prev,
       completed: [...(prev?.completed || []), challengeId],
     }))
-    addXP(xpReward, '🏳️ تحدي مكتمل')
+    addXP(xpReward, 'تحدي مكتمل')
   }, [addXP])
 
   // ── Profile update ────────────────────────────────────────────
   const handleUpdateProfile = useCallback((newProfile) => {
     setProfile(newProfile)
-    pushAlert('✅', 'تم حفظ التغييرات')
+    pushAlert('check', 'تم حفظ التغييرات')
   }, [pushAlert])
 
   // ── Derived values ────────────────────────────────────────────
@@ -459,7 +466,7 @@ export default function App() {
       if (credits < 1) return prev
 
       const spend = coverable.slice(0, credits)   // oldest missed days first
-      setTimeout(() => pushAlert('🎟️',
+      setTimeout(() => pushAlert('ticket',
         spend.length === 1
           ? `استُخدم يوم راحة من رصيدك — ستريكك مجمّد لا مكسور`
           : `استُخدمت ${spend.length} أيام راحة من رصيدك — ستريكك مجمّد`), 0)
@@ -508,7 +515,7 @@ export default function App() {
         streakResetAt: breakStreak ? today : prev.streakResetAt,
       }
     })
-    pushAlert(breakStreak ? '⚠️' : '✅',
+    pushAlert(breakStreak ? 'warn' : 'check',
       breakStreak ? 'تم التغيير — بدأ ستريك جديد' : 'تم التغيير — ستريكك محفوظ')
   }, [pushAlert])
 
@@ -521,7 +528,7 @@ export default function App() {
       lastSettingsChangeAt: today,
       streakResetAt: breakStreak ? today : prev.streakResetAt,
     }))
-    pushAlert(breakStreak ? '⚠️' : '📋',
+    pushAlert(breakStreak ? 'warn' : 'clipboard',
       breakStreak ? `${newPlan.planName} — بدأ ستريك جديد` : `تم تفعيل: ${newPlan.planName}`)
   }, [pushAlert])
 
@@ -531,7 +538,7 @@ export default function App() {
       ...prev,
       overrides: [...new Set([...(prev.overrides || []), today])].slice(-60),
     }))
-    pushAlert('💪', 'التعافي جزء من الخطة — لكن القرار لك')
+    pushAlert('flex', 'التعافي جزء من الخطة — لكن القرار لك')
   }, [pushAlert])
   const { level } = xpProgress(xp)
 
@@ -569,14 +576,15 @@ export default function App() {
               fontWeight: 600, color: 'var(--text2)',
               maxWidth: 230, lineHeight: 1.4,
             }}>
-              {GREETINGS[GREETING_IDX].replace('{name}', profile?.name || 'البطل')}
+              <Ico id={GREETINGS[GREETING_IDX].ico} size={15} style={{ marginLeft: 5 }} />
+              {GREETINGS[GREETING_IDX].text.replace('{name}', profile?.name || 'البطل')}
             </div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 10,
               color: 'var(--text3)', marginTop: 3,
               display: 'flex', alignItems: 'center', gap: 3,
             }}>
-              اضغط ⚙️ لتغيير اسمك
+              اضغط <Ico id="gear" size={11} color="var(--text3)" /> لتغيير اسمك
             </div>
           </div>
 
@@ -588,7 +596,8 @@ export default function App() {
                 borderRadius: 20, padding: '3px 10px',
                 fontFamily: 'var(--font-mono)', fontSize: 12,
                 color: 'var(--orange)', fontWeight: 700,
-              }}>🔥 {streak}</div>
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+              }}><Ico id="flame" size={13} color="var(--orange)" /> {streak}</div>
             )}
             <button
               onClick={() => setShowRest(true)}
@@ -601,7 +610,7 @@ export default function App() {
               }}
               onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
               onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(94,195,42,0.18)'; e.currentTarget.style.color = 'var(--text2)' }}
-            >⏱️</button>
+            ><Ico id="stopwatch" size={17} color="var(--text2)" /></button>
             <button
               onClick={() => setTab(t => t === 'settings' ? 'home' : 'settings')}
               style={{
@@ -731,12 +740,12 @@ export default function App() {
             onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
             onImportMapping={(newMapping) => {
               setExerciseMapping(prev => ({ ...prev, ...newMapping }))
-              pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
+              pushAlert('map', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
             }}
             onImport={(data) => {
               if (data.type === 'exercise_mapping') {
                 setExerciseMapping(prev => ({ ...prev, ...data.mapping }))
-                pushAlert('🗺️', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
+                pushAlert('map', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
                 return
               }
               if (data.sessions !== undefined)           setSessions(data.sessions)
@@ -745,7 +754,7 @@ export default function App() {
               if (data.unlockedAchievements)             setUnlockedAchievements(data.unlockedAchievements)
               if (data.challengeState)                   setChallengeState(data.challengeState)
               if (data.photos)                           setPhotos(data.photos)
-              pushAlert('✅', 'تم استيراد البيانات بنجاح!')
+              pushAlert('check', 'تم استيراد البيانات بنجاح!')
             }}
           />
         )}
@@ -810,7 +819,7 @@ export default function App() {
               }}>
                 {IconComp
                   ? <IconComp size={19} color={isActive ? 'var(--cyan)' : '#4B5563'} filled={isActive} />
-                  : <span style={{ fontSize: 17, opacity: isActive ? 1 : 0.45 }}>{t.icon}</span>
+                  : <Ico id={t.ico} size={17} style={{ opacity: isActive ? 1 : 0.45 }} />
                 }
               </div>
 
