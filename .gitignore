@@ -5,3 +5,7 @@ dist
 .DS_Store
 screenshots/
 screenshot.mjs
+
+# icon pack — generated art and the built pack never enter the repo
+assets-src/
+pack/

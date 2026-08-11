@@ -65,7 +65,7 @@ export default function AssetPackSection() {
               تُحمَّل مرة واحدة على الجهاز وتعمل بعدها بدون إنترنت
             </div>
           </div>
-          <span style={{
+          <span data-pack-phase={state.phase} style={{
             fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
             color: label.color, flexShrink: 0,
           }}>{label.text}</span>
@@ -116,29 +116,41 @@ export default function AssetPackSection() {
             borderRadius: 10, padding: '10px 14px',
             fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)', lineHeight: 1.7,
           }}>
-            {state.phase === 'offline' && 'لا يوجد اتصال بالإنترنت — سنكمل من حيث توقفنا عند عودة الشبكة.'}
-            {state.phase === 'nospace' && 'المساحة على الجهاز غير كافية لتنزيل الحزمة.'}
-            {state.phase === 'error' && (
+            {state.phase === 'offline' && (
               <>
-                تعذّر تنزيل {state.failed.length} من {total} أيقونة.
-                {state.failed.length > 0 && (
-                  <div style={{ marginTop: 4, opacity: 0.85 }}>
-                    السبب: {FAIL_REASON[state.failed[0].reason] || 'خطأ غير معروف'}
-                  </div>
-                )}
+                لا يوجد اتصال بالإنترنت.
                 <div style={{ marginTop: 4, opacity: 0.85 }}>
                   ما نجح تنزيله محفوظ — إعادة المحاولة تُكمل الناقص فقط.
                 </div>
               </>
+            )}
+            {state.phase === 'nospace' && 'المساحة على الجهاز غير كافية لتنزيل الحزمة.'}
+            {state.phase === 'error' && (
+              state.failed.length === 0
+                // Nothing individually failed, so the manifest itself
+                // never arrived — a different problem, and a different fix.
+                ? 'تعذّر الوصول إلى خادم الأيقونات. حاول مرة أخرى بعد قليل.'
+                : (
+                  <>
+                    تعذّر تنزيل {state.failed.length} من {total} أيقونة.
+                    <div style={{ marginTop: 4, opacity: 0.85 }}>
+                      السبب: {FAIL_REASON[state.failed[0].reason] || 'خطأ غير معروف'}
+                    </div>
+                    <div style={{ marginTop: 4, opacity: 0.85 }}>
+                      ما نجح تنزيله محفوظ — إعادة المحاولة تُكمل الناقص فقط.
+                    </div>
+                  </>
+                )
             )}
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 8 }}>
           {busy ? (
-            <button onClick={cancelInstall} style={actionBtn(false)}>إيقاف</button>
+            <button data-pack="cancel" onClick={cancelInstall} style={actionBtn(false)}>إيقاف</button>
           ) : (
             <button
+              data-pack="install"
               onClick={installPack}
               disabled={state.phase === 'unsupported'}
               style={{
@@ -148,12 +160,12 @@ export default function AssetPackSection() {
               }}
             >
               {state.phase === 'ready' ? 'التحقق من التحديثات'
-                : state.phase === 'error' ? 'إعادة المحاولة'
+                : (state.phase === 'error' || state.phase === 'offline') ? 'إعادة المحاولة'
                 : 'تنزيل الحزمة'}
             </button>
           )}
-          {(state.phase === 'ready' || state.phase === 'error') && !busy && (
-            <button onClick={() => setConfirmDelete(true)} style={{ ...actionBtn(false), flex: 0, padding: '12px 18px', color: 'var(--red)' }}>
+          {(state.phase === 'ready' || state.phase === 'error' || state.phase === 'offline') && !busy && state.filesDone > 0 && (
+            <button data-pack="delete" onClick={() => setConfirmDelete(true)} style={{ ...actionBtn(false), flex: 0, padding: '12px 18px', color: 'var(--red)' }}>
               حذف
             </button>
           )}
@@ -186,8 +198,9 @@ export default function AssetPackSection() {
               )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setConfirmDelete(false)} style={actionBtn(false)}>إلغاء</button>
+              <button data-pack="delete-cancel" onClick={() => setConfirmDelete(false)} style={actionBtn(false)}>إلغاء</button>
               <button
+                data-pack="delete-confirm"
                 onClick={() => { deletePack(); setConfirmDelete(false) }}
                 style={{ ...actionBtn(false), background: 'var(--red)', border: 'none', color: '#fff' }}
               >حذف</button>

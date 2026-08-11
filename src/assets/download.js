@@ -13,6 +13,9 @@ import * as registry from './registry.js'
 
 export const CONCURRENCY = 4
 export const MAX_ATTEMPTS = 4
+// Consecutive network failures that mean "the connection is gone",
+// not "these files are unlucky".
+export const NETWORK_GIVE_UP = 5
 const BASE_DELAY = 600
 
 const sleep = (ms, signal) => new Promise((resolve, reject) => {
@@ -125,10 +128,18 @@ async function run(manifest, signal, { onDone } = {}) {
     verified: canHash(),
   })
 
+  // When the network goes away mid-download, every remaining file
+  // would otherwise burn its full retry ladder before anyone is told.
+  // A run of consecutive network failures means the connection is
+  // gone, not that these particular files are unlucky: stop, report,
+  // and let the user retry — resume makes that cheap.
+  let consecutiveNetFails = 0
+  let gaveUp = false
+
   let cursor = 0
   const worker = async () => {
     for (;;) {
-      if (signal.aborted) return
+      if (signal.aborted || gaveUp) return
       const i = cursor++
       if (i >= todo.length) return
       const asset = todo[i]
@@ -140,11 +151,17 @@ async function run(manifest, signal, { onDone } = {}) {
       })
 
       if (result.ok) {
+        consecutiveNetFails = 0
         filesDone++
         const rec = await getBlobRec(asset.sha256).catch(() => null)
         if (rec?.blob) registry.put(asset.id, rec.blob)
       } else {
         failed.push({ id: asset.id, reason: result.reason })
+        if (result.reason === 'network') {
+          if (++consecutiveNetFails >= NETWORK_GIVE_UP) gaveUp = true
+        } else {
+          consecutiveNetFails = 0
+        }
       }
       registry.setPackState({ filesDone, bytesDone, failed: [...failed] })
     }
@@ -168,15 +185,20 @@ async function run(manifest, signal, { onDone } = {}) {
   const complete = failed.length === 0
   if (complete) await onDone?.(manifest)
 
+  // A connection that dropped is a different message from files that
+  // are genuinely broken, and only one of the two is worth retrying
+  // straight away.
+  const lostNetwork = gaveUp || (typeof navigator !== 'undefined' && navigator.onLine === false)
+
   registry.setPackState({
-    phase: complete ? 'ready' : 'error',
+    phase: complete ? 'ready' : lostNetwork ? 'offline' : 'error',
     installed: complete,
     filesDone, bytesDone,
     failed: [...failed],
-    error: complete ? null : 'partial',
+    error: complete ? null : lostNetwork ? 'offline' : 'partial',
   })
 
-  return { ok: complete, failed }
+  return { ok: complete, failed, reason: complete ? null : lostNetwork ? 'offline' : 'partial' }
 }
 
 export const __resetForTests = () => { inflight = null; controller = null }
