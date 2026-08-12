@@ -51,9 +51,10 @@ export const REST_CREDIT_EVERY = 5
 export const MAX_REST_CREDITS  = 5
 
 // You start on zero and earn one rest day for every REST_CREDIT_EVERY
-// days of consistency.
-export const creditsEarnedFor = (consistencyStreak = 0) =>
-  Math.floor(consistencyStreak / REST_CREDIT_EVERY)
+// *eligible* days. There is deliberately no `creditsEarnedFor(streak)`
+// shortcut: the streak and the eligible-day count are not the same number
+// once a paid rest day is in play, so the reward is replayed day by day in
+// computeRecovery instead of divided out of the streak.
 
 export const patternFor = (config = {}) => {
   const { daysPerWeek, customPattern } = config
@@ -108,7 +109,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       status: didWorkoutToday ? DAY_STATUS.COMPLETED : DAY_STATUS.WORKOUT,
       pattern, cyclePosition: 0, cycleLimit: pattern[0],
       consecutiveWorkoutDays: 0, workoutStreak: 0, consistencyStreak: 0,
-      restCredits: 0, spentInStreak: 0, creditsEarned: 0, streakStart: null,
+      restCredits: 0, spentInStreak: 0, creditsEarned: 0, eligibleDays: 0, streakStart: null,
       creditProgress: 0, creditTarget: REST_CREDIT_EVERY, daysToNextCredit: REST_CREDIT_EVERY,
       missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
@@ -157,87 +158,94 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const isOverride  = overrides.has(today)
 
   let status
-  if (didWorkoutToday)                                status = DAY_STATUS.COMPLETED
-  else if (isOverride)                                status = DAY_STATUS.WORKOUT
-  else if (loggedRest.has(today))                     status = DAY_STATUS.REST_TAKEN
-  else                                                status = todayEntry.expected
+  if (didWorkoutToday)                                       status = DAY_STATUS.COMPLETED
+  else if (isOverride)                                       status = DAY_STATUS.WORKOUT
+  // Only call it an optional rest if the plan actually wanted a workout.
+  // On a scheduled recovery day the tap changes nothing and costs nothing,
+  // so the card should still read as the cycle's own rest.
+  else if (loggedRest.has(today) &&
+           todayEntry.expected === DAY_STATUS.WORKOUT)       status = DAY_STATUS.REST_TAKEN
+  else                                                       status = todayEntry.expected
 
   // ── Streaks ────────────────────────────────────────────────
   // Actual back-to-back training days; a rest day resets it.
   const workoutStreak = consecutive + (didWorkoutToday ? 1 : 0)
 
-  // Days the user did what the engine asked. A recovery day taken as
-  // rest counts as a win and never breaks the streak.
   const resetAt = config.streakResetAt || null
-  let consistencyStreak = 0
-  for (let i = dayLog.length - 1; i >= 0; i--) {
-    const e = dayLog[i]
-    // A settings change made over quota deliberately ends the streak. The
-    // reset day itself does not count, so the streak reads 0 straight away
-    // and starts building again from the next day.
-    if (resetAt && e.date <= resetAt) break
-    if (e.date === today) {
-      if (e.trained || e.expected === DAY_STATUS.RECOVERY) consistencyStreak++
-      continue // a pending workout — or a frozen day — neither counts nor breaks
-    }
-    // A credited rest day holds the streak without adding to it: step
-    // straight over it and keep counting the days before it.
-    if (e.logged && !e.trained) continue
-    const complied = e.trained || e.expected === DAY_STATUS.RECOVERY
-    if (!complied) break
-    consistencyStreak++
+
+  // Every day falls into exactly one of three kinds, and the reward only
+  // ever reads this classification — never the raw `restDays` list.
+  //
+  //   eligible — you did what the plan asked: you trained, or the plan
+  //              itself scheduled the day as recovery. Free either way,
+  //              and the only kind that moves you toward a reward.
+  //   paid     — a workout day you chose to skip and paid for out of the
+  //              balance. Holds the streak, earns nothing, costs one.
+  //   miss     — a workout day skipped with nothing to pay for it. Ends
+  //              the streak.
+  //
+  // A "خذ راحة" tap on a day that was already scheduled recovery, or on a
+  // day that was actually trained, is not a purchase: the plan gave that
+  // day away for free, so it stays eligible and nothing is charged.
+  const kindOf = (e) => {
+    if (e.trained || e.expected === DAY_STATUS.RECOVERY) return 'eligible'
+    return e.logged ? 'paid' : 'miss'
   }
 
-  // The earliest day still inside the current consistency streak, so the
-  // rest-day balance can be checked against what this streak has earned.
-  let streakStart = null
-  {
-    let counted = 0
-    for (let i = dayLog.length - 1; i >= 0; i--) {
-      const e = dayLog[i]
-      if (resetAt && e.date <= resetAt) break
-      if (e.date === today) {
-        if (e.trained || e.expected === DAY_STATUS.RECOVERY) { counted++; streakStart = e.date }
-        continue
-      }
-      if (e.logged && !e.trained) { streakStart = e.date; continue }
-      if (!(e.trained || e.expected === DAY_STATUS.RECOVERY)) break
-      counted++; streakStart = e.date
-    }
-    if (!counted) streakStart = null
+  // Where the current streak begins. A settings change made over quota
+  // deliberately ends the streak; the reset day itself does not count, so
+  // the streak reads 0 straight away and builds again from the next day.
+  // Today can never be a miss — it is still unfolding.
+  let startIdx = dayLog.length
+  for (let i = dayLog.length - 1; i >= 0; i--) {
+    const e = dayLog[i]
+    if (resetAt && e.date <= resetAt) break
+    if (e.date !== today && kindOf(e) === 'miss') break
+    startIdx = i
   }
+
+  // ── Rest-day ledger ────────────────────────────────────────
+  // Replayed forward, one day at a time, from the real history. Three
+  // separate facts come out of this walk and the UI shows them apart:
+  //
+  //   consistencyStreak — how many eligible days are in the current run
+  //   creditProgress    — eligible days since the *last reward*, 0…4
+  //   restCredits       — rewards earned in this run minus rewards spent
+  //
+  // Derived, never accumulated: nothing is stored, so a deploy, a code
+  // change or a reinstall cannot move any of these numbers. The same
+  // history always replays to the same ledger.
+  let consistencyStreak = 0   // eligible days in the run
+  let creditProgress    = 0   // eligible days since the last reward
+  let creditsEarned     = 0   // rewards this run has produced
+  let spentInStreak     = 0   // rewards this run has consumed
+  let streakStart       = null
+
+  for (let i = startIdx; i < dayLog.length; i++) {
+    const e = dayLog[i]
+    const kind = kindOf(e)
+    if (kind === 'miss') continue      // only reachable for a pending today
+    if (streakStart === null) streakStart = e.date
+    if (kind === 'paid') { spentInStreak++; continue }
+    consistencyStreak++
+    creditProgress++
+    if (creditProgress === REST_CREDIT_EVERY) { creditsEarned++; creditProgress = 0 }
+  }
+
+  const daysToNextCredit = REST_CREDIT_EVERY - creditProgress
+  const restCredits = Math.max(0, Math.min(MAX_REST_CREDITS, creditsEarned - spentInStreak))
 
   const past = dayLog.filter(e => e.date !== today)
   const recoveryDayHistory = past.filter(e => !e.trained && e.expected === DAY_STATUS.RECOVERY).map(e => e.date)
-  const restTakenHistory   = past.filter(e => !e.trained && e.logged).map(e => e.date)
+  // Only days actually bought with a credit; a tap on a scheduled recovery
+  // day belongs to recoveryDayHistory above, not here.
+  const restTakenHistory   = past.filter(e => kindOf(e) === 'paid').map(e => e.date)
   // A workout day that was neither trained nor logged as rest: this is
   // what breaks the consistency streak, and what the UI offers to fix.
-  const missedDays = past.filter(e => !e.trained && !e.logged && e.expected === DAY_STATUS.WORKOUT).map(e => e.date)
+  const missedDays = past.filter(e => kindOf(e) === 'miss').map(e => e.date)
   const brokenBy   = missedDays.length ? missedDays[missedDays.length - 1] : null
   const lastRest = [...recoveryDayHistory, ...restTakenHistory].sort().pop() || null
   const lastWorkout = sortedDates[sortedDates.length - 1]
-
-  // ── Rest-day balance ───────────────────────────────────────
-  // Derived, never accumulated. Two counters that both mutate — one
-  // awarding, one spending — drifted every time the streak was read
-  // mid-recalculation, and a spend could end up paying out. This is a
-  // pure function of the streak and the days already spent from it:
-  //   earn one per REST_CREDIT_EVERY days, minus what this streak spent.
-  const spentInStreak = streakStart
-    ? [...loggedRest].filter(d => d >= streakStart).length
-    : 0
-  const restCredits = Math.max(0, Math.min(
-    MAX_REST_CREDITS,
-    creditsEarnedFor(consistencyStreak) - spentInStreak,
-  ))
-
-  // Progress toward the next earned rest day. Kept separate from the
-  // streak on purpose: an optional rest day holds the streak but is
-  // frozen out of the count, so "my streak is alive" and "I am close
-  // to a reward" are genuinely different facts and the UI must not
-  // imply one from the other.
-  const creditProgress   = consistencyStreak % REST_CREDIT_EVERY
-  const daysToNextCredit = REST_CREDIT_EVERY - creditProgress
 
   return {
     restCredits,
@@ -245,7 +253,8 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     creditProgress,
     creditTarget: REST_CREDIT_EVERY,
     daysToNextCredit,
-    creditsEarned: creditsEarnedFor(consistencyStreak),
+    creditsEarned,
+    eligibleDays: consistencyStreak,   // the same number, named for what it is
     status,
     pattern,
     cyclePosition: position % pattern.length,
