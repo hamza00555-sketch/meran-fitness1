@@ -734,6 +734,7 @@ export default function App() {
             onUpdateRecovery={applyFrequencyChange}
             changeCooldownLeft={changeCooldownLeft(recoveryCfg)}
             currentStreak={recovery.consistencyStreak}
+            recovery={recovery}
             repTarget={repTarget}
             onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
             onImportMapping={(newMapping) => {
@@ -752,6 +753,11 @@ export default function App() {
               if (data.unlockedAchievements)             setUnlockedAchievements(data.unlockedAchievements)
               if (data.challengeState)                   setChallengeState(data.challengeState)
               if (data.photos)                           setPhotos(data.photos)
+              // Without this the restored history is judged against a
+              // default cycle, which rewrites the streak and loses every
+              // rest day. Older backups have no `recovery` key; they keep
+              // whatever is configured on the device.
+              if (data.recovery)                         setRecoveryCfg(prev => ({ ...prev, ...data.recovery }))
               pushAlert('✅', 'تم استيراد البيانات بنجاح!')
             }}
           />

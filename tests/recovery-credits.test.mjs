@@ -253,6 +253,93 @@ test('replaying the same history twice gives the same ledger', () => {
   assert.deepEqual(ledger(a), ledger(computeRecovery(history, cfg, day(16))))
 })
 
+// ══ the audit ledger ══════════════════════════════════════════
+//
+// The ledger exists to be trusted against the bar, so what it must never
+// do is agree with itself while disagreeing with the totals.
+
+const ledgerOf = (r) => r.ledger.filter(row => row.inRun)
+
+test('the ledger totals reconcile to the reported numbers', () => {
+  const cases = [
+    clean(),
+    clean({ restDays: [day(2)] }),
+    computeRecovery(workoutsOn(1, 3, 5, 7, 9, 11, 13, 16), { ...CFG, restDays: [day(15)] }, day(16)),
+    computeRecovery(workoutsOn(1, 3, 7, 9, 11), CFG, day(12)),
+    computeRecovery(workoutsOn(1), CFG, day(4)),
+  ]
+  for (const r of cases) {
+    const run = ledgerOf(r)
+    const sum = (k) => run.reduce((a, row) => a + row[k], 0)
+    assert.equal(sum('streakDelta'), r.consistencyStreak, 'eligible days')
+    assert.equal(sum('earned'), r.creditsEarned, 'rewards earned')
+    assert.equal(sum('spent'), r.creditsSpent, 'rewards spent')
+    if (run.length) {
+      const last = run[run.length - 1]
+      assert.equal(last.progress, r.creditProgress, 'progress after the last day')
+      assert.equal(last.balance, r.restCredits, 'balance after the last day')
+    }
+  }
+})
+
+test('the ledger covers every replayed day and marks the run boundary', () => {
+  const r = computeRecovery(workoutsOn(1, 3, 7, 9, 11), CFG, day(12))
+  assert.equal(r.ledger.length, r.dayLog.length, 'one row per replayed day')
+  assert.deepEqual(r.ledger.map(x => x.date), r.dayLog.map(x => x.date), 'same days, same order')
+
+  const before = r.ledger.filter(x => !x.inRun).map(x => x.date)
+  assert.ok(before.includes(day(5)), 'the missed day is outside the run')
+  assert.equal(r.ledger.find(x => x.inRun).date, r.streakStart, 'the run starts where reported')
+  for (const row of before) {
+    const x = r.ledger.find(y => y.date === row)
+    assert.equal(x.streak, null, 'days outside the run carry no running totals')
+  }
+})
+
+test('each ledger row states the raw facts it was judged on', () => {
+  const r = clean({ restDays: [day(2)] })
+  const d2 = r.ledger.find(x => x.date === day(2))
+  assert.equal(d2.scheduled, 'rest', 'the plan scheduled it')
+  assert.equal(d2.completed, false)
+  assert.equal(d2.inRestDays, true, 'the tap is shown, even though it changed nothing')
+  assert.equal(d2.kind, 'eligible', 'and it is still a free eligible day')
+  assert.equal(d2.spent, 0)
+
+  const d3 = r.ledger.find(x => x.date === day(3))
+  assert.equal(d3.scheduled, 'workout')
+  assert.equal(d3.completed, true)
+  assert.equal(d3.kind, 'eligible')
+})
+
+test('a reward lands on exactly the day that completed the fifth', () => {
+  const r = clean()
+  const earners = r.ledger.filter(x => x.earned).map(x => x.date)
+  assert.deepEqual(earners, [day(5), day(10), day(15)], 'every fifth eligible day')
+  for (const d of earners) assert.equal(r.ledger.find(x => x.date === d).progress, 0, 'and resets progress')
+})
+
+test('the ledger names a paid day as paid and charges it once', () => {
+  const r = computeRecovery(
+    workoutsOn(1, 3, 5, 7, 9, 11, 13, 16),
+    { ...CFG, restDays: [day(15)] },
+    day(16),
+  )
+  const paid = r.ledger.filter(x => x.kind === 'paid' && x.inRun)
+  assert.deepEqual(paid.map(x => x.date), [day(15)])
+  assert.equal(paid[0].spent, 1)
+  assert.equal(paid[0].streakDelta, 0, 'it holds the run but adds no eligible day')
+})
+
+test('today is shown as pending rather than as a miss', () => {
+  // Day 17 is a workout day he has not done yet — the run is still alive.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9, 11, 13, 15), CFG, day(17))
+  const t = r.ledger[r.ledger.length - 1]
+  assert.equal(t.date, day(17))
+  assert.equal(t.pending, true)
+  assert.equal(t.streakDelta, 0, 'a day still unfolding adds nothing yet')
+  assert.equal(r.consistencyStreak, 16, 'and takes nothing away')
+})
+
 test('a streak reset does not carry old rewards or old spends across', () => {
   const r = computeRecovery(
     workoutsOn(1, 3, 5, 7, 9, 11, 13, 15),

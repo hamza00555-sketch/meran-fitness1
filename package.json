@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs",
     "test:live": "node tests/pack.live.mjs",
+    "ledger": "node scripts/rest-ledger.mjs",
     "pack:prompts": "node scripts/prompts.mjs",
     "pack:build": "node scripts/build-manifest.mjs",
     "pack:publish": "node scripts/upload-r2.mjs"

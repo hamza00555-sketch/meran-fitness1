@@ -9,10 +9,11 @@ import { todayKey, toWesternDigits } from '../day.js'
 import { REP_TARGETS, repTargetOf, DEFAULT_REP_TARGET } from '../progression.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
+import RestLedgerPanel from '../components/RestLedgerPanel.jsx'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, changeCooldownLeft = 0, currentStreak = 0, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, recovery = {}, changeCooldownLeft = 0, currentStreak = 0, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget }) {
   const [confirmReset, setConfirmReset] = useState(false)
   // Pending frequency/plan change awaiting confirmation.
   // { kind: 'frequency'|'plan', label, apply }
@@ -1081,6 +1082,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         {/* ── Data Management ─────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>
           <SectionTitle>إدارة البيانات</SectionTitle>
+          <RestLedgerPanel recovery={recovery} />
           <Card style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <button
               onClick={handleExport}

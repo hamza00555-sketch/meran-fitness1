@@ -421,9 +421,13 @@ export const scheduleNotificationsForToday = async (workoutTime, messages, worko
 // ── Export / Import ───────────────────────────────────────────
 export const exportAllData = (sessions, xp, profile, unlockedAchievements, challengeState, photos) => {
   const data = {
-    version: '2.0',
+    version: '2.1',
     exportDate: new Date().toISOString(),
     sessions, xp, profile, unlockedAchievements, challengeState, photos,
+    // The streak and the rest-day balance are derived from these, not
+    // stored. Left out of the backup, a restore came back with a broken
+    // streak and no rest days, and no export could ever be audited.
+    recovery: ls.get('hf_recovery', null),
   }
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)

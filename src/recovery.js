@@ -109,7 +109,8 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       status: didWorkoutToday ? DAY_STATUS.COMPLETED : DAY_STATUS.WORKOUT,
       pattern, cyclePosition: 0, cycleLimit: pattern[0],
       consecutiveWorkoutDays: 0, workoutStreak: 0, consistencyStreak: 0,
-      restCredits: 0, spentInStreak: 0, creditsEarned: 0, eligibleDays: 0, streakStart: null,
+      restCredits: 0, spentInStreak: 0, creditsEarned: 0, creditsSpent: 0,
+      eligibleDays: 0, streakStart: null, ledger: [],
       creditProgress: 0, creditTarget: REST_CREDIT_EVERY, daysToNextCredit: REST_CREDIT_EVERY,
       missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
@@ -221,15 +222,47 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   let spentInStreak     = 0   // rewards this run has consumed
   let streakStart       = null
 
-  for (let i = startIdx; i < dayLog.length; i++) {
+  // A transcript of the walk, so the numbers on screen can be audited
+  // against the days that produced them. Written by the same pass that
+  // decides them — never recomputed elsewhere, or it could agree with
+  // itself while both were wrong.
+  const ledger = []
+
+  for (let i = 0; i < dayLog.length; i++) {
     const e = dayLog[i]
     const kind = kindOf(e)
-    if (kind === 'miss') continue      // only reachable for a pending today
-    if (streakStart === null) streakStart = e.date
-    if (kind === 'paid') { spentInStreak++; continue }
-    consistencyStreak++
-    creditProgress++
-    if (creditProgress === REST_CREDIT_EVERY) { creditsEarned++; creditProgress = 0 }
+    const inRun = i >= startIdx
+    const row = {
+      date: e.date,
+      scheduled: e.expected === DAY_STATUS.RECOVERY ? 'rest' : 'workout',
+      completed: e.trained,
+      inRestDays: e.logged,
+      kind,
+      inRun,
+      pending: e.date === today && kind === 'miss',
+      streakDelta: 0, earned: 0, spent: 0,
+      streak: null, progress: null, balance: null,
+    }
+
+    if (inRun && kind !== 'miss') {
+      if (streakStart === null) streakStart = e.date
+      if (kind === 'paid') {
+        spentInStreak++
+        row.spent = 1
+      } else {
+        consistencyStreak++
+        creditProgress++
+        row.streakDelta = 1
+        if (creditProgress === REST_CREDIT_EVERY) { creditsEarned++; creditProgress = 0; row.earned = 1 }
+      }
+    }
+
+    if (inRun) {
+      row.streak   = consistencyStreak
+      row.progress = creditProgress
+      row.balance  = Math.max(0, Math.min(MAX_REST_CREDITS, creditsEarned - spentInStreak))
+    }
+    ledger.push(row)
   }
 
   const daysToNextCredit = REST_CREDIT_EVERY - creditProgress
@@ -254,7 +287,9 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     creditTarget: REST_CREDIT_EVERY,
     daysToNextCredit,
     creditsEarned,
+    creditsSpent: spentInStreak,       // same number, named to match creditsEarned
     eligibleDays: consistencyStreak,   // the same number, named for what it is
+    ledger,
     status,
     pattern,
     cyclePosition: position % pattern.length,
