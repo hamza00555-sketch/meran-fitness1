@@ -18,7 +18,8 @@ npm run pack:prompts                 # أو: node scripts/prompts.mjs --json
 
 # ٢. ولّد الصور عبر Higgsfield (GPT Image 2، 1k، high) واحفظ كل
 #    واحدة باسم معرّفها: assets-src/ach_a1.png ...
-#    الأصول المولَّدة مسجَّلة في scripts/pack-sources.json
+#    أو أعد جلب المولَّد سابقاً — الحزمة الحالية تُبنى بهذا الأمر وحده:
+node scripts/fetch-sources.mjs assets-src
 
 # ٣. اقطع الخلفية البيضاء إلى شفافية حقيقية
 node scripts/cut-white.mjs assets-src assets-cut
@@ -30,7 +31,10 @@ npm run pack:build -- --src assets-cut --base https://assets.meran.app/
 npm run pack:publish                 # جرّب --dry أولاً
 ```
 
-`pack/` و`assets-src/` مستثناة من git.
+`pack/` و`assets-src/` مستثناة من git — لكن **`scripts/pack-sources.json`
+ليس كذلك**: فيه النموذج ورابط الأصل لكل فتحة. لهذا تُبنى الحزمة كاملة من نسخة
+نظيفة من الريبو بثلاثة أوامر، والريبو يحفظ السجل لا البكسلات. مُختبَر: إعادة
+البناء من الصفر تعطي **نفس الـ٤٨ تجزئة** بالضبط.
 
 قائمة الفتحات مشتقّة من `src/assets/slots.js`، ومعرّفات الجوائز تأتي مباشرة من
 `ACHIEVEMENTS` — فإضافة إنجاز جديد تضيف فتحته تلقائياً، بلا قائمة ثانية تُنسى.
