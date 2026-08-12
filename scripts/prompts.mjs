@@ -23,9 +23,12 @@ export const STYLE = [
   'flat anime illustration, premium mobile game asset',
   'clean bold linework, crisp silhouette readable at small size',
   'single centred subject with generous padding, no text, no letters, no numbers',
-  'deep near-black background #080B14, transparent PNG',
+  // Asked for white rather than transparent on purpose: GPT Image
+  // answers "transparent" by *painting* the checkerboard that
+  // represents it. A flat white field is keyed out cleanly afterwards.
+  'plain solid white background, no scenery, no shadow on the ground',
   'restrained glow, no lens flare, no photorealism',
-  'square canvas 512x512px',
+  'square canvas',
 ].join(', ')
 
 // Rarity drives the material, so the four tiers read as a progression
@@ -45,15 +48,68 @@ const CATEGORY = {
   volume:   'a stacked-weight tonnage motif',
 }
 
+// The app's titles are Arabic, which the image model has little to
+// work with. These are the same meanings in English, and they are
+// what makes each of the forty badges its own picture rather than
+// forty variations of one.
+const SUBJECT = {
+  a1:  'a single first footprint on stone, the very beginning',
+  a2:  'five small tally marks carved in a row',
+  a3:  'ten tally marks filling a stone tablet',
+  a4:  'a quarter-full progress ring over crossed dumbbells',
+  a5:  'a half-full progress ring over crossed dumbbells',
+  a6:  'a century milestone monolith, one hundred sessions',
+  a7:  'a towering double monolith, two hundred sessions',
+  a8:  'an hourglass beside a dumbbell, a full hour trained',
+  a9:  'two hourglasses back to back, a marathon session',
+  a10: 'a sunrise over three stacked training rings, three in one day',
+
+  b1:  'a loaded barbell bending slightly under its first big plates',
+  b2:  'a heavier barbell with thick plates and a firm grip',
+  b3:  'a barbell bowing deeply under an enormous load',
+  b4:  'a colossal barbell wreathed in energy, a peak lift',
+  b5:  'fifteen small chevrons stacked into a column',
+  b6:  'thirty chevrons packed into a dense column',
+  b7:  'a deadlift bar and a bench press bar crossed together',
+  b8:  'three crossed bars for squat, bench and deadlift, a trinity',
+  b9:  'a six-sided rosette, each facet a different muscle',
+  b10: 'a warrior helm above five hundred stacked marks, mental grit',
+
+  c1:  'a small flame just catching, three days alive',
+  c2:  'a steady week-long flame in a ring of seven',
+  c3:  'twin flames in a fortnight ring',
+  c4:  'a roaring month-long fire inside a calendar ring',
+  c5:  'an unstoppable blaze breaking its frame',
+  c6:  'an armoured gauntlet fist wreathed in eternal fire, iron will',
+  c7:  'a phoenix ember rekindling from ash, a fresh start',
+  c8:  'five flame marks around a weekly dial',
+  c9:  'a shield guarding an unbroken chain, never absent',
+  c10: 'a full calendar face densely marked, a complete month',
+
+  d1:  'a single one-tonne weight block',
+  d2:  'a stack of five tonne blocks',
+  d3:  'a tall stack of ten tonne blocks',
+  d4:  'a mountain built entirely of iron plates',
+  d5:  'a star forged from iron plates, a million kilos',
+  d6:  'a logbook with ten neat entries',
+  d7:  'a thick ledger with a hundred precise entries',
+  d8:  'five distinct exercise symbols arranged in a fan',
+  d9:  'a library shelf of movement scrolls',
+  d10: 'a cresting wave made of iron plates',
+}
+
 const SCENE_STYLE = 'dramatic hero illustration, radiant and celebratory, ' + STYLE
 
 export function promptFor(slot) {
   if (slot.kind === 'achievement') {
     const r = RARITY[slot.rarity] || RARITY.common
     const motif = CATEGORY[slot.cat] || 'a training motif'
+    const id = slot.id.replace(/^ach_/, '')
+    const subject = SUBJECT[id] || motif
     return [
       `an ornate circular achievement badge, ${r.material}`,
-      `${motif}, representing "${slot.title}" — ${slot.desc}`,
+      `at its centre ${subject}`,
+      `${motif}`,
       `accent colour ${r.accent}`,
       `${slot.rarity} tier, heraldic and collectible`,
       STYLE,

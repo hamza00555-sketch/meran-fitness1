@@ -16,13 +16,17 @@ Cloudflare R2، ويصفها ملف `manifest.json` واحد. التطبيق ي�
 # ١. اطبع البرومبتات (٤٨ صورة بأسلوب واحد)
 npm run pack:prompts                 # أو: node scripts/prompts.mjs --json
 
-# ٢. ولّد الصور عبر Higgsfield واحفظ كل واحدة باسم معرّفها:
-#    assets-src/ach_a1.png ، assets-src/scene_pr.png ...
+# ٢. ولّد الصور عبر Higgsfield (GPT Image 2، 1k، high) واحفظ كل
+#    واحدة باسم معرّفها: assets-src/ach_a1.png ...
+#    الأصول المولَّدة مسجَّلة في scripts/pack-sources.json
 
-# ٣. ابنِ الحزمة
-npm run pack:build -- --base https://assets.meran.app/
+# ٣. اقطع الخلفية البيضاء إلى شفافية حقيقية
+node scripts/cut-white.mjs assets-src assets-cut
 
-# ٤. انشرها
+# ٤. ابنِ الحزمة
+npm run pack:build -- --src assets-cut --base https://assets.meran.app/
+
+# ٥. انشرها
 npm run pack:publish                 # جرّب --dry أولاً
 ```
 
@@ -63,6 +67,13 @@ npm run pack:publish                 # جرّب --dry أولاً
 ```
 
 3. `VITE_ASSETS_MANIFEST_URL` في متغيّرات بيئة Vercel، وفي `.env` محلياً.
+
+## لماذا خلفية بيضاء ثم قطع
+
+إذا طلبتَ من GPT Image خلفية شفافة فإنه **يرسم** مربّعات الشطرنج التي تمثّل
+الشفافية عادةً — بكسلات معتمة لا شفافية. طلب حقل أبيض مسطّح لا لبس فيه،
+و`cut-white.mjs` يحوّله إلى ألفا حقيقية بتعبئة فيضية من الحافة للداخل: الأبيض
+الذي يمكن الوصول إليه من الإطار فقط يُمسح، فاللمعة البيضاء داخل الشارة تبقى.
 
 ## الاختبار قبل وجود الفن
 
