@@ -1,7 +1,18 @@
 // ── Double progression ────────────────────────────────────────
-// Keep the weight fixed and push reps up to the top of your range;
-// once you can hit the top on half your sets or more, the weight goes
-// up and reps drop back to the bottom of the range.
+// One cycle, always in the same order:
+//
+//   hold the bottom (12) → reach for the top (15) → add weight → 12
+//
+// Nothing skips a step. Landing on a new weight never suggests adding
+// more straight away: you first have to hold the bottom of the range
+// for two sessions running, which is what opens the reach-for-the-top
+// phase. Raising the weight starts the cycle over — the top-phase
+// state does not carry across, because it was earned at a weight you
+// are no longer lifting.
+//
+// Only completed sets count. A set with numbers typed into it but no
+// tick is a plan, not a result, and planning to lift something has
+// never made anyone stronger.
 //
 // Rep ranges follow the standard evidence-based bands: ~1-6 for
 // strength, 6-12 for hypertrophy, 12-15 for higher-rep hypertrophy,
@@ -27,6 +38,18 @@ export const repTargetOf = (cfg = {}) => {
   return REP_TARGETS.find(t => t.id === cfg.id) || DEFAULT_REP_TARGET
 }
 
+// A set counts only once it is ticked off. Weight alone means the row
+// was filled in, not that the work was done.
+export const isCompleted = (s) => !!s?.done && parseFloat(s.weight) > 0
+
+// How many of these sets reached at least `reps`.
+const setsReaching = (sets, reps) =>
+  sets.filter(s => (parseInt(s.reps) || 0) >= reps).length
+
+// Half the sets, rounded up. The single threshold behind every rule
+// here, so "half" can never mean two different things in two places.
+const halfOf = (n) => Math.ceil(n / 2)
+
 // The weight a session was actually worked at: the most-used value
 // across its sets, breaking ties toward the heavier one.
 const workingWeightOf = (sets) => {
@@ -45,8 +68,9 @@ const workingWeightOf = (sets) => {
 /**
  * Where this exercise stands in the progression.
  *   suggestedReps    — what to pre-fill the reps box with
- *   readyToIncrease  — show the "ارفع وزنك" tag
- *   sessionsAtWeight — how many sessions in a row at the current weight
+ *   hint             — the single coaching tag: raise | lower | push | null
+ *   sessionsAtBase   — sessions in a row holding the bottom of the range
+ *   inTopPhase       — the reach-for-the-top phase is open
  */
 export function analyzeProgression(sessions, exerciseName, mapping = {}, targetCfg = DEFAULT_REP_TARGET) {
   const target   = repTargetOf(targetCfg)
@@ -58,15 +82,16 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
     if ((session.id || 0) < resetAt) continue
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) !== resolved) continue
-      const sets = (ex.sets || []).filter(s => parseFloat(s.weight) > 0)
+      const sets = (ex.sets || []).filter(isCompleted)
       if (sets.length) entries.push({ id: session.id || 0, sets })
     }
   }
 
   const empty = {
-    workingWeight: null, sessionsAtWeight: 0, setsAtTop: 0, totalSets: 0,
-    suggestedReps: target.base, readyToIncrease: false, readyToDecrease: false,
-    failedAtWeight: 0, suggestedWeight: null, target, hint: null,
+    workingWeight: null, sessionsAtWeight: 0, sessionsAtBase: 0, inTopPhase: false,
+    setsAtTop: 0, totalSets: 0, suggestedReps: target.base,
+    readyToIncrease: false, readyToDecrease: false, readyToPush: false,
+    failedAtWeight: 0, suggestedWeight: null, target, hint: null, needAtTop: 0,
   }
   if (!entries.length) return empty
 
@@ -81,14 +106,21 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
     else break
   }
 
-  // Did the last session clear the top of the range on half its sets?
-  // A single set reaching the top is a good set, not a signal — half the
-  // sets AND at least two of them, so one lucky set never moves the
-  // weight up. (A one-set exercise can only ever offer that one.)
   const lastSets  = entries[0].sets
-  const setsAtTop = lastSets.filter(s => (parseInt(s.reps) || 0) >= target.top).length
-  const needAtTop = Math.max(Math.min(2, lastSets.length), Math.ceil(lastSets.length / 2))
-  const readyToIncrease = setsAtTop >= needAtTop
+  const setsAtTop = setsReaching(lastSets, target.top)
+  const needAtTop = halfOf(lastSets.length)
+
+  // How many sessions running, at this weight, held the bottom of the
+  // range on half the sets or more. Two of them is what opens the
+  // reach-for-the-top phase. The loop breaks on a change of weight, so
+  // raising the weight resets the count and the cycle starts over.
+  let sessionsAtBase = 0
+  for (const e of entries) {
+    if (workingWeightOf(e.sets) !== workingWeight) break
+    if (setsReaching(e.sets, target.base) < halfOf(e.sets.length)) break
+    sessionsAtBase++
+  }
+  const inTopPhase = sessionsAtBase >= 2
 
   // The other direction: if the bottom of the range keeps being out of
   // reach at this weight, the weight is simply too heavy. Counts the
@@ -96,13 +128,20 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   let failedAtWeight = 0
   for (const e of entries) {
     if (workingWeightOf(e.sets) !== workingWeight) break
-    const reached = e.sets.filter(s => (parseInt(s.reps) || 0) >= target.base).length
-    if (reached >= Math.ceil(e.sets.length / 2)) break
+    if (setsReaching(e.sets, target.base) >= halfOf(e.sets.length)) break
     failedAtWeight++
   }
+
+  // Adding weight is the last step of the cycle, never the first. It
+  // needs the top phase to be open — two sessions holding the bottom —
+  // and then the top itself on half the sets or more. Landing on a new
+  // weight and hitting the top immediately is a good session, not a
+  // reason to load more.
+  const readyToIncrease = inTopPhase && setsAtTop >= needAtTop
   // Two sessions falling short is the signal: the suggestion is waiting
   // the next time this exercise comes up.
   const readyToDecrease = !readyToIncrease && failedAtWeight >= 2
+  const readyToPush     = inTopPhase && !readyToIncrease && !readyToDecrease
 
   // Roughly 10% lighter, rounded to the nearest 2.5kg plate step
   const suggestedWeight = readyToDecrease
@@ -110,26 +149,27 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
     : null
 
   const suggestedReps =
-    readyToIncrease        ? target.base :  // heavier weight → restart at the bottom
-    readyToDecrease        ? target.base :  // lighter weight → aim for the bottom
-    sessionsAtWeight >= 2  ? target.top  :  // settled at this weight → push reps
-                             target.base
+    readyToIncrease ? target.base :  // heavier weight → restart at the bottom
+    readyToDecrease ? target.base :  // lighter weight → aim for the bottom
+    readyToPush     ? target.top  :  // holding the bottom → reach for the top
+                      target.base
 
   // One coaching hint at a time. Deriving a single state here makes it
   // structurally impossible for the card to show two contradictory tags
   // (e.g. "push to 15" alongside "add weight").
-  //   raise → cleared the top of the range, time for more weight
+  //   raise → in the top phase and cleared the top, time for more weight
   //   lower → the bottom of the range keeps being out of reach
-  //   push  → settled at this weight, aim for the top of the range
+  //   push  → held the bottom twice, now reach for the top
   const hint =
-    readyToIncrease       ? 'raise' :
-    readyToDecrease       ? 'lower' :
-    sessionsAtWeight >= 2 ? 'push'  :
-                            null
+    readyToIncrease ? 'raise' :
+    readyToDecrease ? 'lower' :
+    readyToPush     ? 'push'  :
+                      null
 
   return {
-    workingWeight, sessionsAtWeight, setsAtTop, totalSets: lastSets.length,
-    suggestedReps, readyToIncrease, readyToDecrease, failedAtWeight,
-    suggestedWeight, target, hint, needAtTop,
+    workingWeight, sessionsAtWeight, sessionsAtBase, inTopPhase,
+    setsAtTop, totalSets: lastSets.length,
+    suggestedReps, readyToIncrease, readyToDecrease, readyToPush,
+    failedAtWeight, suggestedWeight, target, hint, needAtTop,
   }
 }

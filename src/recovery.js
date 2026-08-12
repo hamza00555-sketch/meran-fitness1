@@ -109,6 +109,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       pattern, cyclePosition: 0, cycleLimit: pattern[0],
       consecutiveWorkoutDays: 0, workoutStreak: 0, consistencyStreak: 0,
       restCredits: 0, spentInStreak: 0, creditsEarned: 0, streakStart: null,
+      creditProgress: 0, creditTarget: REST_CREDIT_EVERY, daysToNextCredit: REST_CREDIT_EVERY,
       missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
       recoveryDayHistory: [], restTakenHistory: [], dayLog: [],
@@ -230,9 +231,20 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     creditsEarnedFor(consistencyStreak) - spentInStreak,
   ))
 
+  // Progress toward the next earned rest day. Kept separate from the
+  // streak on purpose: an optional rest day holds the streak but is
+  // frozen out of the count, so "my streak is alive" and "I am close
+  // to a reward" are genuinely different facts and the UI must not
+  // imply one from the other.
+  const creditProgress   = consistencyStreak % REST_CREDIT_EVERY
+  const daysToNextCredit = REST_CREDIT_EVERY - creditProgress
+
   return {
     restCredits,
     spentInStreak,
+    creditProgress,
+    creditTarget: REST_CREDIT_EVERY,
+    daysToNextCredit,
     creditsEarned: creditsEarnedFor(consistencyStreak),
     status,
     pattern,

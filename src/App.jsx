@@ -11,7 +11,7 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
-import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, REST_CREDIT_EVERY, changeCooldownLeft } from './recovery.js'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 
@@ -649,7 +649,10 @@ export default function App() {
             recovery={recovery}
             onOverrideRecovery={overrideRecoveryDay}
             restCredits={recovery.restCredits}
-            creditProgress={recovery.consistencyStreak % REST_CREDIT_EVERY}
+            creditProgress={recovery.creditProgress}
+            creditTarget={recovery.creditTarget}
+            daysToNextCredit={recovery.daysToNextCredit}
+            atMaxCredits={recovery.restCredits >= MAX_REST_CREDITS}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}

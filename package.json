@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/assets.test.mjs",
+    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs",
     "test:live": "node tests/pack.live.mjs",
     "pack:prompts": "node scripts/prompts.mjs",
     "pack:build": "node scripts/build-manifest.mjs",

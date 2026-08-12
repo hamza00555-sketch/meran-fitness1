@@ -406,7 +406,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0 }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -728,26 +728,62 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             : `${recovery?.cycleLimit || 0} تمارين ثم يوم راحة · أنجزت ${recovery?.workoutStreak || 0}`}
         </div>
 
-        {/* Earned optional rest days */}
+        {/* Earned optional rest days.
+            The bar tracks progress to the NEXT reward, which is not the
+            same thing as the streak beside it: an optional rest day
+            holds the streak but is frozen out of this count. Keeping
+            them in separate blocks stops one being read as the other. */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
           background: restCredits > 0 ? 'var(--gold-lo)' : 'var(--bg3)',
           border: `1px solid ${restCredits > 0 ? 'var(--gold-md)' : 'var(--border)'}`,
-          borderRadius: 12, padding: '10px 14px', marginBottom: 12,
+          borderRadius: 12, padding: '12px 14px', marginBottom: 12,
         }}>
-          <span style={{ fontSize: 18 }}>🎟️</span>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
-              color: restCredits > 0 ? 'var(--gold)' : 'var(--text3)',
-            }}>
-              {restCredits > 0 ? `${restCredits} أيام راحة اختيارية` : 'لا يوجد رصيد راحة'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 18 }}>🎟️</span>
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
+                color: restCredits > 0 ? 'var(--gold)' : 'var(--text3)',
+              }}>
+                {restCredits === 0 ? 'لا يوجد رصيد راحة'
+                  : restCredits === 1 ? 'يوم راحة اختياري واحد'
+                  : restCredits === 2 ? 'يوما راحة اختيارية'
+                  : `${restCredits} أيام راحة اختيارية`}
+              </div>
+              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                {restCredits > 0
+                  ? 'يُصرف تلقائياً لو غبت، فيجمّد ستريكك بلا زيادة ولا كسر'
+                  : 'بلا رصيد، الغياب يكسر الستريك'}
+              </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-              {restCredits > 0
-                ? 'يُصرف تلقائياً لو غبت، فيجمّد ستريكك بلا زيادة ولا كسر'
-                : `بعد ${5 - creditProgress} أيام التزام تكسب يوم راحة · بلا رصيد، الغياب يكسر الستريك`}
-            </div>
+          </div>
+
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+            marginBottom: 5,
+          }}>
+            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+              {atMaxCredits
+                ? 'رصيدك ممتلئ'
+                : daysToNextCredit === 1
+                  ? 'باقي لك يوم واحد للحصول على يوم راحة اختياري'
+                  : daysToNextCredit === 2
+                    ? 'باقي لك يومان للحصول على يوم راحة اختياري'
+                    : `باقي لك ${daysToNextCredit} أيام للحصول على يوم راحة اختياري`}
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
+              {atMaxCredits ? `${creditTarget}/${creditTarget}` : `${creditProgress}/${creditTarget}`}
+            </span>
+          </div>
+          <ProgressBar
+            value={atMaxCredits ? creditTarget : creditProgress}
+            max={creditTarget}
+            color="var(--gold)"
+            height={7}
+          />
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', marginTop: 6, opacity: 0.8 }}>
+            يُحسب هنا كل يوم تمرين أنجزته أو راحة مجدولة من خطتك — يوم الراحة
+            الاختياري يحمي ستريكك لكنه لا يُحتسب في هذا العدّاد
           </div>
         </div>
 

@@ -252,7 +252,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                     raise: {
                       text: '⬆️ ارفع وزنك',
                       color: 'var(--gold)', bg: 'var(--gold-lo)', glow: 'rgba(245,158,11,0.55)',
-                      title: `أكملت ${progression.setsAtTop} من ${progression.totalSets} سيت بـ ${progression.target.top} عدة`,
+                      title: `أكملت ${progression.setsAtTop} من ${progression.totalSets} سيت بـ ${progression.target.top} عدة (المطلوب ${progression.needAtTop})`,
                     },
                     lower: {
                       text: `⬇️ نزّل وزنك${progression.suggestedWeight ? ` · ${progression.suggestedWeight}kg` : ''}`,
@@ -262,7 +262,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                     push: {
                       text: `🎯 حاول ${progression.target.top} عدة`,
                       color: 'var(--cyan)', bg: 'var(--cyan-lo)', glow: 'var(--cyan-md)',
-                      title: `${progression.sessionsAtWeight} جلسات على ${progression.workingWeight}kg`,
+                      title: `ثبّتّ ${progression.target.base} عدة في ${progression.sessionsAtBase} جلسات على ${progression.workingWeight}kg`,
                     },
                   }
                   const h = HINTS[progression.hint]
