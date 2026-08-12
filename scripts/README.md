@@ -25,7 +25,7 @@ node scripts/fetch-sources.mjs assets-src
 node scripts/cut-white.mjs assets-src assets-cut
 
 # ٤. ابنِ الحزمة
-npm run pack:build -- --src assets-cut --base https://assets.meran.app/
+npm run pack:build -- --src assets-cut --base "$ASSETS_BASE_URL"
 
 # ٥. انشرها
 npm run pack:publish                 # جرّب --dry أولاً
@@ -53,10 +53,25 @@ npm run pack:publish                 # جرّب --dry أولاً
 ولذلك يُرفع **آخر شيء**: حتى تنتهي كل الملفات، لا شيء يشير إليها، وفشل الرفع
 يترك الحزمة القديمة تعمل.
 
+## المنشور حالياً
+
+البَكِت `meran-assets` على Cloudflare R2، والحزمة منشورة عليه:
+
+```
+https://pub-189be0412bdd4092aa44be319badfd91.r2.dev/manifest.json
+```
+
+هذا هو الرابط الافتراضي في `src/assets/pack.js`، فالبناء العادي يعمل بلا أي
+متغيّر بيئة. `VITE_ASSETS_MANIFEST_URL` يتجاوزه عند الحاجة.
+
+**رابط `r2.dev` رابط تطوير**: محدود المعدل وتصفه Cloudflare بأنه ليس للإنتاج.
+الانتقال إلى نطاق مخصص لاحقاً رخيص — أعد البناء بـ`--base` الجديد وانشر، لأن
+أسماء الملفات تجزئات لا مسارات.
+
 ## إعداد البَكِت — مرة واحدة
 
-1. **نطاق مخصص** (R2 → Settings → Public access → Custom domain).
-   لا تستخدم رابط `*.r2.dev`: محدود المعدل وغير مخصص للإنتاج.
+1. **نطاق مخصص** (R2 → Settings → Public access → Custom domain) — أو
+   `Public Development URL` مؤقتاً كما هو الحال الآن.
 2. **CORS** — التطبيق يقرأ البايتات بـ`fetch` ليحسب التجزئة، فلا يكفي وصول
    `<img>`:
 
@@ -70,7 +85,7 @@ npm run pack:publish                 # جرّب --dry أولاً
 }]
 ```
 
-3. `VITE_ASSETS_MANIFEST_URL` في متغيّرات بيئة Vercel، وفي `.env` محلياً.
+3. الرابط الافتراضي داخل `src/assets/pack.js`؛ لا حاجة لضبط شيء في Vercel.
 
 ## لماذا خلفية بيضاء ثم قطع
 
@@ -79,7 +94,14 @@ npm run pack:publish                 # جرّب --dry أولاً
 و`cut-white.mjs` يحوّله إلى ألفا حقيقية بتعبئة فيضية من الحافة للداخل: الأبيض
 الذي يمكن الوصول إليه من الإطار فقط يُمسح، فاللمعة البيضاء داخل الشارة تبقى.
 
-## الاختبار قبل وجود الفن
+## الاختبار
 
-`tests/make-test-pack.mjs` يبني حزمة اختبار من الصور الموجودة أصلاً في
-`public/assets` — صور حقيقية، لا شيء مرسوم لأجل الاختبار.
+- `node --test tests/assets.test.mjs` — المحرّك على وحدات ES الحقيقية.
+- `node tests/pack.e2e.mjs` — حقن أعطال: قطع الشبكة، ملف تالف، تحديث تفاضلي،
+  حذف. يحتاج حزمتَي اختبار من `tests/make-test-pack.mjs`، وهما مبنيتان من صور
+  `public/assets` الموجودة أصلاً — صور حقيقية، لا شيء مرسوم للاختبار.
+- `node tests/pack.live.mjs` — **البَكِت المنشور فعلاً**: بلا أي fixture، يتحقق
+  من CORS والكاش والتجزئة والتثبيت الكامل.
+
+الحزمتان الأوليان تعترضان المضيف، فيجب أن تُبنى fixtures بنفس `--base` الذي
+يطلبه التطبيق وإلا خرجت الطلبات إلى الشبكة الحقيقية وتعلّق الاختبار.

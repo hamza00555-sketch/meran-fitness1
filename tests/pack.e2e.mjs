@@ -23,7 +23,11 @@ const { APP_VERSION } = await import(pathToFileURL(new URL('../src/constants.js'
 const PACK  = process.env.PACK  || '/tmp/pack'
 const PACK2 = process.env.PACK2 || null
 const APP   = process.env.APP   || 'http://localhost:4173/'
-const HOST  = 'https://assets.meran.app/'
+// Derived from the app's own manifest URL so the interception keeps
+// matching if the bucket ever moves.
+const { MANIFEST_URL } = await import(pathToFileURL(new URL('../src/assets/pack.js', import.meta.url).pathname).href)
+  .catch(() => ({ MANIFEST_URL: 'https://assets.meran.app/manifest.json' }))
+const HOST = MANIFEST_URL.replace(/manifest\.json$/, '')
 
 const results = []
 const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])

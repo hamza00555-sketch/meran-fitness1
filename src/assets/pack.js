@@ -12,12 +12,12 @@ import {
 import { ensureDownload, cancel as cancelDownload, isRunning } from './download.js'
 import * as registry from './registry.js'
 
-// Where the pack lives. A build-time override exists so a preview
-// deploy can point at a staging bucket; the default is the one
-// baked into the app.
+// Where the pack lives. The default is the live bucket, so a plain
+// build works with no environment set; VITE_ASSETS_MANIFEST_URL
+// overrides it for a staging bucket or a future custom domain.
 export const MANIFEST_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ASSETS_MANIFEST_URL) ||
-  'https://assets.meran.app/manifest.json'
+  'https://pub-189be0412bdd4092aa44be319badfd91.r2.dev/manifest.json'
 
 const POINTER = 'hf_pack'          // tiny localStorage hint, never the truth
 const PROMPTED = 'hf_pack_prompted'
