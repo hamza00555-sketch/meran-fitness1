@@ -43,6 +43,8 @@ import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import MonthReport      from './components/report/MonthReport.jsx'
+import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
+import { sharePoster, SHARE_RESULT } from './reportPoster.js'
 import { buildMonthReport, monthReportWindow } from './monthReport.js'
 import { initPack, wasPrompted } from './assets/pack.js'
 
@@ -131,6 +133,9 @@ export default function App() {
   // Set by the boot reconciliation below, never by a stored flag alone.
   const [packOffer,  setPackOffer]  = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [sharing,    setSharing]    = useState(false)
+  // Set only when neither the share sheet nor a download is available.
+  const [posterUrl,  setPosterUrl]  = useState(null)
 
   const prevLevelRef  = useRef(levelFromXP(xp))
   const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
@@ -498,6 +503,31 @@ export default function App() {
       : null),
     [reportMonth, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget],
   )
+
+  // The share button's whole job: draw the poster, then take whichever
+  // route out of the app actually works on this device. The ladder
+  // itself lives in reportPoster.js; this only decides what to say.
+  const handleSharePoster = useCallback(async () => {
+    if (!monthReport || sharing) return
+    setSharing(true)
+    try {
+      const how = await sharePoster({
+        report: monthReport,
+        profile,
+        onInline: setPosterUrl,
+      })
+      if (how === SHARE_RESULT.DOWNLOADED) pushAlert('📥', 'تم حفظ صورة التقرير')
+      // SHARED needs no confirmation — the share sheet was the
+      // confirmation. CANCELLED was a decision, not a failure. INLINE
+      // opens its own sheet.
+    } catch (err) {
+      pushAlert('⚠️', err?.message === 'poster-encode-failed'
+        ? 'تعذّر تجهيز الصورة — الذاكرة لم تكفِ. أغلق تطبيقات أخرى وحاول مجدداً.'
+        : 'تعذّرت مشاركة التقرير')
+    } finally {
+      setSharing(false)
+    }
+  }, [monthReport, profile, sharing, pushAlert])
 
   // ── Changing frequency or plan ───────────────────────────────
   // Both keep the streak, because each past day is judged by the pattern
@@ -867,7 +897,18 @@ export default function App() {
       {/* Queued behind the version notice so the two never stack. */}
       {packOffer && !showWhatsNew && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
       {showReport && monthReport && (
-        <MonthReport report={monthReport} onClose={() => setShowReport(false)} />
+        <MonthReport
+          report={monthReport}
+          sharing={sharing}
+          onShare={handleSharePoster}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+      {posterUrl && (
+        <SavePosterSheet
+          url={posterUrl}
+          onClose={() => { URL.revokeObjectURL(posterUrl); setPosterUrl(null) }}
+        />
       )}
     </div>
   )
