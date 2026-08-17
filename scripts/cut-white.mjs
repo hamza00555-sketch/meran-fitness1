@@ -14,12 +14,19 @@
 // enclosed by the artwork survives. The subjects are centred with
 // padding, which is what makes that safe.
 
-import { readdir, mkdir } from 'node:fs/promises'
+import { readdir, mkdir, copyFile } from 'node:fs/promises'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import sharp from 'sharp'
 
 const [IN, OUT] = process.argv.slice(2)
 if (!IN || !OUT) { console.error('usage: cut-white.mjs <in-dir> <out-dir>'); process.exit(1) }
+
+// The covers are the one family with no white field to remove: they are
+// full-bleed banners, and this step would both key nothing and squash
+// them into the badges' square. They pass through untouched.
+const { allSlots } = await import(pathToFileURL(path.resolve('src/assets/slots.js')).href)
+const PASS_THROUGH = new Set(allSlots().filter(s => s.kind === 'cover').map(s => s.id))
 
 // The field measures 253-255 on every channel. The threshold sits
 // just below that and demands near-zero chroma, so cream and pale
@@ -93,7 +100,13 @@ async function cut(inPath, outPath) {
 await mkdir(OUT, { recursive: true })
 const files = (await readdir(IN)).filter(f => f.endsWith('.png')).sort()
 const suspect = []
+let copied = 0
 for (const f of files) {
+  if (PASS_THROUGH.has(f.replace(/\.png$/, ''))) {
+    await copyFile(path.join(IN, f), path.join(OUT, f))
+    copied++
+    continue
+  }
   const ratio = await cut(path.join(IN, f), path.join(OUT, f))
   // A badge fills roughly 60-80% of its frame, so 20-45% cleared is
   // normal. Well outside that means the fill either leaked into the
@@ -101,5 +114,5 @@ for (const f of files) {
   const odd = ratio < 0.08 || ratio > 0.75
   if (odd) suspect.push(`${f} (${(ratio * 100).toFixed(0)}%)`)
 }
-console.log(`cut ${files.length} images`)
+console.log(`cut ${files.length - copied} images${copied ? `, copied ${copied} covers through unchanged` : ''}`)
 if (suspect.length) console.log(`! check these: ${suspect.join(', ')}`)

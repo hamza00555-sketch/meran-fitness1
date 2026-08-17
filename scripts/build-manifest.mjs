@@ -5,6 +5,9 @@
 //                                   [--base https://assets.meran.app/]
 //                                   [--size 512] [--version 2026.08.11-1]
 //
+// --size is only a fallback: each slot in src/assets/slots.js states its
+// own width and height, and that is what a piece is resized to.
+//
 // Input : assets-src/<id>.png — one file per slot in src/assets/slots.js
 // Output: pack/i/<sha>.webp   — content-addressed, so a changed piece
 //                               is a different URL and everything can
@@ -42,10 +45,14 @@ try { sharp = (await import('sharp')).default } catch {
   console.warn('! sharp not installed — publishing source files unchanged')
 }
 
-// The slot list is the contract; anything outside it is a typo.
+// The slot list is the contract; anything outside it is a typo. It also
+// carries each slot's dimensions: badges are square and keyed out of
+// white, covers are wide full-bleed banners, and forcing one shape on
+// both would letterbox the covers into transparent bars.
 const slotsUrl = pathToFileURL(path.resolve('src/assets/slots.js')).href
-const { ALL_SLOT_IDS } = await import(slotsUrl)
+const { ALL_SLOT_IDS, allSlots } = await import(slotsUrl)
 const KNOWN = new Set(ALL_SLOT_IDS)
+const DIMS = new Map(allSlots().map(s => [s.id, { w: s.w, h: s.h, kind: s.kind }]))
 
 if (!existsSync(SRC)) {
   console.error(`✗ no source folder at ${SRC}`)
@@ -61,7 +68,11 @@ const seen = new Set()
 const assets = []
 const problems = []
 
-const fit = { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }
+// A badge is padded to its square so nothing is cropped off it. A cover
+// is a banner: it fills the frame and the overflow is trimmed, because
+// bars down the side of a full-bleed image are worse than a tighter crop.
+const CONTAIN = { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }
+const COVER   = { fit: 'cover', position: 'centre' }
 
 const todo = []
 for (const file of files.sort()) {
@@ -74,9 +85,16 @@ for (const file of files.sort()) {
 
 async function convert({ id, file }) {
   const source = await readFile(path.join(SRC, file))
+  const dim = DIMS.get(id) || {}
+  const w = dim.w || SIZE
+  const h = dim.h || SIZE
+  const isCover = dim.kind === 'cover'
 
   const webp = sharp
-    ? await sharp(source).resize(SIZE, SIZE, fit).webp({ quality: 88, effort: 4 }).toBuffer()
+    ? await sharp(source)
+        .resize(w, h, isCover ? COVER : CONTAIN)
+        .webp({ quality: isCover ? 82 : 88, effort: 4 })
+        .toBuffer()
     : source
 
   const webpSha = sha256(webp)
@@ -87,6 +105,7 @@ async function convert({ id, file }) {
     file: `i/${webpSha}.webp`,
     sha256: webpSha,
     bytes: webp.length,
+    w, h,
   }
 }
 

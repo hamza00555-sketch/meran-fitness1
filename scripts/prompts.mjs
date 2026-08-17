@@ -100,7 +100,25 @@ const SUBJECT = {
 
 const SCENE_STYLE = 'dramatic hero illustration, radiant and celebratory, ' + STYLE
 
+// The covers break the shared style deliberately. Everything else is a
+// keyed-out badge on white; a cover is a full-bleed banner that the
+// report's text sits below, so it wants edge-to-edge atmosphere and no
+// white field to cut away.
+const COVER_STYLE = [
+  'cinematic wide banner illustration, full bleed to every edge',
+  'atmospheric gym interior, deep dark background, moody volumetric light',
+  'no text, no letters, no numbers, no logos',
+  'no white background, no border, no frame, no vignette edges',
+  'no people, no faces, no bodies — equipment and light only',
+  'space at the lower edge free of detail so text can sit beneath it',
+  'green #5EC32A and amber #F59E0B accents on near-black #080B14',
+  'painted illustration, rich and clean, not photorealistic',
+].join(', ')
+
 export function promptFor(slot) {
+  if (slot.kind === 'cover') {
+    return `${slot.en}, ${COVER_STYLE}`
+  }
   if (slot.kind === 'achievement') {
     const r = RARITY[slot.rarity] || RARITY.common
     const motif = CATEGORY[slot.cat] || 'a training motif'
@@ -132,15 +150,16 @@ if (process.argv.includes('--json')) {
     null, 2,
   ))
 } else {
-  const n = { achievement: 0, scene: 0, empty: 0 }
+  const n = { achievement: 0, scene: 0, empty: 0, cover: 0 }
   for (const s of slots) n[s.kind]++
-  console.log(`# مران — ${slots.length} صورة · أسلوب واحد`)
-  console.log(`#   ${n.achievement} جائزة · ${n.scene} احتفال · ${n.empty} حالة فارغة\n`)
+  console.log(`# مران — ${slots.length} صورة`)
+  console.log(`#   ${n.achievement} جائزة · ${n.scene} احتفال · ${n.empty} حالة فارغة · ${n.cover} غلاف شهر\n`)
   console.log('احفظ كل صورة باسم معرّفها في assets-src/<id>.png ثم:\n')
   console.log('  node scripts/build-manifest.mjs --base https://<your-domain>/')
   console.log('  node scripts/upload-r2.mjs\n')
   for (const s of slots) {
-    console.log(`── ${s.id}.png${s.title ? `   (${s.title})` : ''}`)
+    const tag = s.title || s.month || ''
+    console.log(`── ${s.id}.png   ${s.w}×${s.h}${tag ? `   (${tag})` : ''}`)
     console.log(promptFor(s))
     console.log()
   }
