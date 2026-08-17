@@ -358,7 +358,7 @@ export function buildTips(report, { sessions = [], mapping = {}, repTarget, mont
       add('neglected', 'alert',
         `${lo.label} شبه غائب`,
         `${lo.label} أخذ ٪${lo.pct} من حجمك هذا الشهر مقابل ٪${hi.pct} لـ${hi.label}. أضف له تمريناً أو صفّاً إضافياً.`,
-        `${lo.pct}% / ${hi.pct}%`)
+        `٪${lo.pct} / ٪${hi.pct}`)
     }
   }
 
@@ -414,7 +414,7 @@ export function buildTips(report, { sessions = [], mapping = {}, repTarget, mont
       up
         ? `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق. حافظ على الوتيرة.`
         : `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق. راجع عدد الجلسات قبل الأوزان.`,
-      `${volume.trendPct}%`)
+      `٪${volume.trendPct}`)
   }
 
   // The weekday that keeps getting skipped.

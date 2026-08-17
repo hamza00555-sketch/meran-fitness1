@@ -148,11 +148,16 @@ export default function MonthReport({ report, onClose, onShare, sharing = false 
       position: 'fixed', inset: 0, zIndex: 1000,
       background: 'var(--bg)', display: 'flex', flexDirection: 'column',
     }}>
-      {/* Top bar sits above the scroller so it never scrolls away. */}
+      {/* Top bar sits above the scroller so it never scrolls away.
+          padding-top clears the status bar / notch — without
+          --safe-top the buttons render under it and cannot be
+          tapped there, which is exactly what every other overlay in
+          the app (header, RestTimer, SystemAlert) already accounts
+          for and this one had missed. */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3,
         display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 14px',
+        padding: 'calc(var(--safe-top) + 12px) 14px 12px',
         background: 'linear-gradient(180deg, rgba(8,11,20,0.92), transparent)',
         pointerEvents: 'none',
       }}>
@@ -190,7 +195,8 @@ export default function MonthReport({ report, onClose, onShare, sharing = false 
       {/* The rail: one element reading --scroll, so following the
           scroll costs a style write rather than a React render. */}
       <div aria-hidden="true" style={{
-        position: 'absolute', top: 64, bottom: 20, right: 6, width: 3,
+        position: 'absolute', top: 'calc(var(--safe-top) + 64px)',
+        bottom: 'calc(var(--safe-bottom) + 20px)', right: 6, width: 3,
         zIndex: 3, background: 'var(--border)', borderRadius: 99, overflow: 'hidden',
       }}>
         <div style={{
@@ -203,7 +209,7 @@ export default function MonthReport({ report, onClose, onShare, sharing = false 
       </div>
 
       <div style={{
-        position: 'absolute', bottom: 14, left: 0, right: 0, zIndex: 3,
+        position: 'absolute', bottom: 'calc(var(--safe-bottom) + 14px)', left: 0, right: 0, zIndex: 3,
         display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none',
       }}>
         {SECTIONS.map((s, i) => (

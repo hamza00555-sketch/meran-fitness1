@@ -489,6 +489,36 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         />
       </div>
 
+      {/* ── Month report ─────────────────────────────────────
+          A slim strip, not a hero-sized card — a smaller footprint
+          reads clearer here than a bigger one would, because contrast
+          against the surrounding cards is what draws the eye, not
+          size. Only in its window, and only for a month with training
+          in it — an empty report is worse than no button. */}
+      {monthReport?.hasData && (
+        <button
+          onClick={onShowMonthReport}
+          style={{
+            all: 'unset', boxSizing: 'border-box',
+            display: 'flex', alignItems: 'center', gap: 10,
+            width: '100%', marginBottom: 10, padding: '10px 14px',
+            borderRadius: 14, cursor: 'pointer',
+            background: 'linear-gradient(100deg, var(--cyan-lo), var(--gold-lo))',
+            border: '1px solid var(--cyan-md)',
+          }}
+        >
+          <span style={{ fontSize: 20, lineHeight: 1 }}>📊</span>
+          <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
+            <div style={{ fontWeight: 800, fontSize: 13 }}>تقرير {monthReport.monthLabel}</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
+              {monthReport.sessionCount} جلسة · {Number(monthReport.volume.total).toLocaleString('en-US')} كجم
+              {monthReport.prs.length ? ` · ${monthReport.prs.length} رقم قياسي` : ''}
+            </div>
+          </div>
+          <span style={{ color: 'var(--cyan)', fontSize: 17 }}>‹</span>
+        </button>
+      )}
+
       {/* ── Player Hero Card ─────────────────────────────────────
           Horizontal layout: text RIGHT (RTL-first) · icon LEFT   */}
       <div style={{
@@ -835,35 +865,6 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               </div>
             )
           })}
-        </Card>
-      )}
-
-      {/* ── Month report ─────────────────────────────────────
-          Only in its window, and only for a month with training in
-          it — an empty report is worse than no button. Kept as its
-          own card rather than folded into the muscle section above,
-          which disappears entirely for a new user. */}
-      {monthReport?.hasData && (
-        <Card
-          onClick={onShowMonthReport}
-          style={{
-            marginBottom: 'var(--hp-card-mb)',
-            padding: 'var(--hp-card-pad)',
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'linear-gradient(100deg, var(--cyan-lo), var(--gold-lo))',
-            border: '1px solid var(--cyan-md)',
-            cursor: 'pointer',
-          }}
-        >
-          <span style={{ fontSize: 30, lineHeight: 1 }}>📊</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>تقرير {monthReport.monthLabel}</div>
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-              {monthReport.sessionCount} جلسة · {Number(monthReport.volume.total).toLocaleString('en-US')} كجم
-              {monthReport.prs.length ? ` · ${monthReport.prs.length} رقم قياسي` : ''}
-            </div>
-          </div>
-          <span style={{ color: 'var(--cyan)', fontSize: 20 }}>‹</span>
         </Card>
       )}
 

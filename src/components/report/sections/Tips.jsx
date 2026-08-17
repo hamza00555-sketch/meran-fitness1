@@ -23,7 +23,7 @@ export default function Tips({ tips = [] }) {
         نصائح هذا الشهر
       </Heading>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {tips.map((t, i) => {
           const tone = TONE[t.severity] || TONE.info
           return (
@@ -36,34 +36,28 @@ export default function Tips({ tips = [] }) {
                 background: 'var(--bg2)',
                 border: '1px solid var(--border)',
                 borderRight: `3px solid ${tone.color}`,
-                borderRadius: 14, padding: 14,
+                borderRadius: 14, padding: 16,
                 opacity: run ? undefined : 0,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <span style={{ fontSize: 20, lineHeight: 1.2 }}>{tone.glyph}</span>
+                {/* The left border colour + this glyph already say how
+                    serious the tip is. A second, text badge repeated
+                    the same signal a third time and was what wrapped
+                    onto its own line on a narrow phone. */}
+                <span style={{ fontSize: 18, lineHeight: 1.3, flexShrink: 0 }}>{tone.glyph}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    flexWrap: 'wrap', marginBottom: 4,
-                  }}>
-                    <span style={{
-                      fontFamily: 'var(--font-ar)', fontWeight: 800,
-                      fontSize: 15, color: 'var(--text)',
-                    }}>{t.title}</span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, color: tone.color,
-                      background: `${tone.color}1A`, border: `1px solid ${tone.color}44`,
-                      borderRadius: 99, padding: '2px 7px', fontFamily: 'var(--font-ar)',
-                    }}>{tone.label}</span>
-                  </div>
+                    fontFamily: 'var(--font-ar)', fontWeight: 800,
+                    fontSize: 14, color: 'var(--text)', marginBottom: 5,
+                  }}>{t.title}</div>
                   <p style={{
                     fontFamily: 'var(--font-ar)', fontSize: 13,
-                    color: 'var(--text2)', lineHeight: 1.6,
+                    color: 'var(--text2)', lineHeight: 1.65,
                   }}>{t.body}</p>
                   {t.evidence && (
                     <div style={{
-                      marginTop: 7, fontSize: 11, color: 'var(--text3)',
+                      marginTop: 8, fontSize: 11, color: 'var(--text3)',
                       fontVariantNumeric: 'tabular-nums',
                     }}>
                       الدليل: <span style={{ color: tone.color, fontWeight: 700 }}>{t.evidence}</span>
