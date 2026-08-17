@@ -1,0 +1,414 @@
+// Specs for the monthly report, run against the real modules.
+//
+//   node --test tests/month-report.test.mjs
+//
+// Two things are being pinned here: that the month's numbers agree with
+// the engines the rest of the app already trusts, and that no tip ever
+// fires without the data to back it.
+
+import test from 'node:test'
+import assert from 'node:assert/strict'
+
+// The progression and stats helpers read a reset watermark out of
+// localStorage; the report reaches them through those helpers.
+globalThis.localStorage = {
+  _d: new Map(),
+  getItem(k) { return this._d.has(k) ? this._d.get(k) : null },
+  setItem(k, v) { this._d.set(k, String(v)) },
+  removeItem(k) { this._d.delete(k) },
+  key(i) { return [...this._d.keys()][i] ?? null },
+  get length() { return this._d.size },
+}
+
+const {
+  buildMonthReport, monthReportWindow, monthKey, prevMonth,
+  daysInMonth, monthLabel, coverSlot, MAX_TIPS,
+} = await import('../src/monthReport.js')
+const { calc1RM, sessionVolume } = await import('../src/utils.js')
+
+// 3 days a week is train / rest / train / rest, so every day of the
+// month is either a workout or the cycle's own recovery — which makes
+// the consistency numbers easy to reason about by hand.
+const CFG = { daysPerWeek: 3, overrides: [], restDays: [] }
+
+/** A session on day `n` of March 2026. `sets` is [[weight, reps, done?], …] */
+let seq = 0
+const session = (n, name, sets, opts = {}) => ({
+  id: Date.UTC(2026, 2, n) + (++seq),
+  date: new Date(2026, 2, n, 10, 0, 0).toISOString(),
+  // `??` would swallow a deliberate `duration: null`, which is exactly
+  // the case the time tips have to cope with.
+  duration: 'duration' in opts ? opts.duration : 45,
+  exercises: [{
+    id: `e${seq}`,
+    muscle: opts.muscle || 'Chest',
+    name,
+    sets: sets.map(([w, r, done = true]) => ({ weight: String(w), reps: String(r), done })),
+  }],
+})
+
+// The report replays recovery to the LAST day of the month, so any
+// workout day left empty after the final session is a genuine miss.
+// Consistency fixtures therefore have to cover the whole month.
+const trainOn = (...days) => days.map(n => session(n, 'Bench Press', [[60, 12]]))
+const ODD_MARCH = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31]
+
+const build = (sessions, extra = {}) => buildMonthReport({
+  sessions, config: CFG, month: '2026-03', ...extra,
+})
+
+// ══ calendar arithmetic ═══════════════════════════════════════
+
+test('month keys come off the local day, not UTC', () => {
+  // 01:00 on the first of the month in UTC+3 is still the previous day
+  // in UTC. dayKey is what keeps it in the right month.
+  assert.equal(monthKey(new Date(2026, 2, 1, 1, 0, 0)), '2026-03')
+  assert.equal(monthKey(new Date(2026, 2, 31, 23, 30, 0)), '2026-03')
+})
+
+test('the previous month rolls back over the new year', () => {
+  assert.equal(prevMonth('2026-01'), '2025-12')
+  assert.equal(prevMonth('2026-03'), '2026-02')
+})
+
+test('February knows its own length, leap year included', () => {
+  assert.equal(daysInMonth('2026-02'), 28)
+  assert.equal(daysInMonth('2028-02'), 29)
+  assert.equal(daysInMonth('2026-03'), 31)
+})
+
+test('every month has its own cover slot', () => {
+  assert.equal(coverSlot('2026-01'), 'cover_01')
+  assert.equal(coverSlot('2026-12'), 'cover_12')
+  assert.equal(monthLabel('2026-03'), 'مارس 2026')
+})
+
+// ══ the date window ═══════════════════════════════════════════
+
+test('the last two days of a month report that month', () => {
+  assert.equal(monthReportWindow('2026-03-30'), '2026-03')
+  assert.equal(monthReportWindow('2026-03-31'), '2026-03')
+})
+
+test('the first week of a month reports the month before', () => {
+  assert.equal(monthReportWindow('2026-04-01'), '2026-03')
+  assert.equal(monthReportWindow('2026-04-07'), '2026-03')
+})
+
+test('the middle of a month offers nothing', () => {
+  assert.equal(monthReportWindow('2026-04-08'), null)
+  assert.equal(monthReportWindow('2026-04-15'), null)
+  assert.equal(monthReportWindow('2026-03-29'), null)
+})
+
+test('the window survives the turn of the year', () => {
+  assert.equal(monthReportWindow('2026-01-03'), '2025-12')
+  assert.equal(monthReportWindow('2025-12-31'), '2025-12')
+})
+
+test('short months keep a two-day tail', () => {
+  assert.equal(monthReportWindow('2026-02-27'), '2026-02')
+  assert.equal(monthReportWindow('2026-02-28'), '2026-02')
+  assert.equal(monthReportWindow('2026-02-26'), null)
+})
+
+// ══ volume and sets ═══════════════════════════════════════════
+
+test('an empty month says so instead of reporting zeros', () => {
+  const r = build([session(5, 'Bench Press', [[60, 12]])], { month: '2026-04' })
+  assert.equal(r.hasData, false)
+  assert.equal(r.sessionCount, 0)
+  assert.ok(r.cover, 'it still knows which cover to draw')
+})
+
+test('tonnage matches sessionVolume summed by hand', () => {
+  const a = session(1, 'Bench Press', [[60, 12], [60, 10]])
+  const b = session(3, 'Squat', [[100, 5]])
+  const r = build([a, b])
+  assert.equal(r.volume.total, sessionVolume(a) + sessionVolume(b))
+  assert.equal(r.volume.total, 60 * 12 + 60 * 10 + 100 * 5)
+  assert.equal(r.sessionCount, 2)
+  assert.equal(r.volume.perSession, Math.round(r.volume.total / 2))
+})
+
+test('the muscle slices add up to the total', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
+    session(3, 'Barbell Row', [[50, 10]], { muscle: 'Back' }),
+    session(5, 'Squat', [[100, 5]], { muscle: 'Legs' }),
+  ])
+  const sum = r.muscles.reduce((n, m) => n + m.volume, 0)
+  assert.equal(sum, r.volume.total, 'no tonnage is lost between the slices')
+  // Chest 60×10 = 600 beats Legs 100×5 = 500 and Back 50×10 = 500.
+  assert.equal(r.muscles[0].key, 'Chest', 'sorted heaviest first')
+  assert.deepEqual(r.muscles.map(m => m.volume), [600, 500, 500])
+})
+
+test('an unknown muscle lands in "other" rather than vanishing', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
+    session(3, 'Weird Machine', [[40, 10]], { muscle: 'Forearms' }),
+  ])
+  const other = r.muscles.find(m => m.key === 'Other')
+  assert.ok(other, 'the unknown group is reported')
+  assert.equal(other.label, 'أخرى')
+  assert.equal(r.muscles.reduce((n, m) => n + m.volume, 0), r.volume.total)
+})
+
+test('an unticked set counts for tonnage but not for completion', () => {
+  // The app's own rule: a typed-in weight is volume, but only a ticked
+  // set is work the progression engine will act on.
+  const r = build([session(1, 'Bench Press', [[60, 12, true], [60, 12, false]])])
+  assert.equal(r.sets.total, 2)
+  assert.equal(r.sets.completed, 1)
+  assert.equal(r.sets.untrackedPct, 50)
+  assert.equal(r.reps.total, 12, 'only the ticked set contributes reps')
+})
+
+test('a month with no previous month has no trend, not a 0% trend', () => {
+  const r = build([session(1, 'Bench Press', [[60, 10]])])
+  assert.equal(r.volume.trendPct, null)
+  assert.equal(r.volume.prevTotal, 0)
+})
+
+test('the trend compares against the month before', () => {
+  const feb = { ...session(1, 'Bench Press', [[50, 10]]), date: new Date(2026, 1, 10, 10).toISOString() }
+  const r = build([feb, session(1, 'Bench Press', [[60, 10]])])
+  assert.equal(r.volume.prevTotal, 500)
+  assert.equal(r.volume.total, 600)
+  assert.equal(r.volume.trendPct, 20)
+})
+
+test('missing durations withhold the time averages instead of guessing', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { duration: 45 }),
+    session(3, 'Bench Press', [[60, 10]], { duration: null }),
+    session(5, 'Bench Press', [[60, 10]], { duration: undefined }),
+  ])
+  assert.equal(r.time.known, false, 'only one of three sessions is timed')
+  assert.equal(r.time.sessionsTimed, 1)
+})
+
+test('durations present on most of the month are reported', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { duration: 40 }),
+    session(3, 'Bench Press', [[60, 10]], { duration: 50 }),
+    session(5, 'Bench Press', [[60, 10]], { duration: null }),
+  ])
+  assert.equal(r.time.known, true)
+  assert.equal(r.time.avgMinutes, 45)
+})
+
+// ══ personal records ══════════════════════════════════════════
+
+test('the first weight ever logged is not a record', () => {
+  const r = build([session(1, 'Bench Press', [[60, 10]])])
+  assert.deepEqual(r.prs, [], 'a starting point, not a personal best')
+})
+
+test('beating a previous best is a record, with the number it beat', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]]),
+    session(3, 'Bench Press', [[65, 8]]),
+  ])
+  assert.equal(r.prs.length, 1)
+  assert.equal(r.prs[0].weight, 65)
+  assert.equal(r.prs[0].prevBest, 60)
+  assert.equal(r.prs[0].date, '2026-03-03')
+})
+
+test('a best set before the month counts as the bar to beat', () => {
+  const feb = { ...session(1, 'Bench Press', [[70, 8]]), date: new Date(2026, 1, 10, 10).toISOString() }
+  const r = build([feb, session(3, 'Bench Press', [[65, 8]])])
+  assert.deepEqual(r.prs, [], '65 does not beat February\'s 70')
+})
+
+test('an unticked heavy set cannot claim a record', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]]),
+    session(3, 'Bench Press', [[100, 1, false]]),
+  ])
+  assert.deepEqual(r.prs, [], 'typed in, not lifted')
+})
+
+test('records are listed heaviest first', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]]),
+    session(2, 'Squat', [[80, 5]], { muscle: 'Legs' }),
+    session(3, 'Bench Press', [[65, 8]]),
+    session(4, 'Squat', [[120, 3]], { muscle: 'Legs' }),
+  ])
+  assert.deepEqual(r.prs.map(p => p.weight), [120, 65])
+})
+
+// ══ consistency ═══════════════════════════════════════════════
+
+test('the calendar covers only the month asked for', () => {
+  const r = build([session(1, 'Bench Press', [[60, 10]]), session(3, 'Bench Press', [[60, 10]])])
+  assert.ok(r.consistency.calendar.length > 0)
+  assert.ok(r.consistency.calendar.every(d => d.date.startsWith('2026-03')))
+})
+
+test('a perfect month counts every day as trained or scheduled rest', () => {
+  // Every odd day trained; the even days are the cycle's own recovery.
+  const r = build(trainOn(...ODD_MARCH))
+  assert.equal(r.consistency.trainedDays, 16)
+  assert.equal(r.consistency.scheduledRests, 15)
+  assert.deepEqual(r.consistency.missedDays, [], 'nothing was skipped')
+  assert.equal(r.consistency.trainedDays + r.consistency.scheduledRests, 31)
+  assert.equal(r.consistency.bestStreak, 31, 'an unbroken month')
+})
+
+test('a skipped workout day is a miss and cuts the best streak', () => {
+  // Same month, but day 15 was a workout day left empty and unpaid.
+  const r = build(trainOn(...ODD_MARCH.filter(n => n !== 15)))
+  assert.ok(r.consistency.missedDays.includes('2026-03-15'), r.consistency.missedDays.join(','))
+  assert.ok(r.consistency.bestStreak < 31, `got ${r.consistency.bestStreak}`)
+})
+
+test('a paid rest day holds the streak without counting as a day', () => {
+  // Day 15 skipped but paid for. Freezing it leaves day 16 a workout
+  // day, so the trained days shift to even from there on.
+  const r = buildMonthReport({
+    sessions: trainOn(1, 3, 5, 7, 9, 11, 13, 16, 18, 20, 22, 24, 26, 28, 30),
+    month: '2026-03',
+    config: { ...CFG, restDays: ['2026-03-15'] },
+  })
+  assert.equal(r.consistency.paidRests, 1)
+  assert.deepEqual(r.consistency.missedDays, [], 'it was paid for, so not a miss')
+  assert.equal(r.consistency.trainedDays, 15)
+  assert.equal(r.consistency.trainedDays + r.consistency.scheduledRests + r.consistency.paidRests, 31)
+  assert.equal(r.consistency.bestStreak, 30, 'the paid day holds but adds nothing')
+})
+
+// ══ achievements ══════════════════════════════════════════════
+
+test('only achievements unlocked inside the month are listed', () => {
+  const r = build([session(1, 'Bench Press', [[60, 10]])], {
+    unlockedAt: {
+      a1: new Date(2026, 2, 5).getTime(),    // in March
+      a2: new Date(2026, 1, 5).getTime(),    // February
+      zz: new Date(2026, 2, 6).getTime(),    // not a real achievement id
+    },
+  })
+  assert.deepEqual(r.progress.achievements.map(a => a.id), ['a1'])
+})
+
+// ══ tips ══════════════════════════════════════════════════════
+
+const tipIds = (r) => r.tips.map(t => t.id)
+
+test('never more than a handful of tips, and each carries its evidence', () => {
+  const r = build([1, 3, 5, 7, 9].map(n => session(n, 'Bench Press', [[60, 12, n !== 1]])))
+  assert.ok(r.tips.length <= MAX_TIPS, `got ${r.tips.length}`)
+  for (const t of r.tips) {
+    assert.ok(t.id && t.title && t.body, 'a tip is never blank')
+    assert.ok(t.evidence, `"${t.id}" states the number behind it`)
+    assert.ok(!('weight' in t), 'the internal sort key does not leak out')
+  }
+})
+
+test('a lopsided split raises the neglected-muscle tip', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 12]], { muscle: 'Chest' }),
+    session(3, 'Squat', [[120, 10]], { muscle: 'Legs' }),
+    session(5, 'Shoulder Press', [[40, 12]], { muscle: 'Shoulders' }),
+    session(7, 'Barbell Curl', [[10, 8]], { muscle: 'Biceps' }),
+  ])
+  assert.ok(tipIds(r).includes('neglected'), tipIds(r).join(','))
+})
+
+test('an even split does not raise it', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
+    session(3, 'Barbell Row', [[60, 10]], { muscle: 'Back' }),
+    session(5, 'Squat', [[60, 10]], { muscle: 'Legs' }),
+  ])
+  assert.ok(!tipIds(r).includes('neglected'))
+})
+
+test('unticked sets raise the untracked tip and name the count', () => {
+  const r = build([session(1, 'Bench Press', [[60, 12, true], [60, 12, false], [60, 12, false]])])
+  const tip = r.tips.find(t => t.id === 'untracked')
+  assert.ok(tip, tipIds(r).join(','))
+  assert.equal(tip.evidence, '2/3')
+})
+
+test('a fully ticked month does not raise it', () => {
+  const r = build([session(1, 'Bench Press', [[60, 12], [60, 12]])])
+  assert.ok(!tipIds(r).includes('untracked'))
+})
+
+test('a new record is reported as a win', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]]),
+    session(3, 'Bench Press', [[65, 8]]),
+  ])
+  const tip = r.tips.find(t => t.id === 'prs')
+  assert.ok(tip, tipIds(r).join(','))
+  assert.match(tip.body, /65/)
+})
+
+test('a long month with no record raises the drought tip', () => {
+  const r = build([1, 3, 5, 7, 9, 11, 13].map(n => session(n, 'Bench Press', [[60, 12]])))
+  assert.ok(tipIds(r).includes('prdrought'), tipIds(r).join(','))
+})
+
+test('a short month does not get scolded for having no record', () => {
+  const r = build([session(1, 'Bench Press', [[60, 12]])])
+  assert.ok(!tipIds(r).includes('prdrought'))
+})
+
+test('the time tips stay silent when duration is missing', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { duration: 5 }),
+    session(3, 'Bench Press', [[60, 10]], { duration: null }),
+    session(5, 'Bench Press', [[60, 10]], { duration: null }),
+  ])
+  assert.equal(r.time.known, false)
+  assert.ok(!tipIds(r).includes('short'), 'no advice from one timed session')
+  assert.ok(!tipIds(r).includes('long'))
+})
+
+test('a real volume drop is reported, a small wobble is not', () => {
+  const feb = (n, w) => ({
+    ...session(n, 'Bench Press', [[w, 10]]),
+    date: new Date(2026, 1, n, 10).toISOString(),
+  })
+  const dropped = buildMonthReport({
+    sessions: [feb(1, 100), feb(3, 100), session(1, 'Bench Press', [[50, 10]])],
+    config: CFG, month: '2026-03',
+  })
+  assert.ok(tipIds(dropped).includes('trend'), tipIds(dropped).join(','))
+
+  const steady = buildMonthReport({
+    sessions: [feb(1, 100), session(1, 'Bench Press', [[95, 10]])],
+    config: CFG, month: '2026-03',
+  })
+  assert.ok(!tipIds(steady).includes('trend'), '5% is noise, not a trend')
+})
+
+test('tips are ordered with the most serious first', () => {
+  const r = build([session(1, 'Bench Press', [[60, 12, false]], { muscle: 'Chest' })])
+  const sevRank = { alert: 3, nudge: 2, praise: 1, info: 0 }
+  const ranks = r.tips.map(t => sevRank[t.severity])
+  assert.deepEqual(ranks, [...ranks].sort((a, b) => b - a))
+})
+
+// ══ estimated 1RM ═════════════════════════════════════════════
+
+test('one rep at a weight is that weight', () => {
+  assert.equal(calc1RM(100, 1), 100)
+})
+
+test('more reps estimate a higher max', () => {
+  assert.equal(calc1RM(100, 10), 133.3)
+  assert.ok(calc1RM(100, 5) > 100)
+  assert.ok(calc1RM(100, 10) > calc1RM(100, 5))
+})
+
+test('nothing lifted estimates nothing', () => {
+  assert.equal(calc1RM(0, 10), 0)
+  assert.equal(calc1RM(100, 0), 0)
+  assert.equal(calc1RM('', ''), 0)
+})

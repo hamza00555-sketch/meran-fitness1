@@ -200,6 +200,18 @@ export const sessionVolume = (session) => {
   }, 0)
 }
 
+// ── Estimated one-rep max ─────────────────────────────────────
+// Epley. An estimate, not a measurement: it drifts high past about ten
+// reps, so it is only worth showing on working sets, never on a burnout
+// set of twenty.
+export const calc1RM = (weight, reps) => {
+  const w = parseFloat(weight) || 0
+  const r = parseInt(reps) || 0
+  if (w <= 0 || r <= 0) return 0
+  if (r === 1) return w
+  return Math.round(w * (1 + r / 30) * 10) / 10
+}
+
 // ── Blank set ─────────────────────────────────────────────────
 export const blankSet = (prevWeight = '', prevReps = '') => ({
   weight: toWesternDigits(prevWeight ?? ''),
