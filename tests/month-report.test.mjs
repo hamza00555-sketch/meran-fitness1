@@ -23,6 +23,7 @@ globalThis.localStorage = {
 const {
   buildMonthReport, monthReportWindow, monthKey, prevMonth,
   daysInMonth, monthLabel, coverSlot, MAX_TIPS,
+  formatRatio, describeRatio,
 } = await import('../src/monthReport.js')
 const { calc1RM, sessionVolume } = await import('../src/utils.js')
 
@@ -231,14 +232,67 @@ test('an unticked heavy set cannot claim a record', () => {
   assert.deepEqual(r.prs, [], 'typed in, not lifted')
 })
 
-test('records are listed heaviest first', () => {
+test('creeping up every session is one record, not a dozen', () => {
+  // Adding 2kg a session is the programme working. Reporting each step
+  // as its own record buries everything else under one lift.
+  const feb = { ...session(1, 'Squat', [[100, 5]], { muscle: 'Legs' }),
+                date: new Date(2026, 1, 20, 10).toISOString() }
+  const climb = [102, 104, 106, 108, 110, 112]
+    .map((w, i) => session(3 + i * 4, 'Squat', [[w, 5]], { muscle: 'Legs' }))
+  const r = build([feb, ...climb])
+
+  assert.equal(r.prs.length, 1, 'one entry for the lift, not six')
+  assert.equal(r.prs[0].weight, 112, 'the month ended here')
+  assert.equal(r.prs[0].prevBest, 100, 'and started from February, not from last week')
+  assert.equal(r.prs[0].steps, 6, 'it took six sessions to get there')
+})
+
+test('each exercise gets its own entry', () => {
+  const feb = (name, w, muscle) => ({
+    ...session(1, name, [[w, 5]], { muscle }),
+    date: new Date(2026, 1, 20, 10).toISOString(),
+  })
+  const r = build([
+    feb('Squat', 100, 'Legs'), feb('Bench Press', 60, 'Chest'),
+    session(3, 'Squat', [[110, 5]], { muscle: 'Legs' }),
+    session(5, 'Bench Press', [[62.5, 8]]),
+  ])
+  assert.deepEqual(r.prs.map(p => p.exercise).sort(), ['Bench Press', 'Squat'])
+})
+
+test('records are ordered by how far the lift moved', () => {
+  // A 10kg jump matters more than a heavier lift that gained 2.5.
+  const feb = (name, w, muscle) => ({
+    ...session(1, name, [[w, 5]], { muscle }),
+    date: new Date(2026, 1, 20, 10).toISOString(),
+  })
+  const r = build([
+    feb('Squat', 140, 'Legs'), feb('Bench Press', 60, 'Chest'),
+    session(3, 'Squat', [[142.5, 5]], { muscle: 'Legs' }),
+    session(5, 'Bench Press', [[70, 8]]),
+  ])
+  assert.equal(r.prs[0].exercise, 'Bench Press', '+10 leads +2.5')
+})
+
+test('a lift that stayed flat is not a record', () => {
+  const feb = { ...session(1, 'Squat', [[100, 5]], { muscle: 'Legs' }),
+                date: new Date(2026, 1, 20, 10).toISOString() }
+  const r = build([feb, session(3, 'Squat', [[100, 8]], { muscle: 'Legs' })])
+  assert.deepEqual(r.prs, [], 'more reps at the same weight is not a new max')
+})
+
+test('a baseline set inside the month still counts as a baseline', () => {
   const r = build([
     session(1, 'Bench Press', [[60, 10]]),
     session(2, 'Squat', [[80, 5]], { muscle: 'Legs' }),
     session(3, 'Bench Press', [[65, 8]]),
     session(4, 'Squat', [[120, 3]], { muscle: 'Legs' }),
   ])
+  // Both lifts were first logged this month, so those are baselines;
+  // the second session on each is the record. Ordered by the gain:
+  // squat moved 40, bench moved 5.
   assert.deepEqual(r.prs.map(p => p.weight), [120, 65])
+  assert.deepEqual(r.prs.map(p => p.prevBest), [80, 60])
 })
 
 // ══ consistency ═══════════════════════════════════════════════
@@ -393,6 +447,42 @@ test('tips are ordered with the most serious first', () => {
   const sevRank = { alert: 3, nudge: 2, praise: 1, info: 0 }
   const ranks = r.tips.map(t => sevRank[t.severity])
   assert.deepEqual(ranks, [...ranks].sort((a, b) => b - a))
+})
+
+// ══ talking about a ratio ═════════════════════════════════════
+
+test('an ordinary ratio is shown as a ratio', () => {
+  assert.equal(formatRatio(1.62), '1.62')
+  assert.match(describeRatio(1.62), /1\.62/)
+  assert.equal(formatRatio(0.5), '0.5')
+})
+
+test('a lopsided ratio is shown as a multiple, not a decimal', () => {
+  // 79.63 is arithmetically right and useless to read.
+  assert.equal(formatRatio(79.63), '×80')
+  assert.match(describeRatio(79.63), /80 أضعاف/)
+  assert.equal(formatRatio(0.02), '×50')
+  assert.match(describeRatio(0.02), /50 أضعاف/)
+})
+
+test('a split with one side barely trained is an alert, not a nudge', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 12]], { muscle: 'Chest' }),
+    session(3, 'Bench Press', [[60, 12]], { muscle: 'Chest' }),
+    session(5, 'Barbell Row', [[20, 5]], { muscle: 'Back' }),
+  ])
+  const tip = r.tips.find(t => t.id === 'pushpull')
+  assert.ok(tip, tipIds(r).join(','))
+  assert.equal(tip.severity, 'alert')
+  assert.match(tip.evidence, /^×/, 'stated as a multiple')
+})
+
+test('a balanced split raises no push-pull tip at all', () => {
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
+    session(3, 'Barbell Row', [[60, 10]], { muscle: 'Back' }),
+  ])
+  assert.ok(!tipIds(r).includes('pushpull'))
 })
 
 // ══ estimated 1RM ═════════════════════════════════════════════

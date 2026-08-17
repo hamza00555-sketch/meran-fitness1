@@ -406,7 +406,7 @@ function CommitmentFlames({ streak }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false, monthReport = null, onShowMonthReport }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -835,6 +835,35 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               </div>
             )
           })}
+        </Card>
+      )}
+
+      {/* ── Month report ─────────────────────────────────────
+          Only in its window, and only for a month with training in
+          it — an empty report is worse than no button. Kept as its
+          own card rather than folded into the muscle section above,
+          which disappears entirely for a new user. */}
+      {monthReport?.hasData && (
+        <Card
+          onClick={onShowMonthReport}
+          style={{
+            marginBottom: 'var(--hp-card-mb)',
+            padding: 'var(--hp-card-pad)',
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'linear-gradient(100deg, var(--cyan-lo), var(--gold-lo))',
+            border: '1px solid var(--cyan-md)',
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 30, lineHeight: 1 }}>📊</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>تقرير {monthReport.monthLabel}</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+              {monthReport.sessionCount} جلسة · {Number(monthReport.volume.total).toLocaleString('en-US')} كجم
+              {monthReport.prs.length ? ` · ${monthReport.prs.length} رقم قياسي` : ''}
+            </div>
+          </div>
+          <span style={{ color: 'var(--cyan)', fontSize: 20 }}>‹</span>
         </Card>
       )}
 

@@ -94,16 +94,24 @@ const groupOf = (muscle) => {
 // the moment a weight beat everything before it. That needs a forward
 // walk over the whole history, with the month used only as a filter on
 // which events to report.
+// One entry per exercise, not one per improvement. Adding 2kg every
+// session is the whole point of the programme, and reporting each step
+// as its own record buries the two lifts that actually moved under
+// thirteen rows of the same squat. What a month's records mean is:
+// this lift ended higher than it has ever been, and here is the jump.
 function personalRecordsIn(sessions, month, mapping, resetAt) {
-  const best = new Map()          // resolved name → heaviest so far
-  const events = []
+  const best = new Map()          // resolved name → heaviest before this month
+  const gains = new Map()         // resolved name → the month's own high point
 
   const chronological = [...(sessions || [])]
     .filter(s => (s.id || 0) >= resetAt)
     .sort((a, b) => (a.id || 0) - (b.id || 0))
 
   for (const session of chronological) {
-    const inMonth = monthKey(session.date) === month
+    const key = monthKey(session.date)
+    if (key > month) break                   // the future cannot set this month's records
+    const inMonth = key === month
+
     for (const ex of session.exercises || []) {
       const name = resolveExerciseName(ex.name, mapping)
       let top = 0
@@ -113,17 +121,31 @@ function personalRecordsIn(sessions, month, mapping, resetAt) {
       }
       if (!top) continue
 
-      const prev = best.get(name) || 0
-      if (top > prev) {
-        best.set(name, top)
-        // The first weight ever logged is a starting point, not a record.
-        if (inMonth && prev > 0) {
-          events.push({ exercise: ex.name, weight: top, prevBest: prev, date: dayKey(session.date) })
-        }
+      if (!inMonth) {
+        best.set(name, Math.max(best.get(name) || 0, top))
+        continue
+      }
+
+      const bar = best.get(name) || 0
+      // The first weight ever logged is a starting point, not a record.
+      if (bar <= 0) { best.set(name, top); continue }
+
+      const held = gains.get(name)
+      if (top > bar && (!held || top > held.weight)) {
+        gains.set(name, {
+          exercise: ex.name,
+          weight: top,
+          prevBest: bar,
+          date: dayKey(session.date),
+          steps: (held?.steps || 0) + 1,
+        })
+      } else if (top > bar && held) {
+        held.steps += 1
       }
     }
   }
-  return events.sort((a, b) => b.weight - a.weight)
+
+  return [...gains.values()].sort((a, b) => (b.weight - b.prevBest) - (a.weight - a.prevBest))
 }
 
 // ── Consistency, read off the recovery ledger ─────────────────
@@ -298,6 +320,26 @@ export function buildMonthReport({
 // a report that lists eleven faults is a scolding, not a report.
 const SEV = { alert: 3, nudge: 2, praise: 1, info: 0 }
 
+// ── Talking about a ratio without sounding absurd ─────────────
+// A month with one back session and twelve chest sessions produces a
+// push/pull figure like 79.63, which is arithmetically correct and
+// completely useless to read. Past a few times over, the ratio stops
+// being a ratio and becomes "one of these barely happened".
+export const PUSH_PULL_BAND = [0.7, 1.4]
+
+export const formatRatio = (r) =>
+  r >= 10 || r <= 0.1 ? `×${Math.round(r >= 1 ? r : 1 / r)}` : String(Math.round(r * 100) / 100)
+
+export function describeRatio(r) {
+  if (r >= 10) return `حجم الدفع يقارب ${Math.round(r)} أضعاف السحب`
+  if (r <= 0.1) return `حجم السحب يقارب ${Math.round(1 / r)} أضعاف الدفع`
+  if (r > 1) return `نسبة الدفع إلى السحب ${Math.round(r * 100) / 100}`
+  return `نسبة السحب إلى الدفع ${Math.round((1 / r) * 100) / 100}`
+}
+
+// A split that lopsided is no longer a nudge — one side is missing.
+const pushPullSeverity = (r) => (r >= 4 || r <= 0.25 ? 'alert' : 'nudge')
+
 const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 
 export const MAX_TIPS = 4
@@ -322,12 +364,13 @@ export function buildTips(report, { sessions = [], mapping = {}, repTarget, mont
 
   // Push/pull balance. Anything outside this band pulls the shoulders forward.
   if (balance.pushPull !== null && (balance.pushPull < 0.7 || balance.pushPull > 1.4)) {
-    const heavy = balance.pushPull > 1.4 ? 'الدفع' : 'السحب'
-    const light = balance.pushPull > 1.4 ? 'السحب' : 'الدفع'
-    add('pushpull', 'nudge',
-      `توازن الدفع والسحب مائل`,
-      `نسبة الدفع إلى السحب ${balance.pushPull}. ${heavy} يغلب على ${light} — وازنها حتى لا تتقدّم الأكتاف.`,
-      String(balance.pushPull))
+    const pushHeavy = balance.pushPull > 1.4
+    const heavy = pushHeavy ? 'الدفع' : 'السحب'
+    const light = pushHeavy ? 'السحب' : 'الدفع'
+    add('pushpull', pushPullSeverity(balance.pushPull),
+      'توازن الدفع والسحب مائل',
+      `${describeRatio(balance.pushPull)} — ${heavy} يغلب على ${light}. وازنها حتى لا تتقدّم الأكتاف.`,
+      formatRatio(balance.pushPull))
   }
 
   // Untracked sets: the engine cannot progress a set that was never ticked.

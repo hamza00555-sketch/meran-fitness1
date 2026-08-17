@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName,
   levelFromXP, xpProgress, getTodayChallenges,
@@ -42,6 +42,8 @@ import LevelUpScreen    from './components/LevelUpScreen.jsx'
 import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
+import MonthReport      from './components/report/MonthReport.jsx'
+import { buildMonthReport, monthReportWindow } from './monthReport.js'
 import { initPack, wasPrompted } from './assets/pack.js'
 
 // Stable greeting index per session
@@ -128,6 +130,7 @@ export default function App() {
   const [showWhatsNew, setShowWhatsNew] = useState(() => ls.get('hf_seen_version') !== APP_VERSION)
   // Set by the boot reconciliation below, never by a stored flag alone.
   const [packOffer,  setPackOffer]  = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   const prevLevelRef  = useRef(levelFromXP(xp))
   const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
@@ -480,6 +483,22 @@ export default function App() {
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
 
+  // ── Monthly report ───────────────────────────────────────────
+  // Offered only in its window — the last days of a month and the first
+  // week of the next — and only when that month has something in it.
+  // Built once per change rather than on every render: it replays the
+  // whole history to find record events.
+  const reportMonth = monthReportWindow(todayKey())
+  const monthReport = useMemo(
+    () => (reportMonth
+      ? buildMonthReport({
+          sessions, config: recoveryCfg, unlockedAt, xp,
+          mapping: exerciseMapping, repTarget, month: reportMonth,
+        })
+      : null),
+    [reportMonth, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget],
+  )
+
   // ── Changing frequency or plan ───────────────────────────────
   // Both keep the streak, because each past day is judged by the pattern
   // that was in force then. One change is free per cooldown; a further
@@ -657,6 +676,8 @@ export default function App() {
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={skipPlanDay}
             onGoToWorkout={() => setTab('workout')}
+            monthReport={monthReport}
+            onShowMonthReport={() => setShowReport(true)}
           />
         )}
         {tab === 'workout' && (
@@ -845,6 +866,9 @@ export default function App() {
       {showWhatsNew && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
       {/* Queued behind the version notice so the two never stack. */}
       {packOffer && !showWhatsNew && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
+      {showReport && monthReport && (
+        <MonthReport report={monthReport} onClose={() => setShowReport(false)} />
+      )}
     </div>
   )
 }

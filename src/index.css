@@ -426,3 +426,134 @@ input[type=number] { -moz-appearance: textfield; }
   .ap-title { font-size: 13px; }
   .ap-tab   { min-height: 32px; padding: 0 10px; font-size: 12px; }
 }
+
+/* ── Monthly report ────────────────────────────────────────────
+   The report is meant to feel alive, not merely animated, so a lot of
+   this runs continuously rather than once on entry. Two rules keep
+   that from turning into a stutter on a phone:
+
+     · only transform and opacity are animated — never width, height
+       or top, which would force layout on every frame;
+     · nothing off screen animates. Sections carry .mr-idle when the
+       observer says they have left the viewport, and that switches
+       their animations off.
+
+   Everything below is disabled outright under reduced motion at the
+   end of this block. */
+
+/* The cover never sits still: a slow drift that outlasts any single
+   viewing, so it reads as a living image rather than a loop. */
+@keyframes kenBurns {
+  0%   { transform: scale(1.06) translate3d(0, 0, 0); }
+  50%  { transform: scale(1.14) translate3d(-1.5%, -1.5%, 0); }
+  100% { transform: scale(1.06) translate3d(0, 0, 0); }
+}
+
+/* Three blurred orbs behind the content. Capped at three on purpose —
+   each one is a large composited layer. */
+@keyframes orbDrift {
+  0%   { transform: translate3d(0, 0, 0)        scale(1); }
+  33%  { transform: translate3d(18vw, -8vh, 0)  scale(1.18); }
+  66%  { transform: translate3d(-12vw, 10vh, 0) scale(0.92); }
+  100% { transform: translate3d(0, 0, 0)        scale(1); }
+}
+
+/* A breathing halo behind every headline number. */
+@keyframes auraPulse {
+  0%, 100% { opacity: 0.28; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 0.6;  transform: translate(-50%, -50%) scale(1.22); }
+}
+
+/* A light sweeping across a card. Staggered by --i so no two cards
+   flash together. */
+@keyframes sweepShine {
+  0%        { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+  8%        { opacity: 0.5; }
+  22%, 100% { transform: translateX(240%) skewX(-18deg); opacity: 0; }
+}
+
+/* Rings and arcs draw themselves in rather than appearing complete. */
+@keyframes drawStroke {
+  from { stroke-dashoffset: var(--dash); }
+  to   { stroke-dashoffset: var(--offset); }
+}
+
+/* Bars grow from nothing with a small overshoot, so a chart lands
+   rather than slides. Two axes: a column chart grows upward, a row of
+   horizontal bars grows sideways out of its own anchored edge. */
+@keyframes barGrow {
+  0%   { transform: scaleY(0); }
+  70%  { transform: scaleY(1.06); }
+  100% { transform: scaleY(1); }
+}
+@keyframes barGrowX {
+  0%   { transform: scaleX(0); }
+  70%  { transform: scaleX(1.04); }
+  100% { transform: scaleX(1); }
+}
+
+/* Calendar cells pop in one after another, a wave sweeping the month. */
+@keyframes cellPop {
+  0%   { transform: scale(0.2); opacity: 0; }
+  65%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* The closing card assembles itself from its own pieces. */
+@keyframes cardFlyIn {
+  0%   { transform: translate3d(var(--fx, 0), var(--fy, 40px), 0) scale(0.86) rotate(var(--fr, -4deg)); opacity: 0; }
+  100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* The bump a counted number makes when it lands. */
+@keyframes numberTick {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+
+.mr-cover-img  { animation: kenBurns 26s ease-in-out infinite; will-change: transform; }
+.mr-orb        { animation: orbDrift var(--dur, 34s) ease-in-out infinite; will-change: transform; }
+.mr-aura       { animation: auraPulse 3.6s ease-in-out infinite; }
+.mr-shine::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,0.13) 50%, transparent 60%);
+  animation: sweepShine 9s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 1.4s);
+  pointer-events: none;
+}
+.mr-draw       { animation: drawStroke 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.mr-bar        { transform-origin: bottom; animation: barGrow 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+                 animation-delay: calc(var(--i, 0) * 60ms); }
+/* Horizontal: the origin is set inline, because it follows the text
+   direction rather than the component. */
+.mr-bar-h      { animation: barGrowX 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+                 animation-delay: calc(var(--i, 0) * 60ms); }
+.mr-cell       { animation: cellPop 0.42s cubic-bezier(0.34, 1.5, 0.64, 1) both;
+                 animation-delay: calc(var(--i, 0) * 25ms); }
+.mr-fly        { animation: cardFlyIn 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+                 animation-delay: calc(var(--i, 0) * 110ms); }
+.mr-rise       { animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+                 animation-delay: calc(var(--i, 0) * 110ms); }
+.mr-tick       { animation: numberTick 0.45s cubic-bezier(0.34, 1.5, 0.64, 1); }
+
+/* A section that has scrolled away stops working. This is what lets
+   the whole report animate at once without the phone paying for all
+   of it at once. */
+.mr-idle,
+.mr-idle * { animation-play-state: paused !important; }
+.mr-section { content-visibility: auto; contain-intrinsic-size: auto 520px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mr-cover-img, .mr-orb, .mr-aura, .mr-draw, .mr-bar, .mr-bar-h,
+  .mr-cell, .mr-fly, .mr-rise, .mr-tick { animation: none !important; }
+  .mr-shine::after { display: none !important; }
+  .mr-orb { display: none !important; }
+  /* Anything the animation was going to end on has to be its resting
+     state instead, or the report renders blank and still. */
+  .mr-bar   { transform: scaleY(1); }
+  .mr-bar-h { transform: scaleX(1); }
+  .mr-cell { transform: scale(1); opacity: 1; }
+  .mr-fly, .mr-rise { opacity: 1; transform: none; }
+  .mr-draw { stroke-dashoffset: var(--offset); }
+}
