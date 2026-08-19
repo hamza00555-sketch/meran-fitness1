@@ -449,6 +449,64 @@ test('tips are ordered with the most serious first', () => {
   assert.deepEqual(ranks, [...ranks].sort((a, b) => b - a))
 })
 
+// ══ the month's shape ═════════════════════════════════════════
+
+test('the series is one point per training day, oldest first', () => {
+  const r = build(trainOn(5, 1, 3))   // deliberately out of order
+  assert.deepEqual(r.volume.series.map(p => p.date), ['2026-03-01', '2026-03-03', '2026-03-05'])
+})
+
+test('two sessions on one day are one point, not two', () => {
+  // Otherwise the chart draws a spike on a day that was one day's work.
+  const r = build([
+    session(1, 'Bench Press', [[60, 10]]),
+    session(1, 'Squat', [[100, 5]], { muscle: 'Legs' }),
+    session(3, 'Bench Press', [[60, 10]]),
+  ])
+  assert.equal(r.volume.series.length, 2)
+  assert.equal(r.volume.series[0].value, 60 * 10 + 100 * 5)
+})
+
+test('the series adds up to the month total', () => {
+  const r = build(trainOn(1, 3, 5, 7))
+  assert.equal(r.volume.series.reduce((n, p) => n + p.value, 0), r.volume.total)
+})
+
+test('a climbing month is trending up', () => {
+  const r = build([100, 120, 140, 160, 180].map((w, i) =>
+    session(1 + i * 2, 'Bench Press', [[w, 10]])))
+  assert.equal(r.volume.direction, 'up')
+  assert.ok(r.volume.slope > 0)
+})
+
+test('a fading month is trending down', () => {
+  const r = build([180, 160, 140, 120, 100].map((w, i) =>
+    session(1 + i * 2, 'Bench Press', [[w, 10]])))
+  assert.equal(r.volume.direction, 'down')
+  assert.ok(r.volume.slope < 0)
+})
+
+test('one heavy day at the end does not make a falling month rise', () => {
+  // A first-to-last comparison would call this an increase. The fit
+  // answers for every session, which is the point of using one.
+  const r = build([200, 180, 160, 140, 120, 205].map((w, i) =>
+    session(1 + i * 2, 'Bench Press', [[w, 10]])))
+  assert.equal(r.volume.direction, 'down', `slope ${r.volume.slope}`)
+})
+
+test('too few days to have a direction is flat, not a guess', () => {
+  const r = build(trainOn(1, 3))
+  assert.equal(r.volume.slope, 0)
+  assert.equal(r.volume.direction, 'flat')
+})
+
+test('an unticked set still shapes the day it was typed on', () => {
+  // The series uses sessionVolume, the same rule the total uses, so
+  // the chart and the headline can never disagree.
+  const r = build([session(1, 'Bench Press', [[60, 10, false]])])
+  assert.equal(r.volume.series[0].value, r.volume.total)
+})
+
 // ══ talking about a ratio ═════════════════════════════════════
 
 test('an ordinary ratio is shown as a ratio', () => {

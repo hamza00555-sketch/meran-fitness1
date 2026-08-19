@@ -233,6 +233,38 @@ export function buildMonthReport({
   const timed = inMonth.filter(s => s.duration > 0)
   const totalMinutes = timed.reduce((n, s) => n + s.duration, 0)
 
+  // ── The month's shape ──
+  // One point per training day, oldest first, so the chart traces the
+  // month as it was actually lived. Days are merged rather than
+  // sessions listed: two sessions on one day is one day's work, and
+  // plotting them as two points would draw a spike that never
+  // happened.
+  const byDay = new Map()
+  for (const s of inMonth) {
+    const key = dayKey(s.date)
+    byDay.set(key, (byDay.get(key) || 0) + sessionVolume(s))
+  }
+  const series = [...byDay.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([date, value]) => ({ date, value: Math.round(value) }))
+
+  // The direction the month moved, as the slope of a least-squares fit
+  // through those points. A first-to-last comparison would call a month
+  // that dipped once at the end a decline; the fit answers for every
+  // session, which is what "trending up or down" actually means.
+  const slope = (() => {
+    const n = series.length
+    if (n < 3) return 0
+    const meanX = (n - 1) / 2
+    const meanY = series.reduce((a, p) => a + p.value, 0) / n
+    let num = 0, den = 0
+    for (let i = 0; i < n; i++) {
+      num += (i - meanX) * (series[i].value - meanY)
+      den += (i - meanX) ** 2
+    }
+    return den ? num / den : 0
+  })()
+
   // ── Muscles ──
   const byMuscle = new Map()
   for (const s of inMonth) {
@@ -274,6 +306,10 @@ export function buildMonthReport({
       prevTotal: Math.round(prevTotal),
       // No previous month to compare against is not a 0% change.
       trendPct: prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null,
+      // The month day by day, and which way it leaned overall.
+      series,
+      slope: Math.round(slope),
+      direction: slope > 0 ? 'up' : slope < 0 ? 'down' : 'flat',
     },
     sets: {
       total: setsTotal,

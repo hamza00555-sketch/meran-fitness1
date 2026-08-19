@@ -46,7 +46,7 @@ import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
 import { buildMonthReport, monthReportWindow } from './monthReport.js'
-import { initPack, wasPrompted } from './assets/pack.js'
+import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // Stable greeting index per session
 const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
@@ -195,6 +195,11 @@ export default function App() {
     initPack().then(rec => {
       if (!alive) return
       if (!rec.installed && !wasPrompted()) setPackOffer(true)
+      // An installed pack is only as new as the day it was downloaded.
+      // Check the published version in the background so art added
+      // after that day actually arrives; silent by design, and a
+      // failure here leaves the app exactly as it already was.
+      else if (rec.installed) syncPack().catch(() => {})
     }).catch(e => {
       // Never swallow this: a throw here once left the art un-hydrated
       // with no trace of why.

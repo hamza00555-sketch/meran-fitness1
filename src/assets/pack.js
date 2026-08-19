@@ -158,6 +158,57 @@ export async function installPack() {
 /** Same path as install — content-addressing makes an update just a smaller install. */
 export const updatePack = installPack
 
+/**
+ * Quietly bring an installed pack up to the published version.
+ *
+ * initPack only reconciles against the manifest already in IndexedDB,
+ * which is the right answer for "can I draw right now" and the wrong
+ * one for "is there newer art". Without this, publishing new pieces
+ * reached nobody who had already installed — the pack sat at whatever
+ * version it was first downloaded at until someone happened to open
+ * Settings and press the update button.
+ *
+ * Content addressing makes this cheap: only files whose hash is not
+ * already stored are fetched, so a twelve-image addition to a sixty
+ * image pack transfers twelve images.
+ *
+ * Deliberately silent. It runs behind a screen the user is already
+ * looking at, so it must never take over the pack UI's phase or
+ * report a failure — art that does not arrive falls back to what the
+ * app drew before it existed, which is the same state as not having
+ * run at all.
+ */
+export async function syncPack() {
+  const state = registry.getPackState()
+  // A device with no pack yet belongs to the first-run prompt, not here.
+  if (!state.installed) return { ok: false, reason: 'not-installed' }
+  if (isRunning()) return { ok: false, reason: 'busy' }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { ok: false, reason: 'offline' }
+  }
+
+  let manifest
+  try {
+    manifest = await fetchManifest(MANIFEST_URL)
+  } catch {
+    return { ok: false, reason: 'manifest-failed' }
+  }
+
+  if (manifest.packVersion === state.packVersion) return { ok: true, reason: 'current' }
+
+  // Only the id→remote-URL map changes here; the object URLs already
+  // on screen are untouched, so nothing blanks while the diff lands.
+  registry.applyManifest(manifest)
+
+  return ensureDownload(manifest, {
+    onDone: async (m) => {
+      await writeManifest(serialisable(m))
+      await collectGarbage(m)
+      writePointer({ v: 1, packVersion: m.packVersion, installedAt: Date.now(), count: m.assets.length })
+    },
+  })
+}
+
 export function cancelInstall() { cancelDownload() }
 
 export async function deletePack() {

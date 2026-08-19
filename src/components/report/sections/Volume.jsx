@@ -5,6 +5,15 @@
 
 import { useReveal } from '../../../hooks/useMotion.js'
 import { Heading, Hero, Tile, AR } from '../parts.jsx'
+import TrendChart from '../TrendChart.jsx'
+
+// What the slope of the month is called. "Steady" is its own answer,
+// not a failure to be up.
+const DIRECTION = {
+  up:   { label: '▲ صاعد',  color: 'var(--cyan)' },
+  down: { label: '▼ نازل',  color: '#EF4444' },
+  flat: { label: '— ثابت',  color: 'var(--purple)' },
+}
 
 export default function Volume({ report }) {
   const [ref, run, active] = useReveal()
@@ -45,6 +54,37 @@ export default function Volume({ report }) {
           }}>
             {trend >= 0 ? 'ارتفاع' : 'انخفاض'} عن {AR(volume.prevTotal)} كجم
           </span>
+        </div>
+      )}
+
+      {/* ── The month's shape ── */}
+      {volume.series?.length >= 3 && (
+        <div
+          className={run ? 'mr-rise mr-shine' : undefined}
+          style={{
+            '--i': 2, position: 'relative', overflow: 'hidden',
+            background: 'var(--bg2)', border: '1px solid var(--border)',
+            borderRadius: 14, padding: '14px 12px 12px', marginBottom: 10,
+            opacity: run ? undefined : 0,
+          }}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 8, marginBottom: 8, fontFamily: 'var(--font-ar)',
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>
+              حجم كل يوم تمرين
+            </span>
+            <span style={{
+              fontSize: 11, fontWeight: 700, borderRadius: 99, padding: '3px 10px',
+              color: DIRECTION[volume.direction].color,
+              background: `${DIRECTION[volume.direction].color}14`,
+              border: `1px solid ${DIRECTION[volume.direction].color}40`,
+            }}>
+              {DIRECTION[volume.direction].label}
+            </span>
+          </div>
+          <TrendChart series={volume.series} direction={volume.direction} />
         </div>
       )}
 

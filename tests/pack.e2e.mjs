@@ -317,6 +317,58 @@ if (PACK2) {
   await ctx.close()
 }
 
+// ══ 5b. An installed pack catches up on its own ═════════════════
+// The version a pack was first downloaded at is not the version that
+// is published. Art added later reached nobody who had already
+// installed, because boot only ever reconciled against the manifest
+// sitting in IndexedDB. Opening the app has to be enough.
+if (PACK2) {
+  const m2 = JSON.parse(await readFile(path.join(PACK2, 'manifest.json'), 'utf8'))
+  const oldShas = new Set(manifest.assets.map(a => a.sha256))
+  const changed = new Set(m2.assets.filter(a => !oldShas.has(a.sha256)).map(a => a.sha256)).size
+
+  const ctx = await browser.newContext(ctxOpts)
+  const page = await newPage(ctx)
+  await serve(page, PACK)
+  await boot(page)
+  await packBtn(page, 'offer-accept')
+  await openSettings(page)
+  await waitPhase(page, 'ready')
+
+  // Republish, then simply open the app again — no Settings, no button.
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  const net2 = await serve(page, PACK2)
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(2500)
+
+  const p = await pointer(page)
+  ok('a reload alone picks up the newer pack',
+    p?.packVersion === m2.packVersion, `pointer at ${p?.packVersion}, published ${m2.packVersion}`)
+  ok('the catch-up fetches only what changed',
+    net2.files === changed, `asked ${net2.files}, changed ${changed}`)
+  await ctx.close()
+}
+
+// ══ 5c. Nothing new means nothing fetched ═══════════════════════
+// The check runs on every boot, so it has to be free when the pack is
+// already current — one manifest request and no files.
+{
+  const ctx = await browser.newContext(ctxOpts)
+  const page = await newPage(ctx)
+  await serve(page, PACK)
+  await boot(page)
+  await packBtn(page, 'offer-accept')
+  await openSettings(page)
+  await waitPhase(page, 'ready')
+
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  const net3 = await serve(page, PACK)
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(2500)
+  ok('a current pack downloads nothing on boot', net3.files === 0, `fetched ${net3.files} files`)
+  await ctx.close()
+}
+
 // ══ 6. The pack is per device, not per profile ══════════════════
 {
   const ctx = await browser.newContext(ctxOpts)
