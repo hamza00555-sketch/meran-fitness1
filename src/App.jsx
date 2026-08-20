@@ -658,10 +658,10 @@ export default function App() {
       {/* ── Header ──────────────────────────────────────────────── */}
       <header style={{
         background: '#080B14',
-        borderBottom: '1px solid rgba(94,195,42,0.12)',
+        borderBottom: '1px solid rgba(var(--cyan-rgb),0.12)',
         padding: `calc(var(--safe-top) + 14px) 18px 14px`,
         position: 'sticky', top: 0, zIndex: 100,
-        boxShadow: '0 1px 0 rgba(94,195,42,0.08)',
+        boxShadow: '0 1px 0 rgba(var(--cyan-rgb),0.08)',
         // No backdrop-filter: on iOS it makes this bar composite into a
         // layer that goes stale during scroll and paints at a wrong offset.
         transform: 'translateZ(0)',
@@ -702,20 +702,20 @@ export default function App() {
             <button
               onClick={() => setShowRest(true)}
               style={{
-                background: 'rgba(94,195,42,0.07)', border: '1px solid rgba(94,195,42,0.18)',
+                background: 'rgba(var(--cyan-rgb),0.07)', border: '1px solid rgba(var(--cyan-rgb),0.18)',
                 borderRadius: 10, width: 36, height: 36,
                 color: 'var(--text2)', cursor: 'pointer',
                 fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s',
               }}
               onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(94,195,42,0.18)'; e.currentTarget.style.color = 'var(--text2)' }}
+              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(var(--cyan-rgb),0.18)'; e.currentTarget.style.color = 'var(--text2)' }}
             >⏱️</button>
             <button
               onClick={() => setTab(t => t === 'settings' ? 'home' : 'settings')}
               style={{
-                background: tab === 'settings' ? 'var(--cyan-lo)' : 'rgba(94,195,42,0.07)',
-                border: `1px solid ${tab === 'settings' ? 'var(--cyan)' : 'rgba(94,195,42,0.18)'}`,
+                background: tab === 'settings' ? 'var(--cyan-lo)' : 'rgba(var(--cyan-rgb),0.07)',
+                border: `1px solid ${tab === 'settings' ? 'var(--cyan)' : 'rgba(var(--cyan-rgb),0.18)'}`,
                 borderRadius: 10, width: 36, height: 36,
                 color: tab === 'settings' ? 'var(--cyan)' : 'var(--text2)', cursor: 'pointer',
                 fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -724,7 +724,7 @@ export default function App() {
               onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
               onMouseOut={e => {
                 if (tab !== 'settings') {
-                  e.currentTarget.style.borderColor = 'rgba(94,195,42,0.18)'
+                  e.currentTarget.style.borderColor = 'rgba(var(--cyan-rgb),0.18)'
                   e.currentTarget.style.color = 'var(--text2)'
                 }
               }}
@@ -764,6 +764,7 @@ export default function App() {
             onGoToWorkout={() => setTab('workout')}
             monthReport={monthReport}
             onShowMonthReport={() => setShowReport(true)}
+            deload={deload}
           />
         )}
         {tab === 'workout' && (
@@ -884,8 +885,8 @@ export default function App() {
         left: 0, right: 0,
         width: '100%', maxWidth: 560,
         background: '#080B14',
-        borderTop: '1px solid rgba(94,195,42,0.10)',
-        boxShadow: '0 -1px 0 rgba(94,195,42,0.06)',
+        borderTop: '1px solid rgba(var(--cyan-rgb),0.10)',
+        boxShadow: '0 -1px 0 rgba(var(--cyan-rgb),0.06)',
         display: 'flex',
         padding: `10px 6px calc(env(safe-area-inset-bottom, 0px) + 10px)`,
         zIndex: 200,

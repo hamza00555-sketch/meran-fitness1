@@ -59,6 +59,17 @@ export const FlameIcon = ({ size = 20, color = '#F97316' }) => (
   </svg>
 )
 
+// The deload counterpart to the flame. The commitment meter is a
+// heat scale — five flames burning brighter the longer the streak
+// runs — and heat is the wrong word for a week built around backing
+// off. Same meter, same five marks, read as water instead of fire.
+export const DropletIcon = ({ size = 20, color = '#3B9DE8' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M12 2.2c0 0-6.5 7.1-6.5 11.6a6.5 6.5 0 0013 0C18.5 9.3 12 2.2 12 2.2z" />
+    <path d="M9.2 14.2a2.8 2.8 0 002.3 2.8" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.4" strokeLinecap="round" />
+  </svg>
+)
+
 export const StarIcon = ({ size = 16, color = '#EAB308' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />

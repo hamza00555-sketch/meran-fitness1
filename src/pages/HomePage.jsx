@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
-import { DumbbellIcon, FlameIcon } from '../components/Icons.jsx'
+import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
 import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex, fmtDate } from '../utils.js'
 import { MUSCLE_GROUPS, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
@@ -246,7 +246,7 @@ function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, on
               flex: 1, padding: '14px',
               background: 'var(--grad-primary)', border: 'none', borderRadius: 14,
               color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 16,
-              cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
+              cursor: 'pointer', boxShadow: '0 4px 16px rgba(var(--cyan-rgb),0.35)',
             }}>⚡ ابدأ التمرين</button>
             <button onClick={onSkip} style={{
               padding: '14px 16px',
@@ -328,7 +328,7 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], e
             flex: 1, padding: '11px',
             background: 'var(--grad-primary)', border: 'none', borderRadius: 12,
             color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
-            cursor: 'pointer', boxShadow: '0 4px 16px rgba(94,195,42,0.35)',
+            cursor: 'pointer', boxShadow: '0 4px 16px rgba(var(--cyan-rgb),0.35)',
           }}>⚡ ابدأ</button>
           <button onClick={onSkip} style={{
             padding: '11px 14px',
@@ -387,32 +387,49 @@ function RankRing({ rank, level }) {
   )
 }
 
-// Commitment flames display
-function CommitmentFlames({ streak }) {
+// Commitment meter. Five marks, filled by the streak.
+//
+// Normally they are flames and they carry the tier's own colour — that
+// colour is the tier's identity, not the app's accent, which is why it
+// stays put when everything else changes.
+//
+// Under a deload the metaphor itself changes: flames say push harder,
+// and this is a week that says the opposite. They become droplets, they
+// take the accent, and they drift more slowly. The streak underneath is
+// untouched — a deload lightens the load, it does not change what
+// counts as showing up.
+function CommitmentFlames({ streak, deload = false }) {
   const level = COMMITMENT_LEVELS.slice().reverse().find(c => streak >= c.min) || COMMITMENT_LEVELS[0]
   const flames = level.flames || 0
+  const Mark = deload ? DropletIcon : FlameIcon
+  const lit  = deload ? 'var(--cyan)' : level.color
+  const beat = deload ? 1.6 : 1
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
       {[1,2,3,4,5].map(i => (
         <div key={i} style={{
-          opacity: i <= flames ? 1 : 0.18,
-          animation: i <= flames ? `floatUp ${2 + i * 0.3}s ease-in-out infinite` : 'none',
-          animationDelay: `${i * 0.15}s`,
+          opacity: i <= flames ? (deload ? 0.9 : 1) : 0.18,
+          animation: i <= flames ? `floatUp ${(2 + i * 0.3) * beat}s ease-in-out infinite` : 'none',
+          animationDelay: `${i * 0.15 * beat}s`,
         }}>
-          <FlameIcon size={14} color={i <= flames ? level.color : '#4B5563'} />
+          <Mark size={14} color={i <= flames ? lit : '#4B5563'} />
         </div>
       ))}
     </div>
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false, monthReport = null, onShowMonthReport }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false, monthReport = null, onShowMonthReport, deload = null }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
   // workouts and the chosen frequency — never from the weekday.
   const isRecoveryDay   = recovery?.status === DAY_STATUS.RECOVERY
   const isTodayTraining = !isRecoveryDay
+  // A deload never turns a training day into a rest day (it lightens the
+  // load, nothing else), so this rides alongside the day status rather
+  // than replacing it.
+  const onDeload = !!deload?.active
 
   const monthAgo = Date.now() - 30 * 86400000
   const monthSessions = sessions.filter(s => new Date(s.date) > monthAgo)
@@ -446,33 +463,33 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'linear-gradient(135deg, rgba(8,11,20,0.96), rgba(15,32,38,0.82))',
-        border: '1px solid rgba(94,195,42,0.34)',
-        boxShadow: '0 0 0 1px rgba(94,195,42,0.08), 0 12px 32px rgba(0,0,0,0.28)',
+        border: '1px solid rgba(var(--cyan-rgb),0.34)',
+        boxShadow: '0 0 0 1px rgba(var(--cyan-rgb),0.08), 0 12px 32px rgba(0,0,0,0.28)',
       }}>
         {/* centre glow */}
         <div style={{
           position: 'absolute', left: '50%', top: '50%',
           transform: 'translate(-50%,-50%)',
           width: 180, height: 64, borderRadius: 999,
-          background: 'radial-gradient(circle, rgba(94,195,42,0.18) 0%, rgba(94,195,42,0.07) 40%, rgba(94,195,42,0) 74%)',
+          background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.18) 0%, rgba(var(--cyan-rgb),0.07) 40%, rgba(var(--cyan-rgb),0) 74%)',
           filter: 'blur(12px)', opacity: 0.85, pointerEvents: 'none',
         }} />
         {/* diagonal speed lines */}
         <div style={{
           position: 'absolute', inset: 0, borderRadius: 22,
           pointerEvents: 'none', opacity: 0.35,
-          background: 'linear-gradient(115deg, transparent 0%, rgba(94,195,42,0.10) 16%, transparent 28%, transparent 62%, rgba(94,195,42,0.09) 78%, transparent 100%)',
+          background: 'linear-gradient(115deg, transparent 0%, rgba(var(--cyan-rgb),0.10) 16%, transparent 28%, transparent 62%, rgba(var(--cyan-rgb),0.09) 78%, transparent 100%)',
         }} />
         <div style={{
           position: 'absolute', insetInlineStart: 18, top: 20,
           width: 130, height: 1,
-          background: 'linear-gradient(90deg, rgba(94,195,42,0), rgba(94,195,42,0.34), rgba(94,195,42,0))',
+          background: 'linear-gradient(90deg, rgba(var(--cyan-rgb),0), rgba(var(--cyan-rgb),0.34), rgba(var(--cyan-rgb),0))',
           transform: 'rotate(-12deg)', opacity: 0.45, pointerEvents: 'none',
         }} />
         <div style={{
           position: 'absolute', insetInlineEnd: 18, bottom: 18,
           width: 130, height: 1,
-          background: 'linear-gradient(90deg, rgba(94,195,42,0), rgba(94,195,42,0.28), rgba(94,195,42,0))',
+          background: 'linear-gradient(90deg, rgba(var(--cyan-rgb),0), rgba(var(--cyan-rgb),0.28), rgba(var(--cyan-rgb),0))',
           transform: 'rotate(-12deg)', opacity: 0.38, pointerEvents: 'none',
         }} />
         {/* logo */}
@@ -484,7 +501,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             width: 96, maxWidth: '32vw', height: 'auto',
             objectFit: 'contain', display: 'block',
             opacity: 0.94,
-            filter: 'drop-shadow(0 0 10px rgba(94,195,42,0.22))',
+            filter: 'drop-shadow(0 0 10px rgba(var(--cyan-rgb),0.22))',
           }}
         />
       </div>
@@ -524,7 +541,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
       <div style={{
         position: 'relative',
         background: 'var(--grad-hero)',
-        border: '1px solid rgba(94,195,42,0.12)',
+        border: '1px solid rgba(var(--cyan-rgb),0.12)',
         borderBottom: `3px solid ${rank.color}`,
         borderRadius: 'var(--radius)',
         marginBottom: 'var(--hp-card-mb)',
@@ -547,7 +564,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         }} />
         <div style={{
           position: 'absolute', bottom: -20, right: -20, width: 90, height: 90, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59,157,232,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(var(--purple-rgb),0.08) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
@@ -575,7 +592,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
                   fontSize: 12, fontWeight: 700,
                 }}>🔥 {streak}</span>
               )}
-              <CommitmentFlames streak={streak} />
+              <CommitmentFlames streak={streak} deload={onDeload} />
             </div>
 
             {/* XP + Level badges */}
@@ -615,15 +632,15 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         marginBottom: 'var(--hp-card-mb)',
         borderTop: `3px solid ${isTodayTraining ? 'var(--cyan)' : 'var(--purple)'}`,
         background: isTodayTraining
-          ? 'linear-gradient(135deg, rgba(94,195,42,0.07) 0%, rgba(59,157,232,0.04) 100%)'
-          : 'linear-gradient(135deg, rgba(59,157,232,0.05) 0%, rgba(94,195,42,0.03) 100%)',
+          ? 'linear-gradient(135deg, rgba(var(--cyan-rgb),0.07) 0%, rgba(var(--purple-rgb),0.04) 100%)'
+          : 'linear-gradient(135deg, rgba(var(--purple-rgb),0.05) 0%, rgba(var(--cyan-rgb),0.03) 100%)',
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Decorative circle */}
         <div style={{
           position: 'absolute', left: -16, bottom: -16,
           width: 80, height: 80, borderRadius: '50%',
-          background: isTodayTraining ? 'rgba(94,195,42,0.08)' : 'rgba(59,157,232,0.06)',
+          background: isTodayTraining ? 'rgba(var(--cyan-rgb),0.08)' : 'rgba(var(--purple-rgb),0.06)',
           pointerEvents: 'none',
         }} />
 
@@ -635,15 +652,21 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
               color: isTodayTraining ? 'var(--cyan)' : 'var(--text2)',
               marginBottom: 5,
             }}>
+              {/* The wording follows the mode. A deload week is still a
+                  training week, so the line never becomes a rest line —
+                  it just stops pushing. */}
               {recovery?.status === DAY_STATUS.COMPLETED ? 'تمرين مكتمل ✓'
                 : isRecoveryDay ? 'اليوم يوم تعافٍ'
+                : onDeload ? 'اليوم تمرين خفيف'
                 : 'اليوم يوم تمرين 💪'}
             </div>
             <div className="hp-sub" style={{ fontFamily: 'var(--font-ar)' }}>
               {recovery?.status === DAY_STATUS.COMPLETED
-                ? 'أنهيت تمرين اليوم — أحسنت!'
+                ? (onDeload ? 'أنهيت تمرين اليوم بأوزان الديلود — تمام.' : 'أنهيت تمرين اليوم — أحسنت!')
                 : isRecoveryDay
                 ? `أكملت ${recovery.workoutStreak} تمارين متتالية. خذ اليوم للراحة، وغداً تكمل خطتك.`
+                : onDeload
+                ? `نفس تمرين خطتك، بأوزان أخف بـ${deload.pct}٪. الحركة تكمل والحمل ينزل.`
                 : 'التمرين التالي في خطتك جاهز — حان الوقت!'}
             </div>
           </div>

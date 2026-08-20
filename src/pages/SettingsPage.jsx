@@ -798,7 +798,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                           borderRadius: 10,
                           color: isActive ? 'var(--cyan)' : 'white',
                           fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                          boxShadow: isActive ? 'none' : '0 2px 10px rgba(94,195,42,0.3)',
+                          boxShadow: isActive ? 'none' : '0 2px 10px rgba(var(--cyan-rgb),0.3)',
                         }}
                       >{isActive ? '✓ مفعّل حالياً' : '⚡ تفعيل البرنامج'}</button>
                     </div>
@@ -991,7 +991,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
                 onClick={() => setPasteMode(true)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 12,
-                  background: 'var(--cyan-lo)', border: '1px solid rgba(94,195,42,0.25)',
+                  background: 'var(--cyan-lo)', border: '1px solid rgba(var(--cyan-rgb),0.25)',
                   borderRadius: 12, padding: '14px 16px',
                   color: 'var(--cyan)', cursor: 'pointer',
                   fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600, textAlign: 'right',

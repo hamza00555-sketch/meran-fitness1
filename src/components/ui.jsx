@@ -15,9 +15,9 @@ export function Card({ children, style = {}, topColor, onClick, glass = false })
         border: topColor
           ? undefined
           : glass
-            ? '1px solid rgba(94,195,42,0.10)'
+            ? '1px solid rgba(var(--cyan-rgb),0.10)'
             : '1px solid var(--border)',
-        borderTop: topColor ? `2px solid ${topColor}` : glass ? '1px solid rgba(94,195,42,0.14)' : '1px solid var(--border)',
+        borderTop: topColor ? `2px solid ${topColor}` : glass ? '1px solid rgba(var(--cyan-rgb),0.14)' : '1px solid var(--border)',
         borderRight: topColor ? '1px solid var(--border)' : undefined,
         borderBottom: topColor ? '1px solid var(--border)' : undefined,
         borderLeft: topColor ? '1px solid var(--border)' : undefined,
@@ -37,7 +37,7 @@ const BTN_VARIANTS = {
     background: 'var(--grad-primary)',
     color: '#fff',
     border: 'none',
-    boxShadow: '0 4px 18px rgba(94,195,42,0.30)',
+    boxShadow: '0 4px 18px rgba(var(--cyan-rgb),0.30)',
   },
   secondary: {
     background: 'var(--bg3)',
@@ -93,7 +93,7 @@ export function Btn({
 }
 
 // Badge
-export function Badge({ children, color = '#5EC32A' }) {
+export function Badge({ children, color = 'var(--cyan)' }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -138,9 +138,9 @@ export function EmptyState({ art, icon, img, title, desc }) {
       <Art
         id={art}
         size={140}
-        style={{ filter: 'drop-shadow(0 4px 20px rgba(94,195,42,0.2))' }}
+        style={{ filter: 'drop-shadow(0 4px 20px rgba(var(--cyan-rgb),0.2))' }}
         fallback={img
-          ? <img src={img} alt="" style={{ width: 140, height: 140, objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(94,195,42,0.2))' }} />
+          ? <img src={img} alt="" style={{ width: 140, height: 140, objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(var(--cyan-rgb),0.2))' }} />
           : <div className="icon-glow" style={{ fontSize: 52 }}>{icon}</div>
         }
       />
@@ -166,7 +166,7 @@ export function ProgressBar({ value = 0, max = 100, color = 'var(--cyan)', heigh
     }}>
       <div style={{
         height: '100%', width: `${pct}%`,
-        background: gradient ? `linear-gradient(90deg, ${color}, #A8F060)` : color,
+        background: gradient ? `linear-gradient(90deg, ${color}, var(--cyan-hi))` : color,
         borderRadius: height,
         transition: 'width 0.6s ease',
         boxShadow: pct > 0 ? `0 0 8px ${color}60` : 'none',

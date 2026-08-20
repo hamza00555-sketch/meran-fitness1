@@ -19,21 +19,36 @@
   --border:   #1E2D40;
   --border2:  #253A52;
 
-  /* ── Primary: Meran Green ── */
+  /* ── Primary: Meran Green ──
+     The triplet is the switch. Every border, shadow and gradient in the
+     app is written as rgba(var(--cyan-rgb), …), so the accent moves as
+     one when a mode redefines it — no scattered literals left behind. */
+  --cyan-rgb: 94,195,42;
   --cyan:     #5EC32A;
-  --cyan-lo:  rgba(94,195,42,0.10);
-  --cyan-md:  rgba(94,195,42,0.25);
-  --cyan-glow:rgba(94,195,42,0.15);
+  --cyan-hi:  #A8F060;               /* the highlight a shimmer sweeps through */
+  --cyan-lo:  rgba(var(--cyan-rgb),0.10);
+  --cyan-md:  rgba(var(--cyan-rgb), calc(0.25 * var(--glow-mul)));
+  --cyan-glow:rgba(var(--cyan-rgb), calc(0.15 * var(--glow-mul)));
+
+  /* ── Mode dials ──
+     Neutral at 1. A mode turns them instead of restating every rule:
+     --glow-mul scales how hard the accent burns, --breath how slowly
+     the app's idle animations run. */
+  --glow-mul: 1;
+  --breath:   1;
 
   /* ── Gold (XP / rewards) ── */
   --gold:     #F59E0B;
   --gold-lo:  rgba(245,158,11,0.12);
   --gold-md:  rgba(245,158,11,0.30);
 
-  /* ── Secondary: Sky Blue (replaces purple) ── */
+  /* ── Secondary: Sky Blue (replaces purple) ──
+     Same trick as the accent: one triplet, so the rest/recovery side
+     of the UI can step aside as a unit when the accent takes blue. */
+  --purple-rgb:  59,157,232;
   --purple:      #3B9DE8;
-  --purple-lo:   rgba(59,157,232,0.10);
-  --purple-md:   rgba(59,157,232,0.22);
+  --purple-lo:   rgba(var(--purple-rgb),0.10);
+  --purple-md:   rgba(var(--purple-rgb),0.22);
   --purple-deep: #1A75C0;
 
   /* ── Status colors ── */
@@ -71,7 +86,7 @@
   /* ── Gradients ── */
   --grad-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
   --grad-hero:    linear-gradient(145deg, #0B1E14 0%, #0D1C2E 100%);
-  --grad-card:    linear-gradient(135deg, rgba(94,195,42,0.06) 0%, rgba(59,157,232,0.04) 100%);
+  --grad-card:    linear-gradient(135deg, rgba(var(--cyan-rgb),0.06) 0%, rgba(var(--purple-rgb),0.04) 100%);
 }
 
 html, body {
@@ -137,7 +152,7 @@ input[type=number] { -moz-appearance: textfield; }
   0%, 100% { box-shadow: 0 0 0 0 var(--tag-glow); transform: scale(1); }
   50%      { box-shadow: 0 0 14px 2px var(--tag-glow); transform: scale(1.04); }
 }
-.tag-pulse { animation: tagPulse 1.9s ease-in-out infinite; }
+.tag-pulse { animation: tagPulse calc(1.9s * var(--breath)) ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
   .tag-pulse { animation: none; box-shadow: 0 0 10px 1px var(--tag-glow); }
@@ -243,9 +258,9 @@ input[type=number] { -moz-appearance: textfield; }
 .fade-in     { animation: fadeIn   0.2s  ease forwards; }
 .scale-enter { animation: scaleIn  0.2s  ease forwards; }
 .slide-down  { animation: slideDown 0.25s ease forwards; }
-.glow-pulse  { animation: glowPulse 2.5s ease-in-out infinite; }
-.icon-glow   { animation: iconGlow  2s ease-in-out infinite; }
-.pulse-dot   { animation: pulseDot  1.5s ease-in-out infinite; }
+.glow-pulse  { animation: glowPulse calc(2.5s * var(--breath)) ease-in-out infinite; }
+.icon-glow   { animation: iconGlow  calc(2s   * var(--breath)) ease-in-out infinite; }
+.pulse-dot   { animation: pulseDot  calc(1.5s * var(--breath)) ease-in-out infinite; }
 .spin        { animation: spin 1s linear infinite; }
 
 .xp-float {
@@ -267,16 +282,16 @@ input[type=number] { -moz-appearance: textfield; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: shimmer 2.5s linear infinite;
+  animation: shimmer calc(2.5s * var(--breath)) linear infinite;
 }
 
 .shimmer-green {
-  background: linear-gradient(90deg, var(--cyan) 0%, #A8F060 50%, var(--cyan) 100%);
+  background: linear-gradient(90deg, var(--cyan) 0%, var(--cyan-hi) 50%, var(--cyan) 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: shimmer 2.5s linear infinite;
+  animation: shimmer calc(2.5s * var(--breath)) linear infinite;
 }
 
 *:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
@@ -297,14 +312,14 @@ input[type=number] { -moz-appearance: textfield; }
   align-items: center;
   justify-content: center;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(94,195,42,0.32), 0 0 0 1px rgba(94,195,42,0.15);
+  box-shadow: 0 4px 20px rgba(var(--cyan-rgb),0.32), 0 0 0 1px rgba(var(--cyan-rgb),0.15);
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 .btn-cyan:hover { opacity: 0.93; }
 .btn-cyan:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(94,195,42,0.20);
+  box-shadow: 0 2px 8px rgba(var(--cyan-rgb),0.20);
 }
 
 .btn-ghost {
@@ -326,7 +341,7 @@ input[type=number] { -moz-appearance: textfield; }
   background: rgba(16, 25, 40, 0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(94,195,42,0.12);
+  border: 1px solid rgba(var(--cyan-rgb),0.12);
   border-radius: var(--radius);
   box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
 }
@@ -334,7 +349,7 @@ input[type=number] { -moz-appearance: textfield; }
 /* ── Gradient card ── */
 .gradient-card {
   background: var(--grad-card);
-  border: 1px solid rgba(94,195,42,0.14);
+  border: 1px solid rgba(var(--cyan-rgb),0.14);
   border-radius: var(--radius);
   box-shadow: 0 4px 24px rgba(0,0,0,0.28);
 }
@@ -342,8 +357,8 @@ input[type=number] { -moz-appearance: textfield; }
 /* ── Active workout glow button ── */
 .btn-active-glow {
   background: var(--grad-primary);
-  box-shadow: 0 0 32px rgba(94,195,42,0.45), 0 4px 16px rgba(0,0,0,0.4);
-  animation: glowPulse 2s ease-in-out infinite;
+  box-shadow: 0 0 32px rgba(var(--cyan-rgb),0.45), 0 4px 16px rgba(0,0,0,0.4);
+  animation: glowPulse calc(2s * var(--breath)) ease-in-out infinite;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -557,3 +572,83 @@ input[type=number] { -moz-appearance: textfield; }
   .mr-fly, .mr-rise { opacity: 1; transform: none; }
   .mr-draw { stroke-dashoffset: var(--offset); }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Deload mode
+   ───────────────────────────────────────────────────────────
+   One attribute on <html> — data-deload="1" — and the whole app
+   changes register. Not a tint: the accent, the corner radius, the
+   glow strength and the tempo all move together, because a week of
+   deliberately lighter weights should be legible at a glance without
+   reading a single label.
+
+   The brief was active recovery, not illness. So: cooler, softer and
+   slower, but never grey and never still. The app is still training.
+   ══════════════════════════════════════════════════════════ */
+:root[data-deload="1"] {
+  /* ── Palette ──
+     The accent goes blue. Everything downstream follows on its own,
+     because the chrome is written against the triplet rather than
+     against literals. */
+  --cyan-rgb: 59,157,232;
+  --cyan:     #3B9DE8;
+  --cyan-hi:  #A5DCFF;
+
+  /* The secondary has to move out of the way. In normal mode it is
+     this exact blue and it marks the rest side of the home page — a
+     rest card and a training card the same colour would erase the one
+     distinction that screen depends on. So it steps aside to a cool
+     periwinkle: still calm, still in the same family, still not
+     green. */
+  --purple-rgb:  138,147,201;
+  --purple:      #8A93C9;
+  --purple-deep: #5B65A0;
+
+  /* ── Softness ──
+     Rounder corners and a glow turned down to just over half. The
+     accent is present but no longer burning. */
+  --radius:    22px;
+  --radius-sm: 16px;
+  --glow-mul:  0.55;
+
+  /* ── Tempo ──
+     Every idle animation slows by the same factor. A breath instead
+     of a pulse. Not stopped: 1.6× is noticeably calmer while still
+     clearly alive. */
+  --breath: 1.6;
+
+  --grad-primary: linear-gradient(135deg, #63B6F2 0%, #1A75C0 100%);
+  --grad-hero:    linear-gradient(145deg, #0B1826 0%, #0D2233 100%);
+}
+
+/* The three named card surfaces carry their shadow inline in this file
+   rather than through a token, so the softening is restated once here
+   instead of being threaded through every rule. */
+:root[data-deload="1"] .glass-card {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+:root[data-deload="1"] .gradient-card {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.22);
+}
+:root[data-deload="1"] .btn-cyan {
+  box-shadow: 0 4px 16px rgba(var(--cyan-rgb),0.22), 0 0 0 1px rgba(var(--cyan-rgb),0.12);
+}
+:root[data-deload="1"] .btn-active-glow {
+  box-shadow: 0 0 22px rgba(var(--cyan-rgb),0.28), 0 4px 14px rgba(0,0,0,0.35);
+}
+
+/* The shimmer is the loudest thing on the screen — a light running
+   across text on a loop. Under a deload it slows further than --breath
+   alone would take it and loses its brightest stop. */
+:root[data-deload="1"] .shimmer-green {
+  animation-duration: calc(4.5s * var(--breath));
+}
+
+/* The weight-up celebration is already suppressed at its source in
+   ExerciseCard, before the timer starts. This is only a floor, so a
+   future call site can't reintroduce it by accident. */
+:root[data-deload="1"] .pr-fade { display: none !important; }
+
+/* Reduced motion still wins: everything above is duration and colour,
+   and the existing guards further up switch the animations themselves
+   off regardless of mode. */

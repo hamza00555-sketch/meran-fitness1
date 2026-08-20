@@ -57,10 +57,10 @@ export default function AssetPackPrompt({ onClose }) {
             onClick={accept}
             style={{
               flex: 2, padding: '14px', borderRadius: 14,
-              background: 'linear-gradient(135deg, #5EC32A, #3B9D2A)',
+              background: 'var(--grad-primary)',
               border: 'none', color: '#fff', fontFamily: 'var(--font-ar)',
               fontSize: 15, fontWeight: 800, cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(94,195,42,0.35)',
+              boxShadow: '0 4px 20px rgba(var(--cyan-rgb),0.35)',
             }}
             data-pack="offer-accept"
           >تنزيل الآن</button>

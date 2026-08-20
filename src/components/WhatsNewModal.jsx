@@ -101,8 +101,8 @@ export default function WhatsNewModal({ version, onClose }) {
             }}>
               <div style={{
                 width: 40, height: 40, flexShrink: 0,
-                background: i < 2 ? 'rgba(94,195,42,0.12)' : 'var(--bg3)',
-                border: i < 2 ? '1px solid rgba(94,195,42,0.3)' : '1px solid var(--border2)',
+                background: i < 2 ? 'rgba(var(--cyan-rgb),0.12)' : 'var(--bg3)',
+                border: i < 2 ? '1px solid rgba(var(--cyan-rgb),0.3)' : '1px solid var(--border2)',
                 borderRadius: 12,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 20,
@@ -130,11 +130,11 @@ export default function WhatsNewModal({ version, onClose }) {
             onClick={onClose}
             style={{
               width: '100%', padding: '15px',
-              background: 'linear-gradient(135deg, #5EC32A, #3B9D2A)',
+              background: 'var(--grad-primary)',
               border: 'none', borderRadius: 14,
               color: '#fff', fontFamily: 'var(--font-ar)',
               fontSize: 15, fontWeight: 800, cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(94,195,42,0.35)',
+              boxShadow: '0 4px 20px rgba(var(--cyan-rgb),0.35)',
             }}
           >تم الاطلاع 🚀</button>
         </div>

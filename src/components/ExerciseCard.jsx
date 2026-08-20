@@ -173,8 +173,13 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
     [lastWeight, deloadPct],
   )
 
+  // A personal best is not a thing that happens during a deload. The
+  // weights are deliberately down and the progression is frozen, so a
+  // celebration here would be celebrating the taper. Suppressed at the
+  // source rather than hidden with CSS, so no timer and no haptic fire
+  // behind an invisible overlay.
   const handleDone = (si, done) => {
-    if (done && maxWeight !== null) {
+    if (done && maxWeight !== null && !deloadPct) {
       const w = parseFloat(ex.sets[si]?.weight) || 0
       if (w > maxWeight) {
         setShowPR({ weight: w, prev: maxWeight })

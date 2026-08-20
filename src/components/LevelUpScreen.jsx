@@ -17,13 +17,13 @@ export default function LevelUpScreen({ level, onDismiss }) {
       <div style={{
         position: 'absolute', width: 340, height: 340,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(94,195,42,0.14) 0%, rgba(59,157,232,0.06) 50%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.14) 0%, rgba(var(--purple-rgb),0.06) 50%, transparent 70%)',
         animation: 'glowPulse 2s ease-in-out infinite',
       }} />
       <div style={{
         position: 'absolute', width: 200, height: 200,
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(94,195,42,0.10) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.10) 0%, transparent 70%)',
         animation: 'glowPulse 1.8s ease-in-out infinite',
         animationDelay: '0.3s',
       }} />
@@ -51,7 +51,7 @@ export default function LevelUpScreen({ level, onDismiss }) {
         <div style={{
           fontFamily: 'var(--font-mono)', fontSize: 72, fontWeight: 900,
           color: 'var(--cyan)', lineHeight: 1,
-          textShadow: '0 0 40px rgba(94,195,42,0.7), 0 0 80px rgba(94,195,42,0.3)',
+          textShadow: '0 0 40px rgba(var(--cyan-rgb),0.7), 0 0 80px rgba(var(--cyan-rgb),0.3)',
           marginBottom: 4,
           animation: 'levelBurst 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
         }}>

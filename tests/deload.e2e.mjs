@@ -1,0 +1,236 @@
+#!/usr/bin/env node
+// End-to-end checks for deload mode on a phone.
+//
+//   npm run build && npx vite preview --port 4173 &
+//   node tests/deload.e2e.mjs
+//
+// The Node specs already prove the arithmetic. What only a browser can
+// answer is whether the design mode actually landed: whether the
+// computed accent is blue, whether any green survived the tokenisation,
+// whether the app genuinely slowed down, and whether all of it reverts
+// on the day the period ends.
+//
+// It also writes before/after screenshots, because "يبين تخفيف وراحة"
+// is a visual judgement and no assertion settles it.
+
+import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
+import { writeFileSync, mkdirSync } from 'node:fs'
+
+const APP = process.env.APP || 'http://localhost:4173/'
+const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
+mkdirSync(OUT, { recursive: true })
+
+const results = []
+const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
+
+// ── A history worth deloading out of ──────────────────────────
+// Ten weeks of bench at a steady 80kg, so the suggested weight is a
+// known number and the drop to 60% is unmistakable.
+let seq = 0
+const SESSIONS = []
+for (let n = 0; n < 30; n++) {
+  const d = new Date(2026, 4, 1 + n * 2, 18)     // May-June 2026, every other day
+  SESSIONS.push({
+    id: d.getTime() + (++seq),
+    date: d.toISOString(),
+    duration: 45,
+    exercises: [{
+      id: 'e' + seq, muscle: 'Chest', name: 'Bench Press',
+      sets: [['80', '12'], ['80', '12']].map(([weight, reps]) => ({ weight, reps, done: true })),
+    }],
+  })
+}
+
+const BASE_RECOVERY = {
+  daysPerWeek: 3, overrides: [], restDays: [],
+  patternHistory: [], streakResetAt: null, autoSpendFrom: null,
+  deload: null, deloadHistory: [], deloadSuggestDismissedAt: null,
+}
+
+const DELOAD = { from: '2026-07-06', plannedUntil: '2026-07-12', pct: 40 }
+
+const browser = await chromium.launch()
+
+/** A page with the clock pinned to `iso`, optionally mid-deload. */
+async function open(iso, { deload = null, reduced = false } = {}) {
+  const ctx = await browser.newContext({
+    ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
+    reducedMotion: reduced ? 'reduce' : 'no-preference',
+  })
+  const page = await ctx.newPage()
+  const errors = []
+  page.on('pageerror', e => errors.push(String(e)))
+  await page.route('**/*.r2.dev/**', r => r.abort())
+
+  await page.addInitScript(([sessions, recovery, iso]) => {
+    localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+    localStorage.setItem('hf_recovery', JSON.stringify(recovery))
+    localStorage.setItem('hf_xp', '4200')
+    localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
+    localStorage.setItem('hf_pack_prompted', '1')
+    localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
+    localStorage.setItem('hf_unlocked', JSON.stringify([]))
+    localStorage.setItem('hf_weights_reset_v2', 'true')
+    localStorage.setItem('hf_last_weights', JSON.stringify({ 'bench press': 80 }))
+
+    const real = Date
+    const fixed = new real(iso).getTime()
+    class D extends real {
+      constructor(...a) { return a.length ? new real(...a) : new real(fixed) }
+      static now() { return fixed }
+    }
+    globalThis.Date = D
+  }, [SESSIONS, { ...BASE_RECOVERY, deload }, iso])
+
+  await page.goto(APP, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1200)
+  return { ctx, page, errors }
+}
+
+/** The colour the browser actually resolved, not the one we wrote. */
+const accentOf = (page) => page.evaluate(() =>
+  getComputedStyle(document.documentElement).getPropertyValue('--cyan').trim())
+
+// ══ 1. The attribute drives everything ════════════════════════
+{
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { deload: DELOAD })
+  const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+  ok('mid-deload: the root carries data-deload', attr === '1', String(attr))
+  const accent = await accentOf(page)
+  ok('mid-deload: the accent is blue', accent.toUpperCase() === '#3B9DE8', accent)
+  const radius = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--radius').trim())
+  ok('mid-deload: corners softened', radius === '22px', radius)
+  ok('mid-deload: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/home-deload.png`, fullPage: true })
+  await page.screenshot({ path: `${OUT}/fold-deload.png` })
+  await ctx.close()
+}
+
+// ══ 2. Nothing green survived ═════════════════════════════════
+// Every visible element, every colour-bearing property. The rank badge
+// and the muscle bars are data — their colour is their identity, not
+// the app's accent — so they are named exceptions rather than a blanket
+// tolerance.
+{
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { deload: DELOAD })
+  const strays = await page.evaluate(() => {
+    const GREEN = /(#5EC32A|#6DD636|#3EA812|#A8F060|rgba?\(\s*94\s*,\s*195\s*,\s*42)/i
+    const PROPS = ['color', 'backgroundColor', 'backgroundImage', 'borderTopColor',
+                   'borderBottomColor', 'borderLeftColor', 'borderRightColor',
+                   'boxShadow', 'outlineColor', 'filter', 'textShadow', 'fill', 'stroke']
+    const found = []
+    for (const el of document.querySelectorAll('*')) {
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      const cs = getComputedStyle(el)
+      for (const p of PROPS) {
+        const v = cs[p]
+        if (v && GREEN.test(v)) {
+          found.push(`${el.tagName.toLowerCase()}.${p} = ${v.slice(0, 70)} :: ${(el.textContent || '').trim().slice(0, 24)}`)
+          break
+        }
+      }
+    }
+    return found
+  })
+  // rgb(94,195,42) is the rank-D tier colour and the muscle-bar
+  // fallback. Both are data. Anything else is a leak.
+  const leaks = strays.filter(s => !/LV\d|متوسط|^div\.backgroundColor = rgb\(94, 195, 42\)/.test(s))
+  ok('mid-deload: no green chrome left on screen', leaks.length === 0,
+    leaks.slice(0, 6).join(' | '))
+  ok('sweep: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 3. The app breathes instead of pulsing ════════════════════
+{
+  const { ctx, page } = await open('2026-07-08T10:00:00+03:00', { deload: DELOAD })
+  const breath = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--breath').trim())
+  ok('mid-deload: the tempo dial is turned down', parseFloat(breath) > 1.2, breath)
+  const glow = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--glow-mul').trim())
+  ok('mid-deload: the glow is dimmed', parseFloat(glow) < 1, glow)
+  // The dials have to reach a real rule, not just sit in :root.
+  const probe = await page.evaluate(() => {
+    const el = document.createElement('div')
+    el.className = 'glow-pulse'
+    document.body.appendChild(el)
+    const d = getComputedStyle(el).animationDuration
+    el.remove()
+    return d
+  })
+  ok('mid-deload: glowPulse actually runs slower', parseFloat(probe) > 3, probe)
+  await ctx.close()
+}
+
+// ══ 4. Before / after, same clock-free comparison ═════════════
+{
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { deload: null })
+  const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+  ok('no deload: the root carries no attribute', attr === null, String(attr))
+  const accent = await accentOf(page)
+  ok('no deload: the accent is green', accent.toUpperCase() === '#5EC32A', accent)
+  ok('no deload: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/home-normal.png`, fullPage: true })
+  await page.screenshot({ path: `${OUT}/fold-normal.png` })
+  await ctx.close()
+}
+
+// ══ 5. It ends by itself ══════════════════════════════════════
+// The day after plannedUntil, with the same stored config: the app has
+// to notice, clear the mode, and go back to green without being told.
+{
+  const { ctx, page, errors } = await open('2026-07-13T10:00:00+03:00', { deload: DELOAD })
+  const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+  ok('after the last day: the mode is gone', attr === null, String(attr))
+  const accent = await accentOf(page)
+  ok('after the last day: green is back', accent.toUpperCase() === '#5EC32A', accent)
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery')))
+  ok('after the last day: the period is filed in history',
+    stored?.deload === null && stored?.deloadHistory?.length === 1,
+    JSON.stringify({ deload: stored?.deload, history: stored?.deloadHistory }))
+  ok('lapse: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 6. The boundary days ══════════════════════════════════════
+for (const [iso, expect, label] of [
+  ['2026-07-05T22:00:00+03:00', null, 'the day before it starts'],
+  ['2026-07-06T00:30:00+03:00', '1',  'the first day, just after midnight'],
+  ['2026-07-12T23:30:00+03:00', '1',  'the last day, just before midnight'],
+]) {
+  const { ctx, page, errors } = await open(iso, { deload: DELOAD })
+  const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+  ok(`boundary: ${label}`, attr === expect, `expected ${expect}, got ${attr}`)
+  ok(`boundary: ${label} — no errors`, errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 7. Reduced motion still wins ══════════════════════════════
+{
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { deload: DELOAD, reduced: true })
+  const moving = await page.evaluate(() => {
+    let n = 0
+    for (const el of document.querySelectorAll('.tag-pulse, .mr-bar, .mr-cell')) {
+      if (getComputedStyle(el).animationName !== 'none') n++
+    }
+    return n
+  })
+  ok('reduced motion: the guarded animations stay off', moving === 0, String(moving))
+  ok('reduced motion: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+await browser.close()
+
+console.log(`\n  screenshots in ${OUT} — home-normal.png vs home-deload.png\n`)
+
+let failed = 0
+for (const [name, pass, extra] of results) {
+  if (!pass) failed++
+  console.log(`${pass ? '✅' : '❌'} ${name}${extra && !pass ? `  — ${extra}` : ''}`)
+}
+console.log(`\n${failed ? `${failed} of ${results.length} failed` : `all ${results.length} passed`}`)
+process.exit(failed ? 1 : 0)
