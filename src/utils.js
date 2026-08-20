@@ -200,6 +200,16 @@ export const sessionVolume = (session) => {
   }, 0)
 }
 
+// ── Plate granularity ─────────────────────────────────────────
+// The smallest jump a rack actually offers. Every rounded weight in
+// the app goes through here so the step is stated once instead of
+// being repeated at each call site, where the three copies had already
+// started to differ.
+export const PLATE_STEP = 2.5
+
+export const roundToPlate = (kg, step = PLATE_STEP) =>
+  Math.round((Number(kg) || 0) / step) * step
+
 // ── Estimated one-rep max ─────────────────────────────────────
 // Epley. An estimate, not a measurement: it drifts high past about ten
 // reps, so it is only worth showing on working sets, never on a burnout

@@ -35,6 +35,15 @@ export const DEFAULT_RECOVERY = {
   patternHistory: [],
   lastSettingsChangeAt: null,  // anchors the 30-day free-change window
   streakResetAt: null,         // consistency is not counted before this day
+
+  // ── Deload ──
+  // Lives here rather than in a key of its own because hf_recovery is
+  // the only derived-state key the backup export carries; a separate
+  // key would mean a deload that vanishes on restore. Null and an empty
+  // array read as "never had one", so existing users need no migration.
+  deload: null,                    // { from, plannedUntil, pct } while running
+  deloadHistory: [],               // [{ from, plannedUntil, until, pct, endedEarly }]
+  deloadSuggestDismissedAt: null,  // silences the suggestion for a while
 }
 
 // One free change of frequency or plan per this many days.

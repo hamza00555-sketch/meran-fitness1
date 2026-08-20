@@ -18,7 +18,7 @@
 // strength, 6-12 for hypertrophy, 12-15 for higher-rep hypertrophy,
 // and 15+ for muscular endurance.
 
-import { resolveExerciseName, getWeightsResetAt } from './utils.js'
+import { resolveExerciseName, getWeightsResetAt, roundToPlate, PLATE_STEP } from './utils.js'
 
 export const REP_TARGETS = [
   { id: 'strength',   label: 'قوة',          base: 4,  top: 6,  desc: 'أوزان ثقيلة · ٤-٦ عدات' },
@@ -143,9 +143,12 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   const readyToDecrease = !readyToIncrease && failedAtWeight >= 2
   const readyToPush     = inTopPhase && !readyToIncrease && !readyToDecrease
 
-  // Roughly 10% lighter, rounded to the nearest 2.5kg plate step
+  // Roughly 10% lighter, rounded to the nearest plate step. The step
+  // itself lives in utils.js so the one granularity the gym actually
+  // has is stated once rather than repeated wherever a weight is
+  // rounded.
   const suggestedWeight = readyToDecrease
-    ? Math.max(2.5, Math.round((workingWeight * 0.9) / 2.5) * 2.5)
+    ? Math.max(PLATE_STEP, roundToPlate(workingWeight * 0.9))
     : null
 
   const suggestedReps =
