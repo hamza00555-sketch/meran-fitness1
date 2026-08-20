@@ -498,12 +498,7 @@ export default function App() {
   // week of the next — and only when that month has something in it.
   // Built once per change rather than on every render: it replays the
   // whole history to find record events.
-  //
-  // TEMP TESTING OVERRIDE (حمزة، 2026-08-17) — معاينة فورية للتقرير
-  // بدل انتظار نهاية الشهر. يعرض تقرير الشهر الحالي بغضّ النظر عن
-  // النافذة الطبيعية. يُحذف السطر التالي بعد تأكيدك ويُستبدل بـ:
-  //   const reportMonth = monthReportWindow(todayKey())
-  const reportMonth = todayKey().slice(0, 7)
+  const reportMonth = monthReportWindow(todayKey())
   const monthReport = useMemo(
     () => (reportMonth
       ? buildMonthReport({
