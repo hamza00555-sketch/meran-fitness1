@@ -14,6 +14,7 @@ import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon 
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
+import { deloadState, sessionDeloadStamp, isDeloadSession, endDeload } from './deload.js'
 
 const NAV_ICONS = {
   home:         HomeIcon,
@@ -321,6 +322,7 @@ export default function App() {
   // ── Session management ────────────────────────────────────────
   const startPlannedWorkout = useCallback((planDay) => {
     sessionXPRef.current = 0
+    const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey())
     const lastWeightsMap = ls.get('hf_last_weights', {})
     const planExercises = applySubsToDay(planDay.exercises, exerciseSubs, EXERCISE_ALTERNATIVES)
     const exercises = planExercises.map(ex => {
@@ -339,10 +341,15 @@ export default function App() {
       exercises,
       planDayName:  planDay.name,
       planDayIndex: planIndex,
+      // Decided once, here, and it stays decided. A deload that ends
+      // mid-workout does not turn the light weights already on screen
+      // into normal training. Null when there is no deload running, so
+      // ordinary sessions carry no extra field.
+      ...(deloadStamp ? { deload: deloadStamp } : null),
     }
     setActive(session)
     setTab('workout')
-  }, [planIndex, sessions, exerciseMapping, exerciseSubs, repTarget])
+  }, [planIndex, sessions, exerciseMapping, exerciseSubs, repTarget, recoveryCfg])
 
   const skipPlanDay = useCallback(() => {
     setPlanIndex(prev => prev + 1)
@@ -351,32 +358,43 @@ export default function App() {
 
   const startWorkout = useCallback((exercises = []) => {
     sessionXPRef.current = 0
+    const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey())
     const session = {
       id:        Date.now(),
       date:      new Date().toISOString(),
       duration:  null,
       exercises,
+      ...(deloadStamp ? { deload: deloadStamp } : null),
     }
     setActive(session)
     setTab('workout')
-  }, [])
+  }, [recoveryCfg])
 
   const finishSession = useCallback(() => {
     if (!active) return
     const duration = Math.round((Date.now() - active.id) / 60000)
     const finished = { ...active, duration }
 
-    // Snapshot definitive weights at the exact moment of finishing
-    const snapshot = {}
-    for (const ex of finished.exercises || []) {
-      const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
-      if (ws.length) {
-        const canonical = resolveExerciseName(ex.name, exerciseMapping)
-        snapshot[canonical] = ws[ws.length - 1]
+    // Snapshot definitive weights at the exact moment of finishing.
+    //
+    // Except under a deload. hf_last_weights outranks session history
+    // in every weight suggestion, so writing the lighter numbers here
+    // would make them the new baseline and the deload would never end —
+    // it would just be a permanent drop. Leaving the snapshot alone is
+    // the entire restore mechanism: the pre-deload weights were never
+    // overwritten, so they are simply there again afterwards.
+    if (!isDeloadSession(finished)) {
+      const snapshot = {}
+      for (const ex of finished.exercises || []) {
+        const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
+        if (ws.length) {
+          const canonical = resolveExerciseName(ex.name, exerciseMapping)
+          snapshot[canonical] = ws[ws.length - 1]
+        }
       }
-    }
-    if (Object.keys(snapshot).length) {
-      ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
+      if (Object.keys(snapshot).length) {
+        ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
+      }
     }
 
     setSessions(prev => {
@@ -493,12 +511,47 @@ export default function App() {
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
 
+  // ── Today, as the app currently believes it ──────────────────
+  // Left open overnight, nothing would notice the date changing: every
+  // dated feature reads todayKey() at render, and React has no reason
+  // to render at midnight. This bumps a counter exactly when the local
+  // day turns, so a deload that ended in the night ends on screen too.
+  const [dayTick, setDayTick] = useState(0)
+  useEffect(() => {
+    const midnight = new Date()
+    midnight.setHours(24, 0, 0, 0)
+    // A minute past, so a clock a shade fast still lands on the new day.
+    const id = setTimeout(() => setDayTick(n => n + 1), midnight - Date.now() + 60_000)
+    return () => clearTimeout(id)
+  }, [dayTick])
+
+  const today = useMemo(() => todayKey(), [dayTick])
+
+  // ── Deload ───────────────────────────────────────────────────
+  const deload = useMemo(() => deloadState(recoveryCfg, today), [recoveryCfg, today])
+
+  // A stretch whose last day passed while the app was shut is still
+  // stored. File it once, here, rather than leaving every reader to
+  // cope with a deload that is over but not closed.
+  useEffect(() => {
+    if (deload.lapsed) setRecoveryCfg(prev => endDeload(prev, today))
+  }, [deload.lapsed, today])
+
+  // The palette, softness and pacing all hang off this one attribute,
+  // so nothing downstream has to know the rule.
+  useEffect(() => {
+    const root = document.documentElement
+    if (deload.active) root.setAttribute('data-deload', '1')
+    else root.removeAttribute('data-deload')
+    return () => root.removeAttribute('data-deload')
+  }, [deload.active])
+
   // ── Monthly report ───────────────────────────────────────────
   // Offered only in its window — the last days of a month and the first
   // week of the next — and only when that month has something in it.
   // Built once per change rather than on every render: it replays the
   // whole history to find record events.
-  const reportMonth = monthReportWindow(todayKey())
+  const reportMonth = monthReportWindow(today)
   const monthReport = useMemo(
     () => (reportMonth
       ? buildMonthReport({

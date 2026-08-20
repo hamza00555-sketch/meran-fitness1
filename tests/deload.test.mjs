@@ -278,6 +278,68 @@ test('the reason carries the numbers behind it', () => {
   assert.equal(r.suggestedPct, DELOAD_PCT)
 })
 
+// ══ the baseline survives ═════════════════════════════════════
+// The hazard this whole design exists to avoid: hf_last_weights
+// outranks session history in every weight suggestion, so if a deload
+// session wrote into it the lighter numbers would become the new
+// normal and the deload would never end. finishSession skips the
+// snapshot for a stamped session; this reproduces both halves of that
+// rule against the real predicate.
+
+/** What App.jsx does at the end of a session, reduced to its decision. */
+function finishInto(store, session, exerciseMapping = {}) {
+  if (isDeloadSession(session)) return store   // the guard
+  const next = { ...store }
+  for (const ex of session.exercises || []) {
+    const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
+    if (ws.length) next[ex.name.toLowerCase()] = ws[ws.length - 1]
+  }
+  return next
+}
+
+const sessionAt = (d, weight, stamp = null) => ({
+  id: Date.parse(d), date: d,
+  exercises: [{ name: 'Bench Press', sets: [{ weight: String(weight), reps: '10', done: true }] }],
+  ...(stamp ? { deload: stamp } : null),
+})
+
+test('a deload session does not touch the stored baseline', () => {
+  const cfg = startDeload(CFG, day(10))
+  let store = { 'bench press': 100 }
+
+  store = finishInto(store, sessionAt(day(11), 60, sessionDeloadStamp(cfg, day(11))))
+  assert.equal(store['bench press'], 100, 'the light weight was not written')
+})
+
+test('the weight is exactly what it was when the deload ends', () => {
+  // No restore step exists, and none is needed — nothing was overwritten.
+  const started = startDeload(CFG, day(10))
+  let store = { 'bench press': 100 }
+
+  for (const d of [day(11), day(13), day(15)]) {
+    store = finishInto(store, sessionAt(d, deloadWeight(100, DELOAD_PCT), sessionDeloadStamp(started, d)))
+  }
+  const after = endDeload(started, day(16))
+  assert.equal(deloadState(after, day(17)).active, false)
+  assert.equal(store['bench press'], 100, 'back to the pre-deload weight, to the kilo')
+})
+
+test('a normal session still writes the baseline', () => {
+  // The guard must not have quietly broken ordinary training.
+  let store = { 'bench press': 100 }
+  store = finishInto(store, sessionAt(day(20), 105))
+  assert.equal(store['bench press'], 105)
+})
+
+test('training heavy the day after it ends is recorded normally', () => {
+  const cfg = endDeload(startDeload(CFG, day(10)), day(16))
+  let store = { 'bench press': 100 }
+  const stamp = sessionDeloadStamp(cfg, day(17))
+  assert.equal(stamp, null, 'no stamp once it is over')
+  store = finishInto(store, sessionAt(day(17), 102.5, stamp))
+  assert.equal(store['bench press'], 102.5)
+})
+
 // ══ dates are local, always ═══════════════════════════════════
 
 test('a late-night session lands on its own local day', () => {
