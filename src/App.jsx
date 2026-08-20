@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday, applySubsToDay,
 } from './utils.js'
@@ -14,7 +14,7 @@ import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon 
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
-import { deloadState, sessionDeloadStamp, isDeloadSession, endDeload } from './deload.js'
+import { deloadState, sessionDeloadStamp, isDeloadSession, endDeload, deloadWeight } from './deload.js'
 
 const NAV_ICONS = {
   home:         HomeIcon,
@@ -323,14 +323,12 @@ export default function App() {
   const startPlannedWorkout = useCallback((planDay) => {
     sessionXPRef.current = 0
     const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey())
-    const lastWeightsMap = ls.get('hf_last_weights', {})
+    const lighten = deloadStamp ? (w => deloadWeight(w, deloadStamp.pct)) : undefined
     const planExercises = applySubsToDay(planDay.exercises, exerciseSubs, EXERCISE_ALTERNATIVES)
     const exercises = planExercises.map(ex => {
-      const canonical = resolveExerciseName(ex.name, exerciseMapping)
-      const fromSnapshot = lastWeightsMap[canonical] ?? lastWeightsMap[ex.name.toLowerCase()]
-      const prevWeight = fromSnapshot != null
-        ? fromSnapshot
-        : (getExerciseStats(sessions, ex.name, exerciseMapping).lastWeight ?? '')
+      const prevWeight = suggestedWeightFor(ex.name, {
+        sessions, mapping: exerciseMapping, transform: lighten,
+      })
       const prog = analyzeProgression(sessions, ex.name, exerciseMapping, repTarget)
       return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight, prevReps: prog.suggestedReps })
     })

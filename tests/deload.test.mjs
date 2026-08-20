@@ -340,6 +340,65 @@ test('training heavy the day after it ends is recorded normally', () => {
   assert.equal(store['bench press'], 102.5)
 })
 
+// ══ the engines ignore the light week ═════════════════════════
+
+const { analyzeProgression } = await import('../src/progression.js')
+const { getExerciseStats } = await import('../src/utils.js')
+
+const lift = (d, weight, reps, stamp = null) => ({
+  id: Date.parse(d), date: d,
+  exercises: [{
+    name: 'Bench Press',
+    sets: Array.from({ length: 3 }, () => ({ weight: String(weight), reps: String(reps), done: true })),
+  }],
+  ...(stamp ? { deload: stamp } : null),
+})
+
+const TARGET = { id: 'volume', base: 12, top: 15 }
+
+test('a deload week leaves the progression exactly where it was', () => {
+  // Read as ordinary training the light week is a collapse: the working
+  // weight drops and the rep target goes unmet, and the engine answers
+  // a planned taper with advice to taper further.
+  const real = [lift(day(1), 60, 12), lift(day(3), 60, 12)]
+  const stamp = { pct: 40, from: day(5), until: day(11) }
+  const withDeload = [...real, lift(day(6), 36, 12, stamp), lift(day(8), 36, 12, stamp)]
+
+  const before = analyzeProgression(real, 'Bench Press', {}, TARGET)
+  const after  = analyzeProgression(withDeload, 'Bench Press', {}, TARGET)
+
+  assert.equal(after.workingWeight, before.workingWeight, 'still 60, not 36')
+  assert.equal(after.hint, before.hint)
+  assert.equal(after.failedAtWeight, 0, 'a light week is not a failed week')
+})
+
+test('a deload week cannot trigger the drop-the-weight advice', () => {
+  const stamp = { pct: 40, from: day(5), until: day(11) }
+  const sessions = [
+    lift(day(1), 60, 12),
+    lift(day(6), 36, 5, stamp),   // far under the target, twice
+    lift(day(8), 36, 5, stamp),
+  ]
+  const r = analyzeProgression(sessions, 'Bench Press', {}, TARGET)
+  assert.notEqual(r.hint, 'lower')
+  assert.equal(r.workingWeight, 60)
+})
+
+test('the last-weight fallback skips the light week too', () => {
+  // getExerciseStats is what answers when the saved snapshot has no
+  // entry for an exercise, so the skip has to be here as well.
+  const stamp = { pct: 40, from: day(5), until: day(11) }
+  const sessions = [lift(day(1), 60, 12), lift(day(6), 36, 12, stamp)]
+  assert.equal(getExerciseStats(sessions, 'Bench Press').lastWeight, 60)
+})
+
+test('ordinary sessions are still read normally', () => {
+  // The skips must not have quietly broken training that was not a deload.
+  const sessions = [lift(day(1), 60, 12), lift(day(3), 65, 12)]
+  assert.equal(getExerciseStats(sessions, 'Bench Press').lastWeight, 65)
+  assert.equal(analyzeProgression(sessions, 'Bench Press', {}, TARGET).workingWeight, 65)
+})
+
 // ══ dates are local, always ═══════════════════════════════════
 
 test('a late-night session lands on its own local day', () => {

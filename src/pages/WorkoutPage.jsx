@@ -4,7 +4,8 @@ import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
 import ExerciseCard from '../components/ExerciseCard.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, ls } from '../utils.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, ls } from '../utils.js'
+import { deloadWeight } from '../deload.js'
 import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 import { toWesternDigits } from '../day.js'
@@ -98,16 +99,28 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
     })
   }
 
-  const getLastW = (name) => {
-    const snap = ls.get('hf_last_weights', {})
-    const canonical = resolveExerciseName(name, exerciseMapping)
-    const fromSnap = snap[canonical] ?? snap[name.toLowerCase()]
-    if (fromSnap != null) return fromSnap
-    return getExerciseStats(sessions, name, exerciseMapping).lastWeight ?? ''
-  }
+  // The session carries the deload it began under, so an exercise added
+  // mid-workout is lightened on the same terms as the ones it started
+  // with — even if the stretch itself ended while the session was open.
+  const lighten = active?.deload
+    ? (w => deloadWeight(w, active.deload.pct))
+    : undefined
+
+  const getLastW = (name) =>
+    suggestedWeightFor(name, { sessions, mapping: exerciseMapping, transform: lighten })
 
   const getSuggestedReps = (name) =>
     analyzeProgression(sessions, name, exerciseMapping, repTarget).suggestedReps
+
+  // Progression is frozen for the length of a deload. The weights are
+  // deliberately low, so "add weight" would be wrong and "drop the
+  // weight" would be advice about a decline that was the plan. The
+  // engine still runs — its reading of the working weight is needed
+  // for the reps box — but it offers no verdict.
+  const progressionFor = (name) => {
+    const p = analyzeProgression(sessions, name, exerciseMapping, repTarget)
+    return active?.deload ? { ...p, hint: null } : p
+  }
 
   // Swap a machine mid-workout when it turns out to be occupied. Only
   // offered while nothing is logged yet, so completed sets are never
@@ -263,7 +276,8 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           exercise={ex}
           sessions={sessions || []}
           exerciseMapping={exerciseMapping}
-          progression={analyzeProgression(sessions, ex.name, exerciseMapping, repTarget)}
+          deloadPct={active?.deload?.pct || 0}
+          progression={progressionFor(ex.name)}
           alternatives={EXERCISE_ALTERNATIVES[ex.originalName || ex.name] || []}
           subIndex={exerciseSubs[ex.originalName || ex.name] || 0}
           originalName={ex.originalName}

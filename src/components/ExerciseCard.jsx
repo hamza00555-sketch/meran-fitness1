@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { Badge } from './ui.jsx'
 import { getExerciseStats } from '../utils.js'
+import { deloadWeight } from '../deload.js'
 import { toWesternDigits } from '../day.js'
 import ExerciseInfoModal from './ExerciseInfoModal.jsx'
 
@@ -137,7 +138,7 @@ function Stepper({ onUp, onDown, disabled }) {
   )
 }
 
-export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus, progression = null, alternatives = [], subIndex = 0, originalName, onSwap }) {
+export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRemoveSet, onRemove, onDoneSet, sessions, exerciseMapping = {}, allExercises = [], onMoveSet, dimmed = false, isComplete = false, onFocus, progression = null, alternatives = [], subIndex = 0, originalName, onSwap, deloadPct = 0 }) {
   const [showInfo,  setShowInfo]  = useState(false)
   const [showPR,    setShowPR]    = useState(null)
   const [copied,    setCopied]    = useState(false)
@@ -161,6 +162,15 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
   const { lastWeight, maxWeight } = useMemo(
     () => getExerciseStats(sessions, ex.name, exerciseMapping),
     [sessions, ex.name, exerciseMapping],
+  )
+
+  // The greyed placeholder is a second suggestion channel, fed straight
+  // from history rather than from the pre-filled value. Under a deload
+  // it has to be lightened on the same terms or the hint contradicts
+  // the number sitting in the box.
+  const shownLast = useMemo(
+    () => (deloadPct && lastWeight !== null ? deloadWeight(lastWeight, deloadPct) : lastWeight),
+    [lastWeight, deloadPct],
   )
 
   const handleDone = (si, done) => {
@@ -312,7 +322,10 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                   </span>
                 )}
 
-                {isComplete && (
+                {/* Not driven by `progression`, so muting that alone
+                    would leave this one still pushing the weight up in
+                    a week meant to be light. */}
+                {isComplete && !deloadPct && (
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.45)',
@@ -400,7 +413,7 @@ export default function ExerciseCard({ exercise: ex, onUpdateSet, onAddSet, onRe
                   type="text" inputMode="decimal"
                   value={s.weight}
                   onChange={e => onUpdateSet(si, 'weight', toWesternDigits(e.target.value))}
-                  placeholder={lastWeight !== null ? String(lastWeight) : '0'}
+                  placeholder={shownLast !== null ? String(shownLast) : '0'}
                   disabled={s.done}
                   style={{
                     background: s.done ? 'var(--bg)' : 'var(--bg3)',

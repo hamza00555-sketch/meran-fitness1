@@ -80,6 +80,12 @@ export function analyzeProgression(sessions, exerciseName, mapping = {}, targetC
   const entries = []
   for (const session of sessions || []) {
     if ((session.id || 0) < resetAt) continue
+    // A deload week is deliberately light. Read as ordinary training it
+    // looks like a collapse: the working weight drops, the rep target
+    // goes unmet, and the engine answers a planned taper with advice to
+    // taper further. Skipping these leaves the progression exactly where
+    // the last real session left it.
+    if (session.deload) continue
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) !== resolved) continue
       const sets = (ex.sets || []).filter(isCompleted)

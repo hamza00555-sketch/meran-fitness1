@@ -175,6 +175,11 @@ export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
   let lastId     = 0
   for (const session of sessions || []) {
     if ((session.id || 0) < resetAt) continue
+    // Deload sessions are not what this exercise is being worked at.
+    // This function is the fallback behind the saved snapshot, so
+    // without the skip the light weight would resurface as the
+    // suggestion for any exercise the snapshot happens to be missing.
+    if (session.deload) continue
     for (const ex of session.exercises || []) {
       if (resolveExerciseName(ex.name, mapping) !== resolved) continue
       const ws = (ex.sets || [])
@@ -209,6 +214,32 @@ export const PLATE_STEP = 2.5
 
 export const roundToPlate = (kg, step = PLATE_STEP) =>
   Math.round((Number(kg) || 0) / step) * step
+
+// ── The weight to pre-fill ────────────────────────────────────
+// The one producer of a suggested weight. It was written twice —
+// once in App.jsx's planned-workout builder and once in WorkoutPage's
+// getLastW — with the same three-step fallback in both, which is two
+// places for a deload to be applied and two places to drift apart.
+//
+// The snapshot outranks session history deliberately: it is written at
+// the moment a session is finished and reflects what was actually
+// lifted, including any edit made afterwards.
+//
+// `transform` lightens the answer without touching anything stored —
+// a deload passes one in. It is a callback rather than a percentage so
+// the arithmetic stays in deload.js and exists exactly once; this
+// module has no opinion about deloads and importing one here would
+// close a cycle, since deload.js already reads from utils.
+export const suggestedWeightFor = (name, { sessions = [], mapping = {}, transform } = {}) => {
+  const snap = ls.get('hf_last_weights', {})
+  const canonical = resolveExerciseName(name, mapping)
+  const fromSnap = snap[canonical] ?? snap[String(name).toLowerCase()]
+  const base = fromSnap != null
+    ? fromSnap
+    : (getExerciseStats(sessions, name, mapping).lastWeight ?? '')
+
+  return transform ? transform(base) : base
+}
 
 // ── Estimated one-rep max ─────────────────────────────────────
 // Epley. An estimate, not a measurement: it drifts high past about ten
