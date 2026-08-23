@@ -587,12 +587,15 @@ input[type=number] { -moz-appearance: textfield; }
    ══════════════════════════════════════════════════════════ */
 :root[data-deload="1"] {
   /* ── Palette ──
-     The accent goes blue. Everything downstream follows on its own,
-     because the chrome is written against the triplet rather than
-     against literals. */
-  --cyan-rgb: 59,157,232;
-  --cyan:     #3B9DE8;
-  --cyan-hi:  #A5DCFF;
+     Glacier, not sky. The accent sits at ~195° — far enough round from
+     the app's sky blue to read as ice rather than a second daytime
+     colour, and cold enough that the screen feels a few degrees lower
+     than it did. Everything downstream follows on its own, because the
+     chrome is written against the triplet rather than against
+     literals. */
+  --cyan-rgb: 92,201,238;
+  --cyan:     #5CC9EE;
+  --cyan-hi:  #BEEDFF;              /* frost, for the shimmer to run through */
 
   /* The secondary has to move out of the way. In normal mode it is
      this exact blue and it marks the rest side of the home page — a
@@ -601,8 +604,8 @@ input[type=number] { -moz-appearance: textfield; }
      periwinkle: still calm, still in the same family, still not
      green. */
   --purple-rgb:  138,147,201;
-  --purple:      #8A93C9;
-  --purple-deep: #5B65A0;
+  --purple:      #8894C4;
+  --purple-deep: #59649C;
 
   /* ── Softness ──
      Rounder corners and a glow turned down to just over half. The
@@ -617,8 +620,22 @@ input[type=number] { -moz-appearance: textfield; }
      clearly alive. */
   --breath: 1.6;
 
-  --grad-primary: linear-gradient(135deg, #63B6F2 0%, #1A75C0 100%);
-  --grad-hero:    linear-gradient(145deg, #0B1826 0%, #0D2233 100%);
+  --grad-primary: linear-gradient(135deg, #86DFF8 0%, #2691BE 100%);
+  --grad-hero:    linear-gradient(145deg, #07121E 0%, #0A1E30 100%);
+
+  /* ── Cold surfaces ──
+     The accent alone cannot make a room feel colder. The whole ground
+     shifts a few degrees toward blue: same darkness, less warmth in
+     it. Subtle on its own, and the reason the mode reads as
+     temperature rather than as a recolour. */
+  --bg:      #070C16;
+  --bg1:     #0A1120;
+  --bg2:     #0E1A2A;
+  --bg3:     #16273B;
+  --border:  #1C3047;
+  --border2: #243D58;
+  --text2:   #BCD4E8;
+  --text3:   #5E7A8C;
 }
 
 /* The three named card surfaces carry their shadow inline in this file

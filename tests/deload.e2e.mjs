@@ -97,7 +97,7 @@ const accentOf = (page) => page.evaluate(() =>
   const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
   ok('mid-deload: the root carries data-deload', attr === '1', String(attr))
   const accent = await accentOf(page)
-  ok('mid-deload: the accent is blue', accent.toUpperCase() === '#3B9DE8', accent)
+  ok('mid-deload: the accent is glacier blue', accent.toUpperCase() === '#5CC9EE', accent)
   const radius = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--radius').trim())
   ok('mid-deload: corners softened', radius === '22px', radius)
