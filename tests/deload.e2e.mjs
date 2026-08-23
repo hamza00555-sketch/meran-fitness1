@@ -392,6 +392,100 @@ for (const [iso, expect, label] of [
   await ctx.close()
 }
 
+// ══ 13. The month report tells a taper from a slump ═══════════
+// A month that ends on a deload week is the case the report used to
+// get wrong: arithmetically down, and completely misleading. Checked
+// through the DOM rather than a screenshot, because "is the band
+// there" and "did the verdict flip" are both exact questions.
+{
+  const ctx = await browser.newContext({
+    ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
+  })
+  const page = await ctx.newPage()
+  const errors = []
+  page.on('pageerror', e => errors.push(String(e)))
+  await page.route('**/*.r2.dev/**', r => r.abort())
+
+  // Nine climbing days, then a four-day taper at the end of the month.
+  let n = 0
+  const day = (d, w, deload) => ({
+    id: Date.UTC(2026, 2, d) + (++n),
+    date: new Date(2026, 2, d, 18).toISOString(),
+    duration: 45,
+    ...(deload ? { deload: { pct: 40, from: '2026-03-20', until: '2026-03-26' } } : {}),
+    exercises: [{
+      id: `x${n}`, muscle: 'Chest', name: 'Bench Press',
+      sets: [{ weight: String(w), reps: '10', done: true }],
+    }],
+  })
+  const MARCH = [
+    ...[1, 3, 5, 7, 9, 11, 13, 15, 17].map(d => day(d, 90 + d)),
+    ...[20, 22, 24, 26].map(d => day(d, 45, true)),
+  ]
+  const CFG = {
+    daysPerWeek: 3, overrides: [], restDays: [], patternHistory: [],
+    streakResetAt: null, autoSpendFrom: null, deload: null,
+    deloadHistory: [{
+      from: '2026-03-20', plannedUntil: '2026-03-26',
+      until: '2026-03-26', pct: 40, endedEarly: false,
+    }],
+    deloadEndSeenAt: '2026-03-26',
+  }
+
+  await page.addInitScript(([sessions, recovery]) => {
+    localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+    localStorage.setItem('hf_recovery', JSON.stringify(recovery))
+    localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
+    localStorage.setItem('hf_pack_prompted', '1')
+    localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
+    localStorage.setItem('hf_weights_reset_v2', 'true')
+    localStorage.setItem('hf_xp', '4200')
+    const real = Date
+    const fixed = new real('2026-04-02T10:00:00+03:00').getTime()
+    class D extends real {
+      constructor(...a) { return a.length ? new real(...a) : new real(fixed) }
+      static now() { return fixed }
+    }
+    globalThis.Date = D
+  }, [MARCH, CFG])
+
+  await page.goto(APP, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+
+  await page.evaluate(() => {
+    const el = [...document.querySelectorAll('*')].find(e =>
+      /تقرير مارس/.test(e.textContent || '') && e.children.length &&
+      getComputedStyle(e).cursor === 'pointer')
+    el?.click()
+  })
+  await page.waitForTimeout(3000)
+  ok('report: it opened', await page.locator('.mr-section').count() > 0)
+
+  // The chart shades the taper rather than marking each point.
+  const band = await page.locator('svg rect[fill="#5CC9EE"]').count()
+  ok('report: the trend chart shades the deload stretch', band === 1, String(band))
+
+  // The verdict. Four light days at the END of the month is exactly the
+  // arrangement a least-squares fit is dragged down by, so "up" here is
+  // the exclusion doing its job — not an accident of the fixture.
+  const verdict = await page.evaluate(() => {
+    const svg = document.querySelector('svg[aria-label*="الاتجاه"]')
+    return svg?.getAttribute('aria-label') || ''
+  })
+  ok('report: the taper does not turn the month into a decline',
+    /صاعد/.test(verdict), verdict)
+
+  // Every stored deload day is rimmed, trained or not.
+  const rimmed = await page.evaluate(() =>
+    [...document.querySelectorAll('[title*="ديلود"]')].map(e => e.getAttribute('title')))
+  ok('report: the calendar rims the whole stored stretch', rimmed.length === 7, String(rimmed.length))
+  ok('report: a rimmed day keeps saying what kind of day it was',
+    rimmed.every(t => /تمرّنت|راحة|غياب/.test(t)), rimmed.slice(0, 3).join(' | '))
+
+  ok('report: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT} — home-normal.png vs home-deload.png\n`)

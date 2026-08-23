@@ -560,3 +560,136 @@ test('nothing lifted estimates nothing', () => {
   assert.equal(calc1RM(100, 0), 0)
   assert.equal(calc1RM('', ''), 0)
 })
+
+// ══ deload ════════════════════════════════════════════════════
+// A deload is deliberately light. Read as ordinary training it looks
+// like a collapse, and the report's job is to tell the difference
+// without ever hiding a real one.
+
+/** The same session, stamped as having been done under a deload. */
+const deloaded = (s, pct = 40) => ({
+  ...s,
+  deload: { pct, from: '2026-03-10', until: '2026-03-16' },
+})
+
+const DELOAD_CFG = {
+  ...CFG,
+  deloadHistory: [{
+    from: '2026-03-10', plannedUntil: '2026-03-16',
+    until: '2026-03-16', pct: 40, endedEarly: false,
+  }],
+}
+
+// The taper caps the block, which is both how deloads are actually run
+// and the arrangement that a least-squares fit is fooled by: a dip in
+// the middle of a month is symmetric and tilts the line not at all.
+const HEAVY_DAYS = [1, 3, 5, 7, 9, 11]
+const TAPER_DAYS = [20, 22, 24, 26]
+
+test('deload days are marked in the series but left out of the fit', () => {
+  const heavy = HEAVY_DAYS.map(n => session(n, 'Bench Press', [[100, 10]]))
+  const light = TAPER_DAYS.map(n => deloaded(session(n, 'Bench Press', [[40, 10]])))
+  const r = build([...heavy, ...light], { config: DELOAD_CFG })
+
+  const marked = r.volume.series.filter(p => p.deload).map(p => p.date)
+  assert.deepEqual(marked, ['2026-03-20', '2026-03-22', '2026-03-24', '2026-03-26'])
+  assert.equal(r.volume.deloadDays, 4)
+  assert.equal(r.volume.deloadSessions, 4)
+  assert.equal(r.volume.slopeExcludesDeload, true)
+
+  // Every remaining day is identical, so the fit through them is flat.
+  assert.equal(r.volume.slope, 0, `slope was ${r.volume.slope}`)
+  assert.equal(r.volume.direction, 'flat')
+})
+
+test('the same month without the stamps does read as a decline', () => {
+  // The control: identical numbers, no deload stamps. Without this the
+  // test above would pass on a month that was flat anyway, and prove
+  // nothing about the exclusion.
+  const heavy = HEAVY_DAYS.map(n => session(n, 'Bench Press', [[100, 10]]))
+  const light = TAPER_DAYS.map(n => session(n, 'Bench Press', [[40, 10]]))
+  const r = build([...heavy, ...light])
+  assert.equal(r.volume.deloadDays, 0)
+  assert.equal(r.volume.slopeExcludesDeload, false)
+  assert.equal(r.volume.direction, 'down')
+  assert.ok(r.volume.slope < 0, `slope was ${r.volume.slope}`)
+})
+
+test('the headline volume still counts the deload, because it was lifted', () => {
+  const r = build(
+    [session(1, 'Bench Press', [[100, 10]]), deloaded(session(3, 'Bench Press', [[60, 10]]))],
+    { config: DELOAD_CFG },
+  )
+  // 100×10 + 60×10. The taper does not stop being work that was done.
+  assert.equal(r.volume.total, 1600)
+})
+
+const feb = (n, w) => ({
+  ...session(n, 'Bench Press', [[w, 10]]),
+  date: new Date(2026, 1, n, 10).toISOString(),
+})
+
+test('a drop that was only the deload is explained, not alarmed about', () => {
+  // Six heavy days in February. March runs three heavy days at the same
+  // weight and then tapers — which is what a deload block looks like,
+  // and which drags the month TOTAL well under February's without a
+  // single session having got weaker.
+  const r = buildMonthReport({
+    sessions: [
+      ...[1, 3, 5, 7, 9, 11].map(n => feb(n, 100)),
+      ...[1, 3, 5].map(n => session(n, 'Bench Press', [[100, 10]])),
+      ...[20, 22, 24].map(n => deloaded(session(n, 'Bench Press', [[20, 5]]))),
+    ],
+    config: DELOAD_CFG, month: '2026-03',
+  })
+
+  assert.ok(r.volume.trendPct <= -15, `raw trend was ${r.volume.trendPct}`)
+  // Per ordinary day the two months are identical, which is the whole
+  // point: nothing got lighter, there were simply fewer heavy days.
+  assert.equal(r.volume.trendPctExDeload, 0, `ex-deload was ${r.volume.trendPctExDeload}`)
+
+  const ids = tipIds(r)
+  assert.ok(!ids.includes('trend'), 'the decline tip should not fire on a planned taper')
+  assert.ok(ids.includes('deload'), `expected the explaining note, got ${ids.join(',')}`)
+})
+
+test('a decline that survives the exclusion is still reported', () => {
+  // The case a blanket suppression would have buried: the ordinary days
+  // themselves got lighter, in a month that also contained a deload.
+  // The advice has to come through, and has to say what it excluded.
+  const r = buildMonthReport({
+    sessions: [
+      ...[1, 3, 5, 7, 9, 11].map(n => feb(n, 100)),
+      ...[1, 3, 5].map(n => session(n, 'Bench Press', [[60, 10]])),
+      ...[20, 22].map(n => deloaded(session(n, 'Bench Press', [[30, 10]]))),
+    ],
+    config: DELOAD_CFG, month: '2026-03',
+  })
+
+  assert.ok(r.volume.trendPctExDeload <= -15,
+    `ex-deload trend was ${r.volume.trendPctExDeload}`)
+  const trend = r.tips.find(t => t.id === 'trend')
+  assert.ok(trend, `expected the decline tip, got ${tipIds(r).join(',')}`)
+  assert.match(trend.body, /استثناء أيام الديلود/,
+    'the wording has to say the calculation excluded the deload')
+})
+
+test('the calendar rims deload days without changing what they were', () => {
+  const r = build(
+    [session(1, 'Bench Press', [[100, 10]]), deloaded(session(11, 'Bench Press', [[60, 10]]))],
+    { config: DELOAD_CFG },
+  )
+  const inside  = r.consistency.calendar.filter(d => d.deload).map(d => d.date)
+  const outside = r.consistency.calendar.find(d => d.date === '2026-03-01')
+
+  assert.equal(inside.length, 7, 'the whole stored stretch, not only the trained days')
+  assert.equal(inside[0], '2026-03-10')
+  assert.equal(inside[6], '2026-03-16')
+  assert.equal(outside.deload, false)
+
+  // A missed day inside a deload is still a missed day: the flag rides
+  // alongside the kind, it does not replace it.
+  const kinds = new Set(r.consistency.calendar.filter(d => d.deload).map(d => d.kind))
+  assert.ok(kinds.size >= 1)
+  assert.ok(!kinds.has('deload'), 'deload is a modifier, never a kind')
+})

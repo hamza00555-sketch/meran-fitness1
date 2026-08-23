@@ -50,6 +50,18 @@ export default function TrendChart({ series = [], direction = 'flat', color }) {
   // bound avoids measuring the DOM.
   const len = Math.round(plotW + plotH * series.length)
 
+  // Contiguous runs of deload days, so the chart can shade the stretch
+  // rather than mark each point. The dip inside that band is planned,
+  // and a reader who cannot see which days were deliberately light will
+  // read the same shape as a slump.
+  const bands = []
+  for (let i = 0; i < series.length; i++) {
+    if (!series[i].deload) continue
+    const from = i
+    while (i + 1 < series.length && series[i + 1].deload) i++
+    bands.push([from, i])
+  }
+
   const last = series[series.length - 1]
   const first = series[0]
   const lo = series.reduce((a, p) => (p.value < a.value ? p : a), series[0])
@@ -73,6 +85,30 @@ export default function TrendChart({ series = [], direction = 'flat', color }) {
             <stop offset="100%" stopColor={stroke} stopOpacity="0" />
           </linearGradient>
         </defs>
+
+        {/* Deload stretches, shaded behind everything. Glacier blue by
+            literal rather than by token: the report is usually read
+            after the period has ended, when the accent is green again,
+            and this band has to mean deload wherever it is seen. */}
+        {bands.map(([a, b], n) => {
+          // A single-day band would be a zero-width rect, so it gets
+          // half a step of padding either side to stay visible.
+          const pad = series.length > 1 ? (plotW / (series.length - 1)) * 0.5 : plotW / 2
+          const x0 = Math.max(PAD.left, x(a) - pad)
+          const x1 = Math.min(W - PAD.right, x(b) + pad)
+          return (
+            <g key={n} style={{ opacity: run ? 1 : 0, transition: reduced ? 'none' : 'opacity .5s ease .3s' }}>
+              <rect
+                x={x0} y={PAD.top} width={Math.max(2, x1 - x0)} height={plotH}
+                fill="#5CC9EE" fillOpacity="0.10"
+              />
+              <line
+                x1={x0} y1={PAD.top} x2={x1} y2={PAD.top}
+                stroke="#5CC9EE" strokeWidth="1.5" strokeOpacity="0.5" strokeDasharray="3 3"
+              />
+            </g>
+          )
+        })}
 
         {/* Baseline, so a line near the floor still has a floor. */}
         <line

@@ -16,6 +16,7 @@ import {
 } from './utils.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
 import { computeRecovery, MAX_REST_CREDITS } from './recovery.js'
+import { isDeloadSession, wasDeloadDay } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
 
 // ── Calendar arithmetic ───────────────────────────────────────
@@ -176,9 +177,15 @@ function consistencyIn(sessions, config, month) {
     bestStreak,
     endStreak: recovery.consistencyStreak,
     restCredits: recovery.restCredits,
+    // A deload day keeps its own kind — trained, rest, missed — and
+    // carries the flag alongside. It is a modifier on the day, not a
+    // fourth kind of day: a missed day inside a deload is still a
+    // missed day, because a deload lightens the load and changes
+    // nothing about showing up.
     calendar: rows.map(r => ({
       date: r.date,
       kind: r.completed ? 'trained' : r.kind === 'paid' ? 'paid' : r.kind === 'miss' ? 'miss' : 'rest',
+      deload: wasDeloadDay(config, r.date),
     })),
     // Which weekday gets skipped most — 0 is Sunday, matching Date.getDay.
     weakestWeekday: (() => {
@@ -218,6 +225,28 @@ export function buildMonthReport({
   const prev = sessions.filter(s => monthKey(s.date) === prevMonth(month))
   const prevTotal = prev.reduce((n, s) => n + sessionVolume(s), 0)
 
+  // The same comparison with the deload weeks taken out of both sides.
+  //
+  // `total` itself stays untouched — it is a statement of how much was
+  // lifted, and that does not change because some of it was deliberate
+  // taper.
+  //
+  // Sums are the wrong thing to compare here. A deload week does not
+  // add light days on top of a normal month, it *replaces* heavy ones:
+  // eight heavy days plus four light ones against twelve heavy ones
+  // still totals less, even though nothing got weaker. So the fair
+  // question is per-day — setting the taper aside, was the ordinary
+  // work lighter than last month's? — and that is what this answers.
+  const exDeloadAvg = (list) => {
+    const kept = list.filter(s => !isDeloadSession(s))
+    if (!kept.length) return null
+    const days = new Set(kept.map(s => dayKey(s.date)))
+    return kept.reduce((n, s) => n + sessionVolume(s), 0) / days.size
+  }
+  const perDayExDeload     = exDeloadAvg(inMonth)
+  const prevPerDayExDeload = exDeloadAvg(prev)
+  const deloadSessions     = inMonth.filter(isDeloadSession).length
+
   let setsTotal = 0, setsCompleted = 0, repsTotal = 0
   for (const s of inMonth) {
     for (const ex of s.exercises || []) {
@@ -242,24 +271,36 @@ export function buildMonthReport({
   const byDay = new Map()
   for (const s of inMonth) {
     const key = dayKey(s.date)
-    byDay.set(key, (byDay.get(key) || 0) + sessionVolume(s))
+    const row = byDay.get(key) || { value: 0, deload: false }
+    row.value += sessionVolume(s)
+    // Read off the session's own stamp, not off today's config: a day
+    // is a deload day if the work done on it was, which is decided when
+    // the session starts and never revisited.
+    if (isDeloadSession(s)) row.deload = true
+    byDay.set(key, row)
   }
   const series = [...byDay.entries()]
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([date, value]) => ({ date, value: Math.round(value) }))
+    .map(([date, r]) => ({ date, value: Math.round(r.value), deload: r.deload }))
 
   // The direction the month moved, as the slope of a least-squares fit
   // through those points. A first-to-last comparison would call a month
   // that dipped once at the end a decline; the fit answers for every
   // session, which is what "trending up or down" actually means.
+  //
+  // Deload days are dropped from the fit. They are light on purpose, so
+  // leaving them in makes the engine report a planned taper as a slide
+  // — arithmetically correct and completely misleading. They stay in
+  // `series` and stay drawn; only the fit skips them.
+  const fitPoints = series.filter(p => !p.deload)
   const slope = (() => {
-    const n = series.length
+    const n = fitPoints.length
     if (n < 3) return 0
     const meanX = (n - 1) / 2
-    const meanY = series.reduce((a, p) => a + p.value, 0) / n
+    const meanY = fitPoints.reduce((a, p) => a + p.value, 0) / n
     let num = 0, den = 0
     for (let i = 0; i < n; i++) {
-      num += (i - meanX) * (series[i].value - meanY)
+      num += (i - meanX) * (fitPoints[i].value - meanY)
       den += (i - meanX) ** 2
     }
     return den ? num / den : 0
@@ -310,6 +351,22 @@ export function buildMonthReport({
       series,
       slope: Math.round(slope),
       direction: slope > 0 ? 'up' : slope < 0 ? 'down' : 'flat',
+
+      // ── Deload ──
+      // How much of this month was deliberately light, and the same
+      // comparison with that removed from both months. Null when
+      // neither month had a deload, so a reader can tell "no deload"
+      // from "no difference".
+      deloadSessions,
+      deloadDays: series.filter(p => p.deload).length,
+      slopeExcludesDeload: deloadSessions > 0,
+      // Per training day, deload days excluded from both months. Null
+      // when either month has no ordinary day left to average, so a
+      // reader can tell "no answer" from "no change".
+      trendPctExDeload:
+        perDayExDeload !== null && prevPerDayExDeload > 0
+          ? Math.round(((perDayExDeload - prevPerDayExDeload) / prevPerDayExDeload) * 100)
+          : null,
     },
     sets: {
       total: setsTotal,
@@ -443,14 +500,38 @@ export function buildTips(report, { sessions = [], mapping = {}, repTarget, mont
   }
 
   // Volume trend, but only against a month that actually had data.
-  if (volume.trendPct !== null && Math.abs(volume.trendPct) >= 15) {
-    const up = volume.trendPct > 0
+  //
+  // A month containing a deload will read as a drop, and the honest
+  // answer is neither to report that as a decline nor to go quiet about
+  // it. The comparison is re-asked with the deload weeks removed from
+  // both months, and whatever that says is what gets said — including
+  // "still down", which is a real finding and the one worth hearing.
+  // Silencing it because a deload happened would hide exactly the case
+  // the user needs to know about.
+  const hasDeload = volume.deloadSessions > 0
+  const trend = hasDeload && volume.trendPctExDeload !== null
+    ? volume.trendPctExDeload
+    : volume.trendPct
+
+  if (trend !== null && Math.abs(trend) >= 15) {
+    const up = trend > 0
+    const note = hasDeload && volume.trendPctExDeload !== null
+      ? ' الحساب قارن متوسط اليوم الواحد بعد استثناء أيام الديلود من الشهرين.'
+      : ''
     add('trend', up ? 'praise' : 'nudge',
-      up ? `حجمك ارتفع ٪${volume.trendPct}` : `حجمك نزل ٪${Math.abs(volume.trendPct)}`,
+      up ? `حجمك ارتفع ٪${trend}` : `حجمك نزل ٪${Math.abs(trend)}`,
       up
-        ? `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق. حافظ على الوتيرة.`
-        : `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق. راجع عدد الجلسات قبل الأوزان.`,
-      `٪${volume.trendPct}`)
+        ? `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق.${note} حافظ على الوتيرة.`
+        : `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق.${note} راجع عدد الجلسات قبل الأوزان.`,
+      `٪${trend}`)
+  } else if (hasDeload && volume.trendPct !== null && volume.trendPct <= -15) {
+    // The drop was the deload and nothing else. Worth a line, because
+    // the big number at the top of the report is still down and the
+    // reader deserves to know why rather than wonder.
+    add('deload', 'info',
+      'النزول كان ديلوداً مخططاً',
+      `${volume.deloadDays} ${volume.deloadDays === 1 ? 'يوم' : 'أيام'} بأوزان مخفّضة عمداً هذا الشهر. باستثنائها، متوسط يومك ثابت — الانخفاض في الرقم الكلي متوقع ولا يحتاج تصحيحاً.`,
+      `${volume.deloadDays} يوم`)
   }
 
   // The weekday that keeps getting skipped.

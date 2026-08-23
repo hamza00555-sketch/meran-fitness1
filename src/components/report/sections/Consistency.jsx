@@ -14,6 +14,13 @@ const KIND = {
   miss:    { color: '#3A2030',       label: 'غياب' },
 }
 
+// A deload is a modifier on a day, not a kind of day: it rims the cell
+// and leaves the fill saying what the day actually was. A missed day
+// inside a deload is still a missed day. The colour is a literal
+// because the report is usually read after the period ended, when the
+// app's accent is green again.
+const DELOAD_INK = '#5CC9EE'
+
 const WEEK = ['أحد', 'إثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت']
 
 export default function Consistency({ report }) {
@@ -82,13 +89,15 @@ export default function Consistency({ report }) {
               <div
                 key={day.date}
                 className={run ? 'mr-cell' : undefined}
-                title={`${day.date} — ${k.label}`}
+                title={`${day.date} — ${k.label}${day.deload ? ' · ديلود' : ''}`}
                 style={{
                   '--i': i,
                   aspectRatio: '1', borderRadius: 6,
                   background: day.kind === 'miss' ? k.color : `${k.color}33`,
-                  border: `1px solid ${day.kind === 'miss' ? '#4A2838' : k.color}`,
-                  boxShadow: day.kind === 'trained' ? `0 0 6px ${k.color}66` : 'none',
+                  border: `1px solid ${day.deload ? DELOAD_INK : day.kind === 'miss' ? '#4A2838' : k.color}`,
+                  boxShadow: day.deload
+                    ? `inset 0 0 0 2px ${DELOAD_INK}22`
+                    : day.kind === 'trained' ? `0 0 6px ${k.color}66` : 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 9, color: day.kind === 'miss' ? '#8A5A70' : k.color,
                   fontWeight: 700, opacity: run ? undefined : 0,
@@ -104,6 +113,18 @@ export default function Consistency({ report }) {
           display: 'flex', flexWrap: 'wrap', gap: 10,
           marginTop: 12, justifyContent: 'center',
         }}>
+          {report.volume?.deloadDays > 0 && (
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-ar)',
+            }}>
+              <span style={{
+                width: 9, height: 9, borderRadius: 2,
+                border: `1.5px solid ${DELOAD_INK}`,
+              }} />
+              ديلود
+            </span>
+          )}
           {Object.entries(KIND).map(([key, k]) => (
             <span key={key} style={{
               display: 'flex', alignItems: 'center', gap: 5,
