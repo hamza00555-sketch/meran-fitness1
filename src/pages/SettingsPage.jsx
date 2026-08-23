@@ -10,10 +10,11 @@ import { REP_TARGETS, repTargetOf, DEFAULT_REP_TARGET } from '../progression.js'
 import { requestNotifPermission, scheduleNotificationsForToday, exportAllData, importAllData, ls, uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, PER_USER_KEYS } from '../utils.js'
 import { NOTIFICATION_MESSAGES } from '../constants.js'
 import RestLedgerPanel from '../components/RestLedgerPanel.jsx'
+import DeloadSection from '../components/DeloadSection.jsx'
 
 const WORKOUT_TIMES = ['الصباح', 'الظهيرة', 'المساء', 'الليل']
 
-export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, recovery = {}, changeCooldownLeft = 0, currentStreak = 0, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget }) {
+export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos, onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping, recoveryCfg = {}, onUpdateRecovery, recovery = {}, changeCooldownLeft = 0, currentStreak = 0, repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget, today = todayKey(), onStartDeload, onEndDeload }) {
   const [confirmReset, setConfirmReset] = useState(false)
   // Pending frequency/plan change awaiting confirmation.
   // { kind: 'frequency'|'plan', label, apply }
@@ -669,6 +670,17 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
         </div>,
         document.body,
       )}
+
+      {/* ── Deload ──────────────────────────────────────────
+          Sits directly under the two settings it interacts with: the
+          frequency that decides when you train, and the rep range whose
+          progression it freezes. */}
+        <DeloadSection
+          recoveryCfg={recoveryCfg}
+          today={today}
+          onStart={onStartDeload}
+          onEnd={onEndDeload}
+        />
 
       {/* ── Workout Time ───────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>

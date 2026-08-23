@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
+import { DeloadBanner, DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex, fmtDate } from '../utils.js'
 import { MUSCLE_GROUPS, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
@@ -419,7 +420,8 @@ function CommitmentFlames({ streak, deload = false }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false, monthReport = null, onShowMonthReport, deload = null }) {
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
+  onStartDeload, onDismissDeloadSuggestion, onOpenDeload }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -624,6 +626,18 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           </div>
         </div>
       </div>
+
+      {/* ── Deload ────────────────────────────────────────────
+          The counter while one runs; the app's own suggestion when one
+          is due. Never both — suggestDeload returns null the moment a
+          deload exists. Above the today card because it changes how the
+          card should be read. */}
+      <DeloadBanner state={deload} onOpen={onOpenDeload} />
+      <DeloadSuggestion
+        reason={deloadSuggestion}
+        onAccept={onStartDeload}
+        onDismiss={onDismissDeloadSuggestion}
+      />
 
       {/* ── Today Card ────────────────────────────────────────────
           Horizontal: title/desc RIGHT · illustration LEFT         */}

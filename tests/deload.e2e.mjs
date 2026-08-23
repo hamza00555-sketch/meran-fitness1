@@ -223,6 +223,100 @@ for (const [iso, expect, label] of [
   await ctx.close()
 }
 
+// ══ 8. Starting one from Settings ═════════════════════════════
+// The whole point of stage 7: a person can turn this on. Drives the
+// real controls rather than writing the config directly.
+{
+  const { ctx, page, errors } = await open('2026-07-01T10:00:00+03:00', { deload: null })
+  await page.getByRole('button', { name: 'الإعدادات' }).click()
+  await page.waitForTimeout(500)
+
+  const section = page.getByText('الديلود · فترة تخفيف', { exact: false }).first()
+  ok('settings: the deload section is there', await section.count() > 0)
+
+  await section.scrollIntoViewIfNeeded()
+  const start = page.getByRole('button', { name: /ابدأ فترة ديلود/ }).first()
+  ok('settings: the start button is there', await start.count() > 0)
+  await start.click()
+  await page.waitForTimeout(200)
+
+  // It asks once before committing a week.
+  const confirm = page.getByRole('button', { name: /أكيد/ }).first()
+  ok('settings: it confirms before starting', await confirm.count() > 0)
+  await confirm.click()
+  await page.waitForTimeout(700)
+
+  const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+  ok('settings: starting one turns the app blue', attr === '1', String(attr))
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery')))
+  ok('settings: the period is stored with a range and a percentage',
+    stored?.deload?.from === '2026-07-01' && stored?.deload?.plannedUntil === '2026-07-07' && stored?.deload?.pct === 40,
+    JSON.stringify(stored?.deload))
+
+  const text = await page.evaluate(() => document.body.innerText)
+  ok('settings: it lands back on the home screen with the counter',
+    /ديلود · اليوم 1 من 7/.test(text), text.slice(0, 120))
+
+  ok('settings: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/fold-banner.png` })
+  await ctx.close()
+}
+
+// ══ 9. Ending it early keeps both dates ═══════════════════════
+{
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { deload: DELOAD })
+  await page.getByRole('button', { name: 'الإعدادات' }).click()
+  await page.waitForTimeout(500)
+  const end = page.getByRole('button', { name: /أنهِ الديلود الآن/ }).first()
+  ok('settings: the running card offers an early end', await end.count() > 0)
+  await end.scrollIntoViewIfNeeded()
+  await end.click()
+  await page.waitForTimeout(700)
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery')))
+  const h = stored?.deloadHistory?.[0]
+  ok('early end: plannedUntil and until are both kept, and differ',
+    h?.plannedUntil === '2026-07-12' && h?.until === '2026-07-08' && h?.endedEarly === true,
+    JSON.stringify(h))
+  const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+  ok('early end: the mode is off', attr === null, String(attr))
+  ok('early end: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 10. The closing screen ════════════════════════════════════
+// Shown once, the first time the app opens after the period closes.
+{
+  const { ctx, page, errors } = await open('2026-07-13T10:00:00+03:00', { deload: DELOAD })
+  await page.waitForTimeout(600)
+  const text = await page.evaluate(() => document.body.innerText)
+  ok('end screen: it appears once the period lapses', /خلص الديلود/.test(text), text.slice(0, 200))
+  ok('end screen: it names the weight being returned to', /كجم/.test(text) && /80/.test(text), text.slice(0, 300))
+  await page.screenshot({ path: `${OUT}/end-screen.png` })
+
+  await page.getByRole('button', { name: /يلا نكمل/ }).first().click()
+  await page.waitForTimeout(400)
+  const after = await page.evaluate(() => document.body.innerText)
+  ok('end screen: dismissing it sticks', !/خلص الديلود/.test(after))
+
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery')))
+  ok('end screen: the dismissal is recorded against that end date',
+    stored?.deloadEndSeenAt === '2026-07-12', JSON.stringify(stored?.deloadEndSeenAt))
+  ok('end screen: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 11. A new user is never nagged ════════════════════════════
+{
+  const { ctx, page } = await open('2026-07-01T10:00:00+03:00', { deload: null })
+  const text = await page.evaluate(() => document.body.innerText)
+  // The seeded history is ~9 weeks but every lift is progressing, so
+  // the stalled half of the condition is unmet.
+  ok('suggestion: it stays quiet when nothing is stalled', !/يمكن وقت ديلود/.test(text))
+  await ctx.close()
+}
+
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT} — home-normal.png vs home-deload.png\n`)

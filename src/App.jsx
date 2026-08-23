@@ -11,10 +11,11 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
-import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft } from './recovery.js'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft, dayDiff } from './recovery.js'
 import { todayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
-import { deloadState, sessionDeloadStamp, isDeloadSession, endDeload, deloadWeight } from './deload.js'
+import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
+         suggestDeload, dismissSuggestion } from './deload.js'
 
 const NAV_ICONS = {
   home:         HomeIcon,
@@ -42,6 +43,7 @@ import RoutinesModal    from './components/RoutinesModal.jsx'
 import LevelUpScreen    from './components/LevelUpScreen.jsx'
 import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
+import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
@@ -535,6 +537,76 @@ export default function App() {
     if (deload.lapsed) setRecoveryCfg(prev => endDeload(prev, today))
   }, [deload.lapsed, today])
 
+  const beginDeload = useCallback(({ days, pct } = {}) => {
+    setRecoveryCfg(prev => startDeload(prev, todayKey(), { days, pct }))
+    setTab('home')
+    pushAlert('💧', `بدأت فترة ديلود — أوزانك أخف بـ${pct}٪`)
+  }, [pushAlert])
+
+  // Ending early and ending on time run through the same call. The
+  // difference is recorded by endDeload itself, from the date.
+  const finishDeload = useCallback(() => {
+    setRecoveryCfg(prev => endDeload(prev, todayKey()))
+    pushAlert('💪', 'انتهى الديلود — رجعت أوزانك كما كانت')
+  }, [pushAlert])
+
+  // Does the app have grounds to raise one?
+  //
+  // suggestDeload deliberately knows nothing about the progression
+  // engine, so the count of stalled lifts is worked out here and passed
+  // in. Only exercises actually trained in the last month are asked —
+  // a lift dropped six months ago is not stalled, it is gone.
+  const deloadSuggestion = useMemo(() => {
+    if (recoveryCfg.deload) return null
+    const cutoff = Date.now() - 35 * 86400000
+    const names = new Set()
+    for (const s of sessions) {
+      if (new Date(s.date).getTime() < cutoff) continue
+      for (const ex of s.exercises || []) names.add(ex.name)
+    }
+    let stalled = 0
+    for (const name of names) {
+      const p = analyzeProgression(sessions, name, exerciseMapping, repTarget)
+      if (p.hint === 'lower' || p.failedAtWeight >= 2) stalled++
+    }
+    return suggestDeload({ sessions, config: recoveryCfg, today, stalledCount: stalled })
+  }, [sessions, recoveryCfg, today, exerciseMapping, repTarget])
+
+  // The closing screen, offered once. `deloadEndSeenAt` holds the end
+  // date rather than a boolean, so the next deload gets its own screen
+  // without anything having to reset the flag.
+  const lastDeload = recoveryCfg.deloadHistory?.[recoveryCfg.deloadHistory.length - 1] || null
+  const showDeloadEnd = !!lastDeload
+    && !deload.active
+    && recoveryCfg.deloadEndSeenAt !== (lastDeload.until || lastDeload.plannedUntil)
+    // Someone opening the app a fortnight later does not need a
+    // congratulations screen about a week they have forgotten.
+    && dayDiff(lastDeload.until || lastDeload.plannedUntil, today) <= 3
+
+  // The lift the end screen names: the heaviest weight still on record.
+  //
+  // Read from the sessions rather than from hf_last_weights, because
+  // that snapshot is keyed by the canonical lowercase name — an
+  // internal key, not something to show anyone. The history carries the
+  // name as it was actually written. Deload sessions are skipped, so
+  // the number quoted is the one being returned to, not the light one
+  // just finished.
+  const heaviestLift = useMemo(() => {
+    if (!showDeloadEnd) return null
+    let best = null
+    for (const session of sessions) {
+      if (isDeloadSession(session)) continue
+      for (const ex of session.exercises || []) {
+        for (const set of ex.sets || []) {
+          if (!set?.done) continue
+          const w = parseFloat(set.weight)
+          if (w > 0 && (!best || w > best.weight)) best = { name: ex.name, weight: w }
+        }
+      }
+    }
+    return best
+  }, [showDeloadEnd, sessions])
+
   // The palette, softness and pacing all hang off this one attribute,
   // so nothing downstream has to know the rule.
   useEffect(() => {
@@ -701,6 +773,7 @@ export default function App() {
             )}
             <button
               onClick={() => setShowRest(true)}
+              aria-label="مؤقت الراحة"
               style={{
                 background: 'rgba(var(--cyan-rgb),0.07)', border: '1px solid rgba(var(--cyan-rgb),0.18)',
                 borderRadius: 10, width: 36, height: 36,
@@ -713,6 +786,7 @@ export default function App() {
             >⏱️</button>
             <button
               onClick={() => setTab(t => t === 'settings' ? 'home' : 'settings')}
+              aria-label="الإعدادات"
               style={{
                 background: tab === 'settings' ? 'var(--cyan-lo)' : 'rgba(var(--cyan-rgb),0.07)',
                 border: `1px solid ${tab === 'settings' ? 'var(--cyan)' : 'rgba(var(--cyan-rgb),0.18)'}`,
@@ -765,6 +839,10 @@ export default function App() {
             monthReport={monthReport}
             onShowMonthReport={() => setShowReport(true)}
             deload={deload}
+            deloadSuggestion={deloadSuggestion}
+            onStartDeload={beginDeload}
+            onDismissDeloadSuggestion={() => setRecoveryCfg(prev => dismissSuggestion(prev, today))}
+            onOpenDeload={() => setTab('settings')}
           />
         )}
         {tab === 'workout' && (
@@ -845,6 +923,9 @@ export default function App() {
             recovery={recovery}
             repTarget={repTarget}
             onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
+            today={today}
+            onStartDeload={beginDeload}
+            onEndDeload={finishDeload}
             onImportMapping={(newMapping) => {
               setExerciseMapping(prev => ({ ...prev, ...newMapping }))
               pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
@@ -950,6 +1031,16 @@ export default function App() {
       {showRest    && <RestTimer key={restKey} onClose={() => setShowRest(false)} />}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
+      {showDeloadEnd && (
+        <DeloadEndScreen
+          entry={lastDeload}
+          heaviest={heaviestLift}
+          onDismiss={() => setRecoveryCfg(prev => ({
+            ...prev,
+            deloadEndSeenAt: lastDeload.until || lastDeload.plannedUntil,
+          }))}
+        />
+      )}
       {showWhatsNew && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
       {/* Queued behind the version notice so the two never stack. */}
       {packOffer && !showWhatsNew && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
