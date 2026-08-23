@@ -3,11 +3,12 @@
 // bin, the pencil, the arrows — stay exactly as they are; turning
 // those into downloaded rasters costs bandwidth and buys nothing.
 //
-// Four families, 60 slots:
+// Five families, 63 slots:
 //   ach_<id>   one image per achievement, 40 of them
 //   scene_*    the two full-screen celebration moments
 //   empty_*    the large illustration on an empty page
 //   cover_MM   the monthly report's cover, one per calendar month
+//   deload_*   the three pictures the deload mode uses
 //
 // Achievement ids come straight from ACHIEVEMENTS, so adding an
 // achievement automatically adds its slot — no second list to keep
@@ -72,6 +73,35 @@ export const COVERS = {
   cover_12: { ...COVER, month: 'ديسمبر', en: 'a long winter night, warm interior light against darkness outside' },
 }
 
+// ── Deload ────────────────────────────────────────────────────
+// The three places the deload mode wants its own picture. They share
+// the badge geometry so they key out on the same pass, but their brief
+// is the opposite of the achievements': nothing radiant, nothing
+// celebratory. Cold, still, and unmistakably mid-training rather than
+// mid-illness — a glacier, not a sickbed.
+const DELOADS_STYLE_NOTE = 'glacier blue #5CC9EE, calm and cold, active recovery not illness'
+
+export const DELOADS = {
+  deload_hero: {
+    ...SQUARE,
+    en: 'a chunky frost-covered dumbbell resting on a slab of blue glacier ice, seen from a three-quarter angle, the subject large and filling the square frame edge to edge',
+  },
+  // The odd one out: this renders after the mode is already off, on a
+  // green screen, and its job is the thaw rather than the freeze. It
+  // opts out of the cold-only palette on purpose.
+  deload_end: {
+    ...SQUARE,
+    thaw: true,
+    en: 'the last of the frost breaking off a barbell as warm light returns to the steel, ready to be lifted heavy again',
+  },
+  deload_badge: {
+    ...SQUARE,
+    en: 'a single clear droplet of meltwater, simple and iconic, readable at a very small size',
+  },
+}
+
+export { DELOADS_STYLE_NOTE }
+
 /** Every slot the app can draw, with the copy the generator turns into a prompt. */
 export function allSlots() {
   const out = []
@@ -89,6 +119,7 @@ export function allSlots() {
   for (const [id, s] of Object.entries(SCENES)) out.push({ id, kind: 'scene', ...s })
   for (const [id, s] of Object.entries(EMPTIES)) out.push({ id, kind: 'empty', ...s })
   for (const [id, s] of Object.entries(COVERS)) out.push({ id, kind: 'cover', ...s })
+  for (const [id, s] of Object.entries(DELOADS)) out.push({ id, kind: 'deload', ...s })
   return out
 }
 

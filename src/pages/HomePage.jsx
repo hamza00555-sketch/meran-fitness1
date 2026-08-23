@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
+import Art from '../assets/Art.jsx'
 import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
 import { DeloadBanner, DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex, fmtDate } from '../utils.js'
@@ -357,14 +358,27 @@ function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], e
 }
 
 // Hero illustration — fills its container
-function HeroIllustration({ isTraining }) {
-  return (
-    <img
-      src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'}
-      alt=""
-      style={{ width: '90%', height: '90%', objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.4))' }}
-    />
+//
+// Three states, not two. A deload day is a training day, so it keeps
+// the training slot rather than borrowing the rest picture — but the
+// picture itself is the iced one, because the card beside it is
+// already saying the load is down.
+//
+// The deload piece comes through the asset pack rather than
+// public/assets, so it arrives on its own once the pack updates and
+// falls back to the ordinary training art until then. Never a blank
+// space.
+const HERO_STYLE = {
+  width: '90%', height: '90%', objectFit: 'contain',
+  filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.4))',
+}
+
+function HeroIllustration({ isTraining, deload = false }) {
+  const plain = (
+    <img src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'} alt="" style={HERO_STYLE} />
   )
+  if (!deload) return plain
+  return <Art id="deload_hero" style={HERO_STYLE} fallback={plain} alt="" />
 }
 
 // Rank badge — fills its container
@@ -687,7 +701,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
 
           {/* ILLUSTRATION (left in RTL) */}
           <div className="hp-icon" style={{ background: 'transparent', border: 'none', borderRadius: 0 }}>
-            <HeroIllustration isTraining={isTodayTraining} />
+            <HeroIllustration isTraining={isTodayTraining} deload={onDeload} />
           </div>
         </div>
       </Card>

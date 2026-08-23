@@ -17,7 +17,7 @@
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 
-const { allSlots } = await import(pathToFileURL(path.resolve('src/assets/slots.js')).href)
+const { allSlots, DELOADS_STYLE_NOTE } = await import(pathToFileURL(path.resolve('src/assets/slots.js')).href)
 
 export const STYLE = [
   'flat anime illustration, premium mobile game asset',
@@ -134,6 +134,23 @@ export function promptFor(slot) {
     ].join(', ')
   }
   if (slot.kind === 'scene') return `${slot.en}, accent colour #F59E0B, ${SCENE_STYLE}`
+  // The deload pieces share the badge geometry but invert its mood:
+  // no glow to speak of, no celebration, no warmth. The one thing they
+  // must not become is a picture of being unwell.
+  if (slot.kind === 'deload') {
+    return [
+      slot.en,
+      slot.thaw
+        // The closing screen is the thaw, and it is drawn on a screen
+        // that has already gone back to green. Ice giving way to warmth
+        // is the whole subject, so the cold-only rule is lifted here.
+        ? 'pale ice blue #5CC9EE giving way to warm green #5EC32A, the moment the cold lets go'
+        : `${DELOADS_STYLE_NOTE}, cool desaturated palette, pale ice blues and cold greys only, no warm colours`,
+      'still and quiet, no motion lines, no radiance, no sparkle',
+      'not sad, not sickly, not broken — resting between efforts',
+      STYLE,
+    ].join(', ')
+  }
   return `${slot.en}, muted and understated, accent colour #3B9DE8, ${STYLE}`
 }
 

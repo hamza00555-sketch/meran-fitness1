@@ -15,6 +15,7 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
@@ -314,6 +315,80 @@ for (const [iso, expect, label] of [
   // The seeded history is ~9 weeks but every lift is progressing, so
   // the stalled half of the condition is unmet.
   ok('suggestion: it stays quiet when nothing is stalled', !/يمكن وقت ديلود/.test(text))
+  await ctx.close()
+}
+
+// ══ 12. The deload artwork actually arrives ═══════════════════
+// Every other block blocks the bucket and exercises the fallback. This
+// one serves the pack this checkout built, from disk, so the whole
+// install path runs: manifest, 63 blobs, then the two deload slots the
+// home screen asks for. Served locally rather than fetched because a
+// test that depends on a live CDN fails for reasons that have nothing
+// to do with the code.
+{
+  const ctx = await browser.newContext({
+    ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
+  })
+  const page = await ctx.newPage()
+  const errors = []
+  page.on('pageerror', e => errors.push(String(e)))
+
+  let served = 0
+  await page.route('**/*.r2.dev/**', async route => {
+    const rel = new URL(route.request().url()).pathname.replace(/^\//, '')
+    try {
+      const body = await readFile(`pack/${rel}`)
+      served++
+      route.fulfill({
+        status: 200,
+        contentType: rel.endsWith('.json') ? 'application/json' : 'image/webp',
+        body,
+      })
+    } catch { route.abort() }
+  })
+
+  await page.addInitScript(([sessions, recovery, iso]) => {
+    localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+    localStorage.setItem('hf_recovery', JSON.stringify(recovery))
+    localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
+    localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
+    localStorage.setItem('hf_weights_reset_v2', 'true')
+    localStorage.setItem('hf_xp', '4200')
+    const real = Date
+    const fixed = new real(iso).getTime()
+    class D extends real {
+      constructor(...a) { return a.length ? new real(...a) : new real(fixed) }
+      static now() { return fixed }
+    }
+    globalThis.Date = D
+  }, [SESSIONS, { ...BASE_RECOVERY, deload: DELOAD }, '2026-07-08T10:00:00+03:00'])
+
+  await page.goto(APP, { waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1500)
+
+  await page.getByRole('button', { name: /تنزيل الآن/ }).click()
+  // ~4MB of blobs, verified and written to IndexedDB one at a time.
+  await page.waitForTimeout(45000)
+
+  const pointer = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
+  ok('pack: it installs', pointer?.count === 63, JSON.stringify(pointer))
+  ok('pack: every object came from the built pack', served >= 64, String(served))
+
+  const arts = await page.evaluate(() =>
+    [...document.querySelectorAll('img[data-art]')].map(i => ({
+      slot: i.dataset.art, ok: i.complete && i.naturalWidth > 0,
+    })))
+  const bySlot = Object.fromEntries(arts.map(a => [a.slot, a.ok]))
+  ok('pack: the iced hero replaces the training art', bySlot.deload_hero === true, JSON.stringify(bySlot))
+  ok('pack: the droplet badge renders in the counter', bySlot.deload_badge === true, JSON.stringify(bySlot))
+  // A blob: URL is same-origin, which is what keeps the poster's canvas
+  // untainted — worth asserting rather than assuming.
+  const blobbed = await page.evaluate(() =>
+    [...document.querySelectorAll('img[data-art]')].every(i => i.src.startsWith('blob:')))
+  ok('pack: served from blob URLs, so the canvas stays untainted', blobbed)
+  ok('pack: no page errors', errors.length === 0, errors.join('; '))
+
+  await page.screenshot({ path: `${OUT}/with-pack.png` })
   await ctx.close()
 }
 

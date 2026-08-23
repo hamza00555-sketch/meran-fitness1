@@ -243,6 +243,18 @@
     "cover_09": {
       "job": "f09ee003-fd01-4fe3-86c1-5b0b8d09ce4c",
       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260817_092704_f09ee003-fd01-4fe3-86c1-5b0b8d09ce4c.png"
+    },
+    "deload_hero": {
+      "job": "e0fec5cc-4bff-4de7-9156-bd102c7fe65f",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260823_213230_e0fec5cc-4bff-4de7-9156-bd102c7fe65f.png"
+    },
+    "deload_end": {
+      "job": "150101c1-b985-4541-a90d-5e762e3c4fe8",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260823_213135_150101c1-b985-4541-a90d-5e762e3c4fe8.png"
+    },
+    "deload_badge": {
+      "job": "65340be0-4bc9-4146-a8ec-e96198591078",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260823_213135_65340be0-4bc9-4146-a8ec-e96198591078.png"
     }
   }
 }
