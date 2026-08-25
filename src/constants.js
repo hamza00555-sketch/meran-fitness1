@@ -1100,7 +1100,7 @@ export const BUILT_IN_PLANS = [
 // Ordered fallbacks for the same muscle + movement pattern. The
 // "استبدال التمرين" button cycles: original → 1 → 2 → 3 → original.
 // Sets, reps, and rest never change — only the exercise name.
-export const EXERCISE_ALTERNATIVES = {
+const CURATED_ALTERNATIVES = {
   // ── Push day ────────────────────────────────────────────────
   'Hammer Strength Machine Bench Press': [
     'Chest Press Machine', 'Smith Machine Bench Press', 'Cable Chest Press',
@@ -1154,6 +1154,63 @@ export const EXERCISE_ALTERNATIVES = {
   ],
   'Standing Calf Raise': [
     'Seated Calf Raise', 'Leg Press Calf Raise', 'Smith Machine Calf Raise',
+  ],
+
+  // ── Free weights ────────────────────────────────────────────
+  // Everything above was written for the machines-only beginner plan,
+  // which left the barbell and dumbbell lifts — most of what the other
+  // built-in plans are made of — with no swap button at all. A
+  // substitute has to be the same movement at the same joint, not
+  // merely the same muscle: the button exists for a taken machine or a
+  // sore shoulder, and offering a curl in place of a row would be
+  // worse than offering nothing.
+  'Bench Press': [
+    'Dumbbell Bench Press', 'Hammer Strength Machine Bench Press', 'Smith Machine Bench Press',
+  ],
+  'Incline Bench Press': [
+    'Incline Dumbbell Press', 'Machine Incline Press', 'Smith Machine Incline Bench Press',
+  ],
+  'Overhead Press': [
+    'Seated Dumbbell Shoulder Press', 'Machine Shoulder Press', 'Arnold Press',
+  ],
+  'Lateral Raise': [
+    'Cable Lateral Raise', 'Machine Lateral Raise', 'Leaning Cable Lateral Raise',
+  ],
+  'Cable Fly': [
+    'Pec Deck', 'Dumbbell Fly', 'Low-to-High Cable Fly',
+  ],
+  'Skull Crusher': [
+    'Overhead Cable Triceps Extension', 'Triceps Pushdown', 'Close Grip Bench Press',
+  ],
+  'Pull-Up': [
+    'Assisted Pull-Up Machine', 'Lat Pulldown', 'Inverted Row',
+  ],
+  'Barbell Row': [
+    'Chest Supported Row Machine', 'Seated Cable Row', 'Single Arm Dumbbell Row',
+  ],
+  'Face Pull': [
+    'Reverse Pec Deck', 'Rear Delt Cable Fly', 'Band Pull-Apart',
+  ],
+  'Barbell Curl': [
+    'EZ Bar Curl', 'Seated Dumbbell Curl', 'Cable Curl',
+  ],
+  'Hammer Curl': [
+    'Cable Hammer Curls', 'Rope Hammer Curl', 'Cross Body Hammer Curl',
+  ],
+  'Deadlift': [
+    'Trap Bar Deadlift', 'Rack Pull', 'Romanian Deadlift',
+  ],
+  'Barbell Squat': [
+    'Hack Squat', 'Leg Press', 'Goblet Squat',
+  ],
+  'Goblet Squat': [
+    'Barbell Squat', 'Hack Squat', 'Bulgarian Split Squat',
+  ],
+  'Romanian Deadlift': [
+    'Dumbbell Romanian Deadlift', 'Leg Curl', 'Good Morning',
+  ],
+  'Plank': [
+    'Ab Wheel Rollout', 'Dead Bug', 'Hanging Knee Raise',
   ],
 }
 
@@ -1223,3 +1280,83 @@ export const DEFAULT_EXERCISE_MAPPING = {
   'Jump Squat (Dumbbell)':            'Dumbbell Jump Squat',
   'Dumbbell Push-Press':              'Dumbbell Push Press',
 }
+
+// ── Swap targets, for every exercise the app knows ────────────
+//
+// The curated table above is hand-written and stops where its author
+// stopped: it was built for the machines-only beginner plan, and for a
+// long time that meant sixty-five of the ninety-seven exercises in the
+// catalogue had no swap button at all. Nothing errored — the button
+// simply was not drawn, which is a hard thing to notice until you are
+// standing in front of a taken machine.
+//
+// So the curated list becomes an override rather than the whole answer.
+// Anything it does not cover falls back to the exercise's own muscle
+// group, which is where a real substitute lives anyway, and which has
+// the advantage that every name offered is one the app already knows —
+// with its own video, its own history and its own info card. Inventing
+// three plausible-sounding names per exercise would have filled the
+// table faster and left the app offering lifts it cannot say anything
+// about.
+//
+// Within a group, siblings that share a movement word — curl, press,
+// row, raise — come first, so "Dumbbell Curl" offers "Cable Curl"
+// before it offers "Barbell Reverse Curl". Equipment words are ignored
+// in that comparison for exactly the same reason: the machine being
+// busy is usually why someone is looking.
+
+// Words that describe the tool rather than the movement. Two lifts
+// matching only on "cable" have nothing in common worth offering.
+const EQUIPMENT_WORDS = new Set([
+  'machine', 'cable', 'dumbbell', 'barbell', 'smith', 'seated', 'standing',
+  'lying', 'single', 'arm', 'bar', 'trap', 'assisted', 'band', 'resistance',
+  'rope', 'plate', 'kettlebell', 'body', 'weighted',
+])
+
+const movementWords = (name) => new Set(
+  String(name).toLowerCase()
+    .replace(/[^a-z ]+/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !EQUIPMENT_WORDS.has(w)),
+)
+
+const MAX_ALTERNATIVES = 3
+
+const buildAlternatives = () => {
+  // name → the other exercises in its muscle group, in catalogue order.
+  const siblings = new Map()
+  for (const group of Object.values(MUSCLE_GROUPS)) {
+    const names = (group.exercises || []).map(e => e.name)
+    for (const name of names) {
+      siblings.set(name, names.filter(n => n !== name))
+    }
+  }
+
+  const out = { ...CURATED_ALTERNATIVES }
+  for (const [name, pool] of siblings) {
+    if (out[name]?.length) continue          // a curated answer always wins
+    if (!pool.length) continue               // a group of one has nothing to offer
+
+    const mine = movementWords(name)
+    const scored = pool.map((other, order) => {
+      let shared = 0
+      for (const w of movementWords(other)) if (mine.has(w)) shared++
+      return { other, shared, order }
+    })
+    // Shared movement first, catalogue order to break ties — so the
+    // list is the same on every device and every render.
+    scored.sort((a, b) => (b.shared - a.shared) || (a.order - b.order))
+    out[name] = scored.slice(0, MAX_ALTERNATIVES).map(s => s.other)
+  }
+  return out
+}
+
+/**
+ * What the swap button offers, for any exercise.
+ *
+ * Curated entries where they exist, muscle-group siblings everywhere
+ * else. Built once at module load: the catalogue never changes at
+ * runtime, and the order has to be stable or the cycle would land
+ * somewhere different each time it is pressed.
+ */
+export const EXERCISE_ALTERNATIVES = buildAlternatives()
