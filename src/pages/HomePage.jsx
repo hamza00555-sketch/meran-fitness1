@@ -15,8 +15,14 @@ function PlanProgressCard({ plan, planIndex }) {
   const overallPct    = Math.min(100, Math.round((planIndex / totalSessions) * 100))
   const isCompleted   = planIndex >= totalSessions
 
-  // Day type label abbreviation: "Push A" → "Push", "Legs B" → "Legs"
-  const shortLabel = (name) => name.split('—')[0].trim().split(' ')[0]
+  // Day label abbreviation: "Push A — صدر" → "Push". When the part
+  // before the dash is just "Day N" (every bubble would say "Day"),
+  // the subject after the dash is the label: "Day 3 — أرجل" → "أرجل".
+  const shortLabel = (name) => {
+    const parts = String(name).split('—').map(s => s.trim()).filter(Boolean)
+    const pick = parts.find(p => !/^day\s*\d*$/i.test(p)) || parts[0] || ''
+    return pick.split(' ')[0]
+  }
 
   return (
     <Card style={{ padding: '14px 16px', marginBottom: 'var(--hp-card-mb)' }}>

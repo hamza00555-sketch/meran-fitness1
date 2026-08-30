@@ -75,9 +75,10 @@ function HeroVisual({ isTraining, deload }) {
   )
 }
 
+// No letter-spacing here: the status is Arabic, and tracking pulls
+// connected script apart into disjointed glyphs.
 const statusLine = {
-  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-  letterSpacing: 2.5, textTransform: 'uppercase',
+  fontFamily: 'var(--font-ar)', fontSize: 11, fontWeight: 800,
 }
 const titleStyle = {
   fontFamily: 'var(--font-ar)', fontSize: 28, fontWeight: 900,
