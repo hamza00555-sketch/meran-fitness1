@@ -265,6 +265,36 @@ export const blankSet = (prevWeight = '', prevReps = '') => ({
 // take volume, stats and progression down with them.
 export const normalizeSetValue = (value) => toWesternDigits(value ?? '')
 
+const isBlankValue = (v) => v == null || String(v).trim() === ''
+
+// ── Completing a set ──────────────────────────────────────────
+//
+// Marks one set done and carries what was just lifted into the sets
+// that follow it.
+//
+// A session pre-fills every set from history when the exercise has
+// any, so this is invisible on a familiar lift. On a new one — a plan
+// you just started, an exercise added mid-session, a swap — history is
+// empty, every set is blank, and without this each rest ends on two
+// empty boxes and the number you already lifted has to be typed again.
+//
+// Three rules keep it from destroying intent: forward only, never into
+// a set already logged, and never over a value that is already there,
+// so a deliberate ramp (60, 70, 80) survives untouched.
+export const markSetDone = (sets, index, done) => {
+  const src = sets[index]
+  if (!src) return sets
+  return sets.map((s, i) => {
+    if (i === index) return { ...s, done }
+    if (!done || i <= index || s.done) return s
+    return {
+      ...s,
+      weight: isBlankValue(s.weight) ? src.weight : s.weight,
+      reps:   isBlankValue(s.reps)   ? src.reps   : s.reps,
+    }
+  })
+}
+
 // ── Historical max weight for an exercise across completed sessions ──
 export const getHistoricalMax = (sessions, exerciseName, mapping = {}) => {
   const resolved = resolveExerciseName(exerciseName, mapping)

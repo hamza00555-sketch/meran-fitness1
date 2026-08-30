@@ -163,7 +163,50 @@ const activeStored = (page) => page.evaluate(() => JSON.parse(localStorage.getIt
   await ctx.close()
 }
 
-// ══ 4. A small screen still fits ══════════════════════════════
+// ══ 4. A new exercise does not leave you with empty boxes ═════
+//
+// The regression: a session pre-fills its sets from history, so a
+// familiar lift hides this entirely. On an exercise with no history
+// every set arrives blank, and completing one left the next one blank
+// too — each rest ended on two empty boxes with the weight you had
+// just lifted nowhere on screen.
+{
+  const FRESH = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [
+      { id: 'n', muscle: 'Legs', name: 'Leg Press',
+        sets: [{ weight: '', reps: '', done: false }, { weight: '', reps: '', done: false }] },
+    ],
+  }
+  const { ctx, page, errors } = await open({ active: FRESH })
+  const fields = () => page.evaluate(() =>
+    [...document.querySelectorAll('input[inputmode="decimal"]')].map(i => i.value))
+
+  ok('fresh: an exercise with no history starts blank',
+    (await fields()).every(v => v === ''))
+
+  const ins = page.locator('input[inputmode="decimal"]')
+  await ins.nth(0).fill('80')
+  await ins.nth(1).fill('12')
+  await page.getByRole('button', { name: /إنهاء المجموعة/ }).click()
+  await page.waitForTimeout(600)
+
+  // End the rest the way the clock would.
+  await page.evaluate(() => {
+    const t = JSON.parse(localStorage.getItem('hf_rest_timer') || '{}')
+    t.endsAt = Date.now() - 300
+    localStorage.setItem('hf_rest_timer', JSON.stringify(t))
+  })
+  await page.waitForTimeout(2600)
+
+  const after = await fields()
+  ok('fresh: the next set carries what you just lifted', after[0] === '80' && after[1] === '12',
+    JSON.stringify(after))
+  ok('fresh: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 5. A small screen still fits ══════════════════════════════
 {
   const { ctx, page, errors } = await open({ device: 'iPhone SE' })
   const overflow = await page.evaluate(() =>

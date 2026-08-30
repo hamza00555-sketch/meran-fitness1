@@ -5,7 +5,7 @@ import ExerciseCard, { PRFlash } from '../components/ExerciseCard.jsx'
 import WorkoutPlayer from '../components/player/WorkoutPlayer.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, ls } from '../utils.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, ls } from '../utils.js'
 import { deloadWeight } from '../deload.js'
 import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
@@ -77,10 +77,9 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
       if (addXP) addXP(10, '✓ سيت مكتمل')
       onShowRest()
     }
-    updateEx(exId, ex => ({
-      ...ex,
-      sets: ex.sets.map((s, i) => i === si ? { ...s, done } : s),
-    }))
+    // Marking done also carries the numbers into the blank sets that
+    // follow — see markSetDone for why and for what it refuses to touch.
+    updateEx(exId, ex => ({ ...ex, sets: markSetDone(ex.sets, si, done) }))
   }
 
   const handleAddSet = (exId) =>
