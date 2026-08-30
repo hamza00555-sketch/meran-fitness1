@@ -89,17 +89,35 @@ export default function WorkoutPlayer({
     if (!ex || !exComplete || celebratedRef.current.has(ex.id)) return
     celebratedRef.current.add(ex.id)
     setCelebrating({ exId: ex.id })
+  }, [exComplete, ex?.id])
+
+  // The celebration owns its own lifetime, keyed on itself.
+  //
+  // This used to live in the effect above, whose deps include the
+  // carousel's current exercise — so swiping during the 1.6s ran that
+  // effect's cleanup, cancelled the timeout that clears the card, and
+  // left `celebrating` set forever. The completion card then covered
+  // the working area for the rest of the session with no way back.
+  const exercisesRef = useRef(exercises)
+  exercisesRef.current = exercises
+  useEffect(() => {
+    if (!celebrating) return
     const t = setTimeout(() => {
       setCelebrating(null)
-      const next = exercises.findIndex(e => e.sets.length && !e.sets.every(s => s.done))
+      const list = exercisesRef.current
+      const next = list.findIndex(e => e.sets.length && !e.sets.every(s => s.done))
       if (next !== -1) jump(next)
     }, 1600)
     return () => clearTimeout(t)
-  }, [exComplete, ex?.id])
+  }, [celebrating?.exId])
 
   // Numbers for the transition card, computed only while it shows.
+  //
+  // The card belongs to the exercise it is about, so it only draws
+  // while that exercise is the one on screen: swipe on and you get the
+  // new exercise's working area at once, not a stale trophy over it.
   const summary = useMemo(() => {
-    if (!celebrating) return null
+    if (!celebrating || celebrating.exId !== ex?.id) return null
     const done = exercises.find(e => e.id === celebrating.exId)
     if (!done) return null
     const weights = done.sets.map(s => parseFloat(s.weight)).filter(w => w > 0)
@@ -107,7 +125,7 @@ export default function WorkoutPlayer({
     const { lastWeight } = statsFor(done.name)
     const delta = top != null && lastWeight != null ? Math.round((top - lastWeight) * 10) / 10 : null
     return { name: done.name, sets: done.sets.length, top, delta }
-  }, [celebrating])
+  }, [celebrating, ex?.id])
 
   if (!ex) return null
 

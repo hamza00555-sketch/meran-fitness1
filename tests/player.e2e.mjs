@@ -206,7 +206,56 @@ const activeStored = (page) => page.evaluate(() => JSON.parse(localStorage.getIt
   await ctx.close()
 }
 
-// ══ 5. A small screen still fits ══════════════════════════════
+// ══ 5. Swiping during a completion card does not lock the player ═
+//
+// The regression: the card's dismissal timer used to live in the
+// effect keyed on the carousel's current exercise, so swiping inside
+// its 1.6s window ran that effect's cleanup, cancelled the dismissal,
+// and left the trophy on screen permanently — covering the working
+// area for the rest of the session with no way back.
+{
+  const TWO = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [
+      { id: 'p', muscle: 'Legs', name: 'Leg Press', sets: [{ weight: '40', reps: '12', done: false }] },
+      { id: 'c', muscle: 'Legs', name: 'Leg Curl',
+        sets: [{ weight: '30', reps: '12', done: false }, { weight: '30', reps: '12', done: false }] },
+    ],
+  }
+  const { ctx, page, errors } = await open({ active: TWO })
+  const seen = () => page.evaluate(() => ({
+    celebrating: /مكتمل ✓/.test(document.body.innerText),
+    workingArea: /المجموعة الحالية/.test(document.body.innerText),
+    inputs: document.querySelectorAll('input[inputmode="decimal"]').length,
+  }))
+
+  await page.getByRole('button', { name: /إنهاء المجموعة/ }).click()
+  await page.waitForTimeout(400)
+  ok('celebration: completing the last set raises the card', (await seen()).celebrating)
+
+  // Swipe on while the card is still up — the move that used to lock it.
+  await page.evaluate(() => {
+    const row = [...document.querySelectorAll('button')].find(b => /Leg Curl/.test(b.textContent))
+    row?.click()
+  })
+  await page.waitForTimeout(3400)
+  ok('celebration: swiping away clears the card instead of freezing it',
+    !(await seen()).celebrating)
+
+  await page.evaluate(() => {
+    const t = JSON.parse(localStorage.getItem('hf_rest_timer') || '{}')
+    t.endsAt = Date.now() - 300
+    localStorage.setItem('hf_rest_timer', JSON.stringify(t))
+  })
+  await page.waitForTimeout(2600)
+  const back = await seen()
+  ok('celebration: the working area comes back after the rest',
+    back.workingArea && back.inputs === 2, JSON.stringify(back))
+  ok('celebration: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 6. A small screen still fits ══════════════════════════════
 {
   const { ctx, page, errors } = await open({ device: 'iPhone SE' })
   const overflow = await page.evaluate(() =>
