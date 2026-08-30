@@ -72,7 +72,7 @@
   /* ── Text ── */
   --text:     #EEF4FF;
   --text2:    #B8D0E8;
-  --text3:    #607888;
+  --text3:    #6E8899;   /* 5.3:1 on --bg1 — muted, still legible */
 
   /* ── Fonts ── */
   --font-ar:   'Changa', 'Zanjabeel', sans-serif;
@@ -639,7 +639,7 @@ input[type=number] { -moz-appearance: textfield; }
   --border:  #142232;
   --border2: #1C3048;
   --text2:   #BCD4E8;
-  --text3:   #5E7A8C;
+  --text3:   #6C8A9D;
 }
 
 /* The three named card surfaces carry their shadow inline in this file

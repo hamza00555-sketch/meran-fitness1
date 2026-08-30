@@ -45,30 +45,40 @@ function sessionContext(active) {
   }
 }
 
-// The big visual, dissolved into the card: contained inside the
-// bounds, edges faded by a radial mask over a soft glow.
+// The visual, given a column of its own.
+//
+// It is absolutely positioned *inside that column* and allowed to
+// overspill its box a little, so it renders generously without ever
+// pushing layout around — and because the column is a real flex
+// sibling of the controls, it can never sit under the button. The
+// radial mask dissolves its edges into the card instead of letting
+// the border crop them.
 function HeroVisual({ isTraining, deload }) {
   const src = isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'
-  const fade = 'radial-gradient(closest-side, #000 60%, rgba(0,0,0,0.72) 80%, transparent 100%)'
+  const fade = 'radial-gradient(closest-side, #000 58%, rgba(0,0,0,0.7) 79%, transparent 100%)'
+  // The overspill lives on a wrapper, not on the image: an absolutely
+  // positioned <img> with width:auto takes its intrinsic size, not the
+  // inset box, and lands wherever that leaves it.
   const style = {
-    position: 'absolute', insetInlineEnd: 0, bottom: 0,
-    width: 'min(192px, 50%)', height: 198, objectFit: 'contain',
+    display: 'block', width: '100%', height: '100%', objectFit: 'contain',
     WebkitMaskImage: fade, maskImage: fade,
-    pointerEvents: 'none',
   }
-  const glow = (
-    <div style={{
-      position: 'absolute', insetInlineEnd: -30, bottom: -46,
-      width: 250, height: 250, borderRadius: '50%',
-      background: `radial-gradient(circle, ${isTraining ? 'rgba(var(--cyan-rgb),0.12)' : 'rgba(var(--purple-rgb),0.11)'} 0%, transparent 66%)`,
-      pointerEvents: 'none',
-    }} />
-  )
   const plain = <img src={src} alt="" style={style} />
   return (
     <>
-      {glow}
-      {deload ? <Art id="deload_hero" style={style} fallback={plain} alt="" /> : plain}
+      <div style={{
+        position: 'absolute', insetInlineEnd: -34, top: '50%',
+        transform: 'translateY(-50%)',
+        width: 210, height: 210, borderRadius: '50%',
+        background: `radial-gradient(circle, ${isTraining ? 'rgba(var(--cyan-rgb),0.13)' : 'rgba(var(--purple-rgb),0.12)'} 0%, transparent 68%)`,
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute', insetBlock: -16, insetInlineStart: -4, insetInlineEnd: -12,
+        pointerEvents: 'none',
+      }}>
+        {deload ? <Art id="deload_hero" style={style} fallback={plain} alt="" /> : plain}
+      </div>
     </>
   )
 }
@@ -80,11 +90,14 @@ const pill = {
   lineHeight: 1.4, whiteSpace: 'nowrap',
 }
 const titleStyle = {
-  fontFamily: 'var(--font-ar)', fontSize: 28, fontWeight: 900,
-  color: 'var(--text)', lineHeight: 1.25,
+  fontFamily: 'var(--font-ar)', fontSize: 27, fontWeight: 900,
+  color: 'var(--text)', lineHeight: 1.25, textWrap: 'balance',
 }
+// --text2, not --text3: this line carries the day's actual numbers,
+// and muted grey on a near-black card is the one contrast failure
+// that makes a dark UI feel unreadable.
 const metaStyle = {
-  fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7,
+  fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.7,
 }
 
 export default function TodayHero({
@@ -117,10 +130,19 @@ export default function TodayHero({
     : currentPlanDay ? currentPlanDay.name
     : 'جلسة حرة'
 
+  // The label sits in a column that is only ~150px wide on a 320px
+  // phone, so the size is fluid and the label never wraps: a
+  // two-line primary button reads as a mistake, not as emphasis.
+  const ctaStyle = {
+    padding: '15px 10px', fontSize: 'clamp(14px, 4.1vw, 16px)', whiteSpace: 'nowrap',
+  }
+
+  // A real action, so it stays readable. Its quietness comes from
+  // having no fill next to a filled button, not from being dim.
   const skipLink = {
-    background: 'none', border: 'none', padding: '7px 6px',
-    color: 'var(--text3)', fontFamily: 'var(--font-ar)',
-    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    background: 'none', border: 'none', padding: '6px',
+    color: 'var(--text2)', fontFamily: 'var(--font-ar)',
+    fontSize: 13, fontWeight: 600, cursor: 'pointer',
   }
 
   return (
@@ -134,31 +156,28 @@ export default function TodayHero({
       overflow: 'hidden',
     }}>
 
-      {/* ── Chips row ── */}
+      {/* ── Status row: one pill, one quiet detail ──
+          Two competing pills read as two competing statements. The
+          pill states the kind of day; the deload's numbers sit beside
+          it as plain text, which is what they are. */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 8, flexWrap: 'wrap', marginBottom: 14,
+        gap: 10, flexWrap: 'wrap', marginBottom: 13,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-          <span style={{ ...pill, background: toneLo, border: `1px solid ${toneMd}`, color: tone }}>
-            {onDeload && <Art id="deload_badge" size={13} fallback={<DropletIcon size={11} color={tone} />} />}
-            {active && (
-              <span style={{
-                display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                background: tone, animation: 'pulseDot 1.5s ease-in-out infinite',
-              }} />
-            )}
-            {statusWord}
-          </span>
-          {onDeload && (
-            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>
-              اليوم {toWesternDigits(deload.day)} من {toWesternDigits(deload.totalDays)}
-            </span>
-          )}
-        </div>
+        <span style={{ ...pill, background: toneLo, border: `1px solid ${toneMd}`, color: tone }}>
+          {active ? (
+            <span className="pulse-dot" style={{
+              display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: tone,
+            }} />
+          ) : onDeload ? (
+            <Art id="deload_badge" size={13} fallback={<DropletIcon size={11} color={tone} />} />
+          ) : null}
+          {statusWord}
+        </span>
         {onDeload && (
-          <span style={{ ...pill, border: `1px solid ${toneMd}`, color: tone, fontSize: 11 }}>
-            ↓ أوزانك أخف {toWesternDigits(deload.pct)}٪
+          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>
+            اليوم {toWesternDigits(deload.day)} من {toWesternDigits(deload.totalDays)}
+            {' · '}أخف {toWesternDigits(deload.pct)}٪
           </span>
         )}
       </div>
@@ -191,14 +210,15 @@ export default function TodayHero({
         )}
       </div>
 
-      {/* ── Lower zone: controls at inline-start, visual at inline-end ── */}
-      <div style={{ position: 'relative', marginTop: 16, minHeight: 148 }}>
-        <HeroVisual isTraining={!resting} deload={onDeload} />
+      {/* ── Lower zone ──
+          Two real columns, not a floating image over a button: the
+          controls and the visual are flex siblings, so nothing can
+          ever be printed on top of the primary action. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 15 }}>
 
         <div style={{
-          position: 'relative', width: '62%', minWidth: 200, maxWidth: '100%',
-          display: 'flex', flexDirection: 'column', alignItems: 'stretch',
-          gap: 10, paddingTop: 6,
+          flex: '1 1 auto', minWidth: 0,
+          display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 9,
         }}>
           {!active && !resting && restCredits > 0 && (
             <span style={{
@@ -209,7 +229,7 @@ export default function TodayHero({
 
           {active ? (
             <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
-              style={{ padding: '15px', fontSize: 16 }}>
+              style={ctaStyle}>
               أكمل التمرين
             </button>
           ) : resting ? (
@@ -228,7 +248,7 @@ export default function TodayHero({
             </>
           ) : (
             <>
-              <button className="btn-cyan" style={{ padding: '15px', fontSize: 16 }}
+              <button className="btn-cyan" style={ctaStyle}
                 onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}>
                 ⚡ ابدأ التمرين
               </button>
@@ -239,6 +259,15 @@ export default function TodayHero({
               )}
             </>
           )}
+        </div>
+
+        {/* The visual's own column: fixed share of the row, matching
+            the controls' height, with the art overspilling inside it. */}
+        <div style={{
+          flex: '0 1 38%', maxWidth: 168, minWidth: 0, alignSelf: 'stretch',
+          minHeight: 128, position: 'relative',
+        }}>
+          <HeroVisual isTraining={!resting} deload={onDeload} />
         </div>
       </div>
 
