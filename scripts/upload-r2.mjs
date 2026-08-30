@@ -57,7 +57,7 @@ if (!existsSync(DIR)) {
   process.exit(1)
 }
 
-const TYPES = { '.webp': 'image/webp', '.png': 'image/png', '.json': 'application/json' }
+const TYPES = { '.webp': 'image/webp', '.png': 'image/png', '.json': 'application/json', '.mp4': 'video/mp4' }
 
 // Hashed filenames can be cached forever; the manifest is the pointer
 // that has to stay fresh, so it gets a short TTL and revalidation.

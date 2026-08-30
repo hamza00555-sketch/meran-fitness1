@@ -367,12 +367,12 @@ for (const [iso, expect, label] of [
   await page.waitForTimeout(1500)
 
   await page.getByRole('button', { name: /تنزيل الآن/ }).click()
-  // ~4MB of blobs, verified and written to IndexedDB one at a time.
-  await page.waitForTimeout(45000)
+  // ~12MB of blobs, verified and written to IndexedDB one at a time.
+  await page.waitForTimeout(75000)
 
   const pointer = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
-  ok('pack: it installs', pointer?.count === 63, JSON.stringify(pointer))
-  ok('pack: every object came from the built pack', served >= 64, String(served))
+  ok('pack: it installs', pointer?.count === 182, JSON.stringify(pointer))
+  ok('pack: every object came from the built pack', served >= 183, String(served))
 
   const arts = await page.evaluate(() =>
     [...document.querySelectorAll('img[data-art]')].map(i => ({

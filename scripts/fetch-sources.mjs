@@ -25,8 +25,12 @@ const root = path.resolve(new URL('..', import.meta.url).pathname)
 const sources = JSON.parse(await readFile(path.join(root, 'scripts/pack-sources.json'), 'utf8'))
 const { ALL_SLOT_IDS } = await import(pathToFileURL(path.join(root, 'src/assets/slots.js')).href)
 
+const ALLOW_MISSING = process.argv.includes('--allow-missing')
 const missing = ALL_SLOT_IDS.filter(id => !sources.slots[id])
-if (missing.length) {
+if (missing.length && ALLOW_MISSING) {
+  console.warn(`! skipping ${missing.length} slots with no source yet: ${missing.join(', ')}`)
+}
+if (missing.length && !ALLOW_MISSING) {
   console.error(`✗ pack-sources.json has no entry for: ${missing.join(', ')}`)
   process.exit(1)
 }
@@ -45,6 +49,7 @@ await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
     const i = cursor++
     if (i >= ALL_SLOT_IDS.length) return
     const id = ALL_SLOT_IDS[i]
+    if (!sources.slots[id]) continue                 // known-missing, warned above
     const dest = path.join(OUT, `${id}.png`)
     if (await already(dest)) { skipped++; continue }
     try {

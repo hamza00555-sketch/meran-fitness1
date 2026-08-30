@@ -62,7 +62,7 @@ export default function AssetPackSection() {
               صور مران المخصّصة
             </div>
             <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2, lineHeight: 1.7 }}>
-              صور الجوائز والاحتفالات — تُحمَّل مرة واحدة وتعمل بدون إنترنت
+              صور التمارين وأنيميشناتها والجوائز والاحتفالات — تُحمَّل مرة واحدة وتعمل بدون إنترنت
             </div>
           </div>
           <span data-pack-phase={state.phase} style={{
@@ -161,6 +161,7 @@ export default function AssetPackSection() {
             >
               {state.phase === 'ready' ? 'التحقق من التحديثات'
                 : (state.phase === 'error' || state.phase === 'offline') ? 'إعادة المحاولة'
+                : state.remoteBytes > 0 ? `تنزيل الحزمة · ~${mb(state.remoteBytes)} MB`
                 : 'تنزيل الحزمة'}
             </button>
           )}

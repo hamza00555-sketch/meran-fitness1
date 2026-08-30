@@ -399,6 +399,338 @@
     "ex_db_shoulder_press": {
       "job": "675ac3e1-2961-4572-9626-10a0e640effa",
       "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135016_675ac3e1-2961-4572-9626-10a0e640effa.png"
+    },
+    "ex_reverse_fly": {
+      "job": "09e71d60-264f-4270-9ec6-18942b49a484",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_09e71d60-264f-4270-9ec6-18942b49a484.png"
+    },
+    "ex_barbell_squat": {
+      "job": "2cabeee8-66dd-4e36-b4e8-a670cf948c37",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135827_2cabeee8-66dd-4e36-b4e8-a670cf948c37.png"
+    },
+    "ex_romanian_deadlift": {
+      "job": "33888cb3-24d0-49c5-8ace-7bbfc7d1db00",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_33888cb3-24d0-49c5-8ace-7bbfc7d1db00.png"
+    },
+    "ex_leg_extension": {
+      "job": "5fe628bc-1ffb-4628-a906-fe7b985faba1",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_5fe628bc-1ffb-4628-a906-fe7b985faba1.png"
+    },
+    "ex_leg_curl": {
+      "job": "d82ae861-bf60-413e-86b1-927fe26f411f",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_d82ae861-bf60-413e-86b1-927fe26f411f.png"
+    },
+    "ex_lunge": {
+      "job": "feac76e4-14f2-41af-85d3-4efc21bde0d4",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_feac76e4-14f2-41af-85d3-4efc21bde0d4.png"
+    },
+    "ex_hip_thrust": {
+      "job": "64394ac3-c015-44fb-a557-17ede7363e07",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_64394ac3-c015-44fb-a557-17ede7363e07.png"
+    },
+    "ex_standing_calf_raise": {
+      "job": "afdc5e17-c6e8-4953-b07a-8e6c344beeae",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_afdc5e17-c6e8-4953-b07a-8e6c344beeae.png"
+    },
+    "ex_hack_squat": {
+      "job": "0c3dfa4a-7e55-4962-896f-685b0a460c8d",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_0c3dfa4a-7e55-4962-896f-685b0a460c8d.png"
+    },
+    "ex_bulgarian_split_squat": {
+      "job": "124a2278-ce84-4205-805a-d942f1593420",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135827_124a2278-ce84-4205-805a-d942f1593420.png"
+    },
+    "ex_db_romanian_deadlift": {
+      "job": "43024032-a155-4570-983d-b803722b5e73",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_43024032-a155-4570-983d-b803722b5e73.png"
+    },
+    "ex_dumbbell_lunge": {
+      "job": "65caf4a0-ff05-4ef4-964d-0165958c436e",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_135826_65caf4a0-ff05-4ef4-964d-0165958c436e.png"
+    },
+    "ex_seated_leg_curl": {
+      "job": "d77a6b0a-ffd7-49c3-bddb-b6984a9ff257",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_d77a6b0a-ffd7-49c3-bddb-b6984a9ff257.png"
+    },
+    "ex_smith_calf_raise": {
+      "job": "c154ab33-0bbe-4e8d-b923-f7805e1a4034",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_c154ab33-0bbe-4e8d-b923-f7805e1a4034.png"
+    },
+    "ex_hip_abduction": {
+      "job": "a10b70fc-f907-40fd-8b34-6d25f700746a",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140125_a10b70fc-f907-40fd-8b34-6d25f700746a.png"
+    },
+    "ex_lying_leg_curl": {
+      "job": "f2e7f146-0064-4cd7-b6ad-2b2804f5eb8a",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_f2e7f146-0064-4cd7-b6ad-2b2804f5eb8a.png"
+    },
+    "ex_dumbbell_calf_raise": {
+      "job": "eb24ff6e-b000-4205-8597-f5912d0d0ec5",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_eb24ff6e-b000-4205-8597-f5912d0d0ec5.png"
+    },
+    "ex_hip_adduction": {
+      "job": "e20267bd-9786-42d6-8e37-c62698be05cd",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_e20267bd-9786-42d6-8e37-c62698be05cd.png"
+    },
+    "ex_glute_kickback": {
+      "job": "3beaf518-0c79-496f-bf3b-cb25d99eb3dd",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_3beaf518-0c79-496f-bf3b-cb25d99eb3dd.png"
+    },
+    "ex_barbell_curl": {
+      "job": "4838fcd8-8567-4dc2-9286-59c6d4fbccef",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_4838fcd8-8567-4dc2-9286-59c6d4fbccef.png"
+    },
+    "ex_dumbbell_curl": {
+      "job": "7c692038-611c-4c23-8ff2-db01f5c33a01",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140125_7c692038-611c-4c23-8ff2-db01f5c33a01.png"
+    },
+    "ex_hammer_curl": {
+      "job": "059443ea-9bcd-423b-9664-d7a365f8d26e",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_059443ea-9bcd-423b-9664-d7a365f8d26e.png"
+    },
+    "ex_preacher_curl": {
+      "job": "71c9f5e7-222d-4c40-9e65-5b8433f2f052",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_71c9f5e7-222d-4c40-9e65-5b8433f2f052.png"
+    },
+    "ex_cable_curl": {
+      "job": "6f11d9df-f33c-492d-9c82-6bafd7aaadd3",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140124_6f11d9df-f33c-492d-9c82-6bafd7aaadd3.png"
+    },
+    "ex_incline_db_curl": {
+      "job": "b1a38692-ef4d-4e8e-a088-428eca140d3d",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_b1a38692-ef4d-4e8e-a088-428eca140d3d.png"
+    },
+    "ex_concentration_curl": {
+      "job": "373e0474-fc40-49ee-8b6a-a2b6985a9ac8",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_373e0474-fc40-49ee-8b6a-a2b6985a9ac8.png"
+    },
+    "ex_spider_curl": {
+      "job": "a8e94a70-491b-4b05-af83-97dce4a85748",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_a8e94a70-491b-4b05-af83-97dce4a85748.png"
+    },
+    "ex_barbell_reverse_curl": {
+      "job": "b468a60e-d4fe-4b3f-ad65-f85a6ad9f432",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_b468a60e-d4fe-4b3f-ad65-f85a6ad9f432.png"
+    },
+    "ex_db_concentration_curl": {
+      "job": "7ba6adfe-4534-4a24-b4eb-9624d76c26ce",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_7ba6adfe-4534-4a24-b4eb-9624d76c26ce.png"
+    },
+    "ex_machine_preacher_curl": {
+      "job": "301ea339-c42e-430b-a720-3257f32c5a2a",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_301ea339-c42e-430b-a720-3257f32c5a2a.png"
+    },
+    "ex_cable_hammer_curl": {
+      "job": "f361f8d1-d97a-4294-aea2-04cdce7f7d3c",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_f361f8d1-d97a-4294-aea2-04cdce7f7d3c.png"
+    },
+    "ex_triceps_pushdown": {
+      "job": "b69b9a1a-ff61-4de2-894f-1e389f60d5e0",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_b69b9a1a-ff61-4de2-894f-1e389f60d5e0.png"
+    },
+    "ex_skull_crusher": {
+      "job": "79822443-5221-4c3c-bfa0-fc19ede4764e",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_79822443-5221-4c3c-bfa0-fc19ede4764e.png"
+    },
+    "ex_overhead_triceps": {
+      "job": "8c749333-ad24-46a2-a314-e6c9324cad4b",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_8c749333-ad24-46a2-a314-e6c9324cad4b.png"
+    },
+    "ex_diamond_push_up": {
+      "job": "94b3ec23-8313-4855-80d1-d37a3cce717d",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_94b3ec23-8313-4855-80d1-d37a3cce717d.png"
+    },
+    "ex_triceps_dip": {
+      "job": "f24573ec-bf8c-42da-9e96-00050cada71c",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140341_f24573ec-bf8c-42da-9e96-00050cada71c.png"
+    },
+    "ex_close_grip_bench": {
+      "job": "16f66cd5-89fe-4f52-aa95-ef5bdad9ca4c",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_16f66cd5-89fe-4f52-aa95-ef5bdad9ca4c.png"
+    },
+    "ex_cable_triceps_kickback": {
+      "job": "fc199534-8107-472b-b7f1-f2ce259fb111",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_fc199534-8107-472b-b7f1-f2ce259fb111.png"
+    },
+    "ex_cable_overhead_triceps": {
+      "job": "fbfac447-0d7e-4767-a0a9-0e75a5865480",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_fbfac447-0d7e-4767-a0a9-0e75a5865480.png"
+    },
+    "ex_cable_kickback": {
+      "job": "0d0dd4d6-cf71-4228-a826-88ab76c5f9bc",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_0d0dd4d6-cf71-4228-a826-88ab76c5f9bc.png"
+    },
+    "ex_plank": {
+      "job": "db0e1430-7dba-492e-a5ce-5598c340cad8",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_db0e1430-7dba-492e-a5ce-5598c340cad8.png"
+    },
+    "ex_crunches": {
+      "job": "a1938612-80a3-4e9e-8168-fb5b29437f44",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140521_a1938612-80a3-4e9e-8168-fb5b29437f44.png"
+    },
+    "ex_leg_raise": {
+      "job": "e88c88ff-4fa5-4daa-95e4-2ecc6061b22e",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_e88c88ff-4fa5-4daa-95e4-2ecc6061b22e.png"
+    },
+    "ex_russian_twist": {
+      "job": "ac0f1c66-e963-4e10-b590-6c0dd3be9d33",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_ac0f1c66-e963-4e10-b590-6c0dd3be9d33.png"
+    },
+    "ex_ab_wheel": {
+      "job": "2ef9df61-65db-4dd6-b62e-0e40b55f9911",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_2ef9df61-65db-4dd6-b62e-0e40b55f9911.png"
+    },
+    "ex_cable_crunch": {
+      "job": "3ed3fb24-50ee-4ad6-9eae-ab30c2982a1e",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_3ed3fb24-50ee-4ad6-9eae-ab30c2982a1e.png"
+    },
+    "ex_hanging_knee_raise": {
+      "job": "921dca75-cc00-4fec-a5a2-cf7f4a048519",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_921dca75-cc00-4fec-a5a2-cf7f4a048519.png"
+    },
+    "ex_hollow_body_hold": {
+      "job": "06d50db8-faf7-42eb-b85b-78a8927f5f78",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140520_06d50db8-faf7-42eb-b85b-78a8927f5f78.png"
+    },
+    "ex_dumbbell_shrug": {
+      "job": "497e6ea4-2679-43fa-b2b6-29e1bf9b16ed",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_497e6ea4-2679-43fa-b2b6-29e1bf9b16ed.png"
+    },
+    "ex_front_raise": {
+      "job": "f07c3eb9-009d-4288-bd9b-5a681536d66c",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_f07c3eb9-009d-4288-bd9b-5a681536d66c.png"
+    },
+    "ex_cable_core_rotation": {
+      "job": "fd4b7a4e-79be-4631-aa77-ffabbd710e00",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_fd4b7a4e-79be-4631-aa77-ffabbd710e00.png"
+    },
+    "ex_hanging_leg_raise": {
+      "job": "a53ab7d2-9f16-45d2-896c-81d5fb4db7cf",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_a53ab7d2-9f16-45d2-896c-81d5fb4db7cf.png"
+    },
+    "ex_db_side_bend": {
+      "job": "96c80bef-3007-4ec4-a95a-1f643ab35b10",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_96c80bef-3007-4ec4-a95a-1f643ab35b10.png"
+    },
+    "ex_treadmill_run": {
+      "job": "77cc7f85-69af-43e8-a386-689df1aa3df8",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_77cc7f85-69af-43e8-a386-689df1aa3df8.png"
+    },
+    "ex_rowing_machine": {
+      "job": "683af9dc-ca19-4b50-bb6c-a7a192a488cc",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_683af9dc-ca19-4b50-bb6c-a7a192a488cc.png"
+    },
+    "ex_jump_rope": {
+      "job": "e94fc8aa-8c6e-4c5d-ae24-fd1c7a846c1b",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_e94fc8aa-8c6e-4c5d-ae24-fd1c7a846c1b.png"
+    },
+    "ex_stationary_bike": {
+      "job": "b1c2e9c5-a599-48d8-97f4-5fb95483ecf4",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_b1c2e9c5-a599-48d8-97f4-5fb95483ecf4.png"
+    },
+    "ex_stair_climber": {
+      "job": "8b16ab49-228e-449f-94df-29cf83d27ed7",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_8b16ab49-228e-449f-94df-29cf83d27ed7.png"
+    },
+    "ex_battle_ropes": {
+      "job": "c078221b-32d1-47b1-91e2-de50ec8cfe64",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140622_c078221b-32d1-47b1-91e2-de50ec8cfe64.png"
+    },
+    "ex_sled_push": {
+      "job": "34d4d35a-f03e-4fd6-a313-c46ee644b98a",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140621_34d4d35a-f03e-4fd6-a313-c46ee644b98a.png"
+    },
+    "ex_machine_reverse_fly": {
+      "job": "c8db1c8a-ce33-4719-afb7-d6cfc673b285",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_140740_c8db1c8a-ce33-4719-afb7-d6cfc673b285.png"
+    },
+    "exa_hammer_bench_press": {
+      "job": "12ffeab8-50ea-4032-8c3c-9b01a0c9940e",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_12ffeab8-50ea-4032-8c3c-9b01a0c9940e.mp4"
+    },
+    "exa_machine_incline_press": {
+      "job": "0a26db15-5edf-4b8d-89bc-a309da41fe2d",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145621_0a26db15-5edf-4b8d-89bc-a309da41fe2d.mp4"
+    },
+    "exa_pec_deck": {
+      "job": "f6566594-4e29-4338-b291-615673307d27",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_f6566594-4e29-4338-b291-615673307d27.mp4"
+    },
+    "exa_machine_shoulder_press": {
+      "job": "81d4e353-3508-4a1e-b196-3385c1b5d0c2",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145621_81d4e353-3508-4a1e-b196-3385c1b5d0c2.mp4"
+    },
+    "exa_machine_lateral_raise": {
+      "job": "5cc93976-524e-45c3-aba2-28ab73aa15ef",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_5cc93976-524e-45c3-aba2-28ab73aa15ef.mp4"
+    },
+    "exa_triceps_pushdown": {
+      "job": "14ab7836-50e5-4e73-a8ac-4179a691b8ef",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_14ab7836-50e5-4e73-a8ac-4179a691b8ef.mp4"
+    },
+    "exa_lat_pulldown": {
+      "job": "8783927f-bd6f-4203-a586-1a08436f1421",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_8783927f-bd6f-4203-a586-1a08436f1421.mp4"
+    },
+    "exa_seated_cable_row": {
+      "job": "c4bb695f-e3f9-4784-901b-9e935f98f995",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_c4bb695f-e3f9-4784-901b-9e935f98f995.mp4"
+    },
+    "exa_machine_pullover": {
+      "job": "de8363c3-6e68-4b20-909f-2100b192dd1a",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_de8363c3-6e68-4b20-909f-2100b192dd1a.mp4"
+    },
+    "exa_machine_preacher_curl": {
+      "job": "e3e53e25-ebf4-4d4a-b721-11bc71013b6f",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_e3e53e25-ebf4-4d4a-b721-11bc71013b6f.mp4"
+    },
+    "exa_cable_hammer_curl": {
+      "job": "5700e584-7f22-45da-b099-f1569f636b1c",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_145501_5700e584-7f22-45da-b099-f1569f636b1c.mp4"
+    },
+    "exa_hack_squat": {
+      "job": "80b316ab-f6ff-43e4-8ad0-a9d44b980dc0",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_80b316ab-f6ff-43e4-8ad0-a9d44b980dc0.mp4"
+    },
+    "exa_leg_press": {
+      "job": "f0287bc3-04a8-4f89-add0-a48978ad7f2c",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_f0287bc3-04a8-4f89-add0-a48978ad7f2c.mp4"
+    },
+    "exa_leg_curl": {
+      "job": "70764206-2734-4e29-bb17-d460d86fe600",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_70764206-2734-4e29-bb17-d460d86fe600.mp4"
+    },
+    "exa_leg_extension": {
+      "job": "6f25eacb-42af-41a5-89b3-99b25d0e497f",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_6f25eacb-42af-41a5-89b3-99b25d0e497f.mp4"
+    },
+    "exa_glute_kickback": {
+      "job": "0f9a9c8c-92ca-4194-b830-be22c85a184b",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_0f9a9c8c-92ca-4194-b830-be22c85a184b.mp4"
+    },
+    "exa_standing_calf_raise": {
+      "job": "2fbd857a-ae03-43be-833c-f105d714c898",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_2fbd857a-ae03-43be-833c-f105d714c898.mp4"
+    },
+    "exa_bench_press": {
+      "job": "710db3f1-6713-4e45-8695-f79f6272d40d",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_710db3f1-6713-4e45-8695-f79f6272d40d.mp4"
+    },
+    "exa_barbell_squat": {
+      "job": "c10eb8f1-1009-4671-b4b9-41081d4790ad",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_c10eb8f1-1009-4671-b4b9-41081d4790ad.mp4"
+    },
+    "exa_pull_up": {
+      "job": "cf1f3eb6-3357-43d4-b0a5-4573706f730d",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_cf1f3eb6-3357-43d4-b0a5-4573706f730d.mp4"
+    },
+    "exa_barbell_row": {
+      "job": "38167803-1f7e-4538-bf96-1039a91dcd75",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150832_38167803-1f7e-4538-bf96-1039a91dcd75.mp4"
+    },
+    "exa_deadlift": {
+      "job": "b7257c2b-772b-4617-a96f-2ffc878248eb",
+      "url": "https://d8j0ntlcm91z4.cloudfront.net/user_3E1uwg09F9UoCSTlAoXJKL9reW5/hf_20260830_150956_b7257c2b-772b-4617-a96f-2ffc878248eb.mp4"
     }
   }
 }

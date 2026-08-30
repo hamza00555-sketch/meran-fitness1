@@ -61,6 +61,18 @@ export function initPack() {
       registry.applyManifest(rec.manifest)
       const blobs = await loadAllBlobs()
       registry.hydrate(rec.manifest, blobs)
+    } else {
+      // No pack on this device — but the remote URL map alone is what
+      // lets exercise stills render over the network as the baseline
+      // experience. One small cached fetch, and failing it just means
+      // the built-in fallbacks, exactly as before.
+      try {
+        const m = await fetchManifest(MANIFEST_URL)
+        registry.applyManifest(m)
+        // The settings card can now quote a real size instead of a
+        // shrug before the person commits to downloading.
+        registry.setPackState({ remoteVersion: m.packVersion, remoteBytes: m.totalBytes || 0 })
+      } catch { /* offline first boot — fallbacks carry it */ }
     }
 
     if (rec.installed) {

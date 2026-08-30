@@ -40,7 +40,12 @@ class HttpError extends Error {
 async function fetchOne(asset, signal) {
   const res = await fetch(asset.url, { signal, cache: 'no-store', credentials: 'omit', mode: 'cors' })
   if (!res.ok) throw new HttpError(res.status)
-  const type = res.headers.get('content-type') || 'image/webp'
+  // The manifest's declared type outranks the wire: a bucket that says
+  // application/octet-stream would otherwise bake the wrong MIME into
+  // the stored blob, and Safari refuses to play a video blob it cannot
+  // type. The wire is only the fallback for legacy assets that never
+  // declared one.
+  const type = asset.type || res.headers.get('content-type') || 'image/webp'
   return { buf: await res.arrayBuffer(), type }
 }
 

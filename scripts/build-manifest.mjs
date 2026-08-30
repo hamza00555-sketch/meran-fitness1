@@ -63,7 +63,7 @@ if (!existsSync(SRC)) {
 await rm(OUT, { recursive: true, force: true })
 await mkdir(path.join(OUT, 'i'), { recursive: true })
 
-const files = (await readdir(SRC)).filter(f => /\.(png|webp|jpe?g)$/i.test(f))
+const files = (await readdir(SRC)).filter(f => /\.(png|webp|jpe?g|mp4)$/i.test(f))
 const seen = new Set()
 const assets = []
 const problems = []
@@ -89,6 +89,17 @@ async function convert({ id, file }) {
   const w = dim.w || SIZE
   const h = dim.h || SIZE
   const isCover = dim.kind === 'cover'
+
+  // Video passes through byte-for-byte: it was encoded by a pipeline
+  // that already made the size/quality calls, and sharp cannot touch
+  // it anyway. Its record carries a `type` so the client knows to hand
+  // it to <video> rather than <img>; images stay untyped, which is
+  // what older builds silently expect.
+  if (/\.mp4$/i.test(file)) {
+    const vidSha = sha256(source)
+    await writeFile(path.join(OUT, 'i', `${vidSha}.mp4`), source)
+    return { id, file: `i/${vidSha}.mp4`, sha256: vidSha, bytes: source.length, w, h, type: 'video/mp4' }
+  }
 
   const webp = sharp
     ? await sharp(source)

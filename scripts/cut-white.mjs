@@ -63,6 +63,41 @@ async function cut(inPath, outPath) {
     push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1)
   }
 
+  // Machines enclose pockets of background — the triangle inside a leg
+  // press frame, the gap under a bench — that the border flood can
+  // never reach. They are still background: on the exercise renders,
+  // genuine white highlights on the glossy figure are small, while an
+  // enclosed pocket is huge. So any remaining near-white component
+  // bigger than ~0.15% of the frame is cleared as well. Enclosed
+  // highlights inside the badge art stay safely under the threshold.
+  const POCKET = Math.max(220, Math.round(w * h * 0.0004))
+  const comp = new Int32Array(w * h)
+  for (let start = 0; start < w * h; start++) {
+    if (comp[start]) continue
+    const i0 = start * ch
+    if (data[i0 + 3] === 0 || !isBg(data[i0], data[i0 + 1], data[i0 + 2])) continue
+    const members = [start]
+    comp[start] = 1
+    const st = [start]
+    while (st.length) {
+      const p = st.pop()
+      const x = p % w, y = (p / w) | 0
+      for (const q of [p - 1, p + 1, p - w, p + w]) {
+        if (q < 0 || q >= w * h || comp[q]) continue
+        const qx = q % w
+        if ((q === p - 1 && qx === w - 1) || (q === p + 1 && qx === 0)) continue
+        const qi = q * ch
+        if (data[qi + 3] === 0 || !isBg(data[qi], data[qi + 1], data[qi + 2])) continue
+        comp[q] = 1
+        members.push(q)
+        st.push(q)
+      }
+    }
+    if (members.length >= POCKET) {
+      for (const p of members) data[p * ch + 3] = 0
+    }
+  }
+
   // The subject fades into the field over an antialiased edge. Those
   // in-between pixels stay opaque and read as a pale rim on a dark
   // background, so they are faded in proportion to how close to white

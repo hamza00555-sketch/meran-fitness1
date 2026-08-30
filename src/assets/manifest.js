@@ -39,6 +39,10 @@ export function parseManifest(raw) {
       sha256: a.sha256.toLowerCase(),
       bytes: Number(a.bytes) > 0 ? Number(a.bytes) : 0,
       url: baseUrl + a.file,
+      // Optional media type (e.g. video/mp4). Same schema version:
+      // clients that predate it never read the key, so it costs
+      // nothing to carry and nothing to ignore.
+      ...(typeof a.type === 'string' && a.type ? { type: a.type } : {}),
     }
     byId.set(a.id, asset)
     assets.push(asset)

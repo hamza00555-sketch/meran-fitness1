@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore } from 'react'
-import { subscribe, getVersion, urlFor } from './registry.js'
+import { subscribe, getVersion, urlFor, remoteUrlFor } from './registry.js'
 import { mediaSlotFor, animSlotFor } from '../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 
@@ -9,10 +9,12 @@ import { MUSCLE_GROUPS } from '../constants.js'
 //
 //   local loop animation  — pack installed, exercise has one, allowed
 //   local still           — pack installed
+//   remote still          — no pack, but the manifest is known: the
+//                           image streams once and the service worker
+//                           caches it (videos never stream — local only)
 //   muscle-group art      — the ship-with-the-app PNG, always there
 //
-// Remote stills join the ladder in the pack-integration phase; the
-// component is the one place that will change. Each rung only renders
+// Each rung only renders
 // when the one above it is missing or fails, so a corrupt video decays
 // into a picture, never into a broken player.
 //
@@ -23,10 +25,11 @@ import { MUSCLE_GROUPS } from '../constants.js'
 export default function ExerciseMedia({ name, animate = false, style }) {
   useSyncExternalStore(subscribe, getVersion, getVersion)
   const [videoBroken, setVideoBroken] = useState(false)
+  const [stillBroken, setStillBroken] = useState(false)
 
   const stillSlot = mediaSlotFor(name)
   const animSlot = animSlotFor(name)
-  const stillUrl = stillSlot ? urlFor(stillSlot) : undefined
+  const stillUrl = stillSlot ? (urlFor(stillSlot) || remoteUrlFor(stillSlot)) : undefined
   const animUrl = animate && !videoBroken && animSlot ? urlFor(animSlot) : undefined
 
   const box = {
@@ -49,10 +52,14 @@ export default function ExerciseMedia({ name, animate = false, style }) {
     )
   }
 
-  if (stillUrl) {
+  if (stillUrl && !stillBroken) {
     return (
       <div style={box}>
-        <img src={stillUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        <img
+          src={stillUrl} alt="" loading="lazy"
+          onError={() => setStillBroken(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        />
       </div>
     )
   }

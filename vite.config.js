@@ -31,6 +31,19 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
+            // Exercise stills render straight off the bucket for anyone
+            // who never downloaded the pack. Content-addressed filenames
+            // make CacheFirst exactly right: a URL's bytes can never
+            // change, so the first view is also the last fetch.
+            urlPattern: /^https:\/\/pub-189be0412bdd4092aa44be319badfd91\.r2\.dev\/i\/.*\.webp$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'meran-pack-remote',
+              expiration: { maxEntries: 220, maxAgeSeconds: 60 * 60 * 24 * 180, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
