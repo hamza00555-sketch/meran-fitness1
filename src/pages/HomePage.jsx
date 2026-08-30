@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import Art from '../assets/Art.jsx'
 import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
-import { DeloadBanner, DeloadSuggestion } from '../components/DeloadBanner.jsx'
+import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
+import DayPreviewSheet from '../components/DayPreviewSheet.jsx'
+import TodayHero from '../components/TodayHero.jsx'
 import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex, fmtDate } from '../utils.js'
 import { MUSCLE_GROUPS, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
@@ -89,297 +91,8 @@ function PlanProgressCard({ plan, planIndex }) {
 }
 
 // ── Helper: find videoUrl for an exercise name across all muscle groups ──
-function findVideoUrl(name) {
-  for (const group of Object.values(MUSCLE_GROUPS)) {
-    const ex = group.exercises?.find(e => e.name === name)
-    if (ex?.videoUrl) return ex.videoUrl
-  }
-  return null
-}
 
-// ── Day Preview bottom sheet ──────────────────────────────────────────
-function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, onCycleSub, onStart, onSkip, onClose }) {
-  return createPortal(
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 750,
-        background: 'rgba(0,0,0,0.68)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '100%', maxWidth: 560,
-          background: 'var(--bg2)',
-          borderRadius: '24px 24px 0 0',
-          border: '1px solid var(--border2)',
-          borderBottom: 'none',
-          maxHeight: '88dvh',
-          display: 'flex', flexDirection: 'column',
-          animation: 'slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)',
-          boxShadow: '0 -8px 48px rgba(0,0,0,0.5)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border2)', margin: '12px auto 0', flexShrink: 0 }} />
 
-        {/* Header */}
-        <div style={{ padding: '14px 20px 12px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 3 }}>
-            تمارين اليوم
-          </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 19, fontWeight: 800, color: 'var(--text)' }}>
-            {day.name}
-          </div>
-        </div>
-
-        {/* Exercise list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-          {day.exercises.map((ex, i) => {
-            const muscle   = MUSCLE_GROUPS[ex.muscle]
-            const shownName = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
-            const swapped   = shownName !== ex.name
-            const alts      = EXERCISE_ALTERNATIVES[ex.name] || []
-            const subIdx    = exerciseSubs[ex.name] || 0
-            const videoUrl = findVideoUrl(shownName)
-            const { lastWeight, maxWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
-            const color = muscle?.color || '#5EC32A'
-            return (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 20px',
-                borderBottom: i < day.exercises.length - 1 ? '1px solid var(--border)' : 'none',
-              }}>
-                {/* Muscle emoji box */}
-                <div style={{
-                  width: 44, height: 44, flexShrink: 0, borderRadius: 12,
-                  background: color + '1A',
-                  border: `1px solid ${color}40`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22,
-                }}>{muscle?.emoji || '💪'}</div>
-
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
-                    color: swapped ? 'var(--gold)' : 'var(--text)', marginBottom: 4,
-                    lineHeight: 1.35, overflowWrap: 'anywhere',
-                  }}>{swapped && '⇄ '}{shownName}</div>
-
-                  {swapped && (
-                    <div style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)',
-                      marginBottom: 4, lineHeight: 1.35, overflowWrap: 'anywhere',
-                    }}>بدلاً من {ex.name}</div>
-                  )}
-
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Muscle label tag */}
-                    <span style={{
-                      background: color + '1A', border: `1px solid ${color}40`,
-                      borderRadius: 20, padding: '2px 10px',
-                      fontFamily: 'var(--font-ar)', fontSize: 13, color, fontWeight: 700,
-                    }}>{muscle?.label || ex.muscle}</span>
-
-                    {/* Sets */}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
-                      ×{ex.sets || 3} سيت
-                    </span>
-
-                    {/* Weight history */}
-                    {lastWeight != null && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
-                        آخر <span style={{ color: 'var(--text2)' }}>{lastWeight}kg</span>
-                        {maxWeight != null && maxWeight !== lastWeight && (
-                          <> · <span style={{ color: 'var(--gold)' }}>🏆{maxWeight}kg</span></>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Swap exercise (machine unavailable) */}
-                {alts.length > 0 && (
-                  <button
-                    onClick={() => onCycleSub?.(ex.name, nextSubIndex(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES))}
-                    title={subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي'}
-                    style={{
-                      flexShrink: 0, height: 36, borderRadius: 10, padding: '0 10px',
-                      background: swapped ? 'var(--gold-lo)' : 'var(--bg3)',
-                      border: `1px solid ${swapped ? 'var(--gold-md)' : 'var(--border2)'}`,
-                      color: swapped ? 'var(--gold)' : 'var(--text3)',
-                      display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                      fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>⇄</span>
-                    {swapped ? `${subIdx}/${alts.length}` : 'استبدال'}
-                  </button>
-                )}
-
-                {/* YouTube button */}
-                {videoUrl && (
-                  <a
-                    href={videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flexShrink: 0, width: 36, height: 36, borderRadius: 10,
-                      background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.28)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      textDecoration: 'none', fontSize: 16,
-                    }}
-                  >▶️</a>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* CTA */}
-        <div style={{ padding: '12px 20px calc(var(--safe-bottom) + 12px)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onStart} style={{
-              flex: 1, padding: '14px',
-              background: 'var(--grad-primary)', border: 'none', borderRadius: 14,
-              color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 16,
-              cursor: 'pointer', boxShadow: '0 4px 16px rgba(var(--cyan-rgb),0.35)',
-            }}>⚡ ابدأ التمرين</button>
-            <button onClick={onSkip} style={{
-              padding: '14px 16px',
-              background: 'var(--bg3)', border: '1px solid var(--border2)',
-              borderRadius: 14, color: 'var(--text3)',
-              fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-            }}>⏭️ تخطي</button>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
-  )
-}
-
-// ── Plan Day Card ─────────────────────────────────────────────────────
-function PlanDayCard({ day, dayNum, totalDays, onStart, onSkip, sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub }) {
-  const [showSheet, setShowSheet] = useState(false)
-
-  return (
-    <>
-      <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)', borderTop: '3px solid var(--cyan)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 3 }}>
-              PLAN · {dayNum}/{totalDays}
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800 }}>{day.name}</div>
-          </div>
-          {/* Tappable exercises badge → opens sheet */}
-          <button
-            onClick={() => setShowSheet(true)}
-            style={{
-              background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-              borderRadius: 20, padding: '3px 10px',
-              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)',
-              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5,
-            }}
-          >
-            {day.exercises.length} تمارين
-            <span style={{ fontSize: 9, opacity: 0.8 }}>←</span>
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
-          {Array.from({ length: totalDays }).map((_, i) => (
-            <div key={i} style={{
-              flex: 1, height: 3, borderRadius: 2,
-              background: i < (dayNum - 1) % totalDays || dayNum > totalDays
-                ? 'var(--cyan)' : i === (dayNum - 1) % totalDays
-                ? 'var(--cyan)' : 'var(--bg3)',
-              opacity: i === (dayNum - 1) % totalDays ? 1 : i < (dayNum - 1) % totalDays ? 0.5 : 0.15,
-            }} />
-          ))}
-        </div>
-
-        {/* Chips — tappable to open sheet */}
-        <div
-          onClick={() => setShowSheet(true)}
-          style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12, cursor: 'pointer' }}
-        >
-          {day.exercises.map((ex, i) => {
-            const shown = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
-            const swapped = shown !== ex.name
-            return (
-              <span key={i} style={{
-                background: swapped ? 'var(--gold-lo)' : 'var(--bg3)',
-                border: `1px solid ${swapped ? 'var(--gold-md)' : 'var(--border)'}`,
-                borderRadius: 20, padding: '3px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 11,
-                color: swapped ? 'var(--gold)' : 'var(--text2)',
-              }}>{swapped ? '⇄ ' : ''}{shown}{ex.sets ? ` ×${ex.sets}` : ''}</span>
-            )
-          })}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onStart} style={{
-            flex: 1, padding: '11px',
-            background: 'var(--grad-primary)', border: 'none', borderRadius: 12,
-            color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 15,
-            cursor: 'pointer', boxShadow: '0 4px 16px rgba(var(--cyan-rgb),0.35)',
-          }}>⚡ ابدأ</button>
-          <button onClick={onSkip} style={{
-            padding: '11px 14px',
-            background: 'var(--bg2)', border: '1px solid var(--border2)',
-            borderRadius: 12, color: 'var(--text3)',
-            fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-          }}>⏭️ تخطي</button>
-        </div>
-      </Card>
-
-      {showSheet && (
-        <DayPreviewSheet
-          day={day}
-          sessions={sessions}
-          exerciseMapping={exerciseMapping}
-          exerciseSubs={exerciseSubs}
-          onCycleSub={onCycleSub}
-          onStart={() => { setShowSheet(false); onStart() }}
-          onSkip={() => { setShowSheet(false); onSkip() }}
-          onClose={() => setShowSheet(false)}
-        />
-      )}
-    </>
-  )
-}
-
-// Hero illustration — fills its container
-//
-// Three states, not two. A deload day is a training day, so it keeps
-// the training slot rather than borrowing the rest picture — but the
-// picture itself is the iced one, because the card beside it is
-// already saying the load is down.
-//
-// The deload piece comes through the asset pack rather than
-// public/assets, so it arrives on its own once the pack updates and
-// falls back to the ordinary training art until then. Never a blank
-// space.
-const HERO_STYLE = {
-  width: '90%', height: '90%', objectFit: 'contain',
-  filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.4))',
-}
-
-function HeroIllustration({ isTraining, deload = false }) {
-  const plain = (
-    <img src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'} alt="" style={HERO_STYLE} />
-  )
-  if (!deload) return plain
-  return <Art id="deload_hero" style={HERO_STYLE} fallback={plain} alt="" />
-}
 
 // Rank badge — fills its container
 function RankRing({ rank, level }) {
@@ -459,8 +172,6 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   const muscleEntries = Object.entries(muscleSets).sort((a, b) => b[1] - a[1])
   const maxSets = muscleEntries[0]?.[1] || 1
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'صباح الخير' : hour < 17 ? 'مساء الخير' : 'مساء النور'
 
   const schedule = plan?.weeklySchedule
   const currentPlanDay = schedule?.length
@@ -470,7 +181,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   const planTotal    = schedule?.length ?? 1
 
   return (
-    <div style={{ paddingBottom: 200 }}>
+    <div style={{ paddingBottom: 110 }}>
 
       {/* ── Logo Banner ──────────────────────────────────────────── */}
       <div style={{
@@ -551,225 +262,95 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           <span style={{ color: 'var(--cyan)', fontSize: 17 }}>‹</span>
         </button>
       )}
+      {/* ── Today Hero ────────────────────────────────────────
+          One card, one question: what should I do now? It absorbs the
+          old today card, the plan-day card, the recovery-day card and
+          the bottom CTA — and carries the deload as a state line. */}
+      <TodayHero
+        active={active}
+        currentPlanDay={currentPlanDay}
+        planDayNum={planDayNum}
+        planTotal={planTotal}
+        isRecoveryDay={isRecoveryDay}
+        deload={deload}
+        restCredits={restCredits}
+        sessions={sessions}
+        exerciseMapping={exerciseMapping}
+        exerciseSubs={exerciseSubs}
+        onCycleSub={onCycleSub}
+        onStartPlanned={onStartPlannedWorkout}
+        onStartEmpty={onStartWorkout}
+        onSkip={onSkipPlanDay}
+        onGoToWorkout={onGoToWorkout}
+        onOverrideRecovery={onOverrideRecovery}
+      />
 
-      {/* ── Player Hero Card ─────────────────────────────────────
-          Horizontal layout: text RIGHT (RTL-first) · icon LEFT   */}
-      <div style={{
-        position: 'relative',
-        background: 'var(--grad-hero)',
-        border: '1px solid rgba(var(--cyan-rgb),0.12)',
-        borderBottom: `3px solid ${rank.color}`,
-        borderRadius: 'var(--radius)',
-        marginBottom: 'var(--hp-card-mb)',
-        overflow: 'hidden',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)',
-      }}>
-        {/* App icon watermark */}
-        <img src="/assets/meran-app-icon-transparent-512.png" alt="" style={{
-          position: 'absolute', bottom: -18, left: -18,
-          width: 110, height: 110, objectFit: 'contain',
-          opacity: 0.045, pointerEvents: 'none',
-          filter: 'blur(1px)',
-        }} />
-
-        {/* Decorative blobs */}
-        <div style={{
-          position: 'absolute', top: -30, left: -30, width: 130, height: 130, borderRadius: '50%',
-          background: `radial-gradient(circle, ${rank.color}20 0%, transparent 70%)`,
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: -20, right: -20, width: 90, height: 90, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(var(--purple-rgb),0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* ── Inner row: text (right) + icon (left) ── */}
-        <div className="hp-row" style={{ position: 'relative', zIndex: 1 }}>
-
-          {/* TEXT SIDE — appears on RIGHT in RTL (first child) */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="hp-meta" style={{ fontFamily: 'var(--font-ar)', marginBottom: 2 }}>{greeting}</div>
-            <div className="hp-title" style={{ fontFamily: 'var(--font-ar)', marginBottom: 6 }}>
-              {profile?.name || 'البطل'}
-            </div>
-
-            {/* Rank + streak + flames */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{
-                background: rank.bg, color: rank.color,
-                border: `1px solid ${rank.color}40`,
-                borderRadius: 20, padding: '2px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
-              }}>{rank.tier} · {rank.label}</span>
-              {streak > 0 && (
-                <span style={{
-                  color: 'var(--orange)', fontFamily: 'var(--font-mono)',
-                  fontSize: 12, fontWeight: 700,
-                }}>🔥 {streak}</span>
-              )}
-              <CommitmentFlames streak={streak} deload={onDeload} />
-            </div>
-
-            {/* XP + Level badges */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 7, flexWrap: 'wrap' }}>
-              <div style={{
-                background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-                borderRadius: 20, padding: '3px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)', fontWeight: 700,
-              }}>⭐ {xp.toLocaleString()}</div>
-              <div style={{
-                background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)',
-                borderRadius: 20, padding: '3px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F59E0B', fontWeight: 700,
-              }}>LVL {level}</div>
-            </div>
-
-            <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={7} gradient />
-            <div className="hp-meta" style={{ fontFamily: 'var(--font-mono)', marginTop: 4, textAlign: 'left' }}>
-              {currentXP} / {neededXP} XP · {pct}%
-            </div>
-          </div>
-
-          {/* ICON SIDE — appears on LEFT in RTL (second child) */}
-          <div className="hp-icon" style={{
-            background: rank.color + '15',
-            border: `1.5px solid ${rank.color}30`,
-          }}>
-            <RankRing rank={rank} level={level} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Deload ────────────────────────────────────────────
-          The counter while one runs; the app's own suggestion when one
-          is due. Never both — suggestDeload returns null the moment a
-          deload exists. Above the today card because it changes how the
-          card should be read. */}
-      <DeloadBanner state={deload} onOpen={onOpenDeload} />
+      {/* ── Deload suggestion (unchanged) ─────────────────────── */}
       <DeloadSuggestion
         reason={deloadSuggestion}
         onAccept={onStartDeload}
         onDismiss={onDismissDeloadSuggestion}
       />
 
-      {/* ── Today Card ────────────────────────────────────────────
-          Horizontal: title/desc RIGHT · illustration LEFT         */}
-      <Card style={{
-        padding: 0,
-        marginBottom: 'var(--hp-card-mb)',
-        borderTop: `3px solid ${isTodayTraining ? 'var(--cyan)' : 'var(--purple)'}`,
-        background: isTodayTraining
-          ? 'linear-gradient(135deg, rgba(var(--cyan-rgb),0.07) 0%, rgba(var(--purple-rgb),0.04) 100%)'
-          : 'linear-gradient(135deg, rgba(var(--purple-rgb),0.05) 0%, rgba(var(--cyan-rgb),0.03) 100%)',
-        position: 'relative', overflow: 'hidden',
+      {/* ── Gamification, compressed to one line ──────────────
+          Streak, rank, level and XP all survive — they just stop
+          competing with today's workout for the top of the screen. */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        background: 'var(--bg2)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+        marginBottom: 'var(--hp-card-mb)', flexWrap: 'wrap',
       }}>
-        {/* Decorative circle */}
-        <div style={{
-          position: 'absolute', left: -16, bottom: -16,
-          width: 80, height: 80, borderRadius: '50%',
-          background: isTodayTraining ? 'rgba(var(--cyan-rgb),0.08)' : 'rgba(var(--purple-rgb),0.06)',
-          pointerEvents: 'none',
-        }} />
-
-        <div className="hp-row" style={{ position: 'relative', zIndex: 1 }}>
-          {/* TEXT (right in RTL) */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="hp-title" style={{
-              fontFamily: 'var(--font-ar)',
-              color: isTodayTraining ? 'var(--cyan)' : 'var(--text2)',
-              marginBottom: 5,
-            }}>
-              {/* The wording follows the mode. A deload week is still a
-                  training week, so the line never becomes a rest line —
-                  it just stops pushing. */}
-              {recovery?.status === DAY_STATUS.COMPLETED ? 'تمرين مكتمل ✓'
-                : isRecoveryDay ? 'اليوم يوم تعافٍ'
-                : onDeload ? 'اليوم تمرين خفيف'
-                : 'اليوم يوم تمرين 💪'}
-            </div>
-            <div className="hp-sub" style={{ fontFamily: 'var(--font-ar)' }}>
-              {recovery?.status === DAY_STATUS.COMPLETED
-                ? (onDeload ? 'أنهيت تمرين اليوم بأوزان الديلود — تمام.' : 'أنهيت تمرين اليوم — أحسنت!')
-                : isRecoveryDay
-                ? `أكملت ${recovery.workoutStreak} تمارين متتالية. خذ اليوم للراحة، وغداً تكمل خطتك.`
-                : onDeload
-                ? `نفس تمرين خطتك، بأوزان أخف بـ${deload.pct}٪. الحركة تكمل والحمل ينزل.`
-                : 'التمرين التالي في خطتك جاهز — حان الوقت!'}
-            </div>
-          </div>
-
-          {/* ILLUSTRATION (left in RTL) */}
-          <div className="hp-icon" style={{ background: 'transparent', border: 'none', borderRadius: 0 }}>
-            <HeroIllustration isTraining={isTodayTraining} deload={onDeload} />
-          </div>
+        {streak > 0 && (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800, color: 'var(--orange)' }}>
+            🔥 {streak}
+          </span>
+        )}
+        <CommitmentFlames streak={streak} deload={onDeload} />
+        <span style={{
+          background: rank.bg, color: rank.color,
+          border: `1px solid ${rank.color}40`,
+          borderRadius: 20, padding: '1px 9px',
+          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+        }}>{rank.tier} · {rank.label}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
+          Lv{level}
+        </span>
+        <div style={{ flex: 1, minWidth: 60 }}>
+          <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={5} />
         </div>
-      </Card>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>{pct}%</span>
+      </div>
 
-      {/* ── Plan Progress Card ───────────────────────────────── */}
+      {/* ── Plan progress (slimmed, same numbers) ─────────────── */}
       {plan && !active && (
         <PlanProgressCard plan={plan} planIndex={planIndex ?? 0} />
       )}
 
-      {/* ── Recovery day: next workout shown inactive ─────────── */}
-      {isRecoveryDay && !active && (
-        <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)', borderTop: '3px solid var(--purple)' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--purple)', letterSpacing: 2, marginBottom: 6 }}>
-            التمرين القادم بعد التعافي
-          </div>
-          {currentPlanDay ? (
-            <>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800, color: 'var(--text3)', marginBottom: 8 }}>
-                {currentPlanDay.name}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12, opacity: 0.45 }}>
-                {currentPlanDay.exercises.map((ex, i) => (
-                  <span key={i} style={{
-                    background: 'var(--bg3)', border: '1px solid var(--border)',
-                    borderRadius: 20, padding: '3px 10px',
-                    fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
-                  }}>{substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)}</span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)', marginBottom: 12 }}>
-              تمرينك القادم محفوظ — يبدأ غداً من حيث توقفت.
-            </div>
-          )}
-          <div style={{
-            background: 'var(--purple-lo)', border: '1px solid var(--purple-md)',
-            borderRadius: 12, padding: '10px 14px', marginBottom: 12,
-            fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.7,
-          }}>
-            🌙 لن يُحتسب هذا اليوم تمريناً فائتاً، ولن يكسر ستريك الالتزام.
-          </div>
-          <button
-            onClick={onOverrideRecovery}
-            style={{
-              width: '100%', padding: '11px',
-              background: 'var(--bg3)', border: '1px dashed var(--border2)',
-              borderRadius: 12, color: 'var(--text2)',
-              fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            }}
-          >أشعر أنني قادر على التمرين</button>
-        </Card>
-      )}
-
-      {/* ── Plan Day Card ─────────────────────────────────────── */}
-      {currentPlanDay && !active && !isRecoveryDay && (
-        <PlanDayCard
-          day={currentPlanDay}
-          dayNum={planDayNum}
-          totalDays={planTotal}
-          onStart={() => onStartPlannedWorkout(currentPlanDay)}
-          onSkip={onSkipPlanDay}
-          sessions={sessions}
-          exerciseMapping={exerciseMapping}
-          exerciseSubs={exerciseSubs}
-          onCycleSub={onCycleSub}
-        />
-      )}
+      {/* ── Recovery: one insight, details on demand ──────────
+          The full cycle card — bubbles, credits, both streaks — is
+          intact below; it just waits behind a fold instead of
+          occupying half the page. */}
+      <details style={{ marginBottom: 'var(--hp-card-mb)' }}>
+        <summary style={{
+          listStyle: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: 'var(--bg2)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)', padding: '12px 14px',
+        }}>
+          <span style={{ fontSize: 16 }}>{isRecoveryDay ? '🌙' : '♻️'}</span>
+          <span style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+            {isRecoveryDay
+              ? 'اكتملت الدورة — اليوم للتعافي'
+              : (recovery?.cycleLimit || 0) - (recovery?.workoutStreak || 0) === 1
+                ? 'باقي تمرين واحد على يوم الراحة'
+                : `التعافي على المسار · ${recovery?.workoutStreak || 0} من ${recovery?.cycleLimit || 0} في الدورة`}
+          </span>
+          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--cyan)', fontWeight: 700 }}>
+            التفاصيل
+          </span>
+        </summary>
+        <div style={{ marginTop: 8 }}>
 
       {/* ── Recovery cycle + streaks ──────────────────────────── */}
       <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }}>
@@ -894,6 +475,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           </div>
         </div>
       </Card>
+        </div>
+      </details>
 
       {/* ── Muscle Progress ──────────────────────────────────── */}
       {muscleEntries.length > 0 && (
@@ -918,44 +501,6 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           })}
         </Card>
       )}
-
-      {/* ── Fixed Bottom CTA ─────────────────────────────────── */}
-      <div style={{
-        position: 'fixed', bottom: 0,
-        left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 560,
-        padding: '12px 16px calc(var(--safe-bottom) + 90px)',
-        background: 'linear-gradient(transparent, var(--bg) 40%)',
-        pointerEvents: 'none',
-      }}>
-        <div style={{ pointerEvents: 'all' }}>
-          {active ? (
-            <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}>
-              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'currentColor', animation: 'pulseDot 1.5s ease-in-out infinite' }} />
-              متابعة الجلسة
-            </button>
-          ) : isRecoveryDay ? (
-            // A recovery day must not push a start-workout CTA; training
-            // today is available deliberately via the override above.
-            <div style={{
-              textAlign: 'center', padding: '12px',
-              fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
-            }}>🌙 اليوم للتعافي — غداً تكمل خطتك</div>
-          ) : currentPlanDay ? (
-            <button className="btn-cyan" onClick={() => onStartPlannedWorkout(currentPlanDay)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 10, paddingBottom: 10 }}>
-              <span style={{ fontSize: 15, fontWeight: 800 }}>⚡ ابدأ تمرين اليوم</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.8, fontWeight: 400 }}>
-                {currentPlanDay.name}
-              </span>
-            </button>
-          ) : (
-            <button className="btn-cyan" onClick={onStartWorkout}>
-              ⚡ ابدأ التمرين
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
