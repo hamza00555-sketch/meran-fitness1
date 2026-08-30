@@ -25,33 +25,44 @@ function PlanProgressCard({ plan, planIndex }) {
   }
 
   return (
-    <Card style={{ padding: '14px 16px', marginBottom: 'var(--hp-card-mb)' }}>
-      {/* One header line: name · % · week chip. The stats sentence and
-          the PROGRAM PROGRESS eyebrow said the same things twice. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
-        <div style={{
-          flex: 1, minWidth: 0,
-          fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text2)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {plan.planName}
+    <Card style={{ padding: '16px', marginBottom: 'var(--hp-card-mb)' }}>
+      {/* Header: title + plan name, week/complete chip at the end */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>
+            تقدم البرنامج
+          </div>
+          <div style={{
+            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 3,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {plan.planName}
+          </div>
         </div>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)' }}>
-          {overallPct}%
-        </span>
         <span style={{
           flexShrink: 0,
+          background: isCompleted ? 'var(--gold-lo)' : 'var(--cyan-lo)',
+          border: `1px solid ${isCompleted ? 'var(--gold-md)' : 'var(--cyan-md)'}`,
+          borderRadius: 999, padding: '4px 12px',
           fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
-          color: isCompleted ? 'var(--gold)' : 'var(--cyan)',
+          color: isCompleted ? 'var(--gold)' : 'var(--cyan)', whiteSpace: 'nowrap',
         }}>
           {isCompleted ? '🏆 مكتمل' : `W${currentWeek}/${durationWeeks}`}
         </span>
       </div>
 
-      <ProgressBar value={planIndex} max={totalSessions} color="var(--cyan)" height={4} />
+      <ProgressBar value={planIndex} max={totalSessions} color="var(--cyan)" height={6} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6, marginBottom: 12 }}>
+        <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+          {Math.min(planIndex, totalSessions)} من {totalSessions} جلسة
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>
+          {overallPct}%
+        </span>
+      </div>
 
       {/* This cycle's day bubbles */}
-      <div style={{ display: 'flex', gap: 4, marginTop: 11 }}>
+      <div style={{ display: 'flex', gap: 4 }}>
         {schedule.map((day, i) => {
           const isDone    = i < dayInCycle
           const isCurrent = i === dayInCycle && !isCompleted
@@ -183,30 +194,32 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         onDismiss={onDismissDeloadSuggestion}
       />
 
-      {/* ── Gamification, one quiet line ──────────────────────
-          Streak, rank, level and XP all survive — no card chrome at
-          all now, so they read as a status line, not a competitor to
-          today's workout. */}
+      {/* ── Gamification, one quiet strip ─────────────────────
+          Streak, rank, level and XP all survive in a single slim
+          card: 🔥 · marks · rank pill · Lv · bar · %. The accent is
+          the app's one accent — no gold chrome competing. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 9,
-        padding: '2px 6px', marginBottom: 'var(--hp-card-mb)',
+        background: 'var(--bg2)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+        marginBottom: 'var(--hp-card-mb)',
       }}>
         {streak > 0 && (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: 'var(--orange)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: 'var(--orange)', whiteSpace: 'nowrap' }}>
             🔥 {streak}
           </span>
         )}
         <CommitmentFlames streak={streak} deload={onDeload} />
-        <span style={{ flex: 1 }} />
         <span style={{
-          color: rank.color, opacity: 0.85,
-          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-        }}>{rank.label}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
+          flexShrink: 0, border: `1px solid ${rank.color}40`, color: rank.color,
+          borderRadius: 999, padding: '2px 10px',
+          fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap',
+        }}>{rank.tier} · {rank.label}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)', fontWeight: 700, whiteSpace: 'nowrap' }}>
           Lv {level}
         </span>
-        <div style={{ width: 52 }}>
-          <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={4} />
+        <div style={{ flex: 1, minWidth: 36 }}>
+          <ProgressBar value={currentXP} max={neededXP} color="var(--cyan)" height={5} />
         </div>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>{pct}%</span>
       </div>

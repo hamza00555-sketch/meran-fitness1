@@ -6,19 +6,19 @@ import { toWesternDigits } from '../day.js'
 
 // ── Today Hero — the one card that answers "what now?" ────────
 //
-// Rebuilt around a strict hierarchy, top to bottom:
+// Layout after حمزة's reference mockup:
 //
-//   status line   — one small word about the kind of day
-//   title         — the day's name, the biggest text on the page
-//   meta line     — exercise count · rough duration
-//   visual        — large, part of the composition, not a sticker
-//   primary CTA   — ابدأ التمرين, the strongest element on the page
-//   secondary     — skip / rest-credit, quiet by design
+//   chips row      — day-kind pill (+ deload day count / lighter-% pill)
+//   title          — the day's name, the biggest text on the page
+//   meta line      — exercise count · rough duration (tap → preview)
+//   lower zone     — controls column at the inline-start, the big
+//                    visual at the inline-end, faded into the surface
+//   primary CTA    — ابدأ التمرين, strongest element on the page
+//   skip           — a bare text link under the CTA
 //
-// The visual is anchored to the card's end edge and allowed to be
-// big: it sits over a soft radial glow, clipped by the card, so it
-// reads as part of the surface rather than an icon dropped onto it.
-// The text keeps a reserved column and never fights it for space.
+// The visual never leaves the card: it is anchored fully inside and
+// its edges dissolve through a radial mask, so it reads as part of
+// the surface instead of a sticker cropped by the border.
 
 function estimateMinutes(sessions, exerciseCount) {
   const timed = (sessions || []).filter(s => s.duration > 0).slice(-5).map(s => s.duration)
@@ -45,24 +45,22 @@ function sessionContext(active) {
   }
 }
 
-// The big side visual: the training arm, the resting moon-side art, or
-// the iced dumbbell under a deload. Absolute, oversized, clipped by
-// the card — composition, not decoration.
+// The big visual, dissolved into the card: contained inside the
+// bounds, edges faded by a radial mask over a soft glow.
 function HeroVisual({ isTraining, deload }) {
   const src = isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'
-  // Anchored to the TOP of the card, beside the text column — the CTA
-  // below must stay clear of it, or the visual reads as an accident.
+  const fade = 'radial-gradient(closest-side, #000 60%, rgba(0,0,0,0.72) 80%, transparent 100%)'
   const style = {
-    position: 'absolute', insetInlineEnd: -16, top: -8,
-    width: 160, height: 160, objectFit: 'contain',
-    filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.55))',
+    position: 'absolute', insetInlineEnd: 0, bottom: 0,
+    width: 'min(192px, 50%)', height: 198, objectFit: 'contain',
+    WebkitMaskImage: fade, maskImage: fade,
     pointerEvents: 'none',
   }
   const glow = (
     <div style={{
-      position: 'absolute', insetInlineEnd: -44, top: -54,
-      width: 230, height: 230, borderRadius: '50%',
-      background: `radial-gradient(circle, ${isTraining ? 'rgba(var(--cyan-rgb),0.14)' : 'rgba(var(--purple-rgb),0.12)'} 0%, transparent 68%)`,
+      position: 'absolute', insetInlineEnd: -30, bottom: -46,
+      width: 250, height: 250, borderRadius: '50%',
+      background: `radial-gradient(circle, ${isTraining ? 'rgba(var(--cyan-rgb),0.12)' : 'rgba(var(--purple-rgb),0.11)'} 0%, transparent 66%)`,
       pointerEvents: 'none',
     }} />
   )
@@ -75,10 +73,11 @@ function HeroVisual({ isTraining, deload }) {
   )
 }
 
-// No letter-spacing here: the status is Arabic, and tracking pulls
-// connected script apart into disjointed glyphs.
-const statusLine = {
-  fontFamily: 'var(--font-ar)', fontSize: 11, fontWeight: 800,
+const pill = {
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  padding: '5px 12px', borderRadius: 999,
+  fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 800,
+  lineHeight: 1.4, whiteSpace: 'nowrap',
 }
 const titleStyle = {
   fontFamily: 'var(--font-ar)', fontSize: 28, fontWeight: 900,
@@ -86,12 +85,6 @@ const titleStyle = {
 }
 const metaStyle = {
   fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7,
-}
-const quietBtn = {
-  padding: '9px 14px', background: 'none',
-  border: '1px solid var(--border)', borderRadius: 12,
-  color: 'var(--text3)', fontFamily: 'var(--font-ar)',
-  fontSize: 12, fontWeight: 700, cursor: 'pointer',
 }
 
 export default function TodayHero({
@@ -111,11 +104,11 @@ export default function TodayHero({
 
   const resting = isRecoveryDay && !active
   const tone = resting ? 'var(--purple)' : 'var(--cyan)'
+  const toneLo = resting ? 'var(--purple-lo)' : 'var(--cyan-lo)'
+  const toneMd = resting ? 'var(--purple-md)' : 'var(--cyan-md)'
 
-  // One status word. The deload owns it while running — it colours the
-  // whole app anyway, so the card only needs to say the day count.
-  const status = active ? 'جلسة شغّالة'
-    : onDeload ? `ديلود · اليوم ${toWesternDigits(deload.day)} من ${toWesternDigits(deload.totalDays)}`
+  const statusWord = active ? 'جلسة شغّالة'
+    : onDeload ? 'ديلود'
     : resting ? 'يوم تعافٍ'
     : 'يوم تمرين'
 
@@ -124,108 +117,129 @@ export default function TodayHero({
     : currentPlanDay ? currentPlanDay.name
     : 'جلسة حرة'
 
+  const skipLink = {
+    background: 'none', border: 'none', padding: '7px 6px',
+    color: 'var(--text3)', fontFamily: 'var(--font-ar)',
+    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+  }
+
   return (
     <div style={{
       position: 'relative',
       background: 'var(--bg1)',
       border: '1px solid var(--border)',
       borderRadius: 20,
-      padding: '18px 18px 16px',
+      padding: '16px 18px 14px',
       marginBottom: 'var(--hp-card-mb)',
       overflow: 'hidden',
     }}>
-      <HeroVisual isTraining={!resting} deload={onDeload} />
 
-      {/* Text column — reserves the visual's space instead of flowing under it */}
-      <div style={{ position: 'relative', paddingInlineEnd: 132, minHeight: 138 }}>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-          {onDeload && <Art id="deload_badge" size={13} fallback={<DropletIcon size={11} color={tone} />} />}
-          {active && (
-            <span style={{
-              display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-              background: tone, animation: 'pulseDot 1.5s ease-in-out infinite',
-            }} />
-          )}
-          <span style={{ ...statusLine, color: tone }}>{status}</span>
+      {/* ── Chips row ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 8, flexWrap: 'wrap', marginBottom: 14,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+          <span style={{ ...pill, background: toneLo, border: `1px solid ${toneMd}`, color: tone }}>
+            {onDeload && <Art id="deload_badge" size={13} fallback={<DropletIcon size={11} color={tone} />} />}
+            {active && (
+              <span style={{
+                display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                background: tone, animation: 'pulseDot 1.5s ease-in-out infinite',
+              }} />
+            )}
+            {statusWord}
+          </span>
           {onDeload && (
-            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
-              · أوزانك أخف {toWesternDigits(deload.pct)}٪
+            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>
+              اليوم {toWesternDigits(deload.day)} من {toWesternDigits(deload.totalDays)}
             </span>
           )}
         </div>
-
-        <div style={titleStyle}>{title}</div>
-
-        <div style={{ ...metaStyle, marginTop: 6 }}>
-          {active && ctx ? (
-            <>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text2)' }}>{ctx.name}</span>
-              {' · '}سيت {toWesternDigits(ctx.setNo)} من {toWesternDigits(ctx.setTotal)}
-              {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
-            </>
-          ) : resting ? (
-            <>
-              لن يُحتسب غياباً ولن يكسر الستريك.
-              {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{currentPlanDay.name}</b></>}
-            </>
-          ) : currentPlanDay ? (
-            <span
-              onClick={() => setShowSheet(true)}
-              style={{ cursor: 'pointer' }}
-              title="اعرض تمارين اليوم"
-            >
-              {toWesternDigits(currentPlanDay.exercises.length)} تمارين · ≈ {toWesternDigits(minutes)} دقيقة
-              <span style={{ color: 'var(--cyan)', marginInlineStart: 6, fontSize: 11 }}>عرض ←</span>
-            </span>
-          ) : (
-            'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
-          )}
-        </div>
+        {onDeload && (
+          <span style={{ ...pill, border: `1px solid ${toneMd}`, color: tone, fontSize: 11 }}>
+            ↓ أوزانك أخف {toWesternDigits(deload.pct)}٪
+          </span>
+        )}
       </div>
 
-      {/* ── Primary CTA — the strongest element on the page ── */}
-      <div style={{ position: 'relative', marginTop: 16 }}>
-        {active ? (
-          <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
-            style={{ padding: '15px', fontSize: 16 }}>
-            أكمل التمرين
-          </button>
-        ) : resting ? (
-          <button onClick={onOverrideRecovery} style={{
-            width: '100%', padding: '12px',
-            background: 'transparent', border: '1px dashed var(--border2)',
-            borderRadius: 12, color: 'var(--text2)',
-            fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-          }}>أشعر أنني قادر على التمرين</button>
-        ) : (
-          <button className="btn-cyan" style={{ padding: '15px', fontSize: 16 }}
-            onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}>
-            ⚡ ابدأ التمرين
-          </button>
-        )}
+      <div style={titleStyle}>{title}</div>
 
-        {/* Secondary actions — present, quiet, never competing */}
-        {!active && !resting && (currentPlanDay || restCredits > 0) && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-            {currentPlanDay && (
-              <button onClick={onSkip} style={quietBtn}>تخطي اليوم</button>
-            )}
-            {restCredits > 0 && (
-              <span style={{
-                fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--gold)',
-                padding: '9px 4px', opacity: 0.85,
-              }}>🎟️ {restCredits === 1 ? 'يوم راحة اختياري متاح' : `${toWesternDigits(restCredits)} أيام راحة متاحة`}</span>
-            )}
-          </div>
+      <div style={{ ...metaStyle, marginTop: 6 }}>
+        {active && ctx ? (
+          <>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text2)' }}>{ctx.name}</span>
+            {' · '}سيت {toWesternDigits(ctx.setNo)} من {toWesternDigits(ctx.setTotal)}
+            {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
+          </>
+        ) : resting ? (
+          <>
+            لن يُحتسب غياباً ولن يكسر الستريك.
+            {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{currentPlanDay.name}</b></>}
+          </>
+        ) : currentPlanDay ? (
+          <span
+            onClick={() => setShowSheet(true)}
+            style={{ cursor: 'pointer' }}
+            title="اعرض تمارين اليوم"
+          >
+            {toWesternDigits(currentPlanDay.exercises.length)} تمارين · ≈ {toWesternDigits(minutes)} دقيقة
+            <span style={{ color: 'var(--cyan)', marginInlineStart: 6, fontSize: 11 }}>عرض ←</span>
+          </span>
+        ) : (
+          'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
         )}
-        {resting && currentPlanDay && (
-          <div style={{ marginTop: 10 }}>
-            <button onClick={() => setShowSheet(true)} style={quietBtn}>
-              تمارين الغد ←
+      </div>
+
+      {/* ── Lower zone: controls at inline-start, visual at inline-end ── */}
+      <div style={{ position: 'relative', marginTop: 16, minHeight: 148 }}>
+        <HeroVisual isTraining={!resting} deload={onDeload} />
+
+        <div style={{
+          position: 'relative', width: '62%', minWidth: 200, maxWidth: '100%',
+          display: 'flex', flexDirection: 'column', alignItems: 'stretch',
+          gap: 10, paddingTop: 6,
+        }}>
+          {!active && !resting && restCredits > 0 && (
+            <span style={{
+              ...pill, alignSelf: 'flex-start',
+              border: '1px solid var(--gold-md)', color: 'var(--gold)', fontSize: 12,
+            }}>🎟️ {restCredits === 1 ? 'يوم راحة اختياري متاح' : `${toWesternDigits(restCredits)} أيام راحة متاحة`}</span>
+          )}
+
+          {active ? (
+            <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
+              style={{ padding: '15px', fontSize: 16 }}>
+              أكمل التمرين
             </button>
-          </div>
-        )}
+          ) : resting ? (
+            <>
+              <button onClick={onOverrideRecovery} style={{
+                width: '100%', padding: '12px',
+                background: 'transparent', border: '1px dashed var(--border2)',
+                borderRadius: 12, color: 'var(--text2)',
+                fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}>أشعر أنني قادر على التمرين</button>
+              {currentPlanDay && (
+                <button onClick={() => setShowSheet(true)} style={{ ...skipLink, alignSelf: 'center' }}>
+                  تمارين الغد ←
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn-cyan" style={{ padding: '15px', fontSize: 16 }}
+                onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}>
+                ⚡ ابدأ التمرين
+              </button>
+              {currentPlanDay && (
+                <button onClick={onSkip} style={{ ...skipLink, alignSelf: 'center' }}>
+                  تخطي اليوم ←
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {showSheet && currentPlanDay && (

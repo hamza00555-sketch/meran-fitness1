@@ -256,8 +256,9 @@ for (const [iso, expect, label] of [
     JSON.stringify(stored?.deload))
 
   const text = await page.evaluate(() => document.body.innerText)
+  // The hero splits these across a chip and its neighbour text now.
   ok('settings: it lands back on the home screen with the counter',
-    /ديلود · اليوم 1 من 7/.test(text), text.slice(0, 120))
+    /ديلود[\s\S]{0,40}اليوم 1 من 7/.test(text), text.slice(0, 120))
 
   ok('settings: no page errors', errors.length === 0, errors.join('; '))
   await page.screenshot({ path: `${OUT}/fold-banner.png` })
