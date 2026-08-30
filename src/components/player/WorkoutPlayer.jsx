@@ -169,8 +169,11 @@ export default function WorkoutPlayer({
         style={{
           display: 'flex', gap: 10,
           overflowX: 'auto', scrollSnapType: 'x mandatory',
-          margin: '0 -16px', padding: '2px 16px 6px',
+          padding: '2px 2px 6px',
           scrollbarWidth: 'none',
+          // The 88% slide is what makes the neighbours peek; bleeding
+          // past the page padding looked nicer but inflated the
+          // document's scroll width on small screens.
         }}
       >
         {exercises.map((e, i) => {
@@ -201,8 +204,13 @@ export default function WorkoutPlayer({
         })}
       </div>
 
-      {/* ── The working area for the exercise on screen ── */}
-      <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+      {/* ── The working area for the exercise on screen ──
+          minmax(0,1fr): a grid's auto column refuses to shrink below
+          its widest item's min-content, and one stubborn intrinsic
+          width (a mono input, a long exercise name) would push the
+          whole column past a small phone. Zero-basis makes the column
+          obey the page and lets each card solve its own overflow. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, marginTop: 10 }}>
         {celebrating && summary ? (
           <div style={{
             background: 'var(--bg2)', border: '1px solid #22C55E50',

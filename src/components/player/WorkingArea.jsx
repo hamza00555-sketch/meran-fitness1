@@ -22,22 +22,25 @@ function BigStepper({ value, unit, onInput, onStep }) {
     cursor: 'pointer', lineHeight: 1,
   }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
       <button style={round} onClick={() => onStep(-1)} aria-label={`أنقص ${unit}`}>−</button>
       <div
         onClick={() => inputRef.current?.focus()}
         style={{
-          flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)',
+          // minWidth 0 lets the flex item shrink below the input's
+          // intrinsic width — without it, a text input's default size
+          // blows the whole card past a small phone's viewport.
+          flex: 1, minWidth: 0, background: 'var(--bg3)', border: '1px solid var(--border)',
           borderRadius: 16, padding: '8px 6px', textAlign: 'center', cursor: 'text',
         }}
       >
         <input
           ref={inputRef}
-          type="text" inputMode="decimal"
+          type="text" inputMode="decimal" size={1}
           value={value}
           onChange={e => onInput(e.target.value)}
           style={{
-            width: '100%', background: 'none', border: 'none', outline: 'none',
+            width: '100%', minWidth: 0, background: 'none', border: 'none', outline: 'none',
             textAlign: 'center', color: 'var(--text)',
             fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 800,
             fontVariantNumeric: 'tabular-nums', padding: 0,

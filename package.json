@@ -14,7 +14,8 @@
     "pack:build": "node scripts/build-manifest.mjs",
     "pack:publish": "node scripts/upload-r2.mjs",
     "test:report": "node tests/report.e2e.mjs",
-    "test:deload": "node tests/deload.e2e.mjs"
+    "test:deload": "node tests/deload.e2e.mjs",
+    "test:player": "node tests/player.e2e.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

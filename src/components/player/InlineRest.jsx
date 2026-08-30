@@ -20,9 +20,22 @@ function read() {
   return ls.get(STORE, null)
 }
 
-export default function InlineRest({ onDone, onSkip }) {
+const DEFAULT_SECONDS = 90
+
+export default function InlineRest({ onDone, onSkip, seconds = DEFAULT_SECONDS }) {
   const [, force] = useState(0)
   const firedRef = useRef(false)
+
+  // The floating card used to write this state when it mounted; with
+  // it suppressed inside the player, whoever renders the rest owns
+  // starting the clock. Seeding only when absent keeps a rest that was
+  // started elsewhere (the header's ⏱ button) ticking untouched.
+  useEffect(() => {
+    if (!read()) {
+      ls.set(STORE, { selected: seconds, endsAt: Date.now() + seconds * 1000 })
+    }
+    force(n => n + 1)
+  }, [])
 
   useEffect(() => {
     const id = setInterval(() => force(n => n + 1), 300)
