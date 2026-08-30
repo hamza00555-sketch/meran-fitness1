@@ -3,12 +3,14 @@
 // bin, the pencil, the arrows — stay exactly as they are; turning
 // those into downloaded rasters costs bandwidth and buys nothing.
 //
-// Five families, 63 slots:
+// Seven families, 182 slots:
 //   ach_<id>   one image per achievement, 40 of them
 //   scene_*    the two full-screen celebration moments
 //   empty_*    the large illustration on an empty page
 //   cover_MM   the monthly report's cover, one per calendar month
 //   deload_*   the three pictures the deload mode uses
+//   ex_*       one still per catalogue exercise (97)
+//   exa_*      a 5s loop animation for the trained ones (22)
 //
 // Achievement ids come straight from ACHIEVEMENTS, so adding an
 // achievement automatically adds its slot — no second list to keep
@@ -18,7 +20,8 @@
 // and keyed out of a white field; the covers are wide, full-bleed
 // scenes that must not be squeezed into a square.
 
-import { ACHIEVEMENTS } from '../constants.js'
+import { ACHIEVEMENTS, MUSCLE_GROUPS } from '../constants.js'
+import { EXERCISE_MEDIA, ANIMATED_EXERCISES } from '../exerciseMedia.js'
 
 export const achSlot = (achievementId) => `ach_${achievementId}`
 
@@ -102,6 +105,45 @@ export const DELOADS = {
 
 export { DELOADS_STYLE_NOTE }
 
+// ── Exercise media ────────────────────────────────────────────
+// Stills for every exercise the catalogue knows, animations for the
+// ones actually trained. Both derive from the explicit media map, so
+// adding an exercise there is what creates its slots — no second list.
+//
+// The muscle group rides along because the artwork lights the target
+// muscle green on the figure; the prompt needs its English name.
+const EX_STILL = { w: 1024, h: 688 }          // generator-native 3:2, like the covers
+
+const groupOfExercise = (() => {
+  const m = new Map()
+  for (const [key, g] of Object.entries(MUSCLE_GROUPS)) {
+    for (const e of g.exercises || []) m.set(e.name, key)
+  }
+  return m
+})()
+
+export const EXERCISE_STILLS = {}
+export const EXERCISE_ANIMS = {}
+for (const [name, row] of Object.entries(EXERCISE_MEDIA)) {
+  EXERCISE_STILLS[`ex_${row.slug}`] = {
+    ...EX_STILL,
+    exercise: name,
+    equip: row.equip,
+    muscle: groupOfExercise.get(name) || 'Chest',
+  }
+}
+for (const name of ANIMATED_EXERCISES) {
+  const row = EXERCISE_MEDIA[name]
+  EXERCISE_ANIMS[`exa_${row.slug}`] = {
+    ...EX_STILL,
+    video: true,
+    exercise: name,
+    equip: row.equip,
+    muscle: groupOfExercise.get(name) || 'Chest',
+    still: `ex_${row.slug}`,             // the frame the animation grows from
+  }
+}
+
 /** Every slot the app can draw, with the copy the generator turns into a prompt. */
 export function allSlots() {
   const out = []
@@ -120,6 +162,8 @@ export function allSlots() {
   for (const [id, s] of Object.entries(EMPTIES)) out.push({ id, kind: 'empty', ...s })
   for (const [id, s] of Object.entries(COVERS)) out.push({ id, kind: 'cover', ...s })
   for (const [id, s] of Object.entries(DELOADS)) out.push({ id, kind: 'deload', ...s })
+  for (const [id, s] of Object.entries(EXERCISE_STILLS)) out.push({ id, kind: 'exercise', ...s })
+  for (const [id, s] of Object.entries(EXERCISE_ANIMS)) out.push({ id, kind: 'exanim', ...s })
   return out
 }
 

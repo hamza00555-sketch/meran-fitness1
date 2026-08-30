@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import Art from '../assets/Art.jsx'
 import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
-import ExerciseCard from '../components/ExerciseCard.jsx'
+import ExerciseCard, { PRFlash } from '../components/ExerciseCard.jsx'
+import WorkoutPlayer from '../components/player/WorkoutPlayer.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, ls } from '../utils.js'
@@ -10,11 +11,12 @@ import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 import { toWesternDigits } from '../day.js'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, exerciseSubs = {}, onCycleSub, onUpdateSession, onDeleteSession }) {
+export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, onCloseRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, exerciseSubs = {}, onCycleSub, onUpdateSession, onDeleteSession }) {
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
   const [elapsed,       setElapsed]       = useState(0)
   const [confirmBack,   setConfirmBack]   = useState(false)
+  const [showPR,        setShowPR]        = useState(null)
   const [focusExId,     setFocusExId]     = useState(null)
   const timerRef      = useRef(null)
   const pausedMsRef   = useRef(0)
@@ -60,7 +62,18 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
     if (done) {
       const ex  = exercises.find(e => e.id === exId)
       const set = ex?.sets[si]
-      // The celebration itself is raised by ExerciseCard, centred on screen.
+      // The PR celebration used to be raised inside ExerciseCard; the
+      // player calls this handler directly, so the check lives here now
+      // and fires for both surfaces. Same rules: heavier than every
+      // recorded lift, and never during a deload.
+      if (ex && set && !active?.deload) {
+        const { maxWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
+        const w = parseFloat(set.weight) || 0
+        if (maxWeight != null && w > maxWeight) {
+          setShowPR({ weight: w, prev: maxWeight, name: ex.name })
+          setTimeout(() => setShowPR(null), 2200)
+        }
+      }
       if (addXP) addXP(10, '✓ سيت مكتمل')
       onShowRest()
     }
@@ -177,165 +190,77 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const focusStillActive = focusedEx && focusedEx.sets.length > 0 && !focusedEx.sets.every(s => s.done)
   const activeExId = focusStillActive ? focusExId : null
 
+  // What the ⋯ menu needs to know about swapping: allowed only while
+  // nothing is logged, exactly as before.
+  const swapMeta = (ex) => {
+    const origin = ex.originalName || ex.name
+    const alts = EXERCISE_ALTERNATIVES[origin] || []
+    const subIdx = exerciseSubs[origin] || 0
+    return {
+      canSwap: alts.length > 0 && !ex.sets.some(st => st.done),
+      title: subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي',
+    }
+  }
+
+  const ytUrlFor = (name) => {
+    for (const group of Object.values(MUSCLE_GROUPS)) {
+      const def = group.exercises?.find(e => e.name === name)
+      if (def?.videoUrl) return def.videoUrl
+    }
+    return `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' proper form')}`
+  }
+
   return (
-    <div style={{ paddingBottom: 120 }}>
-
-      {/* Session Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)', marginBottom: 2,
-          }}>
-            <span className="pulse-dot" style={{
-              display: 'inline-block', width: 6, height: 6,
-              borderRadius: '50%', background: 'var(--cyan)',
-            }} />
-            LIVE SESSION
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700,
-              color: 'var(--cyan)', letterSpacing: 1,
-            }}>{fmtElapsed(elapsed)}</span>
-            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
-              · {exercises.length} تمرين
-            </span>
+    <div style={{ paddingBottom: 24 }}>
+      {exercises.length === 0 ? (
+        <div style={{ paddingTop: 40 }}>
+          <EmptyState
+            art="empty_workout"
+            title="جلسة فارغة"
+            desc="أضف أول تمرين وابدأ التسجيل"
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button className="btn-cyan" style={{ flex: 1 }} onClick={() => setShowAdd(true)}>＋ أضف أول تمرين</button>
+            <button onClick={() => setShowRoutines(true)} style={{
+              padding: '0 16px', background: 'var(--bg2)', border: '1px solid var(--border)',
+              borderRadius: 12, color: 'var(--text2)', fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
+            }}>📋 روتين جاهز</button>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={onShowRest}
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '8px 12px',
-              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-              fontSize: 12, cursor: 'pointer',
-            }}
-          >⏱️ راحة</button>
-          <button
-            onClick={() => setConfirmBack(true)}
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '8px 14px',
-              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-              fontSize: 12, cursor: 'pointer',
-            }}
-          >← تراجع</button>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      {totalSets > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>التقدم</span>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 11,
-              color: pct === 100 ? 'var(--green)' : 'var(--cyan)',
-            }}>
-              {doneSets}/{totalSets} sets
-            </span>
-          </div>
-          <div style={{ background: 'var(--bg2)', borderRadius: 4, height: 5, overflow: 'hidden' }}>
-            <div style={{
-              height: '100%', width: `${pct}%`,
-              background: pct === 100 ? 'var(--green)' : 'var(--cyan)',
-              borderRadius: 4, transition: 'width 0.4s ease',
-            }} />
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {exercises.length === 0 && (
-        <div style={{
-          border: '1px dashed var(--border2)', borderRadius: 14,
-          padding: '30px 20px', textAlign: 'center', marginBottom: 14,
-        }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}><Art id="empty_workout" size={72} fallback="🏋️" /></div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)', marginBottom: 12 }}>
-            أضف أول تمرين
-          </div>
-          <button
-            onClick={() => setShowRoutines(true)}
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '8px 16px',
-              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-              fontSize: 13, cursor: 'pointer',
-            }}
-          >📋 روتين جاهز</button>
-        </div>
-      )}
-
-      {/* Exercise cards */}
-      {exercises.map(ex => (
-        <ExerciseCard
-          key={ex.id}
-          exercise={ex}
-          sessions={sessions || []}
-          exerciseMapping={exerciseMapping}
+      ) : (
+        <WorkoutPlayer
+          exercises={exercises}
+          sessionName={active.name || 'جلسة تمرين'}
+          elapsedLabel={fmtElapsed(elapsed)}
+          doneSets={doneSets}
+          totalSets={totalSets}
+          pct={pct}
           deloadPct={active?.deload?.pct || 0}
-          progression={progressionFor(ex.name)}
-          alternatives={EXERCISE_ALTERNATIVES[ex.originalName || ex.name] || []}
-          subIndex={exerciseSubs[ex.originalName || ex.name] || 0}
-          originalName={ex.originalName}
-          onSwap={() => handleSwapLive(ex.id)}
-          onUpdateSet={(si, field, val) => { setFocusExId(ex.id); handleUpdateSet(ex.id, si, field, val) }}
-          onDoneSet={(si, done) => { setFocusExId(ex.id); handleDoneSet(ex.id, si, done) }}
-          onAddSet={() => { setFocusExId(ex.id); handleAddSet(ex.id) }}
-          onRemoveSet={si => handleRemoveSet(ex.id, si)}
-          onRemove={() => { if (focusExId === ex.id) setFocusExId(null); handleRemoveEx(ex.id) }}
-          allExercises={exercises}
-          onMoveSet={(si, toExId) => handleMoveSet(ex.id, si, toExId)}
-          dimmed={activeExId !== null && ex.id !== activeExId}
-          onFocus={() => setFocusExId(ex.id)}
-          isComplete={ex.sets.length > 0 && ex.sets.every(s => s.done)}
+          isResting={isResting}
+          getLastW={getLastW}
+          getSuggested={getLastW}
+          progressionFor={progressionFor}
+          ytUrlFor={ytUrlFor}
+          statsFor={(name) => getExerciseStats(sessions, name, exerciseMapping)}
+          swapMeta={swapMeta}
+          onUpdateSet={handleUpdateSet}
+          onDoneSet={handleDoneSet}
+          onAddSet={handleAddSet}
+          onRemoveSet={handleRemoveSet}
+          onRemoveEx={handleRemoveEx}
+          onMoveSet={handleMoveSet}
+          onSwap={handleSwapLive}
+          onAddExercise={() => setShowAdd(true)}
+          onFinish={onFinish}
+          onBack={() => setConfirmBack(true)}
+          onCloseRest={onCloseRest}
         />
-      ))}
+      )}
 
-      {/* Add exercise button */}
-      <button
-        onClick={() => setShowAdd(true)}
-        style={{
-          width: '100%', background: 'none',
-          border: '1px dashed var(--border2)', borderRadius: 14,
-          padding: '16px', color: 'var(--text3)',
-          fontFamily: 'var(--font-ar)', fontSize: 15, cursor: 'pointer',
-          marginTop: 4, transition: 'all 0.2s',
-        }}
-        onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
-        onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text3)' }}
-      >
-        ＋ إضافة تمرين
-      </button>
-
-      {/* Fixed Finish Button */}
-      <div style={{
-        position: 'fixed', bottom: 0,
-        left: '50%', transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 560,
-        padding: '12px 16px calc(var(--safe-bottom) + 76px)',
-        background: 'linear-gradient(transparent, var(--bg) 40%)',
-        pointerEvents: 'none',
-      }}>
-        <div style={{ pointerEvents: 'all', display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => setConfirmBack(true)}
-            style={{
-              flex: '0 0 auto',
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 14, padding: '14px 18px',
-              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-            }}
-          >← تراجع</button>
-          <button className="btn-cyan" onClick={onFinish} style={{ flex: 1 }}>
-            ✓ إنهاء الجلسة {doneSets > 0 ? `· ${doneSets} sets` : ''}
-          </button>
-        </div>
-      </div>
+      {showPR && <PRFlash
+        color={MUSCLE_GROUPS[exercises.find(e => e.name === showPR.name)?.muscle]?.color || 'var(--cyan)'}
+        weight={showPR.weight} prev={showPR.prev} exerciseName={showPR.name}
+      />}
 
       {showAdd      && <AddExerciseModal onAdd={handleAddExercise} onClose={() => setShowAdd(false)} />}
       {showRoutines && <RoutinesModal onSelect={handleLoadRoutine} onClose={() => setShowRoutines(false)} />}

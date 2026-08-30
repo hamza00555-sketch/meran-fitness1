@@ -11,7 +11,7 @@ import ExerciseInfoModal from './ExerciseInfoModal.jsx'
 // Weight-up celebration. Portaled to <body> and fixed to the viewport
 // so it lands dead-centre no matter how far down the exercise list the
 // user has scrolled — the old banner sat at the top and was missed.
-function PRFlash({ color, weight, prev, exerciseName }) {
+export function PRFlash({ color, weight, prev, exerciseName }) {
   const gained = prev != null && weight > prev ? Math.round((weight - prev) * 10) / 10 : null
   const sparks = [
     { dx: '-120px', dy: '-90px' },  { dx: '120px',  dy: '-90px' },

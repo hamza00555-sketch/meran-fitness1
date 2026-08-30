@@ -115,7 +115,65 @@ const COVER_STYLE = [
   'painted illustration, rich and clean, not photorealistic',
 ].join(', ')
 
+// ── Exercise artwork ──────────────────────────────────────────
+// The style is the app's own: the matte-black sculpted 3D figure from
+// the muscle images, performing the lift on the correct equipment,
+// with the working muscle lit green on its body. One picture carries
+// both "how this movement looks" and "what it hits".
+const EQUIP_PROMPT = {
+  barbell:    'a black olympic barbell loaded with black weight plates with green rims',
+  dumbbell:   'black dumbbells with green plate rims',
+  machine:    'the correct black gym machine for this movement, with green accent pads and handles',
+  cable:      'a black cable pulley station with a green-accented handle attachment',
+  bodyweight: 'no equipment beyond what the movement itself needs (bar, dip bars, or floor)',
+  smith:      'a black smith machine with green accents',
+  cardio:     'the correct black cardio machine with green accents',
+}
+
+const MUSCLE_EN = {
+  Chest: 'chest (pectorals)', Back: 'back (lats and rhomboids)',
+  Shoulders: 'shoulders (deltoids)', Legs: 'legs (quadriceps, hamstrings and glutes)',
+  Biceps: 'biceps', Triceps: 'triceps', Core: 'core (abdominals)',
+  Cardio: 'full body',
+}
+
+const EXERCISE_STYLE = [
+  // the mannequin IS the app's identity — everything else is negotiable
+  'a glossy matte-black 3D mannequin figure with sculpted anatomical muscles, featureless dark face, the exact same figure as a premium fitness app muscle chart',
+  'photorealistic 3D render, studio product lighting, subtle reflections on the black surface',
+  'three-quarter camera angle, whole body and equipment fully in frame',
+  'correct exercise form, anatomically accurate joint angles at the working part of the movement',
+  'no text, no letters, no numbers, no logos, no interface elements',
+  'plain solid white background, no floor shadow, no scenery',
+  'wide 3:2 landscape composition with breathing room around the subject',
+].join(', ')
+
+function exercisePrompt(slot) {
+  return [
+    `the black 3D mannequin from the reference image performing ${slot.exercise}`,
+    EQUIP_PROMPT[slot.equip] || EQUIP_PROMPT.machine,
+    `the ${MUSCLE_EN[slot.muscle] || 'working'} muscles on the mannequin's body glow bright green #5EC32A, every other muscle stays glossy black`,
+    EXERCISE_STYLE,
+  ].join(', ')
+}
+
+// The animation grows out of the still: same frame, one clean
+// instructional rep looping. The camera line is load-bearing — video
+// models drift into cinematic orbits unless told not to, and a swaying
+// camera teaches nothing.
+export function animPromptFor(slot) {
+  return [
+    `the black 3D mannequin performs one slow, controlled repetition of ${slot.exercise} and returns exactly to the starting position`,
+    'a single clean instructional movement, correct exercise form, constant tempo',
+    'the camera is completely static, locked off, no zoom, no pan, no orbit',
+    'the green-lit muscles stay lit, the lighting does not change',
+    'seamless loop: the final frame matches the first frame',
+  ].join(', ')
+}
+
 export function promptFor(slot) {
+  if (slot.kind === 'exercise') return exercisePrompt(slot)
+  if (slot.kind === 'exanim') return exercisePrompt(slot)   // the i2v call pairs this with animPromptFor
   if (slot.kind === 'cover') {
     return `${slot.en}, ${COVER_STYLE}`
   }

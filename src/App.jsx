@@ -854,6 +854,7 @@ export default function App() {
             onUpdateActive={updateActive}
             onFinish={finishSession}
             onShowRest={() => { ls.remove('hf_rest_timer'); setShowRest(true); setRestKey(k => k + 1) }}
+            onCloseRest={() => { ls.remove('hf_rest_timer'); setShowRest(false) }}
             onStartPlannedWorkout={startPlannedWorkout}
             addXP={addWorkoutXP}
             onGoBack={() => {
@@ -1028,7 +1029,11 @@ export default function App() {
       </nav>
 
       {/* ── Overlays ─────────────────────────────────────────────── */}
-      {showRest    && <RestTimer key={restKey} onClose={() => setShowRest(false)} />}
+      {/* The player owns rest inline while the workout tab is open —
+          the floating card would be a second clock for the same rest. */}
+      {showRest && !(tab === 'workout' && active) && (
+        <RestTimer key={restKey} onClose={() => setShowRest(false)} />
+      )}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
       {showDeloadEnd && (
