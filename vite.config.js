@@ -14,7 +14,7 @@ export default defineConfig({
         description: 'تطبيق مران لتتبع التمارين والوصول إلى قمة اللياقة',
         start_url: '/',
         display: 'standalone',
-        background_color: '#080B14',
+        background_color: '#050810',
         theme_color: '#5EC32A',
         orientation: 'portrait',
         lang: 'ar',

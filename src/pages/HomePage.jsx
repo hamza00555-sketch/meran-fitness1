@@ -1,13 +1,9 @@
-import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
-import Art from '../assets/Art.jsx'
 import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
-import DayPreviewSheet from '../components/DayPreviewSheet.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import { xpProgress, getRank, getCommitmentLevel, getExerciseStats, substitutedName, nextSubIndex, fmtDate } from '../utils.js'
-import { MUSCLE_GROUPS, COMMITMENT_LEVELS, EXERCISE_ALTERNATIVES } from '../constants.js'
+import { xpProgress, getRank } from '../utils.js'
+import { MUSCLE_GROUPS, COMMITMENT_LEVELS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
 
 function PlanProgressCard({ plan, planIndex }) {
@@ -23,56 +19,45 @@ function PlanProgressCard({ plan, planIndex }) {
   const shortLabel = (name) => name.split('—')[0].trim().split(' ')[0]
 
   return (
-    <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 2 }}>
-            PROGRAM PROGRESS
-          </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {plan.planName}
-          </div>
-        </div>
+    <Card style={{ padding: '14px 16px', marginBottom: 'var(--hp-card-mb)' }}>
+      {/* One header line: name · % · week chip. The stats sentence and
+          the PROGRAM PROGRESS eyebrow said the same things twice. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
         <div style={{
-          flexShrink: 0, marginRight: 10,
-          background: isCompleted ? 'var(--gold-lo)' : 'var(--cyan-lo)',
-          border: `1px solid ${isCompleted ? 'var(--gold-md)' : 'var(--cyan-md)'}`,
-          borderRadius: 20, padding: '3px 12px',
-          fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700,
+          flex: 1, minWidth: 0,
+          fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: 'var(--text2)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {plan.planName}
+        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)' }}>
+          {overallPct}%
+        </span>
+        <span style={{
+          flexShrink: 0,
+          fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
           color: isCompleted ? 'var(--gold)' : 'var(--cyan)',
         }}>
           {isCompleted ? '🏆 مكتمل' : `W${currentWeek}/${durationWeeks}`}
-        </div>
+        </span>
       </div>
 
-      {/* Overall progress bar + stats */}
-      <ProgressBar value={planIndex} max={totalSessions} color="var(--cyan)" height={7} gradient />
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, marginBottom: 14 }}>
-        <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
-          {planIndex} من {totalSessions} جلسة
-        </span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)', fontWeight: 700 }}>
-          {overallPct}%
-        </span>
-      </div>
+      <ProgressBar value={planIndex} max={totalSessions} color="var(--cyan)" height={4} />
 
       {/* This cycle's day bubbles */}
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ display: 'flex', gap: 4, marginTop: 11 }}>
         {schedule.map((day, i) => {
           const isDone    = i < dayInCycle
           const isCurrent = i === dayInCycle && !isCompleted
           return (
             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
               <div style={{
-                width: '100%', height: 30, borderRadius: 8,
+                width: '100%', height: 26, borderRadius: 8,
                 background: isDone ? 'var(--cyan)' : isCurrent ? 'var(--cyan-lo)' : 'var(--bg3)',
                 border: isCurrent ? '2px solid var(--cyan)' : `1px solid ${isDone ? 'var(--cyan)' : 'var(--border)'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: isDone ? '#0A0E14' : isCurrent ? 'var(--cyan)' : 'var(--text3)',
-                fontSize: 13, fontWeight: 800,
-                animation: isCurrent ? 'glowPulse 2.5s ease-in-out infinite' : 'none',
-                boxShadow: isCurrent ? '0 0 12px var(--cyan-glow)' : 'none',
+                fontSize: 12, fontWeight: 800,
                 transition: 'all 0.2s',
               }}>
                 {isDone ? '✓' : isCurrent ? '▶' : String(i + 1)}
@@ -93,27 +78,6 @@ function PlanProgressCard({ plan, planIndex }) {
 // ── Helper: find videoUrl for an exercise name across all muscle groups ──
 
 
-
-// Rank badge — fills its container
-function RankRing({ rank, level }) {
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {rank.img && (
-        <img src={rank.img} alt={rank.label}
-          style={{ width: '100%', height: '100%', objectFit: 'contain', filter: 'drop-shadow(0 3px 12px rgba(0,0,0,0.5))' }} />
-      )}
-      <div style={{
-        position: 'absolute', bottom: -4, left: '50%',
-        transform: 'translateX(-50%)',
-        background: rank.color, borderRadius: 8,
-        padding: '2px 8px',
-        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800,
-        color: '#0A0A0A', whiteSpace: 'nowrap',
-        boxShadow: `0 2px 8px ${rank.color}60`,
-      }}>LV{level}</div>
-    </div>
-  )
-}
 
 // Commitment meter. Five marks, filled by the streak.
 //
@@ -181,87 +145,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   const planTotal    = schedule?.length ?? 1
 
   return (
-    <div style={{ paddingBottom: 110 }}>
+    <div style={{ paddingTop: 12, paddingBottom: 110 }}>
 
-      {/* ── Logo Banner ──────────────────────────────────────────── */}
-      <div style={{
-        marginTop: 14, marginBottom: 'var(--hp-card-mb)',
-        height: 64, borderRadius: 22,
-        position: 'relative', overflow: 'hidden',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, rgba(8,11,20,0.96), rgba(15,32,38,0.82))',
-        border: '1px solid rgba(var(--cyan-rgb),0.34)',
-        boxShadow: '0 0 0 1px rgba(var(--cyan-rgb),0.08), 0 12px 32px rgba(0,0,0,0.28)',
-      }}>
-        {/* centre glow */}
-        <div style={{
-          position: 'absolute', left: '50%', top: '50%',
-          transform: 'translate(-50%,-50%)',
-          width: 180, height: 64, borderRadius: 999,
-          background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.18) 0%, rgba(var(--cyan-rgb),0.07) 40%, rgba(var(--cyan-rgb),0) 74%)',
-          filter: 'blur(12px)', opacity: 0.85, pointerEvents: 'none',
-        }} />
-        {/* diagonal speed lines */}
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 22,
-          pointerEvents: 'none', opacity: 0.35,
-          background: 'linear-gradient(115deg, transparent 0%, rgba(var(--cyan-rgb),0.10) 16%, transparent 28%, transparent 62%, rgba(var(--cyan-rgb),0.09) 78%, transparent 100%)',
-        }} />
-        <div style={{
-          position: 'absolute', insetInlineStart: 18, top: 20,
-          width: 130, height: 1,
-          background: 'linear-gradient(90deg, rgba(var(--cyan-rgb),0), rgba(var(--cyan-rgb),0.34), rgba(var(--cyan-rgb),0))',
-          transform: 'rotate(-12deg)', opacity: 0.45, pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', insetInlineEnd: 18, bottom: 18,
-          width: 130, height: 1,
-          background: 'linear-gradient(90deg, rgba(var(--cyan-rgb),0), rgba(var(--cyan-rgb),0.28), rgba(var(--cyan-rgb),0))',
-          transform: 'rotate(-12deg)', opacity: 0.38, pointerEvents: 'none',
-        }} />
-        {/* logo */}
-        <img
-          src="/assets/app_logo_full_light.png"
-          alt="MERAN"
-          style={{
-            position: 'relative', zIndex: 2,
-            width: 96, maxWidth: '32vw', height: 'auto',
-            objectFit: 'contain', display: 'block',
-            opacity: 0.94,
-            filter: 'drop-shadow(0 0 10px rgba(var(--cyan-rgb),0.22))',
-          }}
-        />
-      </div>
-
-      {/* ── Month report ─────────────────────────────────────
-          A slim strip, not a hero-sized card — a smaller footprint
-          reads clearer here than a bigger one would, because contrast
-          against the surrounding cards is what draws the eye, not
-          size. Only in its window, and only for a month with training
-          in it — an empty report is worse than no button. */}
-      {monthReport?.hasData && (
-        <button
-          onClick={onShowMonthReport}
-          style={{
-            all: 'unset', boxSizing: 'border-box',
-            display: 'flex', alignItems: 'center', gap: 10,
-            width: '100%', marginBottom: 10, padding: '10px 14px',
-            borderRadius: 14, cursor: 'pointer',
-            background: 'linear-gradient(100deg, var(--cyan-lo), var(--gold-lo))',
-            border: '1px solid var(--cyan-md)',
-          }}
-        >
-          <span style={{ fontSize: 20, lineHeight: 1 }}>📊</span>
-          <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
-            <div style={{ fontWeight: 800, fontSize: 13 }}>تقرير {monthReport.monthLabel}</div>
-            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
-              {monthReport.sessionCount} جلسة · {Number(monthReport.volume.total).toLocaleString('en-US')} كجم
-              {monthReport.prs.length ? ` · ${monthReport.prs.length} رقم قياسي` : ''}
-            </div>
-          </div>
-          <span style={{ color: 'var(--cyan)', fontSize: 17 }}>‹</span>
-        </button>
-      )}
       {/* ── Today Hero ────────────────────────────────────────
           One card, one question: what should I do now? It absorbs the
           old today card, the plan-day card, the recovery-day card and
@@ -292,35 +177,60 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         onDismiss={onDismissDeloadSuggestion}
       />
 
-      {/* ── Gamification, compressed to one line ──────────────
-          Streak, rank, level and XP all survive — they just stop
-          competing with today's workout for the top of the screen. */}
+      {/* ── Gamification, one quiet line ──────────────────────
+          Streak, rank, level and XP all survive — no card chrome at
+          all now, so they read as a status line, not a competitor to
+          today's workout. */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-sm)', padding: '10px 14px',
-        marginBottom: 'var(--hp-card-mb)', flexWrap: 'wrap',
+        display: 'flex', alignItems: 'center', gap: 9,
+        padding: '2px 6px', marginBottom: 'var(--hp-card-mb)',
       }}>
         {streak > 0 && (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800, color: 'var(--orange)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: 'var(--orange)' }}>
             🔥 {streak}
           </span>
         )}
         <CommitmentFlames streak={streak} deload={onDeload} />
+        <span style={{ flex: 1 }} />
         <span style={{
-          background: rank.bg, color: rank.color,
-          border: `1px solid ${rank.color}40`,
-          borderRadius: 20, padding: '1px 9px',
+          color: rank.color, opacity: 0.85,
           fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-        }}>{rank.tier} · {rank.label}</span>
+        }}>{rank.label}</span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
-          Lv{level}
+          Lv {level}
         </span>
-        <div style={{ flex: 1, minWidth: 60 }}>
-          <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={5} />
+        <div style={{ width: 52 }}>
+          <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={4} />
         </div>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>{pct}%</span>
       </div>
+
+      {/* ── Month report ─────────────────────────────────────
+          A slim strip below the fold-line of the hero — only in its
+          window, and only for a month with training in it. */}
+      {monthReport?.hasData && (
+        <button
+          onClick={onShowMonthReport}
+          style={{
+            all: 'unset', boxSizing: 'border-box',
+            display: 'flex', alignItems: 'center', gap: 10,
+            width: '100%', marginBottom: 'var(--hp-card-mb)', padding: '10px 14px',
+            borderRadius: 14, cursor: 'pointer',
+            background: 'var(--bg2)',
+            border: '1px solid var(--border2)',
+          }}
+        >
+          <span style={{ fontSize: 20, lineHeight: 1 }}>📊</span>
+          <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
+            <div style={{ fontWeight: 800, fontSize: 13 }}>تقرير {monthReport.monthLabel}</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 1 }}>
+              {monthReport.sessionCount} جلسة · {Number(monthReport.volume.total).toLocaleString('en-US')} كجم
+              {monthReport.prs.length ? ` · ${monthReport.prs.length} رقم قياسي` : ''}
+            </div>
+          </div>
+          <span style={{ color: 'var(--cyan)', fontSize: 17 }}>‹</span>
+        </button>
+      )}
 
       {/* ── Plan progress (slimmed, same numbers) ─────────────── */}
       {plan && !active && (

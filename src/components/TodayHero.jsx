@@ -6,22 +6,20 @@ import { toWesternDigits } from '../day.js'
 
 // ── Today Hero — the one card that answers "what now?" ────────
 //
-// The home page used to scatter today across four pieces: a status
-// card, a plan-day card, a separate recovery-day card, and a start
-// button fixed to the bottom of the screen. Four answers to one
-// question. This card is the merge: one surface that reads the day
-// (training / recovery / deload / a session already running) and puts
-// the single right action inside it.
+// Rebuilt around a strict hierarchy, top to bottom:
 //
-// Everything the four pieces could do survives: the exercise-count
-// badge still opens the full day preview sheet with swapping and
-// YouTube links, skip is still here, the recovery override is still
-// here, and the deload state rides inside as a status line rather
-// than as its own banner.
+//   status line   — one small word about the kind of day
+//   title         — the day's name, the biggest text on the page
+//   meta line     — exercise count · rough duration
+//   visual        — large, part of the composition, not a sticker
+//   primary CTA   — ابدأ التمرين, the strongest element on the page
+//   secondary     — skip / rest-credit, quiet by design
+//
+// The visual is anchored to the card's end edge and allowed to be
+// big: it sits over a soft radial glow, clipped by the card, so it
+// reads as part of the surface rather than an icon dropped onto it.
+// The text keeps a reserved column and never fights it for space.
 
-// A rough length for the day, promised as a range rather than a fake
-// precision. The history is the best predictor when it exists; eight
-// minutes an exercise is the honest guess when it does not.
 function estimateMinutes(sessions, exerciseCount) {
   const timed = (sessions || []).filter(s => s.duration > 0).slice(-5).map(s => s.duration)
   if (timed.length >= 2) {
@@ -31,8 +29,6 @@ function estimateMinutes(sessions, exerciseCount) {
   return exerciseCount * 8
 }
 
-// Where a running session actually stands: the exercise being worked
-// (first one with sets still open) and how far into it.
 function sessionContext(active) {
   if (!active?.exercises?.length) return null
   const all = active.exercises.flatMap(ex => ex.sets)
@@ -49,26 +45,52 @@ function sessionContext(active) {
   }
 }
 
-// The little hero drawing from the old today card — training arm,
-// resting moon-side art, or the iced dumbbell during a deload. It
-// survives the merge because it is what makes the card feel like
-// مران rather than a generic to-do item.
-function HeroArt({ isTraining, deload }) {
-  const style = { width: 76, height: 76, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }
-  const plain = <img src={isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'} alt="" style={style} />
-  if (!deload) return plain
-  return <Art id="deload_hero" style={style} fallback={plain} alt="" />
+// The big side visual: the training arm, the resting moon-side art, or
+// the iced dumbbell under a deload. Absolute, oversized, clipped by
+// the card — composition, not decoration.
+function HeroVisual({ isTraining, deload }) {
+  const src = isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'
+  // Anchored to the TOP of the card, beside the text column — the CTA
+  // below must stay clear of it, or the visual reads as an accident.
+  const style = {
+    position: 'absolute', insetInlineEnd: -16, top: -8,
+    width: 160, height: 160, objectFit: 'contain',
+    filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.55))',
+    pointerEvents: 'none',
+  }
+  const glow = (
+    <div style={{
+      position: 'absolute', insetInlineEnd: -44, top: -54,
+      width: 230, height: 230, borderRadius: '50%',
+      background: `radial-gradient(circle, ${isTraining ? 'rgba(var(--cyan-rgb),0.14)' : 'rgba(var(--purple-rgb),0.12)'} 0%, transparent 68%)`,
+      pointerEvents: 'none',
+    }} />
+  )
+  const plain = <img src={src} alt="" style={style} />
+  return (
+    <>
+      {glow}
+      {deload ? <Art id="deload_hero" style={style} fallback={plain} alt="" /> : plain}
+    </>
+  )
 }
 
-const eyebrow = {
-  fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 2, marginBottom: 4,
+const statusLine = {
+  fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
+  letterSpacing: 2.5, textTransform: 'uppercase',
 }
-const bigTitle = {
-  fontFamily: 'var(--font-ar)', fontSize: 24, fontWeight: 900,
-  color: 'var(--text)', lineHeight: 1.3,
+const titleStyle = {
+  fontFamily: 'var(--font-ar)', fontSize: 28, fontWeight: 900,
+  color: 'var(--text)', lineHeight: 1.25,
 }
-const metaLine = {
-  fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.8,
+const metaStyle = {
+  fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7,
+}
+const quietBtn = {
+  padding: '9px 14px', background: 'none',
+  border: '1px solid var(--border)', borderRadius: 12,
+  color: 'var(--text3)', fontFamily: 'var(--font-ar)',
+  fontSize: 12, fontWeight: 700, cursor: 'pointer',
 }
 
 export default function TodayHero({
@@ -86,146 +108,123 @@ export default function TodayHero({
     [sessions, currentPlanDay],
   )
 
-  // The one accent the whole card keys off. A deload cools it, a
-  // recovery day hands it to the rest colour, everything else trains.
-  const tone = isRecoveryDay && !active ? 'var(--purple)' : 'var(--cyan)'
+  const resting = isRecoveryDay && !active
+  const tone = resting ? 'var(--purple)' : 'var(--cyan)'
+
+  // One status word. The deload owns it while running — it colours the
+  // whole app anyway, so the card only needs to say the day count.
+  const status = active ? 'جلسة شغّالة'
+    : onDeload ? `ديلود · اليوم ${toWesternDigits(deload.day)} من ${toWesternDigits(deload.totalDays)}`
+    : resting ? 'يوم تعافٍ'
+    : 'يوم تمرين'
+
+  const title = active ? (active.name || currentPlanDay?.name || 'تمرين حر')
+    : resting ? 'اليوم للراحة'
+    : currentPlanDay ? currentPlanDay.name
+    : 'جلسة حرة'
 
   return (
     <div style={{
-      background: 'var(--grad-hero)',
+      position: 'relative',
+      background: 'var(--bg1)',
       border: '1px solid var(--border)',
-      borderTop: `3px solid ${tone}`,
-      borderRadius: 'var(--radius)',
-      padding: 'var(--hp-card-pad)',
+      borderRadius: 20,
+      padding: '18px 18px 16px',
       marginBottom: 'var(--hp-card-mb)',
-      boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+      overflow: 'hidden',
     }}>
+      <HeroVisual isTraining={!resting} deload={onDeload} />
 
-      {/* ── State line: deload rides inside, never its own banner ── */}
-      {onDeload && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-          borderRadius: 'var(--radius-sm)', padding: '7px 12px', marginBottom: 12,
-        }}>
-          <Art id="deload_badge" size={16} fallback={<DropletIcon size={14} color="var(--cyan)" />} />
-          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700, color: 'var(--cyan)' }}>
-            ديلود · اليوم {toWesternDigits(deload.day)} من {toWesternDigits(deload.totalDays)}
-          </span>
-          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginInlineStart: 'auto' }}>
-            أوزانك أخف {toWesternDigits(deload.pct)}٪
-          </span>
-        </div>
-      )}
+      {/* Text column — reserves the visual's space instead of flowing under it */}
+      <div style={{ position: 'relative', paddingInlineEnd: 132, minHeight: 138 }}>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-      {active ? (
-        /* ── A session is already running: continue is the only story ── */
-        <>
-          <div style={{ ...eyebrow, color: 'var(--cyan)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+          {onDeload && <Art id="deload_badge" size={13} fallback={<DropletIcon size={11} color={tone} />} />}
+          {active && (
             <span style={{
-              display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-              background: 'var(--cyan)', marginInlineEnd: 6,
-              animation: 'pulseDot 1.5s ease-in-out infinite',
+              display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+              background: tone, animation: 'pulseDot 1.5s ease-in-out infinite',
             }} />
-            جلسة شغّالة
-          </div>
-          <div style={bigTitle}>{active.name || currentPlanDay?.name || 'تمرين حر'}</div>
-          {ctx && (
-            <div style={{ ...metaLine, marginTop: 6 }}>
+          )}
+          <span style={{ ...statusLine, color: tone }}>{status}</span>
+          {onDeload && (
+            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
+              · أوزانك أخف {toWesternDigits(deload.pct)}٪
+            </span>
+          )}
+        </div>
+
+        <div style={titleStyle}>{title}</div>
+
+        <div style={{ ...metaStyle, marginTop: 6 }}>
+          {active && ctx ? (
+            <>
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text2)' }}>{ctx.name}</span>
               {' · '}سيت {toWesternDigits(ctx.setNo)} من {toWesternDigits(ctx.setTotal)}
               {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
-            </div>
+            </>
+          ) : resting ? (
+            <>
+              لن يُحتسب غياباً ولن يكسر الستريك.
+              {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{currentPlanDay.name}</b></>}
+            </>
+          ) : currentPlanDay ? (
+            <span
+              onClick={() => setShowSheet(true)}
+              style={{ cursor: 'pointer' }}
+              title="اعرض تمارين اليوم"
+            >
+              {toWesternDigits(currentPlanDay.exercises.length)} تمارين · ≈ {toWesternDigits(minutes)} دقيقة
+              <span style={{ color: 'var(--cyan)', marginInlineStart: 6, fontSize: 11 }}>عرض ←</span>
+            </span>
+          ) : (
+            'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
           )}
-          <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout} style={{ marginTop: 14 }}>
+        </div>
+      </div>
+
+      {/* ── Primary CTA — the strongest element on the page ── */}
+      <div style={{ position: 'relative', marginTop: 16 }}>
+        {active ? (
+          <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
+            style={{ padding: '15px', fontSize: 16 }}>
             أكمل التمرين
           </button>
-        </>
-      ) : isRecoveryDay ? (
-        /* ── Recovery day: rest is the plan, not the absence of one ── */
-        <>
-          <div style={{ ...eyebrow, color: 'var(--purple)' }}>يوم تعافٍ</div>
-          <div style={bigTitle}>🌙 اليوم للراحة</div>
-          <div style={{ ...metaLine, marginTop: 6 }}>
-            لن يُحتسب غياباً ولن يكسر الستريك.
-            {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{currentPlanDay.name}</b></>}
-          </div>
-          {currentPlanDay && (
-            <button
-              onClick={() => setShowSheet(true)}
-              style={{
-                marginTop: 10, background: 'var(--bg3)', border: '1px solid var(--border)',
-                borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
-                fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
-              }}
-            >{currentPlanDay.exercises.length} تمارين ←</button>
-          )}
-          <button
-            onClick={onOverrideRecovery}
-            style={{
-              width: '100%', marginTop: 14, padding: '11px',
-              background: 'transparent', border: '1px dashed var(--border2)',
-              borderRadius: 12, color: 'var(--text2)',
-              fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            }}
-          >أشعر أنني قادر على التمرين</button>
-        </>
-      ) : currentPlanDay ? (
-        /* ── A training day with a plan: the reference layout ── */
-        <>
-          <div style={{ ...eyebrow, color: 'var(--cyan)' }}>
-            تمرين اليوم · {toWesternDigits(planDayNum)}/{toWesternDigits(planTotal)}
-          </div>
-          <div style={bigTitle}>{currentPlanDay.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setShowSheet(true)}
-              style={{
-                background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-                borderRadius: 20, padding: '4px 12px', cursor: 'pointer',
-                fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--cyan)', fontWeight: 700,
-              }}
-            >{currentPlanDay.exercises.length} تمارين ←</button>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)' }}>
-              ≈ {minutes} دقيقة
-            </span>
+        ) : resting ? (
+          <button onClick={onOverrideRecovery} style={{
+            width: '100%', padding: '12px',
+            background: 'transparent', border: '1px dashed var(--border2)',
+            borderRadius: 12, color: 'var(--text2)',
+            fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+          }}>أشعر أنني قادر على التمرين</button>
+        ) : (
+          <button className="btn-cyan" style={{ padding: '15px', fontSize: 16 }}
+            onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}>
+            ⚡ ابدأ التمرين
+          </button>
+        )}
+
+        {/* Secondary actions — present, quiet, never competing */}
+        {!active && !resting && (currentPlanDay || restCredits > 0) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+            {currentPlanDay && (
+              <button onClick={onSkip} style={quietBtn}>تخطي اليوم</button>
+            )}
             {restCredits > 0 && (
               <span style={{
                 fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--gold)',
-                background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-                borderRadius: 20, padding: '3px 10px',
-              }}>🎟️ {restCredits === 1 ? 'يوم راحة اختياري' : `${toWesternDigits(restCredits)} أيام راحة`}</span>
+                padding: '9px 4px', opacity: 0.85,
+              }}>🎟️ {restCredits === 1 ? 'يوم راحة اختياري متاح' : `${toWesternDigits(restCredits)} أيام راحة متاحة`}</span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-            <button className="btn-cyan" style={{ flex: 1 }} onClick={() => onStartPlanned(currentPlanDay)}>
-              ⚡ ابدأ التمرين
+        )}
+        {resting && currentPlanDay && (
+          <div style={{ marginTop: 10 }}>
+            <button onClick={() => setShowSheet(true)} style={quietBtn}>
+              تمارين الغد ←
             </button>
-            <button onClick={onSkip} style={{
-              padding: '0 16px', background: 'var(--bg3)',
-              border: '1px solid var(--border2)', borderRadius: 12,
-              color: 'var(--text3)', fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
-            }}>تخطي</button>
           </div>
-        </>
-      ) : (
-        /* ── Free training, no plan ── */
-        <>
-          <div style={{ ...eyebrow, color: 'var(--cyan)' }}>تمرين اليوم</div>
-          <div style={bigTitle}>يوم تمرين 💪</div>
-          <div style={{ ...metaLine, marginTop: 6 }}>
-            بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.
-          </div>
-          <button className="btn-cyan" onClick={onStartEmpty} style={{ marginTop: 14 }}>
-            ⚡ ابدأ التمرين
-          </button>
-        </>
-      )}
-
-      </div>
-      {!active && <HeroArt isTraining={!isRecoveryDay} deload={onDeload} />}
+        )}
       </div>
 
       {showSheet && currentPlanDay && (

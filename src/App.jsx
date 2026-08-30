@@ -740,11 +740,13 @@ export default function App() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              letterSpacing: 4, color: 'var(--cyan)', marginBottom: 2,
-              opacity: 0.8,
-            }}>MERAN</div>
+            {/* The wordmark lives here now — the home page used to burn
+                a full-width card on it. Branding is a signature, not a
+                billboard. */}
+            <img src="/assets/app_logo_full_light.png" alt="مران" style={{
+              height: 18, objectFit: 'contain', objectPosition: 'right',
+              display: 'block', marginBottom: 3, opacity: 0.95,
+            }} />
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 13,
               fontWeight: 600, color: 'var(--text2)',

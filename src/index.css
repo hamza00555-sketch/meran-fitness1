@@ -11,13 +11,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* ── Backgrounds: dark navy with depth ── */
-  --bg:       #080B14;
-  --bg1:      #0C1220;
-  --bg2:      #101928;
-  --bg3:      #182438;
-  --border:   #1E2D40;
-  --border2:  #253A52;
+  /* ── Backgrounds: near-black with a blue undertone ──
+     The ground sits just off pure black so OLED panels stay quiet and
+     the cards, one step lighter, separate cleanly without borders
+     doing all the work. Depth comes from the gap between these steps,
+     not from glow. */
+  --bg:       #050810;
+  --bg1:      #070B14;
+  --bg2:      #0A101C;
+  --bg3:      #111927;
+  --border:   #16202E;
+  --border2:  #1F2D40;
 
   /* ── Primary: Meran Green ──
      The triplet is the switch. Every border, shadow and gradient in the
@@ -27,8 +31,8 @@
   --cyan:     #5EC32A;
   --cyan-hi:  #A8F060;               /* the highlight a shimmer sweeps through */
   --cyan-lo:  rgba(var(--cyan-rgb),0.10);
-  --cyan-md:  rgba(var(--cyan-rgb), calc(0.25 * var(--glow-mul)));
-  --cyan-glow:rgba(var(--cyan-rgb), calc(0.15 * var(--glow-mul)));
+  --cyan-md:  rgba(var(--cyan-rgb), calc(0.22 * var(--glow-mul)));
+  --cyan-glow:rgba(var(--cyan-rgb), calc(0.11 * var(--glow-mul)));
 
   /* ── Mode dials ──
      Neutral at 1. A mode turns them instead of restating every rule:
@@ -85,7 +89,7 @@
 
   /* ── Gradients ── */
   --grad-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
-  --grad-hero:    linear-gradient(145deg, #0B1E14 0%, #0D1C2E 100%);
+  --grad-hero:    linear-gradient(145deg, #08130C 0%, #081020 100%);
   --grad-card:    linear-gradient(135deg, rgba(var(--cyan-rgb),0.06) 0%, rgba(var(--purple-rgb),0.04) 100%);
 }
 
@@ -621,19 +625,19 @@ input[type=number] { -moz-appearance: textfield; }
   --breath: 1.6;
 
   --grad-primary: linear-gradient(135deg, #86DFF8 0%, #2691BE 100%);
-  --grad-hero:    linear-gradient(145deg, #07121E 0%, #0A1E30 100%);
+  --grad-hero:    linear-gradient(145deg, #050C16 0%, #071626 100%);
 
   /* ── Cold surfaces ──
      The accent alone cannot make a room feel colder. The whole ground
      shifts a few degrees toward blue: same darkness, less warmth in
      it. Subtle on its own, and the reason the mode reads as
      temperature rather than as a recolour. */
-  --bg:      #070C16;
-  --bg1:     #0A1120;
-  --bg2:     #0E1A2A;
-  --bg3:     #16273B;
-  --border:  #1C3047;
-  --border2: #243D58;
+  --bg:      #04070E;
+  --bg1:     #060A13;
+  --bg2:     #08101C;
+  --bg3:     #0E1928;
+  --border:  #142232;
+  --border2: #1C3048;
   --text2:   #BCD4E8;
   --text3:   #5E7A8C;
 }
