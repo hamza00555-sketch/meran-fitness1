@@ -693,3 +693,107 @@ test('the calendar rims deload days without changing what they were', () => {
   assert.ok(kinds.size >= 1)
   assert.ok(!kinds.has('deload'), 'deload is a modifier, never a kind')
 })
+
+// ══ streaks across the month boundary ═════════════════════════
+//
+// Reported from the app: «the report says my longest streak was 12
+// days, and I am sure it was 15». It was. The month's runs were
+// counted after the ledger had been filtered to the month, so the
+// counter restarted on the 1st and a streak beginning in the previous
+// month was reported at whatever fraction of it landed after the
+// boundary.
+//
+// A custom pattern of one very long block makes every day a scheduled
+// training day, so nothing but a real miss can end a run and these
+// lengths are countable by hand. (There is no daysPerWeek: 7 — asking
+// for one silently falls back to the five-day pattern, whose scheduled
+// rests would quietly hold a run together.)
+const EVERY_DAY = { daysPerWeek: 'custom', customPattern: [365], overrides: [], restDays: [] }
+
+/** A trained day, given as "YYYY-MM-DD". */
+const dayS = (iso, i) => ({
+  id: new Date(`${iso}T10:00:00`).getTime() + i,
+  date: new Date(`${iso}T10:00:00`).toISOString(),
+  duration: 45,
+  exercises: [{ id: `s${i}`, muscle: 'Chest', name: 'Bench Press',
+    sets: [{ weight: '60', reps: '10', done: true }] }],
+})
+
+const range = (month, from, to) => {
+  const out = []
+  for (let d = from; d <= to; d++) out.push(`${month}-${String(d).padStart(2, '0')}`)
+  return out
+}
+
+const reportFor = (days, month) =>
+  buildMonthReport({ sessions: days.map(dayS), config: EVERY_DAY, month })
+
+test('a streak that began last month is not cut off at the 1st', () => {
+  // 25 Aug → 8 Sep: fifteen days, only twelve of them in September.
+  const r = reportFor([...range('2026-08', 25, 31), ...range('2026-09', 1, 8)], '2026-09')
+  const s = r.consistency.streaks.month
+  assert.equal(s.days, 15, 'the whole run, not the part inside the month')
+  assert.equal(s.start, '2026-08-25', 'reported from where it actually started')
+  assert.equal(r.consistency.bestStreak, 15, 'the ring and the poster show the same figure')
+})
+
+test('a streak spanning the 1st is flagged as carried over', () => {
+  const r = reportFor([...range('2026-08', 25, 31), ...range('2026-09', 1, 8)], '2026-09')
+  const { carried } = r.consistency.streaks
+  assert.ok(carried, 'one run lies on both sides of the 1st')
+  assert.equal(carried.start, '2026-08-25')
+  assert.equal(carried.days, 15)
+})
+
+test('a streak wholly inside the month is not flagged as carried', () => {
+  const r = reportFor(range('2026-09', 3, 12), '2026-09')
+  assert.equal(r.consistency.streaks.carried, null)
+  assert.equal(r.consistency.streaks.month.start, '2026-09-03')
+  assert.equal(r.consistency.streaks.month.days, 10)
+})
+
+test('the three categories are answered separately', () => {
+  // Twenty days in July, four in August, seven in September — so no
+  // two categories can agree by accident.
+  const r = reportFor([
+    ...range('2026-07', 1, 20),
+    ...range('2026-08', 5, 8),
+    ...range('2026-09', 10, 16),
+  ], '2026-09')
+  const { month, prevMonth, allTime } = r.consistency.streaks
+  assert.equal(month.days, 7, 'this month')
+  assert.equal(prevMonth.days, 4, 'the month before it')
+  assert.equal(allTime.days, 20, 'the record, wherever it happened')
+})
+
+test('a real miss breaks the run and the longer half wins', () => {
+  // Four days, then a gap nothing can pay for — four eligible days
+  // earn no rest credit — then eight days.
+  const r = reportFor([...range('2026-09', 1, 4), ...range('2026-09', 6, 13)], '2026-09')
+  assert.ok(r.consistency.missedDays.includes('2026-09-05'), 'the gap is a miss')
+  assert.equal(r.consistency.streaks.month.days, 8)
+  assert.equal(r.consistency.streaks.month.start, '2026-09-06')
+})
+
+test('a month with no history answers with nothing rather than zero-length runs', () => {
+  const r = reportFor(range('2026-09', 1, 3), '2026-09')
+  assert.equal(r.consistency.streaks.prevMonth, null, 'August never happened')
+  assert.equal(r.consistency.streaks.carried, null)
+})
+
+test('streakRuns holds a run through a paid rest and breaks it on a miss', async () => {
+  const { streakRuns } = await import('../src/monthReport.js')
+  const led = (spec) => [...spec].map((ch, i) => ({
+    date: `2026-08-${String(i + 1).padStart(2, '0')}`,
+    kind: ch === 'x' ? 'miss' : ch === 'p' ? 'paid' : 'workout',
+    completed: ch === 't', pending: false,
+  }))
+  // three days, a miss, then five days that a paid rest holds together
+  assert.deepEqual(streakRuns(led('tttxttpttt')).map(r => r.days), [3, 5])
+  assert.deepEqual(streakRuns([]), [])
+  // today, before you have trained, is not yet a miss
+  assert.equal(
+    streakRuns([...led('ttt'), { date: '2026-08-04', kind: 'miss', pending: true }])[0].days,
+    3,
+  )
+})

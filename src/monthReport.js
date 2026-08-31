@@ -149,6 +149,43 @@ function personalRecordsIn(sessions, month, mapping, resetAt) {
   return [...gains.values()].sort((a, b) => (b.weight - b.prevBest) - (a.weight - a.prevBest))
 }
 
+// ── Streak runs, over the whole ledger ────────────────────────
+//
+// A run is a maximal stretch of days with no miss in it; a paid rest
+// holds the run without adding to it, exactly as the ledger's own
+// streak counter treats it.
+//
+// Read across the FULL history, never within one month. Counting runs
+// inside a month-filtered ledger restarts the counter on the 1st, so a
+// streak that began in the previous month was reported at whatever
+// fraction of it happened to land after the boundary — a real 15-day
+// run showing as 12 because three of its days were in the month
+// before. A streak is a fact about your training, not about the
+// calendar it is printed on.
+export function streakRuns(ledger = []) {
+  const runs = []
+  let current = null
+  for (const r of ledger) {
+    // Today, before you have trained, is not yet a miss.
+    if (r.pending) continue
+    if (r.kind === 'miss') { current = null; continue }
+    if (!current) { current = { start: r.date, end: r.date, days: 0 }; runs.push(current) }
+    current.end = r.date
+    if (r.kind !== 'paid') current.days++
+  }
+  return runs.filter(r => r.days > 0)
+}
+
+const monthOf = (date) => String(date).slice(0, 7)
+const runTouches = (run, month) => monthOf(run.start) <= month && monthOf(run.end) >= month
+const longest = (runs) => runs.reduce((best, r) => (!best || r.days > best.days ? r : best), null)
+const shape = (run) => run && { days: run.days, start: run.start, end: run.end }
+
+const prevMonthOf = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+}
+
 // ── Consistency, read off the recovery ledger ─────────────────
 // computeRecovery already classifies every day as eligible / paid /
 // miss and we trust that classification everywhere else, so the report
@@ -156,25 +193,42 @@ function personalRecordsIn(sessions, month, mapping, resetAt) {
 function consistencyIn(sessions, config, month) {
   const lastDay = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`
   const recovery = computeRecovery(sessions, config, lastDay)
-  const rows = (recovery.ledger || []).filter(r => r.date.startsWith(month))
+  const all  = recovery.ledger || []
+  const rows = all.filter(r => r.date.startsWith(month))
 
   let trainedDays = 0, scheduledRests = 0, paidRests = 0
   const missedDays = []
-  let run = 0, bestStreak = 0
 
   for (const r of rows) {
-    if (r.kind === 'miss') { missedDays.push(r.date); run = 0; continue }
+    if (r.kind === 'miss') { missedDays.push(r.date); continue }
     if (r.kind === 'paid') { paidRests++; continue }          // holds the run, adds nothing
     if (r.completed) trainedDays++
     else scheduledRests++
-    run++
-    if (run > bestStreak) bestStreak = run
   }
+
+  // Three answers to "how long did I keep it up", because one number
+  // cannot say whether this month beat the last one or your own record.
+  const runs      = streakRuns(all)
+  const prev      = prevMonthOf(month)
+  const thisMonth = longest(runs.filter(r => runTouches(r, month)))
+  const lastMonth = longest(runs.filter(r => runTouches(r, prev)))
+  const allTime   = longest(runs)
+  // One run on both sides of the 1st: the streak you carried in.
+  const carried   = runs.find(r => runTouches(r, month) && runTouches(r, prev)) || null
 
   return {
     trainedDays, scheduledRests, paidRests,
     missedDays,
-    bestStreak,
+    // The month's longest run, at its true length. Kept under the old
+    // name so every existing reader — the ring, the poster — is
+    // corrected rather than left showing the truncated figure.
+    bestStreak: thisMonth?.days ?? 0,
+    streaks: {
+      month:     shape(thisMonth),
+      prevMonth: shape(lastMonth),
+      allTime:   shape(allTime),
+      carried:   shape(carried),
+    },
     endStreak: recovery.consistencyStreak,
     restCredits: recovery.restCredits,
     // A deload day keeps its own kind — trained, rest, missed — and

@@ -23,6 +23,92 @@ const DELOAD_INK = '#5CC9EE'
 
 const WEEK = ['أحد', 'إثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت']
 
+const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+                'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
+
+// "2026-08-25" → "25 أغسطس". Parsed by hand rather than through Date,
+// which would read a bare ISO date as UTC and slide it a day back for
+// anyone east of Greenwich.
+const dayLabel = (iso) => {
+  const [, m, d] = String(iso).split('-')
+  return `${AR(Number(d))} ${MONTHS[Number(m) - 1] || ''}`.trim()
+}
+
+// ── How long you kept it up, in three answers ─────────────────
+//
+// One number could not say whether this month beat the last one, or
+// whether either came near your own record — so it said none of it.
+// Runs are measured across the whole ledger, so a streak that began
+// before the 1st is reported at its true length rather than at the
+// slice of it that happens to fall inside this month.
+function Streaks({ streaks, run }) {
+  if (!streaks?.month && !streaks?.prevMonth && !streaks?.allTime) return null
+  const rows = [
+    { key: 'month',     label: 'هذا الشهر',        s: streaks.month,     color: 'var(--cyan)' },
+    { key: 'prevMonth', label: 'الشهر الماضي',     s: streaks.prevMonth, color: 'var(--text2)' },
+    { key: 'allTime',   label: 'الأطول على الإطلاق', s: streaks.allTime,   color: 'var(--gold)' },
+  ]
+  const isRecord = streaks.month && streaks.allTime && streaks.month.days === streaks.allTime.days
+
+  return (
+    <div
+      className={run ? 'mr-rise' : undefined}
+      style={{
+        '--i': 4, marginBottom: 14, opacity: run ? undefined : 0,
+        background: 'var(--bg2)', border: '1px solid var(--border)',
+        borderRadius: 14, padding: '12px 14px',
+      }}
+    >
+      <div style={{
+        fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 800,
+        color: 'var(--text2)', marginBottom: 8,
+      }}>أطول سلسلة</div>
+
+      {rows.map(({ key, label, s, color }) => (
+        <div key={key} style={{
+          display: 'flex', alignItems: 'baseline', gap: 8, padding: '4px 0',
+        }}>
+          <span style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
+            {label}
+          </span>
+          {s ? (
+            <>
+              <span style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>
+                {dayLabel(s.start)} — {dayLabel(s.end)}
+              </span>
+              <b style={{
+                fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800, color,
+                fontVariantNumeric: 'tabular-nums',
+              }}>{AR(s.days)}</b>
+            </>
+          ) : (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--text3)' }}>—</span>
+          )}
+        </div>
+      ))}
+
+      {isRecord && (
+        <div style={{
+          marginTop: 6, fontFamily: 'var(--font-ar)', fontSize: 11,
+          color: 'var(--gold)', fontWeight: 700,
+        }}>🏆 رقمك القياسي — ما وصلت له من قبل</div>
+      )}
+
+      {/* One run on both sides of the 1st. Without saying so, the same
+          number appearing twice reads as two separate achievements. */}
+      {streaks.carried && (
+        <div style={{
+          marginTop: 6, fontFamily: 'var(--font-ar)', fontSize: 11,
+          color: 'var(--text2)', lineHeight: 1.7,
+        }}>
+          🔗 سلسلة واحدة ممتدة من الشهر الماضي — بدأت {dayLabel(streaks.carried.start)}
+          {' '}وطولها {AR(streaks.carried.days)} يوم
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Consistency({ report }) {
   const [ref, run, active] = useReveal()
   const c = report.consistency
@@ -59,6 +145,8 @@ export default function Consistency({ report }) {
                 color={c.missedDays.length ? '#EF4444' : 'var(--text)'} />
         </div>
       </div>
+
+      <Streaks streaks={c.streaks} run={run} />
 
       {/* ── The month ── */}
       <div
