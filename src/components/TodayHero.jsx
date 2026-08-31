@@ -9,26 +9,20 @@ import { planDayTitle } from '../utils.js'
 //
 // Layout after حمزة's reference mockup:
 //
-//   chips row      — day-kind pill (+ deload day count / lighter-% pill)
+//   chips row      — day-kind pill · exercise count · deload / credits
 //   title          — the day's name, the biggest text on the page
-//   meta line      — exercise count · rough duration (tap → preview)
 //   lower zone     — controls column at the inline-start, the big
 //                    visual at the inline-end, faded into the surface
 //   primary CTA    — ابدأ التمرين, strongest element on the page
-//   skip           — a bare text link under the CTA
+//   two quiet      — عرض التمارين · تخطي اليوم, paired under it
+//
+// Everything a chip can say, a chip says: the count and the deload's
+// numbers used to be sentences, and sentences made the card tall
+// without making it clearer.
 //
 // The visual never leaves the card: it is anchored fully inside and
 // its edges dissolve through a radial mask, so it reads as part of
 // the surface instead of a sticker cropped by the border.
-
-function estimateMinutes(sessions, exerciseCount) {
-  const timed = (sessions || []).filter(s => s.duration > 0).slice(-5).map(s => s.duration)
-  if (timed.length >= 2) {
-    const sorted = [...timed].sort((a, b) => a - b)
-    return Math.round(sorted[Math.floor(sorted.length / 2)])
-  }
-  return exerciseCount * 8
-}
 
 function sessionContext(active) {
   if (!active?.exercises?.length) return null
@@ -86,7 +80,7 @@ function HeroVisual({ isTraining, deload }) {
 
 const pill = {
   display: 'inline-flex', alignItems: 'center', gap: 6,
-  padding: '5px 12px', borderRadius: 999,
+  padding: '4px 10px', borderRadius: 999,
   fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 800,
   lineHeight: 1.4, whiteSpace: 'nowrap',
 }
@@ -111,10 +105,7 @@ export default function TodayHero({
   const onDeload = !!deload?.active
 
   const ctx = useMemo(() => sessionContext(active), [active])
-  const minutes = useMemo(
-    () => estimateMinutes(sessions, currentPlanDay?.exercises?.length || 5),
-    [sessions, currentPlanDay],
-  )
+  const exCount = currentPlanDay?.exercises?.length || 0
 
   const resting = isRecoveryDay && !active
   const tone = resting ? 'var(--purple)' : 'var(--cyan)'
@@ -138,15 +129,22 @@ export default function TodayHero({
   // phone, so the size is fluid and the label never wraps: a
   // two-line primary button reads as a mistake, not as emphasis.
   const ctaStyle = {
-    padding: '15px 10px', fontSize: 'clamp(14px, 4.1vw, 16px)', whiteSpace: 'nowrap',
+    padding: '14px 10px', fontSize: 'clamp(14px, 4.1vw, 16px)', whiteSpace: 'nowrap',
   }
 
-  // A real action, so it stays readable. Its quietness comes from
-  // having no fill next to a filled button, not from being dim.
-  const skipLink = {
-    background: 'none', border: 'none', padding: '6px',
+  // The two secondary actions sit as a pair under the button. Real
+  // actions, so they stay readable: their quietness comes from having
+  // no fill beside a filled button, not from being dim. The size is
+  // fluid because this column is ~150px wide on a 320px phone.
+  const quietBtn = {
+    flex: 1, minWidth: 0, padding: '9px 2px',
+    background: 'none', border: '1px solid var(--border2)', borderRadius: 10,
     color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-    fontSize: 13, fontWeight: 600, cursor: 'pointer',
+    fontSize: 'clamp(10px, 3vw, 12.5px)', fontWeight: 700,
+    // No nowrap here, unlike the CTA: on a 320px phone this column
+    // leaves ~72px per button and the label would be cut. A secondary
+    // button on two lines is fine; a clipped label never is.
+    lineHeight: 1.35, cursor: 'pointer',
   }
 
   return (
@@ -155,7 +153,7 @@ export default function TodayHero({
       background: 'var(--bg1)',
       border: '1px solid var(--border)',
       borderRadius: 20,
-      padding: '16px 18px 14px',
+      padding: '13px 16px 12px',
       marginBottom: 'var(--hp-card-mb)',
       overflow: 'hidden',
     }}>
@@ -166,7 +164,7 @@ export default function TodayHero({
           it as plain text, which is what they are. */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 10, flexWrap: 'wrap', marginBottom: 13,
+        gap: 8, flexWrap: 'wrap', marginBottom: 9,
       }}>
         <span style={{ ...pill, background: toneLo, border: `1px solid ${toneMd}`, color: tone }}>
           {active ? (
@@ -178,10 +176,21 @@ export default function TodayHero({
           ) : null}
           {statusWord}
         </span>
+        {/* How many exercises — a count beside the day, where the kind
+            of day is already stated, instead of a sentence of its own. */}
+        {!active && !resting && exCount > 0 && (
+          <span style={{
+            ...pill, background: 'var(--bg3)', border: '1px solid var(--border2)',
+            color: 'var(--text2)', fontFamily: 'var(--font-mono)',
+            // Bidi puts a trailing × in front of the digit in an RTL
+            // paragraph, so "6×" came out "×6". The chip is one LTR run.
+            direction: 'ltr',
+          }}>{toWesternDigits(exCount)}×</span>
+        )}
         {onDeload && (
           <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>
             اليوم {toWesternDigits(deload.day)} من {toWesternDigits(deload.totalDays)}
-            {' · '}أخف {toWesternDigits(deload.pct)}٪
+            {' · '}<span style={{ direction: 'ltr', display: 'inline-block' }}>−{toWesternDigits(deload.pct)}%</span>
           </span>
         )}
         {/* Rest credits: a count beside the day, not a sentence above
@@ -200,41 +209,37 @@ export default function TodayHero({
 
       <div style={titleStyle}>{title}</div>
 
-      <div style={{ ...metaStyle, marginTop: 6 }}>
-        {active && ctx ? (
-          <>
-            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text2)' }}>{ctx.name}</span>
-            {' · '}سيت {toWesternDigits(ctx.setNo)} من {toWesternDigits(ctx.setTotal)}
-            {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
-          </>
-        ) : resting ? (
-          <>
-            لن يُحتسب غياباً ولن يكسر الستريك.
-            {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>}
-          </>
-        ) : currentPlanDay ? (
-          <span
-            onClick={() => setShowSheet(true)}
-            style={{ cursor: 'pointer' }}
-            title="اعرض تمارين اليوم"
-          >
-            {toWesternDigits(currentPlanDay.exercises.length)} تمارين · ≈ {toWesternDigits(minutes)} دقيقة
-            <span style={{ color: 'var(--cyan)', marginInlineStart: 6, fontSize: 11 }}>عرض ←</span>
-          </span>
-        ) : (
-          'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
-        )}
-      </div>
+      {/* Only the states that have something to say say it. A planned
+          day's count is a chip above and its exercises are a button
+          below, so it needs no line of its own. */}
+      {(active && ctx) || resting || !currentPlanDay ? (
+        <div style={{ ...metaStyle, marginTop: 5 }}>
+          {active && ctx ? (
+            <>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text2)' }}>{ctx.name}</span>
+              {' · '}سيت {toWesternDigits(ctx.setNo)} من {toWesternDigits(ctx.setTotal)}
+              {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
+            </>
+          ) : resting ? (
+            <>
+              لن يُحتسب غياباً ولن يكسر الستريك.
+              {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>}
+            </>
+          ) : (
+            'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
+          )}
+        </div>
+      ) : null}
 
       {/* ── Lower zone ──
           Two real columns, not a floating image over a button: the
           controls and the visual are flex siblings, so nothing can
           ever be printed on top of the primary action. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 15 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 11 }}>
 
         <div style={{
           flex: '1 1 auto', minWidth: 0,
-          display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 9,
+          display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8,
         }}>
           {active ? (
             <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
@@ -250,7 +255,7 @@ export default function TodayHero({
                 fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
               }}>أشعر أنني قادر على التمرين</button>
               {currentPlanDay && (
-                <button onClick={() => setShowSheet(true)} style={{ ...skipLink, alignSelf: 'center' }}>
+                <button onClick={() => setShowSheet(true)} style={quietBtn}>
                   تمارين الغد ←
                 </button>
               )}
@@ -262,9 +267,10 @@ export default function TodayHero({
                 ⚡ ابدأ التمرين
               </button>
               {currentPlanDay && (
-                <button onClick={onSkip} style={{ ...skipLink, alignSelf: 'center' }}>
-                  تخطي اليوم ←
-                </button>
+                <div style={{ display: 'flex', gap: 7 }}>
+                  <button onClick={() => setShowSheet(true)} style={quietBtn}>عرض التمارين</button>
+                  <button onClick={onSkip} style={quietBtn}>تخطي اليوم</button>
+                </div>
               )}
             </>
           )}
@@ -274,7 +280,7 @@ export default function TodayHero({
             the controls' height, with the art overspilling inside it. */}
         <div style={{
           flex: '0 1 38%', maxWidth: 168, minWidth: 0, alignSelf: 'stretch',
-          minHeight: 128, position: 'relative',
+          minHeight: 116, position: 'relative',
         }}>
           <HeroVisual isTraining={!resting} deload={onDeload} />
         </div>
