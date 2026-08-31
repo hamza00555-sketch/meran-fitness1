@@ -151,17 +151,20 @@ function personalRecordsIn(sessions, month, mapping, resetAt) {
 
 // ── Streak runs, over the whole ledger ────────────────────────
 //
-// A run is a maximal stretch of days with no miss in it; a paid rest
-// holds the run without adding to it, exactly as the ledger's own
-// streak counter treats it.
+// A run is a maximal stretch of days with no miss in it: a scheduled
+// rest and a paid rest both hold it together, and only a day you were
+// meant to train and did not breaks it.
+//
+// What the run is WORTH is its training days, and nothing else. That
+// is the number the flame on the home screen counts, so it is the
+// number in your head — «I never had an 18-day streak» is right when
+// eighteen was the eligible days and fifteen were sessions. Rest days
+// keep a streak alive; they were never part of its length.
 //
 // Read across the FULL history, never within one month. Counting runs
 // inside a month-filtered ledger restarts the counter on the 1st, so a
 // streak that began in the previous month was reported at whatever
-// fraction of it happened to land after the boundary — a real 15-day
-// run showing as 12 because three of its days were in the month
-// before. A streak is a fact about your training, not about the
-// calendar it is printed on.
+// fraction of it happened to land after the boundary.
 export function streakRuns(ledger = []) {
   const runs = []
   let current = null
@@ -170,30 +173,30 @@ export function streakRuns(ledger = []) {
     if (r.pending) continue
     if (r.kind === 'miss') { current = null; continue }
     if (!current) {
-      current = { start: r.date, end: r.date, days: 0, trained: 0, span: 0 }
+      current = { start: r.date, end: r.date, days: 0, span: 0 }
       runs.push(current)
     }
-    current.end = r.date
     current.span++
-    // A scheduled rest is part of the streak — you did what the week
-    // asked. An optional rest holds the run without adding to it. So
-    // one run has three honest lengths, and showing only the middle
-    // one next to its dates is what makes it look wrong: «18» beside
-    // «26 July — 18 August» is 24 days of calendar, 18 of them
-    // counted, and however many of those were actually training.
-    if (r.kind !== 'paid') current.days++
-    if (r.completed) current.trained++
+    // Only a training day lengthens a streak. A rest day inside it is
+    // why the run is still alive, not a day of it — so it moves `end`
+    // no further than the last session did.
+    if (r.completed) { current.days++; current.end = r.date }
   }
   return runs.filter(r => r.days > 0)
 }
 
 const monthOf = (date) => String(date).slice(0, 7)
-const runTouches = (run, month) => monthOf(run.start) <= month && monthOf(run.end) >= month
 const longest = (runs) => runs.reduce((best, r) => (!best || r.days > best.days ? r : best), null)
 const shape = (run) => run && {
-  days: run.days, trained: run.trained, span: run.span,
-  start: run.start, end: run.end,
+  days: run.days, span: run.span, start: run.start, end: run.end,
 }
+
+// A run belongs to the month it ENDED in — the month you completed it.
+//
+// Attributing it to every month it touched instead made one long
+// streak the answer to all three questions at once: this month 18,
+// last month 18, all time 18, which tells you nothing and reads as a
+// bug. A streak has one home.
 
 const prevMonthOf = (month) => {
   const [y, m] = month.split('-').map(Number)
@@ -224,11 +227,12 @@ function consistencyIn(sessions, config, month) {
   // cannot say whether this month beat the last one or your own record.
   const runs      = streakRuns(all)
   const prev      = prevMonthOf(month)
-  const thisMonth = longest(runs.filter(r => runTouches(r, month)))
-  const lastMonth = longest(runs.filter(r => runTouches(r, prev)))
+  const endedIn   = (m) => longest(runs.filter(r => monthOf(r.end) === m))
+  const thisMonth = endedIn(month)
+  const lastMonth = endedIn(prev)
   const allTime   = longest(runs)
-  // One run on both sides of the 1st: the streak you carried in.
-  const carried   = runs.find(r => runTouches(r, month) && runTouches(r, prev)) || null
+  // This month's streak began before the 1st: the one you carried in.
+  const carried   = thisMonth && monthOf(thisMonth.start) < month ? thisMonth : null
 
   return {
     trainedDays, scheduledRests, paidRests,
