@@ -61,8 +61,17 @@ function Streaks({ streaks, run }) {
     >
       <div style={{
         fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 800,
-        color: 'var(--text2)', marginBottom: 8,
+        color: 'var(--text2)', marginBottom: 2,
       }}>أطول سلسلة</div>
+      {/* Without this, the number looks wrong to the person who lived
+          it: they count the days they trained, and the streak counts
+          every day they did what the week asked. */}
+      <div style={{
+        fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)',
+        lineHeight: 1.7, marginBottom: 8,
+      }}>
+        يوم الراحة المجدولة محسوب من السلسلة · يوم الراحة الاختياري يحفظها بلا زيادة
+      </div>
 
       {rows.map(({ key, label, s, color }) => (
         <div key={key} style={{
@@ -76,6 +85,9 @@ function Streaks({ streaks, run }) {
               <span style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>
                 {dayLabel(s.start)} — {dayLabel(s.end)}
               </span>
+              <span style={{
+                fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap',
+              }}>منها {AR(s.trained)} تمرين</span>
               <b style={{
                 fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800, color,
                 fontVariantNumeric: 'tabular-nums',
@@ -102,7 +114,7 @@ function Streaks({ streaks, run }) {
           color: 'var(--text2)', lineHeight: 1.7,
         }}>
           🔗 سلسلة واحدة ممتدة من الشهر الماضي — بدأت {dayLabel(streaks.carried.start)}
-          {' '}وطولها {AR(streaks.carried.days)} يوم
+          {' '}واستمرت {AR(streaks.carried.span)} يوماً على التقويم
         </div>
       )}
     </div>

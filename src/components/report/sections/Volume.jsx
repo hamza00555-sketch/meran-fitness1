@@ -84,7 +84,42 @@ export default function Volume({ report }) {
               {DIRECTION[volume.direction].label}
             </span>
           </div>
+          {/* What the chart is for, said once. It answers a different
+              question from the figure above it — that one compares this
+              month with the last, this one asks which way the month
+              moved inside itself — and without saying so the card can
+              show «up» and «down» at the same time and look broken. */}
+          <div style={{
+            fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)',
+            lineHeight: 1.7, marginBottom: 8, marginTop: -2,
+          }}>
+            كل نقطة يوم تمرين، والخط المتقطع متوسط أيامك — الاتجاه هنا داخل الشهر نفسه، لا مقارنة بالشهر الماضي
+          </div>
+
           <TrendChart series={volume.series} direction={volume.direction} />
+
+          {/* The two verdicts, reconciled when they disagree. */}
+          {trend !== null && volume.direction !== 'flat' &&
+           ((trend >= 0) !== (volume.direction === 'up')) && (
+            <div style={{
+              marginTop: 8, fontFamily: 'var(--font-ar)', fontSize: 11,
+              color: 'var(--text2)', lineHeight: 1.7,
+            }}>
+              {trend >= 0
+                ? 'مجموع الشهر أعلى من الشهر الماضي، لكن أيامك داخل الشهر كانت تخفّ تدريجياً.'
+                : 'مجموع الشهر أقل من الشهر الماضي، لكن أيامك داخل الشهر كانت تثقل تدريجياً.'}
+            </div>
+          )}
+
+          {/* A taper is not a slump, and the band alone does not say so. */}
+          {volume.deloadDays > 0 && (
+            <div style={{
+              marginTop: 6, fontFamily: 'var(--font-ar)', fontSize: 11,
+              color: '#5CC9EE', lineHeight: 1.7,
+            }}>
+              💧 المظلّل أيام ديلود — خفيفة بقصد، ومستثناة من حساب الاتجاه
+            </div>
+          )}
         </div>
       )}
 

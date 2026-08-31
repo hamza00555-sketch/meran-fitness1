@@ -169,9 +169,20 @@ export function streakRuns(ledger = []) {
     // Today, before you have trained, is not yet a miss.
     if (r.pending) continue
     if (r.kind === 'miss') { current = null; continue }
-    if (!current) { current = { start: r.date, end: r.date, days: 0 }; runs.push(current) }
+    if (!current) {
+      current = { start: r.date, end: r.date, days: 0, trained: 0, span: 0 }
+      runs.push(current)
+    }
     current.end = r.date
+    current.span++
+    // A scheduled rest is part of the streak — you did what the week
+    // asked. An optional rest holds the run without adding to it. So
+    // one run has three honest lengths, and showing only the middle
+    // one next to its dates is what makes it look wrong: «18» beside
+    // «26 July — 18 August» is 24 days of calendar, 18 of them
+    // counted, and however many of those were actually training.
     if (r.kind !== 'paid') current.days++
+    if (r.completed) current.trained++
   }
   return runs.filter(r => r.days > 0)
 }
@@ -179,7 +190,10 @@ export function streakRuns(ledger = []) {
 const monthOf = (date) => String(date).slice(0, 7)
 const runTouches = (run, month) => monthOf(run.start) <= month && monthOf(run.end) >= month
 const longest = (runs) => runs.reduce((best, r) => (!best || r.days > best.days ? r : best), null)
-const shape = (run) => run && { days: run.days, start: run.start, end: run.end }
+const shape = (run) => run && {
+  days: run.days, trained: run.trained, span: run.span,
+  start: run.start, end: run.end,
+}
 
 const prevMonthOf = (month) => {
   const [y, m] = month.split('-').map(Number)

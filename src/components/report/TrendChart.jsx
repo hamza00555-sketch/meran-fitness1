@@ -67,6 +67,13 @@ export default function TrendChart({ series = [], direction = 'flat', color }) {
   const lo = series.reduce((a, p) => (p.value < a.value ? p : a), series[0])
   const hi = series.reduce((a, p) => (p.value > a.value ? p : a), series[0])
 
+  // The average, drawn. Without a reference the line is a shape with
+  // no size: you cannot tell whether the swing between the lowest and
+  // highest day is a real difference or the scale magnifying noise.
+  // Every point can now be read as above or below a typical day.
+  const avg = Math.round(values.reduce((a, v) => a + v, 0) / values.length)
+  const avgY = y(avg)
+
   return (
     <div
       ref={ref}
@@ -109,6 +116,23 @@ export default function TrendChart({ series = [], direction = 'flat', color }) {
             </g>
           )
         })}
+
+        {/* The average day, as a quiet rule across the plot. */}
+        <g style={{ opacity: run ? 1 : 0, transition: reduced ? 'none' : 'opacity .5s ease .55s' }}>
+          <line
+            x1={PAD.left} y1={avgY} x2={W - PAD.right} y2={avgY}
+            stroke="var(--text3)" strokeWidth="1" strokeOpacity="0.55" strokeDasharray="2 4"
+          />
+          {/* Anchored at the start edge: at the end it collided with
+              the last point's marker and ran past the card's padding.
+              direction:ltr keeps the thousands separator in place —
+              the surrounding paragraph is RTL. */}
+          <text
+            x={PAD.left + 2} y={avgY - 4} textAnchor="start"
+            fill="var(--text3)" fontSize="9" fontFamily="var(--font-mono)"
+            style={{ direction: 'ltr' }}
+          >{avg.toLocaleString('en-US')}</text>
+        </g>
 
         {/* Baseline, so a line near the floor still has a floor. */}
         <line
