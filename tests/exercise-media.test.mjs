@@ -21,7 +21,7 @@ globalThis.localStorage = {
 const { MUSCLE_GROUPS } = await import('../src/constants.js')
 const {
   EXERCISE_MEDIA, ANIMATED_EXERCISES, EQUIP_LABELS,
-  mediaSlotFor, animSlotFor, arabicName, equipLabel,
+  mediaSlotFor, animSlotFor, arabicName, equipLabel, wordSetKey,
 } = await import('../src/exerciseMedia.js')
 
 const catalogue = Object.values(MUSCLE_GROUPS).flatMap(g => (g.exercises || []).map(e => e.name))
@@ -64,4 +64,64 @@ test('a user alias reaches the canonical artwork', () => {
   // resolveExerciseName lowercases through the mapping; the map has to
   // survive that round trip.
   assert.equal(mediaSlotFor('bench press'), 'ex_bench_press')
+})
+
+// ── The word-set fallback ─────────────────────────────────────
+//
+// People type the same movement with the words in a different order, a
+// singular where the catalogue has a plural, or the handle named as
+// part of the exercise. That used to fall past every rung of the media
+// ladder and land on a generic emoji.
+
+test('the same words in another order find the same artwork', () => {
+  assert.equal(mediaSlotFor('Rope Triceps Pushdown'), 'ex_triceps_pushdown')
+  assert.equal(
+    mediaSlotFor('Overhead Cable Triceps Extension'),
+    mediaSlotFor('Cable Overhead Triceps Extension'),
+  )
+})
+
+test('tricep and triceps are the same word, and rope is a handle', () => {
+  // The exact name that sent حمزة's screenshot to a generic emoji.
+  assert.equal(mediaSlotFor('Tricep Rope Pushdown'), 'ex_triceps_pushdown')
+  assert.equal(arabicName('Tricep Rope Pushdown'), arabicName('Triceps Pushdown'))
+})
+
+test('exercises that differ by equipment or position never share a picture', () => {
+  // Each of these is a real, distinct movement. Matching one to a
+  // neighbour would show the wrong machine mid-set, which is worse
+  // than showing nothing at all.
+  for (const name of [
+    'Cable Chest Press', 'Chest Press Machine', 'Close Grip Bench Press',
+    'Seated Calf Raise', 'Smith Machine Bench Press',
+  ]) {
+    assert.equal(mediaSlotFor(name), null, name)
+  }
+})
+
+test('an explicit row always beats the fallback', () => {
+  assert.equal(mediaSlotFor('Bench Press'), 'ex_bench_press')
+  assert.equal(mediaSlotFor('Incline Bench Press'), 'ex_incline_bench_press')
+})
+
+test('no two catalogue exercises collide on the word-set key', () => {
+  // The guard that keeps the fallback safe as the catalogue grows: if
+  // a new exercise is ever ambiguous with an existing one, it fails
+  // here rather than showing the wrong artwork in the gym.
+  const seen = new Map()
+  const collisions = []
+  for (const name of Object.keys(EXERCISE_MEDIA)) {
+    const key = wordSetKey(name)
+    if (seen.has(key)) collisions.push([seen.get(key), name])
+    seen.set(key, name)
+  }
+  assert.deepEqual(collisions, [])
+})
+
+test('the key ignores order, case and punctuation but nothing else', () => {
+  assert.equal(wordSetKey('Seated Cable Row'), wordSetKey('cable seated row'))
+  assert.equal(wordSetKey('Push-Up'), wordSetKey('push up'))
+  assert.notEqual(wordSetKey('Standing Calf Raise'), wordSetKey('Seated Calf Raise'))
+  assert.equal(wordSetKey(''), '')
+  assert.equal(wordSetKey(null), '')
 })

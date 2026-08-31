@@ -186,9 +186,56 @@ const lower = new Map(Object.entries(EXERCISE_MEDIA).map(([k, v]) => [k.toLowerC
 const animSet = new Set(ANIMATED_EXERCISES)
 for (const [k, v] of Object.entries(EXERCISE_MEDIA)) v.anim = animSet.has(k)
 
+// ── The last resort: the same words in a different order ──────
+//
+// People type «Tricep Rope Pushdown» for what the catalogue calls
+// «Triceps Pushdown», and alternative lists carry «Overhead Cable
+// Triceps Extension» for «Cable Overhead Triceps Extension». Same
+// movement, same picture, no row of its own — and the exercise fell
+// all the way to a generic emoji.
+//
+// The key is the set of a name's words, so order never matters, with
+// two narrow normalisations: a handful of spellings that are the same
+// word (tricep/triceps, db/dumbbell), and «rope», which names the
+// handle rather than the movement.
+//
+// Deliberately narrow. Equipment and position words all stay
+// significant, because «Cable Chest Press» and «Chest Press Machine»
+// really are different exercises and must never share a picture. A
+// spec asserts no two rows in the map collide on this key, so the day
+// a new exercise would be ambiguous, the suite says so rather than the
+// app quietly showing the wrong machine.
+const SAME_WORD = {
+  tricep: 'triceps', bicep: 'biceps',
+  dumbell: 'dumbbell', db: 'dumbbell', bb: 'barbell', barbel: 'barbell',
+  curls: 'curl', raises: 'raise', presses: 'press', rows: 'row',
+  extensions: 'extension', flyes: 'fly', flys: 'fly', dips: 'dip',
+  squats: 'squat', lunges: 'lunge', pulldowns: 'pulldown',
+}
+const HANDLE_WORDS = new Set(['rope'])
+
+export function wordSetKey(name) {
+  const words = String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => SAME_WORD[w] || w)
+    .filter(w => !HANDLE_WORDS.has(w))
+  return [...new Set(words)].sort().join(' ')
+}
+
+const byWordSet = new Map()
+for (const [name, row] of Object.entries(EXERCISE_MEDIA)) {
+  const k = wordSetKey(name)
+  if (k) byWordSet.set(k, row)
+}
+
 function rowFor(name, mapping = {}) {
   if (!name) return null
   const direct = EXERCISE_MEDIA[name]
   if (direct) return direct
-  return lower.get(resolveExerciseName(name, mapping)) ?? null
+  const resolved = lower.get(resolveExerciseName(name, mapping))
+  if (resolved) return resolved
+  return byWordSet.get(wordSetKey(name)) ?? null
 }
