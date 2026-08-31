@@ -5,7 +5,7 @@ import ExerciseCard, { PRFlash } from '../components/ExerciseCard.jsx'
 import WorkoutPlayer from '../components/player/WorkoutPlayer.jsx'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, ls } from '../utils.js'
+import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, planDayType, ls } from '../utils.js'
 import { deloadWeight } from '../deload.js'
 import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
@@ -410,7 +410,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
                     borderRadius: 20, padding: '2px 9px',
                     fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)',
                     fontWeight: 700, marginBottom: 5, letterSpacing: 0.3,
-                  }}>{s.planDayName.split('—')[0].trim()}</span>
+                  }}>{planDayType({ name: s.planDayName, exercises: s.exercises })}</span>
                 )}
                 <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
                   {fmtDate(s.date)}

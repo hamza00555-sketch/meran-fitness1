@@ -197,7 +197,10 @@ const activeStored = (page) => page.evaluate(() => JSON.parse(localStorage.getIt
     t.endsAt = Date.now() - 300
     localStorage.setItem('hf_rest_timer', JSON.stringify(t))
   })
-  await page.waitForTimeout(2600)
+  await page
+    .waitForFunction(() => document.querySelectorAll('input[inputmode="decimal"]').length === 2,
+      null, { timeout: 8000 })
+    .catch(() => {})
 
   const after = await fields()
   ok('fresh: the next set carries what you just lifted', after[0] === '80' && after[1] === '12',
@@ -238,16 +241,22 @@ const activeStored = (page) => page.evaluate(() => JSON.parse(localStorage.getIt
     const row = [...document.querySelectorAll('button')].find(b => /Leg Curl/.test(b.textContent))
     row?.click()
   })
-  await page.waitForTimeout(3400)
-  ok('celebration: swiping away clears the card instead of freezing it',
-    !(await seen()).celebrating)
+  // Poll rather than sleep: on a loaded machine a fixed wait races the
+  // 1.6s dismissal and fails a check that is about locking, not speed.
+  const cleared = await page
+    .waitForFunction(() => !/مكتمل ✓/.test(document.body.innerText), null, { timeout: 8000 })
+    .then(() => true, () => false)
+  ok('celebration: swiping away clears the card instead of freezing it', cleared)
 
   await page.evaluate(() => {
     const t = JSON.parse(localStorage.getItem('hf_rest_timer') || '{}')
     t.endsAt = Date.now() - 300
     localStorage.setItem('hf_rest_timer', JSON.stringify(t))
   })
-  await page.waitForTimeout(2600)
+  await page
+    .waitForFunction(() => document.querySelectorAll('input[inputmode="decimal"]').length === 2,
+      null, { timeout: 8000 })
+    .catch(() => {})
   const back = await seen()
   ok('celebration: the working area comes back after the rest',
     back.workingArea && back.inputs === 2, JSON.stringify(back))

@@ -253,6 +253,52 @@ export const calc1RM = (weight, reps) => {
   return Math.round(w * (1 + r / 30) * 10) / 10
 }
 
+// ── What to call a plan day ───────────────────────────────────
+//
+// Plan days are stored as "<type> — <muscles>": "Push — صدر، أكتاف،
+// ترايسبس". The muscle list is what the day trains, not what the day
+// IS — and as a heading it is both long and beside the point, since
+// the exercises are one tap away in the day preview. The type is the
+// name.
+//
+// Plans saved by older versions name their days "Day 1", "Day 2",
+// which says nothing at all. When the leading label is that generic,
+// the type is read off the muscles the day actually trains, so those
+// plans get a real name too instead of a number.
+
+const PUSH_MUSCLES = new Set(['Chest', 'Shoulders', 'Triceps'])
+const PULL_MUSCLES = new Set(['Back', 'Biceps'])
+const LEG_MUSCLES  = new Set(['Legs', 'Glutes', 'Calves', 'Hamstrings', 'Quads'])
+
+// "Day 1", "يوم ٢", "3" — a label that numbers the day without naming it.
+const GENERIC_DAY_LABEL = /^(?:day|يوم)?\s*[\d\u0660-\u0669]*$/i
+
+export const planDayType = (day) => {
+  const raw   = String(day?.name ?? '')
+  const label = raw.split('—')[0].trim()
+  if (label && !GENERIC_DAY_LABEL.test(label)) return label
+
+  let push = 0, pull = 0, legs = 0
+  for (const ex of day?.exercises || []) {
+    if      (PUSH_MUSCLES.has(ex.muscle)) push++
+    else if (PULL_MUSCLES.has(ex.muscle)) pull++
+    else if (LEG_MUSCLES.has(ex.muscle))  legs++
+  }
+  // Core and cardio are accessories everywhere; they never name a day.
+  if (!push && !pull && !legs) return label || raw.trim()
+  if (legs >= push + pull)     return 'Legs'
+  if (push && !pull)           return 'Push'
+  if (pull && !push)           return 'Pull'
+  return legs ? 'Full Body' : 'Upper'
+}
+
+/** The type said as a heading: "Push" → "Push Day". */
+export const planDayTitle = (day) => {
+  const type = planDayType(day)
+  if (!type) return ''
+  return /(?:day|يوم)$/i.test(type) ? type : `${type} Day`
+}
+
 // ── Blank set ─────────────────────────────────────────────────
 export const blankSet = (prevWeight = '', prevReps = '') => ({
   weight: toWesternDigits(prevWeight ?? ''),

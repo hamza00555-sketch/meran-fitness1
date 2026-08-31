@@ -2,7 +2,7 @@ import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import { xpProgress, getRank } from '../utils.js'
+import { xpProgress, getRank, planDayType } from '../utils.js'
 import { MUSCLE_GROUPS, COMMITMENT_LEVELS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
 
@@ -15,14 +15,6 @@ function PlanProgressCard({ plan, planIndex }) {
   const overallPct    = Math.min(100, Math.round((planIndex / totalSessions) * 100))
   const isCompleted   = planIndex >= totalSessions
 
-  // Day label abbreviation: "Push A — صدر" → "Push". When the part
-  // before the dash is just "Day N" (every bubble would say "Day"),
-  // the subject after the dash is the label: "Day 3 — أرجل" → "أرجل".
-  const shortLabel = (name) => {
-    const parts = String(name).split('—').map(s => s.trim()).filter(Boolean)
-    const pick = parts.find(p => !/^day\s*\d*$/i.test(p)) || parts[0] || ''
-    return pick.split(' ')[0]
-  }
 
   return (
     <Card style={{ padding: '16px', marginBottom: 'var(--hp-card-mb)' }}>
@@ -83,7 +75,7 @@ function PlanProgressCard({ plan, planIndex }) {
                 fontFamily: 'var(--font-mono)', fontSize: 9,
                 color: isDone ? 'var(--cyan)' : isCurrent ? 'var(--text)' : 'var(--text3)',
                 fontWeight: isCurrent ? 700 : 400,
-              }}>{shortLabel(day.name)}</span>
+              }}>{planDayType(day)}</span>
             </div>
           )
         })}

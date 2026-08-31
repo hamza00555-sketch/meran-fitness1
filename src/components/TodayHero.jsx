@@ -3,6 +3,7 @@ import Art from '../assets/Art.jsx'
 import DayPreviewSheet from './DayPreviewSheet.jsx'
 import { DropletIcon } from './Icons.jsx'
 import { toWesternDigits } from '../day.js'
+import { planDayTitle } from '../utils.js'
 
 // ── Today Hero — the one card that answers "what now?" ────────
 //
@@ -125,9 +126,12 @@ export default function TodayHero({
     : resting ? 'يوم تعافٍ'
     : 'يوم تمرين'
 
-  const title = active ? (active.name || currentPlanDay?.name || 'تمرين حر')
+  // The day's name is its type — "Push Day" — not the muscles it
+  // trains; those are a tap away in the preview and far too long to
+  // be a heading.
+  const title = active ? (planDayTitle(active) || active.name || 'تمرين حر')
     : resting ? 'اليوم للراحة'
-    : currentPlanDay ? currentPlanDay.name
+    : currentPlanDay ? planDayTitle(currentPlanDay)
     : 'جلسة حرة'
 
   // The label sits in a column that is only ~150px wide on a 320px
@@ -180,6 +184,18 @@ export default function TodayHero({
             {' · '}أخف {toWesternDigits(deload.pct)}٪
           </span>
         )}
+        {/* Rest credits: a count beside the day, not a sentence above
+            the button. The ticket is the metaphor the recovery card
+            already uses for these, so it stays the ticket. */}
+        {!active && !resting && restCredits > 0 && (
+          <span
+            title={restCredits === 1 ? 'يوم راحة اختياري متاح' : `${toWesternDigits(restCredits)} أيام راحة اختيارية متاحة`}
+            style={{
+              ...pill, marginInlineStart: 'auto',
+              border: '1px solid var(--gold-md)', color: 'var(--gold)',
+              fontFamily: 'var(--font-mono)', fontSize: 12,
+            }}>🎟️ {toWesternDigits(restCredits)}</span>
+        )}
       </div>
 
       <div style={titleStyle}>{title}</div>
@@ -194,7 +210,7 @@ export default function TodayHero({
         ) : resting ? (
           <>
             لن يُحتسب غياباً ولن يكسر الستريك.
-            {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{currentPlanDay.name}</b></>}
+            {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>}
           </>
         ) : currentPlanDay ? (
           <span
@@ -220,13 +236,6 @@ export default function TodayHero({
           flex: '1 1 auto', minWidth: 0,
           display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 9,
         }}>
-          {!active && !resting && restCredits > 0 && (
-            <span style={{
-              ...pill, alignSelf: 'flex-start',
-              border: '1px solid var(--gold-md)', color: 'var(--gold)', fontSize: 12,
-            }}>🎟️ {restCredits === 1 ? 'يوم راحة اختياري متاح' : `${toWesternDigits(restCredits)} أيام راحة متاحة`}</span>
-          )}
-
           {active ? (
             <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
               style={ctaStyle}>

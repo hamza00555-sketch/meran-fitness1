@@ -5,7 +5,7 @@
 
 import { createPortal } from 'react-dom'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
-import { substitutedName, nextSubIndex, getExerciseStats } from '../utils.js'
+import { substitutedName, nextSubIndex, getExerciseStats, planDayTitle } from '../utils.js'
 
 export function findVideoUrl(name) {
   for (const group of Object.values(MUSCLE_GROUPS)) {
@@ -51,8 +51,15 @@ export default function DayPreviewSheet({ day, sessions, exerciseMapping, exerci
             تمارين اليوم
           </div>
           <div style={{ fontFamily: 'var(--font-ar)', fontSize: 19, fontWeight: 800, color: 'var(--text)' }}>
-            {day.name}
+            {planDayTitle(day)}
           </div>
+          {/* The muscle list left the heading, so it lands here — this
+              is the screen that is about the day's detail. */}
+          {String(day.name || '').includes('—') && (
+            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+              {day.name.split('—').slice(1).join('—').trim()}
+            </div>
+          )}
         </div>
 
         {/* Exercise list */}
