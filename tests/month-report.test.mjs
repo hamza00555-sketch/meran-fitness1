@@ -735,8 +735,23 @@ const range = (month, from, to) => {
   return out
 }
 
-const reportFor = (days, month) =>
-  buildMonthReport({ sessions: days.map(dayS), config: EVERY_DAY, month })
+// Streak runs are read from a ledger that walks up to TODAY, so these
+// fixtures need a today of their own — otherwise dates the suite treats
+// as history sit in the future and the ledger never reaches them.
+// October 5th is past every session written below.
+const withClock = (iso, fn) => {
+  const real = Date
+  const fixed = new real(`${iso}T10:00:00Z`).getTime()
+  globalThis.Date = class extends real {
+    constructor(...a) { super(...(a.length ? a : [fixed])) }
+    static now() { return fixed }
+  }
+  try { return fn() } finally { globalThis.Date = real }
+}
+
+const reportFor = (days, month, today = '2026-10-05') =>
+  withClock(today, () =>
+    buildMonthReport({ sessions: days.map(dayS), config: EVERY_DAY, month }))
 
 test('a streak that began last month is not cut off at the 1st', () => {
   // 25 Aug → 8 Sep: fifteen sessions, only twelve of them in September.
@@ -825,4 +840,23 @@ test('streakRuns breaks on a miss and survives an empty ledger', async () => {
   )
   // a stretch of rest days with no session in it is not a streak
   assert.deepEqual(streakRuns(led('ppp')), [])
+})
+
+test('a streak still running past the month end is seen in full', () => {
+  // The reported case: two sessions at the end of August and thirteen
+  // in September — read from AUGUST's report, which is the one the
+  // window offers in early September. The streak ledger used to stop
+  // at the last day of the month being reported, so the September half
+  // was invisible and «الأطول على الإطلاق» could not be all time.
+  const r = reportFor([...range('2026-08', 30, 31), ...range('2026-09', 1, 13)], '2026-08')
+  assert.equal(r.consistency.streaks.allTime.days, 15, 'two in August plus thirteen in September')
+  // August's own row falls back to the run that was still going, so the
+  // month you plainly trained through is not left blank.
+  assert.equal(r.consistency.streaks.month.days, 15)
+  assert.equal(r.consistency.streaks.month.ongoing, true, 'and it says the streak had not finished')
+})
+
+test('a finished streak is not marked as ongoing', () => {
+  const r = reportFor(range('2026-09', 3, 12), '2026-09')
+  assert.equal(r.consistency.streaks.month.ongoing, false)
 })

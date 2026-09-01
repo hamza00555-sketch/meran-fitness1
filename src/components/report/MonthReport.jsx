@@ -174,21 +174,41 @@ export default function MonthReport({ report, onClose, onShare, sharing = false 
           }}
         >✕</button>
         <div style={{ flex: 1 }} />
+        {/* The glyph alone, squared off to match the close button
+            opposite it. The label was spending a third of the header's
+            width on a word the icon already says; the accessible name
+            carries it instead, and the spinner keeps the state
+            visible while a poster is being drawn. */}
         <button
           onClick={onShare}
           disabled={sharing}
+          aria-label={sharing ? 'جارٍ تجهيز الصورة' : 'مشاركة التقرير'}
+          title={sharing ? 'جارٍ التجهيز…' : 'مشاركة'}
           style={{
             pointerEvents: 'auto',
-            display: 'flex', alignItems: 'center', gap: 7,
-            height: 36, padding: '0 14px', borderRadius: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 36, height: 36, borderRadius: 12,
             background: 'var(--cyan)', border: 'none',
-            color: '#06210A', fontFamily: 'var(--font-ar)',
-            fontSize: 13, fontWeight: 800, cursor: sharing ? 'wait' : 'pointer',
+            color: '#06210A', cursor: sharing ? 'wait' : 'pointer',
             opacity: sharing ? 0.7 : 1,
             boxShadow: '0 0 16px var(--cyan-glow)',
           }}
         >
-          {sharing ? 'جارٍ التجهيز…' : '↗ مشاركة'}
+          {sharing ? (
+            <span className="spin" style={{
+              width: 15, height: 15, borderRadius: '50%',
+              border: '2px solid rgba(6,33,10,0.35)', borderTopColor: '#06210A',
+              display: 'block',
+            }} />
+          ) : (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"
+                 stroke="currentColor" strokeWidth="2.1"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 16V4" />
+              <path d="M7.5 8.5 12 4l4.5 4.5" />
+              <path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" />
+            </svg>
+          )}
         </button>
       </div>
 

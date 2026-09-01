@@ -187,8 +187,12 @@ export function streakRuns(ledger = []) {
 
 const monthOf = (date) => String(date).slice(0, 7)
 const longest = (runs) => runs.reduce((best, r) => (!best || r.days > best.days ? r : best), null)
-const shape = (run) => run && {
+const shape = (run, month) => run && {
   days: run.days, span: run.span, start: run.start, end: run.end,
+  // Still going when the month ended — it belongs here, but it has not
+  // finished, and a report that shows it without saying so is claiming
+  // a completed streak that is actually still being written.
+  ongoing: !!month && monthOf(run.end) > month,
 }
 
 // A run belongs to the month it ENDED in — the month you completed it.
@@ -210,8 +214,19 @@ const prevMonthOf = (month) => {
 function consistencyIn(sessions, config, month) {
   const lastDay = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`
   const recovery = computeRecovery(sessions, config, lastDay)
-  const all  = recovery.ledger || []
-  const rows = all.filter(r => r.date.startsWith(month))
+  const rows = (recovery.ledger || []).filter(r => r.date.startsWith(month))
+
+  // Streaks are read from a ledger that runs to TODAY, not to the end
+  // of the month being reported.
+  //
+  // The month's own figures — days trained, missed, the calendar —
+  // belong to the month and stop at its last day. A streak does not:
+  // a run that began in late August and continued into September is
+  // fifteen sessions long whichever month's report you happen to be
+  // reading, and «الأطول على الإطلاق» has to mean all time or it means
+  // nothing. Reading it off the month-bounded ledger cut every streak
+  // that was still going when the month ended.
+  const all = computeRecovery(sessions, config).ledger || []
 
   let trainedDays = 0, scheduledRests = 0, paidRests = 0
   const missedDays = []
@@ -227,8 +242,15 @@ function consistencyIn(sessions, config, month) {
   // cannot say whether this month beat the last one or your own record.
   const runs      = streakRuns(all)
   const prev      = prevMonthOf(month)
-  const endedIn   = (m) => longest(runs.filter(r => monthOf(r.end) === m))
-  const thisMonth = endedIn(month)
+  const endedIn = (m) => longest(runs.filter(r => monthOf(r.end) === m))
+  // The month's own row falls back to a run that was still going when
+  // the month closed, so a report is never blank about a month you
+  // plainly trained through. The fallback cannot collide with the
+  // previous month's row, which stays strictly "ended here": a run
+  // that outlives this month ended after it, not in the one before.
+  const overlapping = (m) =>
+    longest(runs.filter(r => monthOf(r.start) <= m && monthOf(r.end) >= m))
+  const thisMonth = endedIn(month) || overlapping(month)
   const lastMonth = endedIn(prev)
   const allTime   = longest(runs)
   // This month's streak began before the 1st: the one you carried in.
@@ -242,10 +264,10 @@ function consistencyIn(sessions, config, month) {
     // corrected rather than left showing the truncated figure.
     bestStreak: thisMonth?.days ?? 0,
     streaks: {
-      month:     shape(thisMonth),
-      prevMonth: shape(lastMonth),
+      month:     shape(thisMonth, month),
+      prevMonth: shape(lastMonth, prev),
       allTime:   shape(allTime),
-      carried:   shape(carried),
+      carried:   shape(carried, month),
     },
     endStreak: recovery.consistencyStreak,
     restCredits: recovery.restCredits,

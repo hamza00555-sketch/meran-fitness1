@@ -84,6 +84,9 @@ function Streaks({ streaks, run }) {
             <>
               <span style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>
                 {dayLabel(s.start)} — {dayLabel(s.end)}
+                {/* Still running when the month closed. Without this the
+                    row claims a finished streak that is still growing. */}
+                {s.ongoing && <span style={{ color: 'var(--cyan)' }}> · مستمرة</span>}
               </span>
               <b style={{
                 fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800, color,
