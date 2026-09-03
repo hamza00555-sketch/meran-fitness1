@@ -1,0 +1,164 @@
+{
+  "name": "Meran",
+  "source": "hamza00555-sketch/meran-fitness1 @ bbbeb97",
+  "direction": "rtl",
+  "colorScheme": "dark-only",
+
+  "color": {
+    "surface": {
+      "base":   { "value": "#050810", "use": "page ground — sits just off pure black so OLED panels stay quiet" },
+      "raised": { "value": "#070B14", "use": "hero card, the one card that leads a screen" },
+      "card":   { "value": "#0A101C", "use": "standard card surface" },
+      "inset":  { "value": "#111927", "use": "inputs, wells, anything recessed into a card" }
+    },
+    "border": {
+      "subtle": { "value": "#16202E", "use": "default card and divider edge" },
+      "strong": { "value": "#1F2D40", "use": "interactive edges — steppers, quiet buttons" }
+    },
+    "ink": {
+      "DEFAULT": { "value": "#EEF4FF", "use": "primary text, headings, live numbers" },
+      "muted":   { "value": "#B8D0E8", "use": "secondary text that still must be read" },
+      "subtle":  { "value": "#6E8899", "use": "labels and captions — 5.3:1 on surface.raised, the floor" }
+    },
+    "primary": {
+      "rgb":  { "value": "94,195,42", "use": "THE SWITCH — every border, shadow and gradient is authored as rgba(var(--primary-rgb), …) so a mode redefines one triplet and the whole app follows" },
+      "DEFAULT": { "value": "#5EC32A", "use": "actions only — the button you are meant to press" },
+      "hi":   { "value": "#A8F060", "use": "the highlight a shimmer sweeps through" }
+    },
+    "secondary": {
+      "rgb":  { "value": "59,157,232" },
+      "DEFAULT": { "value": "#3B9DE8", "use": "rest and recovery — the side of the app that is NOT training" },
+      "deep": { "value": "#1A75C0" }
+    },
+    "reward":  { "value": "#F59E0B", "use": "XP, rest credits, personal records — earned things" },
+    "success": { "value": "#22C55E", "use": "completion state only, never an action" },
+    "warning": { "value": "#F97316", "use": "streak heat" },
+    "danger":  { "value": "#EF4444", "use": "destructive only — ending, deleting, breaking" },
+
+    "alpha": {
+      "wash": { "value": 0.10, "use": "tinted fill behind a chip or pill" },
+      "edge": { "value": 0.22, "use": "tinted border on a tinted fill" },
+      "glow": { "value": 0.11, "use": "outer glow, scaled by dial.glow" }
+    }
+  },
+
+  "dial": {
+    "glow":   { "value": 1, "use": "how hard the accent burns. A mode turns this instead of restating every shadow" },
+    "breath": { "value": 1, "use": "tempo multiplier for every idle animation" }
+  },
+
+  "font": {
+    "sans": { "value": "'Changa', 'Zanjabeel', sans-serif", "use": "all Arabic and UI text — Changa is primary, Zanjabeel the bundled fallback" },
+    "mono": { "value": "'Oxanium', ui-monospace, monospace", "use": "every number the user reads or compares — always with tabular-nums" }
+  },
+
+  "fontSize": {
+    "2xs":     { "value": "11px", "use": "chips, bubble labels, legend text" },
+    "xs":      { "value": "12px", "use": "captions and secondary meta — the workhorse" },
+    "sm":      { "value": "14px", "use": "body" },
+    "md":      { "value": "17px", "use": "lead text and primary button label" },
+    "lg":      { "value": "20px", "use": "section and sheet titles" },
+    "xl":      { "value": "27px", "use": "screen title — one per screen" },
+    "display": { "value": "40px", "use": "the single hero number a screen is about" }
+  },
+
+  "fontWeight": {
+    "regular": { "value": 500, "use": "body — the document default" },
+    "medium":  { "value": 700, "use": "labels and most UI text" },
+    "bold":    { "value": 800, "use": "buttons, numbers, emphasis" },
+    "black":   { "value": 900, "use": "screen titles and display numbers only" }
+  },
+
+  "lineHeight": {
+    "tight": { "value": 1.25, "use": "titles and display numbers" },
+    "snug":  { "value": 1.4,  "use": "chips and single-line UI" },
+    "base":  { "value": 1.5,  "use": "body — the document default" },
+    "loose": { "value": 1.7,  "use": "Arabic prose and multi-line explanation" }
+  },
+
+  "radius": {
+    "xs":    { "value": "6px",   "use": "inner details, tiny swatches" },
+    "sm":    { "value": "10px",  "use": "quiet buttons, list rows, small cards" },
+    "md":    { "value": "14px",  "use": "primary button, standard card" },
+    "lg":    { "value": "20px",  "use": "hero card — the one that leads the screen" },
+    "pill":  { "value": "999px", "use": "chips and status pills" },
+    "round": { "value": "50%",   "use": "steppers, avatars, day bubbles" }
+  },
+
+  "space": {
+    "1":  { "value": "4px",  "use": "hairline gaps inside a chip" },
+    "2":  { "value": "8px",  "use": "gap between related controls — the workhorse" },
+    "3":  { "value": "12px", "use": "gap between blocks inside a card" },
+    "4":  { "value": "16px", "use": "card padding" },
+    "6":  { "value": "24px", "use": "gap between sections" },
+    "8":  { "value": "32px", "use": "major section break" },
+    "card-pad": { "value": "clamp(12px, 3.2vw, 18px)", "use": "fluid card padding — shrinks on a 320px phone" },
+    "card-gap": { "value": "clamp(10px, 2.6vw, 16px)", "use": "fluid gap inside a card row" },
+    "card-mb":  { "value": "clamp(14px, 3.5vw, 20px)", "use": "fluid gap between stacked cards" }
+  },
+
+  "elevation": {
+    "card":    { "value": "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)", "use": "glass card" },
+    "action":  { "value": "0 4px 20px rgba(var(--primary-rgb),0.32), 0 0 0 1px rgba(var(--primary-rgb),0.15)", "use": "primary button — the only element that glows in its own colour" }
+  },
+
+  "gradient": {
+    "primary": { "value": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)", "use": "primary button fill" },
+    "hero":    { "value": "linear-gradient(145deg, #08130C 0%, #081020 100%)", "use": "hero card ground" }
+  },
+
+  "safeArea": {
+    "top":    { "value": "env(safe-area-inset-top, 0px)" },
+    "bottom": { "value": "env(safe-area-inset-bottom, 0px)" }
+  },
+
+  "modes": {
+    "deload": {
+      "trigger": "[data-deload=\"1\"] on <html>",
+      "intent": "A week of deliberately lighter weights, legible at a glance without reading a label. Not a tint — the accent, the corner radius, the glow strength and the tempo all move together.",
+      "overrides": {
+        "color.primary.rgb": "92,201,238",
+        "color.primary": "#5CC9EE",
+        "color.primary.hi": "#BEEDFF",
+        "color.secondary.rgb": "138,147,201",
+        "color.secondary": "#8894C4",
+        "color.surface.base": "#04070E",
+        "color.surface.raised": "#060A13",
+        "color.surface.card": "#08101C",
+        "color.surface.inset": "#0E1928",
+        "color.border.subtle": "#142232",
+        "color.border.strong": "#1C3048",
+        "color.ink.muted": "#BCD4E8",
+        "color.ink.subtle": "#6C8A9D",
+        "radius.md": "16px",
+        "radius.lg": "22px",
+        "dial.glow": 0.55,
+        "dial.breath": 1.6
+      },
+      "note": "The secondary must move when the primary takes blue. A rest card and a training card in the same colour would erase the one distinction the home screen depends on."
+    }
+  },
+
+  "rules": [
+    "Author the accent as rgba(var(--primary-rgb), …) — never a hex literal. A mode redefines one triplet and every border, shadow and gradient follows. Scattered literals are how a mode breaks.",
+    "Depth comes from the gap between surface steps, not from glow. Cards separate because they are one step lighter, and borders only assist.",
+    "Primary is for actions. Secondary owns rest and recovery. They may never resolve to the same hue — see the deload mode, where the secondary steps aside precisely because the primary takes blue.",
+    "Danger red is reserved for destructive actions. A frequent, harmless action (skipping a rest) must not wear it, or the colour stops meaning anything.",
+    "Success green marks a completed state and is never an action. It is a different green from primary on purpose; if the two are ever confusable at a glance, the primary wins and success becomes a checkmark.",
+    "Every number the user reads or compares is set in the mono face with tabular-nums, so digits do not shift width as they change.",
+    "ink.subtle is the contrast floor, not a decoration: 5.3:1 on surface.raised. Nothing that must be read goes below it.",
+    "A mode turns dials — dial.glow, dial.breath — rather than restating the rules it wants to change.",
+    "The document is RTL. Use logical properties (inline-start / inline-end), never left / right.",
+    "A Latin run inside Arabic text needs its own direction:ltr, or bidi reorders trailing marks: «6×» renders «×6», «−40%» renders «40%−».",
+    "Fluid space tokens (card-pad, card-gap, card-mb) exist because the layout must survive a 320px phone. Prefer them over fixed values for anything that stacks.",
+    "The primary button is the only element allowed to glow in its own colour. Everything else earns attention by position and size."
+  ],
+
+  "debt": [
+    "646 hardcoded px font sizes across JSX and zero rem rules — the type scale is documented here but not yet enforced, and the OS text-size setting has no effect on the app.",
+    "Two colour tokens resolved to the same value before this pass: secondary (#3B9DE8) and a separate blue (#3B9DE8). Collapsed into secondary.",
+    "Alpha steps were inconsistent per colour (0.10 / 0.12 for wash, 0.22 / 0.25 / 0.30 for edge). Collapsed to two steps: wash 0.10, edge 0.22.",
+    "Shipped radius tokens (18 / 12 / 6) did not match real usage (10, 12, 14, 20 dominate). The scale here follows the code, not the old declarations.",
+    "18 text elements ship at 9px or below — under the 2xs floor defined here."
+  ]
+}

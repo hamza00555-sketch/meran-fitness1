@@ -1,0 +1,174 @@
+/* ── Meran — extracted design system ──────────────────────────
+   Read off the shipped styling of meran-fitness1 @ bbbeb97, not
+   invented. Names describe role, not appearance: the accent is
+   --primary because it marks actions, and it stays --primary in the
+   deload mode where it is no longer green.
+
+   The one rule the whole file rests on: chrome is authored against
+   --primary-rgb, never against a hex literal. That is why a mode can
+   redefine three lines and move every border, shadow and gradient in
+   the app at once. */
+
+:root {
+  /* ── Surfaces — depth is the gap between these steps, not glow ── */
+  --surface-base:    #050810;   /* page ground */
+  --surface-raised:  #070B14;   /* the card that leads a screen */
+  --surface-card:    #0A101C;   /* standard card */
+  --surface-inset:   #111927;   /* inputs and wells */
+  --border-subtle:   #16202E;
+  --border-strong:   #1F2D40;
+
+  /* ── Ink — subtle is the contrast floor (5.3:1 on raised) ── */
+  --ink:             #EEF4FF;
+  --ink-muted:       #B8D0E8;
+  --ink-subtle:      #6E8899;
+
+  /* ── Primary: actions. The triplet is the switch. ── */
+  --primary-rgb:     94,195,42;
+  --primary:         #5EC32A;
+  --primary-hi:      #A8F060;
+
+  /* ── Secondary: rest and recovery. Never the same hue as primary. ── */
+  --secondary-rgb:   59,157,232;
+  --secondary:       #3B9DE8;
+  --secondary-deep:  #1A75C0;
+
+  /* ── Semantic ── */
+  --reward:          #F59E0B;   /* XP, credits, records */
+  --success:         #22C55E;   /* completed state, never an action */
+  --warning:         #F97316;
+  --danger:          #EF4444;   /* destructive only */
+
+  /* ── Alpha steps — two, uniform across every colour ── */
+  --wash:            0.10;
+  --edge:            0.22;
+  --glow:            0.11;
+
+  /* ── Mode dials — a mode turns these instead of restating rules ── */
+  --dial-glow:       1;
+  --dial-breath:     1;
+
+  /* ── Type ── */
+  --font-sans:       'Changa', 'Zanjabeel', sans-serif;
+  --font-mono:       'Oxanium', ui-monospace, monospace;
+
+  --text-2xs:        11px;
+  --text-xs:         12px;
+  --text-sm:         14px;
+  --text-md:         17px;
+  --text-lg:         20px;
+  --text-xl:         27px;
+  --text-display:    40px;
+
+  --weight-regular:  500;
+  --weight-medium:   700;
+  --weight-bold:     800;
+  --weight-black:    900;
+
+  --leading-tight:   1.25;
+  --leading-snug:    1.4;
+  --leading-base:    1.5;
+  --leading-loose:   1.7;
+
+  /* ── Radii ── */
+  --radius-xs:       6px;
+  --radius-sm:       10px;
+  --radius-md:       14px;
+  --radius-lg:       20px;
+  --radius-pill:     999px;
+  --radius-round:    50%;
+
+  /* ── Space ── */
+  --space-1:         4px;
+  --space-2:         8px;
+  --space-3:         12px;
+  --space-4:         16px;
+  --space-6:         24px;
+  --space-8:         32px;
+
+  /* Fluid — the layout has to survive a 320px phone */
+  --space-card-pad:  clamp(12px, 3.2vw, 18px);
+  --space-card-gap:  clamp(10px, 2.6vw, 16px);
+  --space-card-mb:   clamp(14px, 3.5vw, 20px);
+
+  /* ── Elevation ── */
+  --elevation-card:   0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+  --elevation-action: 0 4px 20px rgba(var(--primary-rgb),0.32),
+                      0 0 0 1px rgba(var(--primary-rgb),0.15);
+
+  --gradient-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
+  --gradient-hero:    linear-gradient(145deg, #08130C 0%, #081020 100%);
+
+  --safe-top:        env(safe-area-inset-top, 0px);
+  --safe-bottom:     env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Deload mode ──────────────────────────────────────────────
+   One attribute on <html> and the app changes register. Not a tint:
+   accent, radius, glow and tempo move together, so a week of
+   deliberately lighter weights is legible without reading a label.
+
+   The secondary has to move too. In normal mode it IS this blue, and
+   it marks the rest side of the home screen — a rest card and a
+   training card in the same colour would erase the one distinction
+   that screen depends on. */
+:root[data-deload="1"] {
+  --primary-rgb:    92,201,238;      /* glacier, not sky — ~195° reads as ice */
+  --primary:        #5CC9EE;
+  --primary-hi:     #BEEDFF;
+
+  --secondary-rgb:  138,147,201;     /* steps aside to cool periwinkle */
+  --secondary:      #8894C4;
+  --secondary-deep: #59649C;
+
+  /* Cold surfaces: same darkness, less warmth in it. This is why the
+     mode reads as temperature rather than as a recolour. */
+  --surface-base:   #04070E;
+  --surface-raised: #060A13;
+  --surface-card:   #08101C;
+  --surface-inset:  #0E1928;
+  --border-subtle:  #142232;
+  --border-strong:  #1C3048;
+  --ink-muted:      #BCD4E8;
+  --ink-subtle:     #6C8A9D;
+
+  --radius-md:      16px;            /* rounder — the accent stops burning */
+  --radius-lg:      22px;
+  --dial-glow:      0.55;
+  --dial-breath:    1.6;             /* a breath instead of a pulse */
+
+  --gradient-primary: linear-gradient(135deg, #86DFF8 0%, #2691BE 100%);
+  --gradient-hero:    linear-gradient(145deg, #050C16 0%, #071626 100%);
+}
+
+/* ── Derived chrome — always through the triplet ── */
+:root {
+  --primary-wash: rgba(var(--primary-rgb), var(--wash));
+  --primary-edge: rgba(var(--primary-rgb), calc(var(--edge) * var(--dial-glow)));
+  --primary-glow: rgba(var(--primary-rgb), calc(var(--glow) * var(--dial-glow)));
+
+  --secondary-wash: rgba(var(--secondary-rgb), var(--wash));
+  --secondary-edge: rgba(var(--secondary-rgb), calc(var(--edge) * var(--dial-glow)));
+}
+
+html, body {
+  background: var(--surface-base);
+  color: var(--ink);
+  direction: rtl;                      /* logical properties only, never left/right */
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-base);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every number the user reads or compares. Tabular so digits do not
+   shift width as they change. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A Latin run inside Arabic text needs its own direction, or bidi
+   reorders trailing marks: «6×» renders «×6». */
+.ltr { direction: ltr; display: inline-block; }
