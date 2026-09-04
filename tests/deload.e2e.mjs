@@ -16,6 +16,7 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
+import { ACHIEVEMENTS } from '../src/constants.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
@@ -53,7 +54,7 @@ const DELOAD = { from: '2026-07-06', plannedUntil: '2026-07-12', pct: 40 }
 const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso`, optionally mid-deload. */
-async function open(iso, { deload = null, reduced = false } = {}) {
+async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, recovery = null } = {}) {
   const ctx = await browser.newContext({
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
@@ -63,14 +64,14 @@ async function open(iso, { deload = null, reduced = false } = {}) {
   page.on('pageerror', e => errors.push(String(e)))
   await page.route('**/*.r2.dev/**', r => r.abort())
 
-  await page.addInitScript(([sessions, recovery, iso]) => {
+  await page.addInitScript(([sessions, recovery, iso, unlocked]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     localStorage.setItem('hf_recovery', JSON.stringify(recovery))
     localStorage.setItem('hf_xp', '4200')
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
     localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
-    localStorage.setItem('hf_unlocked', JSON.stringify([]))
+    localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     localStorage.setItem('hf_weights_reset_v2', 'true')
     localStorage.setItem('hf_last_weights', JSON.stringify({ 'bench press': 80 }))
 
@@ -81,7 +82,7 @@ async function open(iso, { deload = null, reduced = false } = {}) {
       static now() { return fixed }
     }
     globalThis.Date = D
-  }, [SESSIONS, { ...BASE_RECOVERY, deload }, iso])
+  }, [sessions, recovery || { ...BASE_RECOVERY, deload }, iso, ACHIEVEMENTS.map(a => a.id)])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
@@ -348,13 +349,16 @@ for (const [iso, expect, label] of [
     } catch { route.abort() }
   })
 
-  await page.addInitScript(([sessions, recovery, iso]) => {
+  await page.addInitScript(([sessions, recovery, iso, unlocked]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     localStorage.setItem('hf_recovery', JSON.stringify(recovery))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
     localStorage.setItem('hf_weights_reset_v2', 'true')
     localStorage.setItem('hf_xp', '4200')
+    // A returning user: nothing left to unlock, so the pack offer is not
+    // buried under a stack of achievement toasts and a level-up screen.
+    localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     const real = Date
     const fixed = new real(iso).getTime()
     class D extends real {
@@ -362,7 +366,7 @@ for (const [iso, expect, label] of [
       static now() { return fixed }
     }
     globalThis.Date = D
-  }, [SESSIONS, { ...BASE_RECOVERY, deload: DELOAD }, '2026-07-08T10:00:00+03:00'])
+  }, [SESSIONS, { ...BASE_RECOVERY, deload: DELOAD }, '2026-07-08T10:00:00+03:00', ACHIEVEMENTS.map(a => a.id)])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
@@ -484,6 +488,89 @@ for (const [iso, expect, label] of [
     rimmed.every(t => /تمرّنت|راحة|غياب/.test(t)), rimmed.slice(0, 3).join(' | '))
 
   ok('report: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ The rest-day balance says what it spent ═══════════════════
+//
+// A credit is spent without a tap. The engine decides it while it
+// replays the calendar, so the streak on screen never collapses — but
+// unless the spend is named and dated, a paid day reads as a day that
+// silently vanished. That is what was reported: "I missed one day and
+// found no balance and a broken streak."
+
+/** Sessions on the given days of July 2026. */
+const julySessions = (...days) => days.map((n, i) => ({
+  id: Date.UTC(2026, 6, n) + i,
+  date: new Date(2026, 6, n, 18).toISOString(),
+  duration: 45,
+  exercises: [{
+    id: 'j' + i, muscle: 'Chest', name: 'Bench Press',
+    sets: [{ weight: '80', reps: '12', done: true }],
+  }],
+}))
+
+const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
+
+{
+  // Ten eligible days earn two credits; 11 July was a workout day and
+  // he did not go. Opened on the 12th.
+  const { ctx, page, errors } = await open('2026-07-12T10:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9),
+    recovery: CLEAN_RECOVERY,
+  })
+  await page.evaluate(() => document.querySelectorAll('details').forEach(d => { d.open = true }))
+  await page.waitForTimeout(300)
+
+  const spent = page.locator('[data-testid="credit-spent"]')
+  ok('credit: the spend is stated', await spent.count() === 1)
+  const text = (await spent.count()) ? await spent.innerText() : ''
+  // fmtDate renders ar-SA, so the date reads as a Hijri day and month.
+  ok('credit: it names the date it paid for', /السبت/.test(text), text)
+  ok('credit: it says what is left', /بقي لك رصيد واحد/.test(text), text)
+  ok('credit: it says the streak survived', /ستريكك سليم/.test(text), text)
+  ok('credit: no break warning while there is balance',
+    await page.locator('[data-testid="credit-warning"]').count() === 0)
+
+  // The screen was right before this happened — the Node specs pin that
+  // down — but the decision is still written to storage afterwards, so
+  // the day stays on the record as one that was bought.
+  const stored = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('hf_recovery') || '{}').restDays || [])
+  ok('credit: the spend is recorded after the fact',
+    stored.includes('2026-07-11'), JSON.stringify(stored))
+
+  await page.screenshot({ path: `${OUT}/credit-spent.png`, fullPage: false })
+  ok('credit: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // Both credits gone on the 11th and 12th. Opened on the 13th: a
+  // training day, an empty balance and a live ten-day streak — the last
+  // moment the warning is still worth giving.
+  const { ctx, page, errors } = await open('2026-07-13T10:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9),
+    recovery: CLEAN_RECOVERY,
+  })
+  await page.evaluate(() => document.querySelectorAll('details').forEach(d => { d.open = true }))
+  await page.waitForTimeout(300)
+
+  const warn = page.locator('[data-testid="credit-warning"]')
+  ok('credit: the break is warned about before it happens', await warn.count() === 1)
+  const wt = (await warn.count()) ? await warn.innerText() : ''
+  ok('credit: the warning says what is at stake', /ينكسر ستريكك/.test(wt), wt)
+  ok('credit: it warns about today, not a day already gone', /اليوم/.test(wt), wt)
+
+  // Both notices apply here — a day was paid for AND the balance is now
+  // empty. The fold has room for one line, and it must be the one that
+  // needs acting on today, not the one in red saying everything is fine.
+  const fold = await page.locator('summary').first().innerText()
+  ok('credit: the warning outranks the paid notice on the fold',
+    /ينكسر ستريكك/.test(fold) && !/ستريكك سليم/.test(fold), fold)
+
+  await page.screenshot({ path: `${OUT}/credit-warning.png`, fullPage: false })
+  ok('credit: no page errors on the warning state', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

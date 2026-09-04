@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday, applySubsToDay,
 } from './utils.js'
@@ -456,55 +456,38 @@ export default function App() {
   // ── Derived values ────────────────────────────────────────────
   const recovery = computeRecovery(sessions, recoveryCfg)
 
-  // A missed day zeroes the streak, and the streak is what funds the
-  // rest-day balance — so the credit would vanish exactly when it is
-  // needed. Re-run the engine with the pending days treated as covered
-  // to see what the balance really is before deciding to spend it.
-  const pendingDays = (recovery.missedDays || [])
-    .filter(d => d >= (recoveryCfg.autoSpendFrom || ''))
-  let affordable = recovery.restCredits
-  if (pendingDays.length) {
-    const covered = computeRecovery(sessions, {
-      ...recoveryCfg,
-      restDays: [...(recoveryCfg.restDays || []), ...pendingDays],
-    })
-    // What that streak has earned, less what it had already spent —
-    // the pending days are what we are deciding to buy, so they must
-    // not be counted as spent while working out the budget.
-    const alreadySpent = covered.streakStart
-      ? (recoveryCfg.restDays || []).filter(d => d >= covered.streakStart).length
-      : 0
-    affordable = Math.max(0, covered.creditsEarned - alreadySpent)
-  }
-  // ── Spend earned rest days automatically ─────────────────────
-  // A day you miss is covered by a stored rest day if you have one, so
-  // the streak survives without you having to open the app that day.
-  // With no balance left, the streak breaks — that is the whole point.
+  // ── Record what the engine already decided ───────────────────
+  // The engine spends credits itself while it replays the calendar, so
+  // the balance and the streak on screen are already true. This effect
+  // only writes those days down so the record survives, and tells you
+  // once when a day came out of your balance. If it never runs, nothing
+  // the user sees changes.
+  const autoPaidKey = (recovery.autoPaidDays || []).join(',')
   useEffect(() => {
+    const paid = autoPaidKey ? autoPaidKey.split(',') : []
     setRecoveryCfg(prev => {
-      // Only ever cover days from when this started; never retro-drain
-      // the balance across a user's whole past history.
       const from = prev.autoSpendFrom || todayKey()
       if (!prev.autoSpendFrom) return { ...prev, autoSpendFrom: from }
 
-      const coverable = (recovery.missedDays || []).filter(d => d >= from)
-      if (!coverable.length) return prev
+      const known = new Set(prev.restDays || [])
+      const fresh = paid.filter(d => !known.has(d))
+      if (!fresh.length) return prev
 
-      const credits = affordable ?? 0
-      if (credits < 1) return prev
-
-      const spend = coverable.slice(0, credits)   // oldest missed days first
-      setTimeout(() => pushAlert('🎟️',
-        spend.length === 1
-          ? `استُخدم يوم راحة من رصيدك — ستريكك مجمّد لا مكسور`
-          : `استُخدمت ${spend.length} أيام راحة من رصيدك — ستريكك مجمّد`), 0)
-      // Only the spent days are recorded; the balance recomputes itself.
+      // Only announce days from when auto-spending started; older ones
+      // are recorded silently.
+      const news = fresh.filter(d => d >= from)
+      if (news.length) {
+        setTimeout(() => pushAlert('🎟️',
+          news.length === 1
+            ? `استُخدم يوم راحة من رصيدك عن ${fmtDate(news[0])} — ستريكك مجمّد لا مكسور`
+            : `استُخدمت ${news.length} أيام راحة من رصيدك — ستريكك مجمّد`), 0)
+      }
       return {
         ...prev,
-        restDays: [...new Set([...(prev.restDays || []), ...spend])].slice(-120),
+        restDays: [...known, ...fresh].sort().slice(-120),
       }
     })
-  }, [recovery.missedDays, affordable, pushAlert])
+  }, [autoPaidKey, pushAlert])
 
   // The streak shown everywhere is the CONSISTENCY streak: a recovery
   // day taken as planned keeps it alive. calcStreak() counted raw

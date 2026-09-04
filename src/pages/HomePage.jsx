@@ -2,9 +2,10 @@ import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import { xpProgress, getRank, planDayType } from '../utils.js'
+import { xpProgress, getRank, planDayType, fmtDate } from '../utils.js'
 import { MUSCLE_GROUPS, COMMITMENT_LEVELS } from '../constants.js'
-import { DAY_STATUS } from '../recovery.js'
+import { DAY_STATUS, dayDiff } from '../recovery.js'
+import { todayKey } from '../day.js'
 
 function PlanProgressCard({ plan, planIndex }) {
   const schedule      = plan.weeklySchedule
@@ -133,6 +134,24 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   // than replacing it.
   const onDeload = !!deload?.active
 
+  // What the balance quietly paid for, and what happens when it empties.
+  // A credit is spent without asking — that is the point of it — so the
+  // spend has to be said out loud, with the date, or it reads as a
+  // streak that broke itself.
+  // Read from the paid-day history, not from what the engine decided on
+  // this pass: once the decision is written down the day is simply a
+  // paid day, and a notice that vanished the moment it was recorded
+  // would be no notice at all.
+  const paidDays      = recovery?.restTakenHistory || []
+  const lastPaidDay   = paidDays[paidDays.length - 1] || null
+  const paidRecently  = lastPaidDay && dayDiff(lastPaidDay, todayKey()) <= 7
+  // Today is a training day and there is nothing left to cover it, so
+  // this is the last moment the warning is still useful. Held back
+  // until the streak is worth a credit, or it fires on everybody's
+  // second day and stops meaning anything.
+  const atRisk = restCredits === 0 && !isRecoveryDay
+    && (recovery?.consistencyStreak || 0) >= 5
+
   const monthAgo = Date.now() - 30 * 86400000
   const monthSessions = sessions.filter(s => new Date(s.date) > monthAgo)
   const muscleSets = {}
@@ -259,13 +278,25 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           background: 'var(--bg2)', border: '1px solid var(--border)',
           borderRadius: 'var(--radius-sm)', padding: '12px 14px',
         }}>
-          <span style={{ fontSize: 16 }}>{isRecoveryDay ? '🌙' : '♻️'}</span>
-          <span style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
-            {isRecoveryDay
-              ? 'اكتملت الدورة — اليوم للتعافي'
-              : (recovery?.cycleLimit || 0) - (recovery?.workoutStreak || 0) === 1
-                ? 'باقي تمرين واحد على يوم الراحة'
-                : `التعافي على المسار · ${recovery?.workoutStreak || 0} من ${recovery?.cycleLimit || 0} في الدورة`}
+          <span style={{ fontSize: 16 }}>
+            {atRisk ? '🔴' : paidRecently ? '🎟️' : isRecoveryDay ? '🌙' : '♻️'}
+          </span>
+          <span style={{
+            flex: 1, fontFamily: 'var(--font-ar)', fontSize: 13, lineHeight: 1.6,
+            color: atRisk ? 'var(--red)' : paidRecently ? 'var(--gold)' : 'var(--text2)',
+            fontWeight: (atRisk || paidRecently) ? 700 : 400,
+          }}>
+            {/* An empty balance on a training day outranks the notice
+                about a day already paid for: one needs doing today. */}
+            {atRisk
+              ? 'لا رصيد راحة — إن لم تتمرّن اليوم ينكسر ستريكك'
+              : paidRecently
+                ? `غبت ${fmtDate(lastPaidDay)} — دُفع من رصيدك، وستريكك سليم`
+                : isRecoveryDay
+                  ? 'اكتملت الدورة — اليوم للتعافي'
+                  : (recovery?.cycleLimit || 0) - (recovery?.workoutStreak || 0) === 1
+                    ? 'باقي تمرين واحد على يوم الراحة'
+                    : `التعافي على المسار · ${recovery?.workoutStreak || 0} من ${recovery?.cycleLimit || 0} في الدورة`}
           </span>
           <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--cyan)', fontWeight: 700 }}>
             التفاصيل
@@ -341,6 +372,34 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
             </div>
           </div>
 
+          {/* The spend, named and dated. It happens without a tap, so
+              leaving it unsaid is what made a paid day look like a
+              streak that vanished on its own. */}
+          {paidRecently && (
+            <div data-testid="credit-spent" style={{
+              background: 'var(--bg2)', border: '1px solid var(--gold-md)',
+              borderRadius: 10, padding: '9px 11px', marginBottom: 10,
+              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text2)', lineHeight: 1.8,
+            }}>
+              🎟️ يوم <b style={{ color: 'var(--gold)' }}>{fmtDate(lastPaidDay)}</b> كان يوم تمرين وغبت عنه — دُفع من رصيدك.
+              {' '}{restCredits === 0 ? 'لم يبقَ لك رصيد.'
+                : restCredits === 1 ? 'بقي لك رصيد واحد.'
+                : `بقي لك ${restCredits} أرصدة.`}
+              {' '}ستريكك سليم (<span style={{ direction: 'ltr', display: 'inline-block' }}>{recovery?.consistencyStreak || 0}</span> يوم).
+            </div>
+          )}
+
+          {/* And the warning before the break, not the notice after it. */}
+          {atRisk && (
+            <div data-testid="credit-warning" style={{
+              background: 'var(--red-lo)', border: '1px solid var(--red)',
+              borderRadius: 10, padding: '9px 11px', marginBottom: 10,
+              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)', lineHeight: 1.8, fontWeight: 700,
+            }}>
+              🔴 لا رصيد راحة — اليوم يوم تمرين، وإن غبت عنه ينكسر ستريكك
+              (<span style={{ direction: 'ltr', display: 'inline-block' }}>{recovery?.consistencyStreak || 0}</span> يوم)
+            </div>
+          )}
           <div style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
             marginBottom: 5,

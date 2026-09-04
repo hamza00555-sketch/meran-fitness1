@@ -202,16 +202,56 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     return e.logged ? 'paid' : 'miss'
   }
 
-  // Where the current streak begins. A settings change made over quota
-  // deliberately ends the streak; the reset day itself does not count, so
-  // the streak reads 0 straight away and builds again from the next day.
-  // Today can never be a miss — it is still unfolding.
-  let startIdx = dayLog.length
-  for (let i = dayLog.length - 1; i >= 0; i--) {
-    const e = dayLog[i]
-    if (resetAt && e.date <= resetAt) break
-    if (e.date !== today && kindOf(e) === 'miss') break
-    startIdx = i
+  // Where the current streak begins, and which missed days the balance
+  // absorbs on its own.
+  //
+  // This has to be walked FORWARDS. Whether a missed day breaks the run
+  // depends on what had been earned by the time that day arrived, and
+  // that is only knowable in order. Scanning backwards for the last miss
+  // — which is what this used to do — cut the run at every miss whether
+  // or not there was a credit sitting there to cover it. One skipped
+  // workout therefore read as: streak zero, balance zero, everything
+  // before it gone. The true numbers were then restored from outside by
+  // a side effect that wrote a rest day into storage, so the collapsed
+  // state was what the app showed until that write landed — and what it
+  // kept showing if the write never happened.
+  //
+  // A credit is spent here, the moment it is needed. Storage records the
+  // decision afterwards; it no longer makes it.
+  const autoPaid = new Set()
+  let startIdx = 0
+  {
+    let earned = 0, spent = 0, progress = 0
+    // The run restarts, but days already bought stay bought: they were
+    // paid for out of a balance that really existed at the time. Wiping
+    // them here would reclassify a settled day as a miss the moment a
+    // later, unrelated break came along.
+    const restart = (i) => { startIdx = i + 1; earned = 0; spent = 0; progress = 0 }
+    for (let i = 0; i < dayLog.length; i++) {
+      const e = dayLog[i]
+      // A settings change made over quota deliberately ends the streak;
+      // the reset day itself does not count, so the streak reads 0
+      // straight away and builds again from the next day.
+      if (resetAt && e.date <= resetAt) { restart(i); continue }
+      const kind = kindOf(e)
+      // Today can never be a miss — it is still unfolding.
+      if (kind === 'miss' && e.date !== today) {
+        if (earned - spent >= 1) { spent++; autoPaid.add(e.date) }
+        else restart(i)
+      } else if (kind === 'paid') {
+        spent++
+      } else {
+        progress++
+        if (progress === REST_CREDIT_EVERY) { earned++; progress = 0 }
+      }
+    }
+  }
+
+  // A missed day the balance covered is a rest day that was bought, and
+  // every reader downstream should see it as one.
+  const effectiveKind = (e) => {
+    const k = kindOf(e)
+    return k === 'miss' && autoPaid.has(e.date) ? 'paid' : k
   }
 
   // ── Rest-day ledger ────────────────────────────────────────
@@ -239,7 +279,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
 
   for (let i = 0; i < dayLog.length; i++) {
     const e = dayLog[i]
-    const kind = kindOf(e)
+    const kind = effectiveKind(e)
     const inRun = i >= startIdx
     const row = {
       date: e.date,
@@ -281,10 +321,12 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const recoveryDayHistory = past.filter(e => !e.trained && e.expected === DAY_STATUS.RECOVERY).map(e => e.date)
   // Only days actually bought with a credit; a tap on a scheduled recovery
   // day belongs to recoveryDayHistory above, not here.
-  const restTakenHistory   = past.filter(e => kindOf(e) === 'paid').map(e => e.date)
+  const restTakenHistory   = past.filter(e => effectiveKind(e) === 'paid').map(e => e.date)
   // A workout day that was neither trained nor logged as rest: this is
   // what breaks the consistency streak, and what the UI offers to fix.
-  const missedDays = past.filter(e => kindOf(e) === 'miss').map(e => e.date)
+  // Only the misses nothing could pay for: these are what actually break
+  // the streak. Days the balance absorbed are in autoPaidDays instead.
+  const missedDays = past.filter(e => effectiveKind(e) === 'miss').map(e => e.date)
   const brokenBy   = missedDays.length ? missedDays[missedDays.length - 1] : null
   const lastRest = [...recoveryDayHistory, ...restTakenHistory].sort().pop() || null
   const lastWorkout = sortedDates[sortedDates.length - 1]
@@ -311,6 +353,9 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     recoveryDayHistory,
     restTakenHistory,
     missedDays,
+    // Days a credit covered on its own. App persists these into
+    // restDays so the decision is auditable — it does not make it.
+    autoPaidDays: [...autoPaid].sort(),
     streakStart,       // first day of the running consistency streak
     brokenBy,          // most recent day that broke the streak, if any
     loggedRestToday: loggedRest.has(today),

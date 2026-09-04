@@ -352,3 +352,96 @@ test('a streak reset does not carry old rewards or old spends across', () => {
   assert.equal(r.creditsEarned, 1)
   assert.equal(r.creditProgress, 1)
 })
+
+// ══ the balance pays for a missed day by itself ═══════════════
+//
+// Reported from real use: "I had a ten-day streak and two rest days
+// banked, I missed ONE day, and I opened the app to find no balance and
+// a broken streak."
+//
+// It was reproducible. The engine used to find the start of the run by
+// scanning backwards for the last miss, so any unpaid miss cut the run
+// and everything behind it — the streak AND the rewards it had earned —
+// vanished from the count. The real numbers came back only afterwards,
+// from a side effect in App.jsx that recomputed with the missed days
+// assumed paid and then wrote a rest day into storage. The collapsed
+// state was the default and the truth arrived by a write.
+//
+// Now the walk goes forwards and spends the credit at the moment it is
+// needed. These specs assert the numbers are right on the FIRST call,
+// with nothing written and no restDays supplied.
+
+test('one missed day on a ten-day streak costs a credit, not the streak', () => {
+  // Trained days 1,3,5,7,9 — ten eligible days, two rewards. Day 11 was
+  // a workout day and he did not go. Nothing is in restDays.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), CFG, day(12))
+  assert.equal(r.restCredits, 1, 'two earned, one spent on the missed day')
+  assert.equal(r.consistencyStreak, 10, 'the streak survives — it was paid for')
+  assert.deepEqual(r.missedDays, [], 'the balance absorbed it')
+  assert.deepEqual(r.autoPaidDays, [day(11)])
+})
+
+test('the true numbers need no write to appear', () => {
+  // The same history through a config that has never been touched: no
+  // restDays, no autoSpendFrom. There is no moment at which the balance
+  // or the streak reads zero.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), { daysPerWeek: 3 }, day(12))
+  assert.notEqual(r.restCredits, 0)
+  assert.notEqual(r.consistencyStreak, 0)
+})
+
+test('two missed days spend both credits and the streak still holds', () => {
+  // Days 11 and 12 both gone. Two rewards, two days, balance to zero.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), CFG, day(13))
+  assert.equal(r.restCredits, 0, 'both spent')
+  assert.equal(r.consistencyStreak, 10, 'still unbroken')
+  assert.deepEqual(r.autoPaidDays, [day(11), day(12)])
+  assert.deepEqual(r.missedDays, [])
+})
+
+test('the third missed day is the one that breaks it', () => {
+  // This is the user's own model: the first two come out of the
+  // balance, the third has nothing left to pay it and cuts the run.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), CFG, day(14))
+  assert.deepEqual(r.autoPaidDays, [day(11), day(12)])
+  assert.ok(r.missedDays.includes(day(13)), 'nothing left to cover it')
+  assert.equal(r.consistencyStreak, 0, 'the run ends there')
+  assert.equal(r.restCredits, 0)
+})
+
+test('today is never charged, however much balance there is', () => {
+  // Day 11 is a workout day and it is still day 11 — the day has not
+  // finished, so it is neither a miss nor something to pay for.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), CFG, day(11))
+  assert.deepEqual(r.autoPaidDays, [], 'nothing bought yet')
+  assert.equal(r.restCredits, 2, 'the balance is untouched')
+  assert.equal(r.consistencyStreak, 10)
+})
+
+test('a day already recorded as bought is not charged twice', () => {
+  // The write from a previous run landed. The engine must read that as
+  // the same single purchase it made itself, not add a second one.
+  const stored = { ...CFG, restDays: [day(11)] }
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), stored, day(12))
+  assert.equal(r.spentInStreak, 1, 'one purchase, not two')
+  assert.equal(r.restCredits, 1)
+  assert.equal(r.consistencyStreak, 10)
+  assert.deepEqual(r.autoPaidDays, [], 'storage already accounts for it')
+})
+
+test('a day the balance bought stays bought when a later run breaks', () => {
+  // Day 11 was covered. Days 13, 14, 15 were not, and the run ends. The
+  // earlier purchase was made out of a balance that genuinely existed
+  // at the time, so it must not be reclassified as a miss in hindsight.
+  const r = computeRecovery(workoutsOn(1, 3, 5, 7, 9), CFG, day(16))
+  assert.ok(r.autoPaidDays.includes(day(11)), 'still bought')
+  assert.ok(!r.missedDays.includes(day(11)), 'and still not a miss')
+  assert.equal(r.consistencyStreak, 0, 'the later break is real')
+})
+
+test('an unpaid miss still shows up as one', () => {
+  // No history to have earned anything, so nothing absorbs day 3.
+  const r = computeRecovery(workoutsOn(1), CFG, day(4))
+  assert.deepEqual(r.autoPaidDays, [], 'nothing to spend')
+  assert.ok(r.missedDays.includes(day(3)))
+})

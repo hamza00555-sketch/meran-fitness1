@@ -318,10 +318,24 @@ test('a perfect month counts every day as trained or scheduled rest', () => {
 })
 
 test('a skipped workout day is a miss and cuts the best streak', () => {
-  // Same month, but day 15 was a workout day left empty and unpaid.
-  const r = build(trainOn(...ODD_MARCH.filter(n => n !== 15)))
-  assert.ok(r.consistency.missedDays.includes('2026-03-15'), r.consistency.missedDays.join(','))
+  // Day 3 was a workout day left empty, and this early in the month
+  // nothing has been earned yet — one trained day and one scheduled
+  // rest is two of the five a credit costs. So it is a real miss.
+  const r = build(trainOn(...ODD_MARCH.filter(n => n !== 3)))
+  assert.ok(r.consistency.missedDays.includes('2026-03-03'), r.consistency.missedDays.join(','))
   assert.ok(r.consistency.bestStreak < 31, `got ${r.consistency.bestStreak}`)
+})
+
+test('a miss the balance can cover is absorbed, not counted', () => {
+  // Day 15 skipped, but by then fourteen days of adherence have paid
+  // for two optional rest days. The engine spends one on the spot, so
+  // the day reads as paid and the run never breaks — the same thing
+  // the app shows, with nothing written to storage to make it true.
+  const r = build(trainOn(...ODD_MARCH.filter(n => n !== 15)))
+  // Skipping 15 also shifts the cycle — 16 becomes a workout day and is
+  // skipped too — so both credits go, and the run still never breaks.
+  assert.deepEqual(r.consistency.missedDays, [], 'the balance covered it')
+  assert.equal(r.consistency.paidRests, 2)
 })
 
 test('a paid rest day holds the streak without counting as a day', () => {
