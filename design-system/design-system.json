@@ -1,117 +1,290 @@
 {
   "name": "Meran",
-  "source": "hamza00555-sketch/meran-fitness1 @ bbbeb97",
+  "source": "hamza00555-sketch/meran-fitness1 @ 04fb060",
   "direction": "rtl",
   "colorScheme": "dark-only",
-
   "color": {
     "surface": {
-      "base":   { "value": "#050810", "use": "page ground — sits just off pure black so OLED panels stay quiet" },
-      "raised": { "value": "#070B14", "use": "hero card, the one card that leads a screen" },
-      "card":   { "value": "#0A101C", "use": "standard card surface" },
-      "inset":  { "value": "#111927", "use": "inputs, wells, anything recessed into a card" }
+      "base": {
+        "value": "#050810",
+        "use": "page ground — sits just off pure black so OLED panels stay quiet"
+      },
+      "raised": {
+        "value": "#070B14",
+        "use": "hero card, the one card that leads a screen"
+      },
+      "card": {
+        "value": "#0A101C",
+        "use": "standard card surface"
+      },
+      "inset": {
+        "value": "#111927",
+        "use": "inputs, wells, anything recessed into a card"
+      }
     },
     "border": {
-      "subtle": { "value": "#16202E", "use": "default card and divider edge" },
-      "strong": { "value": "#1F2D40", "use": "interactive edges — steppers, quiet buttons" }
+      "subtle": {
+        "value": "#16202E",
+        "use": "default card and divider edge"
+      },
+      "strong": {
+        "value": "#1F2D40",
+        "use": "interactive edges — steppers, quiet buttons"
+      }
     },
     "ink": {
-      "DEFAULT": { "value": "#EEF4FF", "use": "primary text, headings, live numbers" },
-      "muted":   { "value": "#B8D0E8", "use": "secondary text that still must be read" },
-      "subtle":  { "value": "#6E8899", "use": "labels and captions — 5.3:1 on surface.raised, the floor" }
+      "DEFAULT": {
+        "value": "#EEF4FF",
+        "use": "primary text, headings, live numbers"
+      },
+      "muted": {
+        "value": "#B8D0E8",
+        "use": "secondary text that still must be read"
+      },
+      "subtle": {
+        "value": "#6E8899",
+        "use": "labels and captions — 5.3:1 on surface.raised, the floor"
+      }
     },
     "primary": {
-      "rgb":  { "value": "94,195,42", "use": "THE SWITCH — every border, shadow and gradient is authored as rgba(var(--primary-rgb), …) so a mode redefines one triplet and the whole app follows" },
-      "DEFAULT": { "value": "#5EC32A", "use": "actions only — the button you are meant to press" },
-      "hi":   { "value": "#A8F060", "use": "the highlight a shimmer sweeps through" }
+      "rgb": {
+        "value": "94,195,42",
+        "use": "THE SWITCH — every border, shadow and gradient is authored as rgba(var(--primary-rgb), …) so a mode redefines one triplet and the whole app follows"
+      },
+      "DEFAULT": {
+        "value": "#5EC32A",
+        "use": "actions only — the button you are meant to press"
+      },
+      "hi": {
+        "value": "#A8F060",
+        "use": "the highlight a shimmer sweeps through"
+      }
     },
     "secondary": {
-      "rgb":  { "value": "59,157,232" },
-      "DEFAULT": { "value": "#3B9DE8", "use": "rest and recovery — the side of the app that is NOT training" },
-      "deep": { "value": "#1A75C0" }
+      "rgb": {
+        "value": "59,157,232"
+      },
+      "DEFAULT": {
+        "value": "#3B9DE8",
+        "use": "rest and recovery — the side of the app that is NOT training"
+      },
+      "deep": {
+        "value": "#1A75C0"
+      }
     },
-    "reward":  { "value": "#F59E0B", "use": "XP, rest credits, personal records — earned things" },
-    "success": { "value": "#22C55E", "use": "completion state only, never an action" },
-    "warning": { "value": "#F97316", "use": "streak heat" },
-    "danger":  { "value": "#EF4444", "use": "destructive only — ending, deleting, breaking" },
-
+    "reward": {
+      "value": "#F59E0B",
+      "use": "XP, rest credits, personal records — earned things"
+    },
+    "success": {
+      "value": "#22C55E",
+      "use": "completion state only, never an action"
+    },
+    "warning": {
+      "value": "#F97316",
+      "use": "streak heat"
+    },
+    "danger": {
+      "value": "#EF4444",
+      "use": "destructive only — ending, deleting, breaking"
+    },
     "alpha": {
-      "wash": { "value": 0.10, "use": "tinted fill behind a chip or pill" },
-      "edge": { "value": 0.22, "use": "tinted border on a tinted fill" },
-      "glow": { "value": 0.11, "use": "outer glow, scaled by dial.glow" }
+      "wash": {
+        "value": 0.1,
+        "use": "tinted fill behind a chip or pill"
+      },
+      "edge": {
+        "value": 0.22,
+        "use": "tinted border on a tinted fill"
+      },
+      "glow": {
+        "value": 0.11,
+        "use": "outer glow, scaled by dial.glow"
+      }
     }
   },
-
   "dial": {
-    "glow":   { "value": 1, "use": "how hard the accent burns. A mode turns this instead of restating every shadow" },
-    "breath": { "value": 1, "use": "tempo multiplier for every idle animation" }
+    "glow": {
+      "value": 1,
+      "use": "how hard the accent burns. A mode turns this instead of restating every shadow"
+    },
+    "breath": {
+      "value": 1,
+      "use": "tempo multiplier for every idle animation"
+    }
   },
-
   "font": {
-    "sans": { "value": "'Changa', 'Zanjabeel', sans-serif", "use": "all Arabic and UI text — Changa is primary, Zanjabeel the bundled fallback" },
-    "mono": { "value": "'Oxanium', ui-monospace, monospace", "use": "every number the user reads or compares — always with tabular-nums" }
+    "sans": {
+      "value": "'Changa', 'Zanjabeel', sans-serif",
+      "use": "all Arabic and UI text — Changa is primary, Zanjabeel the bundled fallback"
+    },
+    "mono": {
+      "value": "'Oxanium', ui-monospace, monospace",
+      "use": "every number the user reads or compares — always with tabular-nums"
+    }
   },
-
   "fontSize": {
-    "2xs":     { "value": "11px", "use": "chips, bubble labels, legend text" },
-    "xs":      { "value": "12px", "use": "captions and secondary meta — the workhorse" },
-    "sm":      { "value": "14px", "use": "body" },
-    "md":      { "value": "17px", "use": "lead text and primary button label" },
-    "lg":      { "value": "20px", "use": "section and sheet titles" },
-    "xl":      { "value": "27px", "use": "screen title — one per screen" },
-    "display": { "value": "40px", "use": "the single hero number a screen is about" }
+    "2xs": {
+      "value": "11px",
+      "use": "chips, bubble labels, legend text"
+    },
+    "xs": {
+      "value": "12px",
+      "use": "captions and secondary meta — the workhorse"
+    },
+    "sm": {
+      "value": "14px",
+      "use": "body"
+    },
+    "md": {
+      "value": "17px",
+      "use": "lead text and primary button label"
+    },
+    "lg": {
+      "value": "20px",
+      "use": "section and sheet titles"
+    },
+    "xl": {
+      "value": "27px",
+      "use": "screen title — one per screen"
+    },
+    "display": {
+      "value": "40px",
+      "use": "the single hero number a screen is about"
+    }
   },
-
   "fontWeight": {
-    "regular": { "value": 500, "use": "body — the document default" },
-    "medium":  { "value": 700, "use": "labels and most UI text" },
-    "bold":    { "value": 800, "use": "buttons, numbers, emphasis" },
-    "black":   { "value": 900, "use": "screen titles and display numbers only" }
+    "regular": {
+      "value": 500,
+      "use": "body — the document default"
+    },
+    "medium": {
+      "value": 700,
+      "use": "labels and most UI text"
+    },
+    "bold": {
+      "value": 800,
+      "use": "buttons, numbers, emphasis"
+    },
+    "black": {
+      "value": 900,
+      "use": "screen titles and display numbers only"
+    }
   },
-
   "lineHeight": {
-    "tight": { "value": 1.25, "use": "titles and display numbers" },
-    "snug":  { "value": 1.4,  "use": "chips and single-line UI" },
-    "base":  { "value": 1.5,  "use": "body — the document default" },
-    "loose": { "value": 1.7,  "use": "Arabic prose and multi-line explanation" }
+    "tight": {
+      "value": 1.25,
+      "use": "titles and display numbers"
+    },
+    "snug": {
+      "value": 1.4,
+      "use": "chips and single-line UI"
+    },
+    "base": {
+      "value": 1.5,
+      "use": "body — the document default"
+    },
+    "loose": {
+      "value": 1.7,
+      "use": "Arabic prose and multi-line explanation"
+    }
   },
-
   "radius": {
-    "xs":    { "value": "6px",   "use": "inner details, tiny swatches" },
-    "sm":    { "value": "10px",  "use": "quiet buttons, list rows, small cards" },
-    "md":    { "value": "14px",  "use": "primary button, standard card" },
-    "lg":    { "value": "20px",  "use": "hero card — the one that leads the screen" },
-    "pill":  { "value": "999px", "use": "chips and status pills" },
-    "round": { "value": "50%",   "use": "steppers, avatars, day bubbles" }
+    "xs": {
+      "value": "6px",
+      "use": "inner details, tiny swatches"
+    },
+    "sm": {
+      "value": "10px",
+      "use": "quiet buttons, list rows, small cards"
+    },
+    "md": {
+      "value": "14px",
+      "use": "primary button, standard card"
+    },
+    "lg": {
+      "value": "20px",
+      "use": "hero card — the one that leads the screen"
+    },
+    "pill": {
+      "value": "999px",
+      "use": "chips and status pills"
+    },
+    "round": {
+      "value": "50%",
+      "use": "steppers, avatars, day bubbles"
+    }
   },
-
   "space": {
-    "1":  { "value": "4px",  "use": "hairline gaps inside a chip" },
-    "2":  { "value": "8px",  "use": "gap between related controls — the workhorse" },
-    "3":  { "value": "12px", "use": "gap between blocks inside a card" },
-    "4":  { "value": "16px", "use": "card padding" },
-    "6":  { "value": "24px", "use": "gap between sections" },
-    "8":  { "value": "32px", "use": "major section break" },
-    "card-pad": { "value": "clamp(12px, 3.2vw, 18px)", "use": "fluid card padding — shrinks on a 320px phone" },
-    "card-gap": { "value": "clamp(10px, 2.6vw, 16px)", "use": "fluid gap inside a card row" },
-    "card-mb":  { "value": "clamp(14px, 3.5vw, 20px)", "use": "fluid gap between stacked cards" }
+    "1": {
+      "value": "4px",
+      "use": "hairline gaps inside a chip"
+    },
+    "2": {
+      "value": "8px",
+      "use": "gap between related controls — the workhorse"
+    },
+    "3": {
+      "value": "12px",
+      "use": "gap between blocks inside a card"
+    },
+    "4": {
+      "value": "16px",
+      "use": "card padding"
+    },
+    "6": {
+      "value": "24px",
+      "use": "gap between sections"
+    },
+    "8": {
+      "value": "32px",
+      "use": "major section break"
+    },
+    "card-pad": {
+      "value": "clamp(12px, 3.2vw, 18px)",
+      "use": "fluid card padding — shrinks on a 320px phone"
+    },
+    "card-gap": {
+      "value": "clamp(10px, 2.6vw, 16px)",
+      "use": "fluid gap inside a card row"
+    },
+    "card-mb": {
+      "value": "clamp(14px, 3.5vw, 20px)",
+      "use": "fluid gap between stacked cards"
+    }
   },
-
   "elevation": {
-    "card":    { "value": "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)", "use": "glass card" },
-    "action":  { "value": "0 4px 20px rgba(var(--primary-rgb),0.32), 0 0 0 1px rgba(var(--primary-rgb),0.15)", "use": "primary button — the only element that glows in its own colour" }
+    "card": {
+      "value": "0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
+      "use": "glass card"
+    },
+    "action": {
+      "value": "0 4px 20px rgba(var(--primary-rgb),0.32), 0 0 0 1px rgba(var(--primary-rgb),0.15)",
+      "use": "primary button — the only element that glows in its own colour"
+    }
   },
-
   "gradient": {
-    "primary": { "value": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)", "use": "primary button fill" },
-    "hero":    { "value": "linear-gradient(145deg, #08130C 0%, #081020 100%)", "use": "hero card ground" }
+    "primary": {
+      "value": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+      "use": "the primary button, and nothing else — 11 call sites. The one gradient the app actually paints."
+    },
+    "hero": {
+      "value": "linear-gradient(145deg, #08130C 0%, #081020 100%)",
+      "use": "DECLARED, NEVER CONSUMED. Shipped in :root and overridden again by the deload mode, but no rule and no component reads it. Listed because it is in the shipped stylesheet, not because it is in use."
+    },
+    "card": {
+      "value": "linear-gradient(135deg, rgba(var(--primary-rgb),0.06) 0%, rgba(var(--secondary-rgb),0.04) 100%)",
+      "use": "DECLARED, NEVER CONSUMED. Read only by .gradient-card, which no component carries. Authored through both triplets, so it would follow a mode correctly if anything used it."
+    }
   },
-
   "safeArea": {
-    "top":    { "value": "env(safe-area-inset-top, 0px)" },
-    "bottom": { "value": "env(safe-area-inset-bottom, 0px)" }
+    "top": {
+      "value": "env(safe-area-inset-top, 0px)"
+    },
+    "bottom": {
+      "value": "env(safe-area-inset-bottom, 0px)"
+    }
   },
-
   "modes": {
     "deload": {
       "trigger": "[data-deload=\"1\"] on <html>",
@@ -138,7 +311,6 @@
       "note": "The secondary must move when the primary takes blue. A rest card and a training card in the same colour would erase the one distinction the home screen depends on."
     }
   },
-
   "rules": [
     "Author the accent as rgba(var(--primary-rgb), …) — never a hex literal. A mode redefines one triplet and every border, shadow and gradient follows. Scattered literals are how a mode breaks.",
     "Depth comes from the gap between surface steps, not from glow. Cards separate because they are one step lighter, and borders only assist.",
@@ -153,12 +325,583 @@
     "Fluid space tokens (card-pad, card-gap, card-mb) exist because the layout must survive a 320px phone. Prefer them over fixed values for anything that stacks.",
     "The primary button is the only element allowed to glow in its own colour. Everything else earns attention by position and size."
   ],
-
   "debt": [
     "646 hardcoded px font sizes across JSX and zero rem rules — the type scale is documented here but not yet enforced, and the OS text-size setting has no effect on the app.",
     "Two colour tokens resolved to the same value before this pass: secondary (#3B9DE8) and a separate blue (#3B9DE8). Collapsed into secondary.",
     "Alpha steps were inconsistent per colour (0.10 / 0.12 for wash, 0.22 / 0.25 / 0.30 for edge). Collapsed to two steps: wash 0.10, edge 0.22.",
     "Shipped radius tokens (18 / 12 / 6) did not match real usage (10, 12, 14, 20 dominate). The scale here follows the code, not the old declarations.",
-    "18 text elements ship at 9px or below — under the 2xs floor defined here."
+    "18 text elements ship at 9px or below — under the 2xs floor defined here.",
+    "Dead stylesheet: .glass-card and .gradient-card are defined in src/index.css and carried in no component — and the deload mode still maintains a box-shadow override for each. Two of the three gradient tokens (--grad-hero, --grad-card) exist only to feed them.",
+    "The line-height scale is documented in four steps and the code ships fourteen distinct values (most used: 1 ×25, 1.7 ×12, 1.8 ×11, 1.6 ×8). 1.8 is the most-used step the scale does not name. Same disease as the type scale, and the same cure: a pass over the call sites.",
+    "Rule 6 says every number the user reads is set in the mono face with tabular-nums. The mono half holds — 150 call sites. The tabular half does not: 13. So digits still shift width in most of the app while a count climbs."
+  ],
+  "stylePrompt": "Meran is an Arabic, right-to-left, dark-only training log for a phone. The ground is a near-black with a blue undertone — off pure black, so an OLED panel stays quiet rather than switching pixels off — and cards sit one step lighter on it. That step IS the depth: there are borders, but they only assist, and nothing here floats on a drop shadow. Read the surface scale as four rungs of almost the same colour and you have understood most of the visual system.\n\nColour is rationed, and that rationing is the whole idea. Green means ACTION — the button you are meant to press — and it appears roughly once per screen. Blue owns the opposite half of the app: rest, recovery, the day you are not training. Gold marks things you earned; orange is streak heat; red is destructive only. Everything else — every label, every card, every chrome edge — is one of three greys on one of four near-blacks. A screen with two green elements on it is a bug, not a variation: the second one steals the first one's meaning. The primary button is also the only element permitted to glow in its own colour; everything else earns attention by position and size.\n\nThe accent is never written as a hex literal anywhere in the app. It is authored as rgba(triplet, alpha) against one custom property, which is why a single attribute on <html> can turn the entire product from training green to glacier blue for a deload week — every border, shadow, gradient and progress bar follows at once, and the corners round out and the animations slow down with it. A colour typed in directly is not a style choice here; it is a hole in that mechanism, and it will show up as one stubborn green edge in a blue app.\n\nIt is dense rather than airy — this is a thing you hold in one hand in a gym, between sets, so a screen is a stack of cards with real information in them, not a poster with one idea. Type is a heavy Arabic sans that runs bold; body weight starts at 500 and headings hit 800. Every number the user reads or compares — weights, reps, streaks, percentages — is set in a squared mono face, because these are figures to be scanned against each other, not words. Corners are soft but not round: 10 to 20 pixels, never pill-shaped except on genuine chips.\n\nMotion is a breath, not a flash. Transitions are 0.15s, page and modal entrances 0.22–0.25s, and the only continuous animation is a 2.5-second glow pulse on whatever is live right now. Nothing bounces, nothing slides in from off-screen, nothing spins.\n\nTwo things look wrong here even when every value is technically on the scale. First: Latin text or digits inside an Arabic sentence without their own direction:ltr — bidi reorders trailing marks and «6×» renders as «×6», «−40%» as «40%−». It is the most common way this app breaks, and it always looks like a typo rather than a layout bug. Second: letter-spacing applied to Arabic. Arabic letters join; spacing them apart severs the joins and the word stops being a word. Spacing belongs to Latin runs and to nothing else.",
+  "components": [
+    {
+      "name": "Button",
+      "description": "The general-purpose action button. Four variants, and the variant is a claim about what the action means: primary is the one thing to do, danger is destructive and nothing else.",
+      "variants": [
+        "primary",
+        "secondary",
+        "ghost",
+        "danger"
+      ],
+      "tokensUsed": [
+        "color.primary",
+        "color.surface.inset",
+        "color.border.strong",
+        "color.ink",
+        "radius.md",
+        "font.sans"
+      ],
+      "dos": [
+        "One primary per screen. It is the answer to «what now?».",
+        "Reach for ghost or secondary for anything the user does often and harmlessly.",
+        "Keep the label a verb.",
+        "Give the primary action a 44px+ tap target — this is operated one-handed, mid-set."
+      ],
+      "donts": [
+        "Do not use danger red for a frequent, harmless action — skipping a rest day is not destruction, and red spent there stops meaning anything.",
+        "Do not put two primaries on one screen.",
+        "Do not hard-code the green; it is the deload switch.",
+        "Do not let a primary label wrap to two lines. Use a fluid font-size instead; a wrapped button reads as a mistake, not as emphasis."
+      ],
+      "preview": {
+        "element": "button",
+        "label": "ابدأ التمرين",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "background": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+              "color": "#ffffff",
+              "border": "none",
+              "borderRadius": "12px",
+              "padding": "14px 20px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "16px",
+              "fontWeight": "700",
+              "boxShadow": "0 4px 18px rgba(94,195,42,0.30)"
+            }
+          },
+          {
+            "name": "active",
+            "styles": {
+              "background": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+              "color": "#ffffff",
+              "border": "none",
+              "borderRadius": "12px",
+              "padding": "14px 20px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "16px",
+              "fontWeight": "700",
+              "boxShadow": "0 4px 18px rgba(94,195,42,0.30)",
+              "transform": "scale(0.97)"
+            }
+          },
+          {
+            "name": "disabled",
+            "styles": {
+              "background": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+              "color": "#ffffff",
+              "border": "none",
+              "borderRadius": "12px",
+              "padding": "14px 20px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "16px",
+              "fontWeight": "700",
+              "boxShadow": "0 4px 18px rgba(94,195,42,0.30)",
+              "opacity": "0.45",
+              "cursor": "not-allowed"
+            }
+          },
+          {
+            "name": "secondary",
+            "styles": {
+              "background": "#111927",
+              "color": "#EEF4FF",
+              "border": "1px solid #1F2D40",
+              "borderRadius": "12px",
+              "padding": "14px 20px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "16px",
+              "fontWeight": "700"
+            }
+          },
+          {
+            "name": "ghost",
+            "styles": {
+              "background": "transparent",
+              "color": "#B8D0E8",
+              "border": "1px solid #16202E",
+              "borderRadius": "12px",
+              "padding": "14px 20px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "16px",
+              "fontWeight": "700"
+            }
+          },
+          {
+            "name": "danger",
+            "styles": {
+              "background": "rgba(239,68,68,0.12)",
+              "color": "#EF4444",
+              "border": "1px solid rgba(239,68,68,0.25)",
+              "borderRadius": "12px",
+              "padding": "14px 20px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "16px",
+              "fontWeight": "700"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "HeroButton",
+      "description": "The full-width call to action that leads a screen — «start the workout». The one element in the product allowed to glow in its own colour.",
+      "variants": [
+        "default"
+      ],
+      "tokensUsed": [
+        "gradient.primary",
+        "color.primary.rgb",
+        "elevation.action",
+        "radius.md"
+      ],
+      "dos": [
+        "Exactly one per screen, and only for the screen's whole purpose."
+      ],
+      "donts": [
+        "Do not give a second element this glow. The glow is what makes it the answer."
+      ],
+      "preview": {
+        "element": "button",
+        "label": "⚡ ابدأ التمرين",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "width": "100%",
+              "background": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+              "color": "#ffffff",
+              "border": "none",
+              "borderRadius": "14px",
+              "padding": "16px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "17px",
+              "fontWeight": "800",
+              "boxShadow": "0 4px 20px rgba(94,195,42,0.32), 0 0 0 1px rgba(94,195,42,0.15)"
+            }
+          },
+          {
+            "name": "hover",
+            "styles": {
+              "width": "100%",
+              "background": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+              "color": "#ffffff",
+              "border": "none",
+              "borderRadius": "14px",
+              "padding": "16px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "17px",
+              "fontWeight": "800",
+              "boxShadow": "0 4px 20px rgba(94,195,42,0.32), 0 0 0 1px rgba(94,195,42,0.15)",
+              "opacity": "0.93"
+            }
+          },
+          {
+            "name": "active",
+            "styles": {
+              "width": "100%",
+              "background": "linear-gradient(135deg, #6DD636 0%, #3EA812 100%)",
+              "color": "#ffffff",
+              "border": "none",
+              "borderRadius": "14px",
+              "padding": "16px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "17px",
+              "fontWeight": "800",
+              "boxShadow": "0 2px 8px rgba(94,195,42,0.20)",
+              "transform": "scale(0.97)"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Card",
+      "description": "The unit every screen is built from: one step lighter than the ground, a hairline border, almost no shadow. Depth is the step, not the shadow.",
+      "variants": [
+        "default",
+        "glass",
+        "accentTop"
+      ],
+      "tokensUsed": [
+        "color.surface.card",
+        "color.border.subtle",
+        "radius.lg",
+        "elevation.card",
+        "space.card-pad"
+      ],
+      "dos": [
+        "Let the surface step do the separating.",
+        "Use the fluid card padding token so the layout survives a 320px phone."
+      ],
+      "donts": [
+        "Do not add a coloured glow to a card to make it stand out; move it up the page instead.",
+        "Do not nest a card inside a card — two borders and two shadows for one idea."
+      ],
+      "preview": {
+        "element": "card",
+        "label": "دورة التعافي",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "background": "#0A101C",
+              "border": "1px solid #16202E",
+              "borderRadius": "18px",
+              "padding": "16px",
+              "boxShadow": "0 2px 12px rgba(0,0,0,0.18)",
+              "color": "#EEF4FF"
+            }
+          },
+          {
+            "name": "glass",
+            "styles": {
+              "background": "rgba(16,25,40,0.72)",
+              "backdropFilter": "blur(14px)",
+              "border": "1px solid rgba(94,195,42,0.10)",
+              "borderTop": "1px solid rgba(94,195,42,0.14)",
+              "borderRadius": "18px",
+              "padding": "16px",
+              "boxShadow": "0 8px 32px rgba(0,0,0,0.28)",
+              "color": "#EEF4FF"
+            }
+          },
+          {
+            "name": "accentTop",
+            "styles": {
+              "background": "#0A101C",
+              "border": "1px solid #16202E",
+              "borderTop": "2px solid #5EC32A",
+              "borderRadius": "18px",
+              "padding": "16px",
+              "boxShadow": "0 2px 12px rgba(0,0,0,0.18)",
+              "color": "#EEF4FF"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Badge",
+      "description": "A small tinted pill that labels a state — «training day», «deload», a rank. The tint is the same hue at two alphas: a 12% fill under a 22% border.",
+      "variants": [
+        "primary",
+        "secondary",
+        "reward",
+        "danger"
+      ],
+      "tokensUsed": [
+        "color.alpha.wash",
+        "color.alpha.edge",
+        "radius.pill"
+      ],
+      "dos": [
+        "Keep it to one word or a number and a unit.",
+        "Take the colour from what the badge means, not from the surrounding card."
+      ],
+      "donts": [
+        "Do not use a primary-green badge next to a primary button; the button must win."
+      ],
+      "preview": {
+        "element": "badge",
+        "label": "يوم تمرين",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "background": "rgba(94,195,42,0.12)",
+              "color": "#5EC32A",
+              "border": "1px solid rgba(94,195,42,0.22)",
+              "borderRadius": "999px",
+              "padding": "3px 11px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "13.5px",
+              "fontWeight": "700"
+            }
+          },
+          {
+            "name": "rest",
+            "styles": {
+              "background": "rgba(59,157,232,0.12)",
+              "color": "#3B9DE8",
+              "border": "1px solid rgba(59,157,232,0.22)",
+              "borderRadius": "999px",
+              "padding": "3px 11px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "13.5px",
+              "fontWeight": "700"
+            }
+          },
+          {
+            "name": "reward",
+            "styles": {
+              "background": "rgba(245,158,11,0.12)",
+              "color": "#F59E0B",
+              "border": "1px solid rgba(245,158,11,0.22)",
+              "borderRadius": "999px",
+              "padding": "3px 11px",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "13.5px",
+              "fontWeight": "700"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "NumberInput",
+      "description": "The weight and rep field in the workout player: a recessed well with a very large mono figure in it, flanked by round steppers. Sized to be hit with a thumb and read at arm's length.",
+      "variants": [
+        "default"
+      ],
+      "tokensUsed": [
+        "color.surface.inset",
+        "color.border.subtle",
+        "font.mono",
+        "radius.lg"
+      ],
+      "dos": [
+        "Set every figure in the mono face with tabular-nums so digits do not shift width as the number changes.",
+        "Keep the unit label small and subtle under the figure."
+      ],
+      "donts": [
+        "Do not shrink this to a normal form field; it is operated mid-set."
+      ],
+      "preview": {
+        "element": "input",
+        "label": "80",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "background": "#111927",
+              "border": "1px solid #16202E",
+              "borderRadius": "16px",
+              "padding": "8px 6px",
+              "color": "#EEF4FF",
+              "fontFamily": "Oxanium, ui-monospace, monospace",
+              "fontSize": "34px",
+              "fontWeight": "800",
+              "fontVariantNumeric": "tabular-nums",
+              "textAlign": "center"
+            }
+          },
+          {
+            "name": "focus",
+            "styles": {
+              "background": "#111927",
+              "border": "1px solid #1F2D40",
+              "borderRadius": "16px",
+              "padding": "8px 6px",
+              "color": "#EEF4FF",
+              "fontFamily": "Oxanium, ui-monospace, monospace",
+              "fontSize": "34px",
+              "fontWeight": "800",
+              "fontVariantNumeric": "tabular-nums",
+              "textAlign": "center",
+              "outline": "none"
+            }
+          },
+          {
+            "name": "empty",
+            "styles": {
+              "background": "#111927",
+              "border": "1px solid #16202E",
+              "borderRadius": "16px",
+              "padding": "8px 6px",
+              "color": "#6E8899",
+              "fontFamily": "Oxanium, ui-monospace, monospace",
+              "fontSize": "34px",
+              "fontWeight": "800",
+              "fontVariantNumeric": "tabular-nums",
+              "textAlign": "center"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProgressBar",
+      "description": "A thin recessed track with a coloured fill that glows faintly once it has any value at all. Used for XP, plan progress, and the rest-credit counter.",
+      "variants": [
+        "primary",
+        "reward"
+      ],
+      "tokensUsed": [
+        "color.primary",
+        "color.reward",
+        "radius.pill"
+      ],
+      "dos": [
+        "Colour it by what it measures: gold for earned things, green for progress toward an action."
+      ],
+      "donts": [
+        "Do not animate it continuously; it moves when the value moves and then stops.",
+        "Do not animate width on every render; it reads as instability, not progress."
+      ],
+      "preview": {
+        "element": "surface",
+        "label": "٦٠٪",
+        "states": [
+          {
+            "name": "empty",
+            "styles": {
+              "background": "rgba(255,255,255,0.05)",
+              "borderRadius": "7px",
+              "height": "7px",
+              "boxShadow": "inset 0 1px 2px rgba(0,0,0,0.3)"
+            }
+          },
+          {
+            "name": "filled",
+            "styles": {
+              "background": "#5EC32A",
+              "borderRadius": "7px",
+              "height": "7px",
+              "width": "60%",
+              "boxShadow": "0 0 8px rgba(94,195,42,0.38)"
+            }
+          },
+          {
+            "name": "reward",
+            "styles": {
+              "background": "#F59E0B",
+              "borderRadius": "7px",
+              "height": "7px",
+              "width": "60%",
+              "boxShadow": "0 0 8px rgba(245,158,11,0.38)"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SectionTitle",
+      "description": "A short accent bar followed by a heading. Because the document is RTL the bar sits on the right; it is authored with logical properties so it moves on its own.",
+      "variants": [
+        "default"
+      ],
+      "tokensUsed": [
+        "color.primary",
+        "fontSize.md",
+        "fontWeight.bold"
+      ],
+      "dos": [
+        "Use it to open a card, not to shout across a page."
+      ],
+      "donts": [
+        "Do not position the bar with left/right — the document is RTL."
+      ],
+      "preview": {
+        "element": "text",
+        "label": "دورة التعافي",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "color": "#EEF4FF",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "17px",
+              "fontWeight": "700",
+              "borderInlineStart": "3px solid #5EC32A",
+              "paddingInlineStart": "10px"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Overlay",
+      "description": "The scrim behind every modal and sheet: near-opaque black with a blur, so the app underneath reads as present but firmly out of reach.",
+      "variants": [
+        "center",
+        "bottom"
+      ],
+      "tokensUsed": [
+        "color.surface.base"
+      ],
+      "dos": [
+        "Dismiss on scrim tap.",
+        "Bottom-align sheets that are about the current task; centre the ones that interrupt."
+      ],
+      "donts": [
+        "Do not tint the scrim with the accent."
+      ],
+      "preview": {
+        "element": "surface",
+        "label": "",
+        "states": [
+          {
+            "name": "default",
+            "styles": {
+              "background": "rgba(0,0,0,0.85)",
+              "backdropFilter": "blur(8px)",
+              "position": "fixed",
+              "inset": "0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "EmptyState",
+      "description": "A large piece of 3D art, a heading, and one line of explanation — centred, generously padded. The one place in the app that is allowed to be airy.",
+      "variants": [
+        "default"
+      ],
+      "tokensUsed": [
+        "color.ink.muted",
+        "color.ink.subtle",
+        "fontSize.md",
+        "fontSize.sm"
+      ],
+      "dos": [
+        "Say what would fill this screen, not that it is empty."
+      ],
+      "donts": [
+        "Do not put a primary button inside one if the surrounding screen already has its own."
+      ],
+      "preview": {
+        "element": "text",
+        "label": "جلسة فارغة",
+        "states": [
+          {
+            "name": "title",
+            "styles": {
+              "color": "#B8D0E8",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "17px",
+              "fontWeight": "700",
+              "textAlign": "center"
+            }
+          },
+          {
+            "name": "description",
+            "styles": {
+              "color": "#6E8899",
+              "fontFamily": "Changa, sans-serif",
+              "fontSize": "13px",
+              "fontWeight": "500",
+              "textAlign": "center",
+              "maxWidth": "240px"
+            }
+          }
+        ]
+      }
+    }
   ]
 }

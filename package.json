@@ -15,7 +15,11 @@
     "pack:publish": "node scripts/upload-r2.mjs",
     "test:report": "node tests/report.e2e.mjs",
     "test:deload": "node tests/deload.e2e.mjs",
-    "test:player": "node tests/player.e2e.mjs"
+    "test:player": "node tests/player.e2e.mjs",
+    "screens": "node scripts/screens.mjs",
+    "screens:audit": "node scripts/screens.mjs --audit",
+    "ds:push": "node scripts/push-design-system.mjs",
+    "ds:screens": "node scripts/push-screens.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

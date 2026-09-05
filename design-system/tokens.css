@@ -96,8 +96,12 @@
   --elevation-action: 0 4px 20px rgba(var(--primary-rgb),0.32),
                       0 0 0 1px rgba(var(--primary-rgb),0.15);
 
+  /* Only --gradient-primary is painted anywhere. The other two ship in
+     the stylesheet and are read by nothing — see debt. */
   --gradient-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
   --gradient-hero:    linear-gradient(145deg, #08130C 0%, #081020 100%);
+  --gradient-card:    linear-gradient(135deg, rgba(var(--primary-rgb),0.06) 0%,
+                                              rgba(var(--secondary-rgb),0.04) 100%);
 
   --safe-top:        env(safe-area-inset-top, 0px);
   --safe-bottom:     env(safe-area-inset-bottom, 0px);
