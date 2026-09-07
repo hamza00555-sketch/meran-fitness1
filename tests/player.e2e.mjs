@@ -32,22 +32,24 @@ const ACTIVE = {
 
 const browser = await chromium.launch()
 
-async function open({ device = 'iPhone 13', blockRemote = true, active = ACTIVE } = {}) {
+async function open({ device = 'iPhone 13', blockRemote = true, active = ACTIVE, sessions = null, reduced = false } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], timezoneId: 'Asia/Riyadh', locale: 'ar',
+    reducedMotion: reduced ? 'reduce' : 'no-preference',
   })
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
   if (blockRemote) await page.route('**/*.r2.dev/**', r => r.abort())
 
-  await page.addInitScript(([active]) => {
+  await page.addInitScript(([active, sessions]) => {
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
     localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
     localStorage.setItem('hf_weights_reset_v2', 'true')
     if (active) localStorage.setItem('hf_active', JSON.stringify(active))
-  }, [active])
+    if (sessions) localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+  }, [active, sessions])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1400)
@@ -273,6 +275,79 @@ const activeStored = (page) => page.evaluate(() => JSON.parse(localStorage.getIt
   ok('SE: the complete button is on screen', await page.getByRole('button', { name: /إنهاء المجموعة/ }).count() > 0)
   ok('SE: no page errors', errors.length === 0)
   await page.screenshot({ path: `${OUT}/se.png`, fullPage: true })
+  await ctx.close()
+}
+
+// ══ 4. The card says "add weight" with its edge ══════════════
+//
+// The advice to raise the weight used to be one chip among seven, in
+// the same gold as the best-weight chip beside it, and it went unseen.
+// Now the card draws a gold ring from the bottom up and keeps it. Three
+// sessions at 75kg — two holding the bottom of the 12–15 range, the
+// last hitting the top on half the sets — is exactly what opens
+// `hint === 'raise'` (checked against analyzeProgression in
+// tests/progression.test.mjs, so this is not a guess).
+const RAISE_NAME = ACTIVE.exercises[0].name
+const raiseDay = (n, sets) => ({
+  id: n, date: new Date(2026, 8, n, 18).toISOString(), duration: 40,
+  exercises: [{ id: 'a', muscle: 'Chest', name: RAISE_NAME,
+    sets: sets.map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }],
+})
+const RAISE_SESSIONS = [
+  raiseDay(1, [[75, 12], [75, 12], [75, 11]]),
+  raiseDay(3, [[75, 13], [75, 12], [75, 12]]),
+  raiseDay(5, [[75, 15], [75, 15], [75, 14]]),
+]
+
+{
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(600)
+  const ring = page.locator('[data-testid="raise-ring"]')
+  ok('raise: the ring is on the card', await ring.count() === 1)
+  ok('raise: it has both halves', await page.locator('.raise-ring-path').count() === 2)
+  const text = await page.evaluate(() => document.body.innerText)
+  ok('raise: the chip still says it', /ارفع وزنك/.test(text))
+  ok('raise: the chip no longer pulses — the ring carries the motion',
+    await page.locator('.tag-pulse').count() === 0)
+  ok('raise: the duplicate nudge is gone', !/جرب ارفع الوزن/.test(text))
+  // Gold-on-the-edge: the stroke resolves to the reward colour.
+  const stroke = await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.raise-ring-path')).stroke)
+  ok('raise: the stroke is gold', /245,\s*158,\s*11/.test(stroke), stroke)
+  // After the draw the ring is whole (dashoffset 0), not a fragment.
+  await page.waitForTimeout(1600)
+  const off = await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.raise-ring-path')).strokeDashoffset)
+  ok('raise: the ring is fully drawn after the sweep', parseFloat(off) === 0, off)
+  await page.screenshot({ path: `${OUT}/raise.png`, fullPage: false })
+  ok('raise: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // The same history in a deload week: the advice is silenced at its
+  // source, so the card stays quiet.
+  const { ctx, page, errors } = await open({
+    sessions: RAISE_SESSIONS, active: { ...ACTIVE, deload: { pct: 40 } },
+  })
+  await page.waitForTimeout(600)
+  ok('raise/deload: no ring', await page.locator('[data-testid="raise-ring"]').count() === 0)
+  ok('raise/deload: no page errors', errors.length === 0)
+  await ctx.close()
+}
+
+{
+  // Reduced motion: whole and still — the signal stays, the motion goes.
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS, reduced: true })
+  await page.waitForTimeout(600)
+  ok('raise/reduced: the ring is there', await page.locator('[data-testid="raise-ring"]').count() === 1)
+  const st = await page.evaluate(() => {
+    const cs = getComputedStyle(document.querySelector('.raise-ring-path'))
+    return { anim: cs.animationName, off: cs.strokeDashoffset }
+  })
+  ok('raise/reduced: nothing animates', st.anim === 'none', st.anim)
+  ok('raise/reduced: and the ring is complete', parseFloat(st.off) === 0, st.off)
+  ok('raise/reduced: no page errors', errors.length === 0)
   await ctx.close()
 }
 

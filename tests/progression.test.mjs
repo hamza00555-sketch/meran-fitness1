@@ -225,3 +225,23 @@ test('exactly one hint is ever active', () => {
     if (r.hint) assert.equal(on.length, 1)
   }
 })
+
+// The exact history tests/player.e2e.mjs seeds to make the raise ring
+// appear. Pinned here so the e2e never tests an assumption: if the rule
+// moves, this fails first and says why.
+test('the raise-ring fixture opens the raise hint', () => {
+  const name = 'Hammer Strength Machine Bench Press'
+  const day = (n, sets) => ({
+    id: n, date: new Date(2026, 8, n, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'a', muscle: 'Chest', name,
+      sets: sets.map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }],
+  })
+  const sessions = [
+    day(1, [[75, 12], [75, 12], [75, 11]]),
+    day(3, [[75, 13], [75, 12], [75, 12]]),
+    day(5, [[75, 15], [75, 15], [75, 14]]),
+  ]
+  const p = analyzeProgression(sessions, name, {})
+  assert.equal(p.hint, 'raise')
+  assert.equal(p.workingWeight, 75)
+})

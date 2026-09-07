@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import ExerciseMedia from '../../assets/ExerciseMedia.jsx'
 import ExerciseTags from './ExerciseTags.jsx'
+import RaiseRing from './RaiseRing.jsx'
 import ExerciseInfoModal from '../ExerciseInfoModal.jsx'
 import { arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
@@ -22,6 +23,10 @@ export default function ExerciseHero({
   const [showInfo, setShowInfo] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const [copied, setCopied] = useState(false)
+  const cardRef = useRef(null)
+  // The one piece of advice worth the whole card's edge. Null on every
+  // slide but the active one, and nulled upstream during a deload.
+  const raise = progression?.hint === 'raise'
 
   const group = MUSCLE_GROUPS[ex.muscle] || {}
   const color = group.color || 'var(--cyan)'
@@ -37,7 +42,8 @@ export default function ExerciseHero({
   const menu = (action) => () => { setShowMenu(false); action() }
 
   return (
-    <div style={{
+    <div ref={cardRef} style={{
+      position: 'relative',
       background: 'var(--bg2)',
       border: `1px solid ${isActive ? 'var(--cyan-md)' : 'var(--border)'}`,
       borderRadius: 'var(--radius)',
@@ -45,6 +51,7 @@ export default function ExerciseHero({
       opacity: isActive ? 1 : 0.55,
       transition: 'opacity 0.25s, border-color 0.25s',
     }}>
+      {raise && <RaiseRing hostRef={cardRef} />}
       <div style={{ height: 3, background: color }} />
       <div style={{ padding: '12px 14px 14px' }}>
 
@@ -91,7 +98,6 @@ export default function ExerciseHero({
             ex={ex} color={color} label={group.label || ex.muscle} emoji={group.emoji || '🏋️'}
             ytUrl={ytUrl} progression={progression}
             lastWeight={lastWeight} maxWeight={maxWeight}
-            isComplete={isComplete} deloadPct={deloadPct}
           />
         </div>
 

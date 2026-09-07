@@ -5,10 +5,17 @@ import { equipLabel } from '../../exerciseMedia.js'
 //
 // Every chip the old ExerciseCard grew over time, in one component the
 // card and the player both render: the muscle badge, the single
-// progression hint, YouTube, the last/best weights, and the raise
-// nudge. Extracted rather than rewritten so the two surfaces can never
-// drift apart on what an exercise says about itself. One addition: the
-// equipment chip from the media map, which the reference design shows.
+// progression hint, YouTube, and the last/best weights. Extracted rather
+// than rewritten so the two surfaces can never drift apart on what an
+// exercise says about itself. One addition: the equipment chip from the
+// media map, which the reference design shows.
+//
+// What is NOT here any more: the "try raising next time" nudge that
+// appeared on completion. It said what the progression hint already
+// says, in a second gold chip, and the row had three gold chips in it —
+// which is how the one that mattered went unseen. The raise advice now
+// lives on the card's edge (RaiseRing); the chip beneath it stays gold
+// and still, and the ring carries the motion.
 
 const statChip = {
   display: 'inline-flex', alignItems: 'baseline', gap: 5,
@@ -30,7 +37,6 @@ const HINTS = {
 export default function ExerciseTags({
   ex, color, label, emoji, ytUrl,
   progression = null, lastWeight = null, maxWeight = null,
-  isComplete = false, deloadPct = 0,
 }) {
   const hint = progression?.hint ? HINTS[progression.hint] : null
   const equip = equipLabel(ex.name)
@@ -48,7 +54,7 @@ export default function ExerciseTags({
       )}
 
       {hint && (
-        <span className="tag-pulse" style={{
+        <span className={progression.hint === 'raise' ? undefined : 'tag-pulse'} style={{
           '--tag-glow': hint.glow,
           background: hint.bg, color: hint.color,
           border: `1px solid ${hint.color}50`,
@@ -94,14 +100,6 @@ export default function ExerciseTags({
           <span style={statLabel}>أعلى</span>
           <b style={{ ...statValue, color: 'var(--gold)' }}>{maxWeight}kg</b>
         </span>
-      )}
-
-      {isComplete && !deloadPct && (
-        <span style={{
-          background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-          borderRadius: 20, padding: '2px 10px',
-          fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--gold)', fontWeight: 700,
-        }}>⬆️ جرب ارفع الوزن المرة الجاية</span>
       )}
     </div>
   )

@@ -274,6 +274,23 @@ export const FIXTURES = {
 
   /** The same player on the smallest screen the app supports. */
   'player-se': { extend: 'player', device: 'iPhone SE' },
+
+  /** Three sessions at 75kg that open the advice to add weight — the
+   *  card answers with a gold ring on its edge. */
+  'player-raise': {
+    extend: 'player',
+    seed: {
+      hf_sessions: [
+        [1, [[75, 12], [75, 12], [75, 11]]],
+        [3, [[75, 13], [75, 12], [75, 12]]],
+        [5, [[75, 15], [75, 15], [75, 14]]],
+      ].map(([n, sets]) => ({
+        id: n, date: new Date(2026, 8, n, 18).toISOString(), duration: 40,
+        exercises: [{ id: 'a', muscle: 'Chest', name: ACTIVE.exercises[0].name,
+          sets: sets.map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }],
+      })),
+    },
+  },
 }
 
 // ── The screens ───────────────────────────────────────────────
@@ -446,6 +463,15 @@ export const SCREENS = [
     expect: { text: /إنهاء المجموعة/ },
     covers: ['src/components/player/WorkoutPlayer.jsx'],
     state: 'نفس المشغّل على iPhone SE — أضيق شاشة يدعمها التطبيق',
+  },
+
+  {
+    id: 'player-raise', group: 'player', fixture: 'player-raise', shot: 'fold',
+    label: 'المشغّل — ارفع وزنك', labelEn: 'Player — time to add weight',
+    reach: [{ tab: 'workout' }, { settle: 1600 }],
+    expect: { selector: '[data-testid="raise-ring"]' },
+    covers: ['src/components/player/RaiseRing.jsx', 'src/components/player/ExerciseTags.jsx'],
+    state: 'التقدّم فتح «ارفع وزنك» — الكرت يرسم حلقة ذهبية من أسفله إلى أعلاه وتبقى تتنفّس',
   },
 
   // ── Modals and sheets ───────────────────────────────────────

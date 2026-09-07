@@ -323,7 +323,8 @@
     "The document is RTL. Use logical properties (inline-start / inline-end), never left / right.",
     "A Latin run inside Arabic text needs its own direction:ltr, or bidi reorders trailing marks: «6×» renders «×6», «−40%» renders «40%−».",
     "Fluid space tokens (card-pad, card-gap, card-mb) exist because the layout must survive a 320px phone. Prefer them over fixed values for anything that stacks.",
-    "The primary button is the only element allowed to glow in its own colour. Everything else earns attention by position and size."
+    "The primary button is the only element allowed to glow in its own colour. Everything else earns attention by position and size.",
+    "In the workout player, the advice to add weight is carried by the card itself: a gold ring drawn up its edge that stays and breathes while the advice stands. Gold there marks the two things worth a glance mid-set — the best weight and the invitation to beat it — and never a third; the completion nudge that used to repeat the advice in a second gold chip is gone for that reason."
   ],
   "debt": [
     "646 hardcoded px font sizes across JSX and zero rem rules — the type scale is documented here but not yet enforced, and the OS text-size setting has no effect on the app.",
@@ -898,6 +899,55 @@
               "fontWeight": "500",
               "textAlign": "center",
               "maxWidth": "240px"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RaiseRing",
+      "description": "A gold stroke that starts at the bottom centre of the exercise card, climbs both sides at once and meets at the top, then stays and breathes slowly for as long as the progression engine says to add weight. The advice used to be one chip among seven; now the whole edge says it.",
+      "variants": [
+        "default"
+      ],
+      "tokensUsed": [
+        "color.reward",
+        "radius.lg",
+        "dial.breath"
+      ],
+      "dos": [
+        "Draw once (1.3s), then keep it — the person may be looking at the bar, not the phone, at the second it draws.",
+        "Follow the card’s own border-radius, read at runtime, so the deload mode’s rounder corners are honoured.",
+        "Under reduced motion show the ring whole and still."
+      ],
+      "donts": [
+        "Never show it during a deload; the advice is silenced at its source and the ring has a display:none floor as well.",
+        "Do not add particles or a second glowing element beside it — one thing on this screen breathes."
+      ],
+      "preview": {
+        "element": "surface",
+        "label": "⬆️ ارفع وزنك",
+        "states": [
+          {
+            "name": "drawing",
+            "styles": {
+              "border": "2.5px solid #F59E0B",
+              "borderRadius": "18px",
+              "filter": "drop-shadow(0 0 6px rgba(245,158,11,0.35))",
+              "opacity": "1",
+              "background": "#0A101C",
+              "padding": "16px"
+            }
+          },
+          {
+            "name": "resting",
+            "styles": {
+              "border": "2.5px solid #F59E0B",
+              "borderRadius": "18px",
+              "filter": "drop-shadow(0 0 6px rgba(245,158,11,0.35))",
+              "opacity": "0.55",
+              "background": "#0A101C",
+              "padding": "16px"
             }
           }
         ]

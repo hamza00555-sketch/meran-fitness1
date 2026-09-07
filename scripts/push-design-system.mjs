@@ -96,6 +96,7 @@ const RULE_META = [
   ['isolate-latin-runs',       'must'],
   ['fluid-space-tokens',       'should'],
   ['only-primary-glows',       'must'],
+  ['raise-ring-carries-advice','should'],
 ]
 
 const rules = src.rules.map((statement, i) => ({

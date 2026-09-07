@@ -247,10 +247,35 @@ input[type=number] { -moz-appearance: textfield; }
   0%   { transform: scale(0); opacity: 0.6; }
   100% { transform: scale(4); opacity: 0; }
 }
-@keyframes weightSuggest {
-  0%   { opacity: 0; transform: translateX(8px); }
-  100% { opacity: 1; transform: translateX(0); }
+/* ── The raise ring ────────────────────────────────────────────
+   Two gold strokes climb the exercise card from the bottom centre and
+   meet at the top (RaiseRing.jsx), then the ring stays and breathes for
+   as long as the advice to add weight stands. Drawn once to be noticed,
+   kept so it is not missed. The breath rides --breath like every other
+   idle motion, so a deload would slow it — though a deload never shows
+   it at all (the hint is nulled at its source). */
+@keyframes raiseDraw {
+  from { stroke-dashoffset: 100; }
+  to   { stroke-dashoffset: 0; }
 }
+@keyframes raiseBreathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.raise-ring { filter: drop-shadow(0 0 6px rgba(245,158,11,0.35)); }
+.raise-ring-path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation:
+    raiseDraw 1.3s cubic-bezier(0.22,1,0.36,1) forwards,
+    raiseBreathe calc(3s * var(--breath)) ease-in-out 1.3s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The ring, whole and still: the signal stays, the motion goes. */
+  .raise-ring-path { animation: none; stroke-dashoffset: 0; opacity: 1; }
+}
+/* A floor only — the advice is already silenced during a deload. */
+:root[data-deload="1"] .raise-ring { display: none !important; }
 @keyframes gradientShift {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
