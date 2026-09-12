@@ -314,6 +314,19 @@ const RAISE_SESSIONS = [
   const stroke = await page.evaluate(() =>
     getComputedStyle(document.querySelector('.raise-ring-path')).stroke)
   ok('raise: the stroke is gold', /245,\s*158,\s*11/.test(stroke), stroke)
+  // The SVG must fill exactly the box it sits in — the card's padding
+  // box, inside the 1px border. Sized to the border box instead, it ran
+  // 2px wide, and in this RTL document the overflow all landed on the
+  // left and was clipped: a hairline on one side, the full stroke on
+  // the other. The first thing the user noticed.
+  const fit = await page.evaluate(() => {
+    const svg = document.querySelector('[data-testid="raise-ring"]')
+    const card = svg.parentElement
+    return { sw: svg.getAttribute('width'), sh: svg.getAttribute('height'),
+             cw: card.clientWidth, ch: card.clientHeight }
+  })
+  ok('raise: the ring fits the card exactly, so both sides draw at full width',
+    Number(fit.sw) === fit.cw && Number(fit.sh) === fit.ch, JSON.stringify(fit))
   // Draw, hold, repeat. Sample the dash offset through two cycles: it
   // has to reach 0 and STAY there for a stretch (the hold), then jump
   // back up (the next draw). One-shot or breathing would fail this.

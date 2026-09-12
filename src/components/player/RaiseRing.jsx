@@ -46,9 +46,18 @@ export default function RaiseRing({ hostRef }) {
     const el = hostRef.current
     if (!el) return
     const measure = () => {
-      const rect = el.getBoundingClientRect()
-      const r = parseFloat(getComputedStyle(el).borderRadius) || 0
-      setBox({ w: rect.width, h: rect.height, r })
+      // The padding box, not the border box. The SVG sits inside the
+      // card's 1px border (inset:0 is measured from it), so sizing it
+      // to the outer rectangle left it 2px too wide — and in an RTL
+      // document an over-constrained absolute box keeps its right edge,
+      // so the whole overflow landed on the left and was clipped there:
+      // a 0.7px stroke on one side, 2.5px on the other. Measure what
+      // the SVG actually fills, and take the border off the radius so
+      // the inner curve stays concentric with the outer one.
+      const cs = getComputedStyle(el)
+      const bw = parseFloat(cs.borderLeftWidth) || 0
+      const r = Math.max(0, (parseFloat(cs.borderRadius) || 0) - bw)
+      setBox({ w: el.clientWidth, h: el.clientHeight, r })
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -66,7 +75,7 @@ export default function RaiseRing({ hostRef }) {
       aria-hidden="true"
       width={w} height={h} viewBox={`0 0 ${w} ${h}`}
       style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1,
+        position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 1,
         overflow: 'visible',
       }}
     >
