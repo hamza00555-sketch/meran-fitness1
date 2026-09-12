@@ -199,6 +199,14 @@ const STEPS = {
     }, screens)
     await page.waitForTimeout(900)
   },
+  // Playwright's animations:'disabled' rewinds an INFINITE animation to
+  // its first frame — for a stroke that draws itself, that is no stroke
+  // at all. A screen that needs a looping animation caught at a chosen
+  // frame injects the rule that pins it there.
+  async css(page, rule) {
+    await page.addStyleTag({ content: rule })
+    await page.waitForTimeout(100)
+  },
   async settle(page, ms) { await page.waitForTimeout(ms) },
   async waitFor(page, needle) {
     await page.getByText(needle, { exact: false }).first().waitFor({ timeout: 10000 })

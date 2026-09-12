@@ -468,10 +468,11 @@ export const SCREENS = [
   {
     id: 'player-raise', group: 'player', fixture: 'player-raise', shot: 'fold',
     label: 'المشغّل — ارفع وزنك', labelEn: 'Player — time to add weight',
-    reach: [{ tab: 'workout' }, { settle: 1600 }],
+    reach: [{ tab: 'workout' }, { settle: 1600 },
+            { css: '.raise-ring-path { animation: none !important; stroke-dashoffset: 0 !important }' }],
     expect: { selector: '[data-testid="raise-ring"]' },
     covers: ['src/components/player/RaiseRing.jsx', 'src/components/player/ExerciseTags.jsx'],
-    state: 'التقدّم فتح «ارفع وزنك» — الكرت يرسم حلقة ذهبية من أسفله إلى أعلاه وتبقى تتنفّس',
+    state: 'التقدّم فتح «ارفع وزنك» — الكرت يرسم حلقة ذهبية من أسفله إلى أعلاه، تثبت نصف ثانية، ثم تُعاد',
   },
 
   // ── Modals and sheets ───────────────────────────────────────

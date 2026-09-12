@@ -314,11 +314,32 @@ const RAISE_SESSIONS = [
   const stroke = await page.evaluate(() =>
     getComputedStyle(document.querySelector('.raise-ring-path')).stroke)
   ok('raise: the stroke is gold', /245,\s*158,\s*11/.test(stroke), stroke)
-  // After the draw the ring is whole (dashoffset 0), not a fragment.
-  await page.waitForTimeout(1600)
-  const off = await page.evaluate(() =>
-    getComputedStyle(document.querySelector('.raise-ring-path')).strokeDashoffset)
-  ok('raise: the ring is fully drawn after the sweep', parseFloat(off) === 0, off)
+  // Draw, hold, repeat. Sample the dash offset through two cycles: it
+  // has to reach 0 and STAY there for a stretch (the hold), then jump
+  // back up (the next draw). One-shot or breathing would fail this.
+  const anim = await page.evaluate(() => {
+    const cs = getComputedStyle(document.querySelector('.raise-ring-path'))
+    return { name: cs.animationName, count: cs.animationIterationCount }
+  })
+  ok('raise: the ring animation loops', anim.name === 'raiseDraw' && anim.count === 'infinite', JSON.stringify(anim))
+  const trace = await page.evaluate(async () => {
+    const el = document.querySelector('.raise-ring-path')
+    const out = []
+    const t0 = performance.now()
+    while (performance.now() - t0 < 3800) {
+      out.push(parseFloat(getComputedStyle(el).strokeDashoffset))
+      await new Promise(r => setTimeout(r, 50))
+    }
+    return out
+  })
+  let longestHold = 0, run = 0, sawRedraw = false, reachedZero = false
+  for (const v of trace) {
+    if (v <= 0.5) { reachedZero = true; run++; longestHold = Math.max(longestHold, run) }
+    else { if (reachedZero && v > 50) sawRedraw = true; run = 0 }
+  }
+  ok('raise: the ring draws to completion', reachedZero)
+  ok('raise: then holds still for about half a second', longestHold >= 8, `${longestHold * 50}ms`)
+  ok('raise: then draws again from the bottom', sawRedraw)
   await page.screenshot({ path: `${OUT}/raise.png`, fullPage: false })
   ok('raise: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()

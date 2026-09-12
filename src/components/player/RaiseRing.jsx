@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react'
 // The advice to raise the weight used to be one chip among seven, in
 // the same gold as the best-weight chip beside it, and it went unseen
 // mid-set. Now the card itself carries it: a gold stroke starts at the
-// bottom centre, climbs both sides at once and meets at the top, then
-// stays — breathing slowly — for as long as the advice stands. Drawn
-// once so it is noticed; kept so it is not missed by looking away at
-// the wrong second.
+// bottom centre, climbs both sides at once and meets at the top, holds
+// for half a second, and climbs again — for as long as the advice
+// stands. Repeated rather than drawn once, so an eye that was on the
+// bar for the first pass catches the next.
 //
 // Two mirrored paths rather than one loop, because two lines rising to
 // meet reads as "up" and a single line circling reads as "loading".
