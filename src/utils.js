@@ -1,4 +1,4 @@
-import { RANKS, COMMITMENT_LEVELS } from './constants.js'
+import { RANKS, COMMITMENT_LEVELS, GREETINGS } from './constants.js'
 import { dayKey, todayKey, toWesternDigits } from './day.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
@@ -610,4 +610,47 @@ export const buildCalendarData = (sessions, weeks = 14) => {
     days.push({ iso, count: counts[iso] || 0 })
   }
   return days
+}
+
+// ── The line under the logo ───────────────────────────────────
+//
+// Picks the greeting pool that fits the day, then a line from it that
+// is not the one shown last time. The order is the order of registers:
+// a deload week sets the whole app's tone («lighter, not weaker») and
+// nothing may contradict it; a comeback after days away is about the
+// person, and beats a line about a mechanic; a credit spent yesterday
+// is then the most specific fact about this morning; a rest day and a
+// streak follow; `general` is the floor. It was tried the other way
+// round first, and a man nine days out in a deload week was greeted
+// with «pay the balance back today».
+//
+// `random` and `last` are parameters so the choice can be tested; the
+// app passes nothing and gets Math.random and the stored last line.
+export function pickGreeting({
+  name = 'البطل',
+  isRecoveryDay = false,
+  deload = false,
+  streak = 0,
+  daysSinceLast = null,
+  creditSpentYesterday = false,
+  pools = GREETINGS,
+  random = Math.random,
+  last = ls.get('hf_last_greeting', null),
+  remember = true,
+} = {}) {
+  const pool =
+    deload                                      ? pools.deload :
+    daysSinceLast != null && daysSinceLast >= 5 ? pools.comeback :
+    creditSpentYesterday                        ? pools.creditSpent :
+    isRecoveryDay                               ? pools.rest :
+    streak >= 7                                 ? pools.streak :
+                                                  pools.general
+  const list = (pool && pool.length) ? pool : pools.general
+  // Never the same line twice running, unless the pool has only one.
+  const candidates = list.length > 1 ? list.filter(l => l !== last) : list
+  const line = candidates[Math.floor(random() * candidates.length)]
+  if (remember) ls.set('hf_last_greeting', line)
+  return line
+    .replaceAll('{name}', name || 'البطل')
+    .replaceAll('{streak}', toWesternDigits(String(streak)))
 }

@@ -1,18 +1,18 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday, applySubsToDay,
 } from './utils.js'
 import {
-  GREETINGS, NAV_TABS, ACHIEVEMENTS,
+  NAV_TABS, ACHIEVEMENTS,
   DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
   NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS,
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft, dayDiff } from './recovery.js'
-import { todayKey } from './day.js'
+import { todayKey, dayKey } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
@@ -50,9 +50,6 @@ import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
 import { buildMonthReport, monthReportWindow } from './monthReport.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
-
-// Stable greeting index per session
-const GREETING_IDX = Math.floor(Math.random() * GREETINGS.length)
 
 // One-time weights reset (v2): the old exercise mapping wrongly
 // merged machine/cable/dumbbell/barbell variants, polluting saved
@@ -513,6 +510,20 @@ export default function App() {
   // ── Deload ───────────────────────────────────────────────────
   const deload = useMemo(() => deloadState(recoveryCfg, today), [recoveryCfg, today])
 
+  // The greeting knows what day it is. Re-drawn when the day turns or
+  // the day's state changes, not on every render — otherwise the line
+  // would flicker to a new one each time a set is logged.
+  const yesterdayKey = useMemo(() => dayKey(new Date(Date.now() - 86400000)), [today])
+  const greeting = useMemo(() => pickGreeting({
+    name: profile?.name,
+    isRecoveryDay: recovery.status === DAY_STATUS.RECOVERY,
+    deload: !!deload?.active,
+    streak,
+    daysSinceLast: Number.isFinite(recovery.daysSinceLastWorkout) ? recovery.daysSinceLastWorkout : null,
+    creditSpentYesterday: (recovery.restTakenHistory || []).includes(yesterdayKey),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [today, profile?.name, recovery.status, deload?.active, streak, recovery.daysSinceLastWorkout])
+
   // A stretch whose last day passed while the app was shut is still
   // stored. File it once, here, rather than leaving every reader to
   // cope with a deload that is over but not closed.
@@ -735,7 +746,7 @@ export default function App() {
               fontWeight: 600, color: 'var(--text2)',
               maxWidth: 230, lineHeight: 1.4,
             }}>
-              {GREETINGS[GREETING_IDX].replace('{name}', profile?.name || 'البطل')}
+              {greeting}
             </div>
             <div style={{
               fontFamily: 'var(--font-ar)', fontSize: 10,
