@@ -146,3 +146,18 @@ test('keepDone drops the skipped exercises and the unticked sets', () => {
 test('keepDone of a session where nothing was done is null — nothing to save', () => {
   assert.equal(keepDone({ exercises: [{ sets: [set(50, 10, false)] }] }), null)
 })
+
+// Old sessions still carry skipped, pre-filled sets. The best and last
+// weights read from the history must not see them.
+const { getExerciseStats, getHistoricalMax } = await import('../src/utils.js')
+
+test('best and last weights ignore sets that were never ticked', () => {
+  const old = [{
+    id: Date.now(), date: new Date().toISOString(),
+    exercises: [{ name: 'Calf Raise', sets: [set(60, 15, false), set(80, 15, false)] },
+                { name: 'Leg Press', sets: [set(75, 15), set(120, 15, false)] }],
+  }]
+  assert.deepEqual(getExerciseStats(old, 'Calf Raise'), { lastWeight: null, maxWeight: null })
+  assert.deepEqual(getExerciseStats(old, 'Leg Press'), { lastWeight: 75, maxWeight: 75 })
+  assert.equal(getHistoricalMax(old, 'Leg Press'), 75)
+})

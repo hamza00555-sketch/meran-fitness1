@@ -120,7 +120,7 @@ export default function WorkoutPlayer({
     if (!celebrating || celebrating.exId !== ex?.id) return null
     const done = exercises.find(e => e.id === celebrating.exId)
     if (!done) return null
-    const weights = done.sets.map(s => parseFloat(s.weight)).filter(w => w > 0)
+    const weights = done.sets.filter(s => s.done).map(s => parseFloat(s.weight)).filter(w => w > 0)
     const top = weights.length ? Math.max(...weights) : null
     const { lastWeight } = statsFor(done.name)
     const delta = top != null && lastWeight != null ? Math.round((top - lastWeight) * 10) / 10 : null

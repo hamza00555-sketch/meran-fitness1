@@ -650,19 +650,19 @@ export const ACHIEVEMENTS = [
     id: 'b1', cat: 'strength', rarity: 'common',
     icon: '🏋️', title: 'أول 100 كجم', desc: 'ارفع 100 كجم في أي تمرين', xp: 150,
     check: (sessions) => sessions.some(s =>
-      s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 100))),
+      s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) >= 100))),
   },
   {
     id: 'b2', cat: 'strength', rarity: 'rare',
     icon: '⚡', title: '140 كجم', desc: 'ارفع 140 كجم في أي تمرين', xp: 300,
     check: (sessions) => sessions.some(s =>
-      s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 140))),
+      s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) >= 140))),
   },
   {
     id: 'b3', cat: 'strength', rarity: 'epic',
     icon: '🦁', title: '180 كجم', desc: 'ارفع 180 كجم في أي تمرين', xp: 500,
     check: (sessions) => sessions.some(s =>
-      s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 180))),
+      s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) >= 180))),
   },
   {
     id: 'b4', cat: 'strength', rarity: 'legendary',

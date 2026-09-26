@@ -68,6 +68,22 @@ if (!ls.get('hf_weights_reset_v2', false)) {
   ls.set('hf_weights_reset_v2', true)
 }
 
+// One-time history cleanup: only what was done stays in the record.
+// Sessions saved before finishSession started keeping only ticked sets
+// still carry every planned set, pre-filled with suggested weights —
+// and the "best" and "last" weights, the weight achievements and every
+// other reader of the history saw those as lifted. The untouched
+// original is kept once, under hf_sessions_backup_v1, in case anything
+// ever needs to be recovered from it. Runs once per user.
+if (!ls.get('hf_history_cleaned_v1', false)) {
+  const raw = ls.get('hf_sessions', []) || []
+  if (raw.length) {
+    ls.set('hf_sessions_backup_v1', raw)
+    ls.set('hf_sessions', raw.map(keepDone).filter(Boolean))
+  }
+  ls.set('hf_history_cleaned_v1', true)
+}
+
 // Default profile
 const DEFAULT_PROFILE = {
   name: 'البطل',
@@ -945,7 +961,7 @@ export default function App() {
                 pushAlert('🗺️', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
                 return
               }
-              if (data.sessions !== undefined)           setSessions(data.sessions)
+              if (data.sessions !== undefined)           setSessions((data.sessions || []).map(keepDone).filter(Boolean))
               if (data.xp !== undefined)                 setXP(data.xp)
               if (data.profile)                          setProfile(data.profile)
               if (data.unlockedAchievements)             setUnlockedAchievements(data.unlockedAchievements)
