@@ -445,3 +445,21 @@ test('an unpaid miss still shows up as one', () => {
   assert.deepEqual(r.autoPaidDays, [], 'nothing to spend')
   assert.ok(r.missedDays.includes(day(3)))
 })
+
+// ══ The history repair must not cost a streak ═════════════════
+// Thirty days trained every other day, half of the sessions logged
+// without ticking a set. Normalised, every one of them must still be a
+// trained day.
+const { normalizeSession } = await import('../src/sets.js')
+
+test('sessions logged without ticks still count as trained days', () => {
+  const sessions = []
+  for (let n = 1; n <= 29; n += 2) {
+    sessions.push({
+      id: n, date: `${day(n)}T10:00:00.000Z`, duration: 45,
+      exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '12', done: n % 4 === 1 }] }],
+    })
+  }
+  const r = computeRecovery(sessions.map(normalizeSession).filter(Boolean), CFG, day(30))
+  assert.equal(r.consistencyStreak, 30)
+})

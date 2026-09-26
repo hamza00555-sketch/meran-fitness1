@@ -5,6 +5,7 @@
 
 import { Fragment, useState } from 'react'
 import { Card } from './ui.jsx'
+import { ls } from '../utils.js'
 import { LEDGER_COLUMNS, recentLedger, ledgerRow, ledgerTotals, ledgerText } from '../restLedger.js'
 
 const KIND_COLOR = {
@@ -70,6 +71,26 @@ export default function RestLedgerPanel({ recovery, days = 20 }) {
                     {recovery.streakStart || '—'}
                   </strong>
                 </div>
+                {/* Which sessions the history repair brought back, by date,
+                    so the claim can be checked against memory rather than
+                    taken on trust. */}
+                {(() => {
+                  const rep = ls.get('hf_history_restore_report', null)
+                  if (!rep?.count) return null
+                  return (
+                    <div data-testid="restore-report" style={{
+                      fontSize: 12, color: 'var(--text2)', margin: '0 0 10px', lineHeight: 1.7,
+                      background: 'var(--bg3)', border: '1px solid var(--border2)',
+                      borderRadius: 10, padding: '8px 10px',
+                    }}>
+                      ♻️ أُرجعت <strong style={{ color: 'var(--text)' }}>{rep.count}</strong> جلسة
+                      كانت انحذفت بالغلط لأنها سُجّلت بدون ✓:
+                      <div style={{ direction: 'ltr', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
+                        {rep.dates.join(' · ')}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   <table style={{

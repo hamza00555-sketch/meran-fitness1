@@ -195,7 +195,7 @@ export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
 }
 
 // ── Session volume ────────────────────────────────────────────
-export { sessionVolume, setVolume, setCounts, keepDone } from './sets.js'
+export { sessionVolume, setVolume, setCounts, keepDone, normalizeSession } from './sets.js'
 
 // ── Plate granularity ─────────────────────────────────────────
 // The smallest jump a rack actually offers. Every rounded weight in

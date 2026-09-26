@@ -143,8 +143,23 @@ test('keepDone drops the skipped exercises and the unticked sets', () => {
   assert.equal(kept.duration, 36, 'the rest of the session is untouched')
 })
 
-test('keepDone of a session where nothing was done is null — nothing to save', () => {
-  assert.equal(keepDone({ exercises: [{ sets: [set(50, 10, false)] }] }), null)
+test('a session logged without ticking anything is kept: its typed sets are the workout', () => {
+  // The app always let a workout be finished by typing the numbers and
+  // pressing finish without ticking. Dropping those sessions erased a
+  // month of real training and broke a 30-day streak down to 6.
+  const s = keepDone({ id: 9, date: '2026-09-01T18:00:00.000Z', exercises: [
+    { name: 'Bench Press', sets: [set(60, 10, false), set(60, 8, false), { weight: '', reps: '', done: false }] },
+    { name: 'Fly', sets: [{ weight: '', reps: '', done: false }] },
+  ] })
+  assert.ok(s, 'the session survives')
+  assert.deepEqual(s.exercises.map(e => e.name), ['Bench Press'])
+  assert.equal(s.exercises[0].sets.length, 2)
+  assert.ok(s.exercises[0].sets.every(x => x.done))
+  assert.equal(sessionVolume(s), 1080)
+})
+
+test('only a session with nothing typed at all is dropped', () => {
+  assert.equal(keepDone({ exercises: [{ sets: [{ weight: '', reps: '', done: false }] }] }), null)
 })
 
 // Old sessions still carry skipped, pre-filled sets. The best and last

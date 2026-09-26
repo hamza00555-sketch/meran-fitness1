@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, setCounts,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday, applySubsToDay,
 } from './utils.js'
@@ -68,20 +68,35 @@ if (!ls.get('hf_weights_reset_v2', false)) {
   ls.set('hf_weights_reset_v2', true)
 }
 
-// One-time history cleanup: only what was done stays in the record.
-// Sessions saved before finishSession started keeping only ticked sets
-// still carry every planned set, pre-filled with suggested weights —
-// and the "best" and "last" weights, the weight achievements and every
-// other reader of the history saw those as lifted. The untouched
-// original is kept once, under hf_sessions_backup_v1, in case anything
-// ever needs to be recovered from it. Runs once per user.
-if (!ls.get('hf_history_cleaned_v1', false)) {
-  const raw = ls.get('hf_sessions', []) || []
-  if (raw.length) {
-    ls.set('hf_sessions_backup_v1', raw)
-    ls.set('hf_sessions', raw.map(keepDone).filter(Boolean))
+// History repair. The first cleanup (hf_history_cleaned_v1) dropped
+// every session with no ticked set — but a workout could always be
+// finished by typing the numbers without ticking, and a month of real
+// sessions went with it, breaking a 30-day streak. The untouched
+// original was kept in hf_sessions_backup_v1; rebuild from it with the
+// corrected rule (normalizeSession: a saved session is never dropped),
+// keep any session saved since, and write down which days came back so
+// the Settings ledger can show them. Runs once per user.
+if (!ls.get('hf_history_restored_v2', false)) {
+  const backup  = ls.get('hf_sessions_backup_v1', null)
+  const current = ls.get('hf_sessions', []) || []
+  const source  = backup || current
+  if (source.length || current.length) {
+    const rebuilt  = source.map(normalizeSession).filter(Boolean)
+    const known    = new Set(rebuilt.map(s => s.id))
+    const newer    = current.filter(s => !known.has(s.id)).map(normalizeSession).filter(Boolean)
+    const had      = new Set(current.map(s => s.id))
+    const returned = rebuilt.filter(s => !had.has(s.id))
+    const merged   = [...newer, ...rebuilt].sort((a, b) => (b.id || 0) - (a.id || 0))
+    ls.set('hf_sessions', merged)
+    if (backup && !ls.get('hf_sessions_backup_v2', null)) ls.set('hf_sessions_backup_v2', current)
+    ls.set('hf_history_restore_report', {
+      at: Date.now(),
+      count: returned.length,
+      dates: returned.map(s => String(s.date).slice(0, 10)).sort(),
+    })
   }
   ls.set('hf_history_cleaned_v1', true)
+  ls.set('hf_history_restored_v2', true)
 }
 
 // Default profile
@@ -390,13 +405,13 @@ export default function App() {
     // lays out every set of the day with a suggested weight in it; an
     // exercise skipped because the machine was taken, or because there
     // was no time, is not something that happened.
-    const finished = keepDone({ ...active, duration })
+    const finished = normalizeSession({ ...active, duration })
     if (!finished) {
       setActive(null)
       setShowRest(false)
       ls.remove('hf_rest_timer')
       setTab('home')
-      pushAlert('ℹ️', 'ما في ولا سيت مكتمل — ما انحفظت الجلسة')
+      pushAlert('ℹ️', 'الجلسة فاضية — ما انكتب فيها ولا وزن، فما انحفظت')
       return
     }
 
@@ -961,7 +976,7 @@ export default function App() {
                 pushAlert('🗺️', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
                 return
               }
-              if (data.sessions !== undefined)           setSessions((data.sessions || []).map(keepDone).filter(Boolean))
+              if (data.sessions !== undefined)           setSessions((data.sessions || []).map(normalizeSession).filter(Boolean))
               if (data.xp !== undefined)                 setXP(data.xp)
               if (data.profile)                          setProfile(data.profile)
               if (data.unlockedAchievements)             setUnlockedAchievements(data.unlockedAchievements)
