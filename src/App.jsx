@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday, applySubsToDay,
 } from './utils.js'
@@ -370,7 +370,19 @@ export default function App() {
   const finishSession = useCallback(() => {
     if (!active) return
     const duration = Math.round((Date.now() - active.id) / 60000)
-    const finished = { ...active, duration }
+    // Only what was actually done goes into the history. The planner
+    // lays out every set of the day with a suggested weight in it; an
+    // exercise skipped because the machine was taken, or because there
+    // was no time, is not something that happened.
+    const finished = keepDone({ ...active, duration })
+    if (!finished) {
+      setActive(null)
+      setShowRest(false)
+      ls.remove('hf_rest_timer')
+      setTab('home')
+      pushAlert('ℹ️', 'ما في ولا سيت مكتمل — ما انحفظت الجلسة')
+      return
+    }
 
     // Snapshot definitive weights at the exact moment of finishing.
     //
@@ -383,7 +395,7 @@ export default function App() {
     if (!isDeloadSession(finished)) {
       const snapshot = {}
       for (const ex of finished.exercises || []) {
-        const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
+        const ws = (ex.sets || []).filter(setCounts).map(s => parseFloat(s.weight)).filter(w => w > 0)
         if (ws.length) {
           const canonical = resolveExerciseName(ex.name, exerciseMapping)
           snapshot[canonical] = ws[ws.length - 1]

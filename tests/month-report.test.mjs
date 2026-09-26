@@ -874,3 +874,10 @@ test('a finished streak is not marked as ongoing', () => {
   const r = reportFor(range('2026-09', 3, 12), '2026-09')
   assert.equal(r.consistency.streaks.month.ongoing, false)
 })
+
+test('an unticked set with a pre-filled weight adds nothing to the month', () => {
+  const ticked   = session(1, 'Bench Press', [[60, 10]])
+  const unticked = session(3, 'Bench Press', [[60, 10, false]])
+  const r = build([ticked, unticked])
+  assert.equal(r.volume.total, 600)
+})

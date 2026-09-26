@@ -195,15 +195,7 @@ export const getExerciseStats = (sessions, exerciseName, mapping = {}) => {
 }
 
 // ── Session volume ────────────────────────────────────────────
-export const sessionVolume = (session) => {
-  if (!session || !session.exercises) return 0
-  return session.exercises.flatMap(ex => ex.sets || []).reduce((total, s) => {
-    if (!s.done && !(parseFloat(s.weight) > 0)) return total
-    const w = parseFloat(s.weight) || 0
-    const r = parseInt(s.reps) || 0
-    return total + w * r
-  }, 0)
-}
+export { sessionVolume, setVolume, setCounts, keepDone } from './sets.js'
 
 // ── Plate granularity ─────────────────────────────────────────
 // The smallest jump a rack actually offers. Every rounded weight in

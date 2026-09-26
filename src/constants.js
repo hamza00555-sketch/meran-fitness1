@@ -1,4 +1,5 @@
 import { dayKey, todayKey } from './day.js'
+import { setCounts, setVolume } from './sets.js'
 
 // ── App version — bump this string after each update to trigger WhatsNew ──
 export const APP_VERSION = '2.2'
@@ -409,7 +410,7 @@ export const DAILY_CHALLENGE_POOL = [
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return todaySessions.reduce((max, s) =>
-        Math.max(max, s.exercises.flatMap(e => e.sets).filter(ss => ss.done || parseFloat(ss.weight) > 0).length), 0)
+        Math.max(max, s.exercises.flatMap(e => e.sets).filter(setCounts).length), 0)
     },
   },
   {
@@ -444,7 +445,7 @@ export const DAILY_CHALLENGE_POOL = [
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       return Math.max(0, ...todaySessions.map(s =>
         s.exercises.flatMap(e => e.sets).reduce((t, ss) =>
-          (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0)))
+          t + setVolume(ss), 0)))
     },
   },
   {
@@ -455,7 +456,7 @@ export const DAILY_CHALLENGE_POOL = [
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
-      return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Chest').flatMap(e => e.sets.filter(ss => ss.done || parseFloat(ss.weight) > 0))).length
+      return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Chest').flatMap(e => e.sets.filter(setCounts))).length
     },
   },
   {
@@ -466,7 +467,7 @@ export const DAILY_CHALLENGE_POOL = [
     check: (sessions) => {
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
-      return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Legs').flatMap(e => e.sets.filter(ss => ss.done || parseFloat(ss.weight) > 0))).length
+      return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Legs').flatMap(e => e.sets.filter(setCounts))).length
     },
   },
   {
@@ -489,7 +490,7 @@ export const DAILY_CHALLENGE_POOL = [
       const today = todayKey()
       const todaySessions = sessions.filter(s => dayKey(s.date) === today)
       const hasSetsWithWeight = todaySessions.some(s =>
-        s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) > 0)))
+        s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) > 0)))
       return hasSetsWithWeight ? 1 : 0
     },
   },
@@ -516,7 +517,7 @@ export const WEEKLY_CHALLENGE_POOL = [
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo)
         .reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
-          .reduce((tt, ss) => (ss.done || parseFloat(ss.weight) > 0) ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0)
+          .reduce((tt, ss) => tt + setVolume(ss), 0), 0)
     },
   },
   {
@@ -564,7 +565,7 @@ export const BOSS_CHALLENGES = [
     check: (sessions) => {
       return Math.max(0, ...sessions.map(s =>
         s.exercises.flatMap(e => e.sets)
-          .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0)))
+          .reduce((t, ss) => t + setVolume(ss), 0)))
     },
   },
 ]
@@ -673,13 +674,13 @@ export const ACHIEVEMENTS = [
     id: 'b5', cat: 'strength', rarity: 'common',
     icon: '🎯', title: '15 سيت في جلسة', desc: 'أكمل 15 سيت في جلسة واحدة', xp: 120,
     check: (sessions) => sessions.some(s =>
-      s.exercises.flatMap(e => e.sets).filter(ss => ss.done || parseFloat(ss.weight) > 0).length >= 15),
+      s.exercises.flatMap(e => e.sets).filter(setCounts).length >= 15),
   },
   {
     id: 'b6', cat: 'strength', rarity: 'rare',
     icon: '🔥', title: '30 سيت في جلسة', desc: 'أكمل 30 سيت في جلسة واحدة', xp: 250,
     check: (sessions) => sessions.some(s =>
-      s.exercises.flatMap(e => e.sets).filter(ss => ss.done || parseFloat(ss.weight) > 0).length >= 30),
+      s.exercises.flatMap(e => e.sets).filter(setCounts).length >= 30),
   },
   {
     id: 'b7', cat: 'strength', rarity: 'common',
@@ -707,7 +708,7 @@ export const ACHIEVEMENTS = [
     id: 'b10', cat: 'strength', rarity: 'legendary',
     icon: '🧠', title: 'عقل المحارب', desc: 'أكمل 500 سيت إجمالية عبر كل جلساتك', xp: 800,
     check: (sessions) =>
-      sessions.flatMap(s => s.exercises.flatMap(e => e.sets)).filter(ss => ss.done || parseFloat(ss.weight) > 0).length >= 500,
+      sessions.flatMap(s => s.exercises.flatMap(e => e.sets)).filter(setCounts).length >= 500,
   },
   // ── Streak ────────────────────────────────────────────────────
   {
@@ -785,35 +786,35 @@ export const ACHIEVEMENTS = [
     icon: '📦', title: 'أول طن', desc: 'ارفع 1000 كجم في جلسة واحدة', xp: 150,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets)
-        .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0) >= 1000),
+        .reduce((t, ss) => t + setVolume(ss), 0) >= 1000),
   },
   {
     id: 'd2', cat: 'volume', rarity: 'rare',
     icon: '📦📦', title: '5 طن في جلسة', desc: 'ارفع 5000 كجم في جلسة واحدة', xp: 300,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets)
-        .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0) >= 5000),
+        .reduce((t, ss) => t + setVolume(ss), 0) >= 5000),
   },
   {
     id: 'd3', cat: 'volume', rarity: 'epic',
     icon: '🏔️', title: '10 طن في جلسة', desc: 'ارفع 10,000 كجم في جلسة واحدة', xp: 600,
     check: (sessions) => sessions.some(s =>
       s.exercises.flatMap(e => e.sets)
-        .reduce((t, ss) => (ss.done || parseFloat(ss.weight) > 0) ? t + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : t, 0) >= 10000),
+        .reduce((t, ss) => t + setVolume(ss), 0) >= 10000),
   },
   {
     id: 'd4', cat: 'volume', rarity: 'legendary',
     icon: '🌋', title: 'جبل من الحديد', desc: 'ارفع 100,000 كجم إجمالي عبر كل جلساتك', xp: 1000,
     check: (sessions) =>
       sessions.reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
-        .reduce((tt, ss) => (ss.done || parseFloat(ss.weight) > 0) ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0) >= 100000,
+        .reduce((tt, ss) => tt + setVolume(ss), 0), 0) >= 100000,
   },
   {
     id: 'd5', cat: 'volume', rarity: 'legendary',
     icon: '🪐', title: 'نجم الأثقال', desc: 'ارفع 1,000,000 كجم إجمالياً — مليون! ', xp: 5000,
     check: (sessions) =>
       sessions.reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
-        .reduce((tt, ss) => (ss.done || parseFloat(ss.weight) > 0) ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0) >= 1000000,
+        .reduce((tt, ss) => tt + setVolume(ss), 0), 0) >= 1000000,
   },
   {
     id: 'd6', cat: 'volume', rarity: 'common',
@@ -848,7 +849,7 @@ export const ACHIEVEMENTS = [
       const weekAgo = Date.now() - 7 * 86400000
       return sessions.filter(s => new Date(s.date) > weekAgo)
         .reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
-          .reduce((tt, ss) => (ss.done || parseFloat(ss.weight) > 0) ? tt + (parseFloat(ss.weight) || 0) * (parseInt(ss.reps) || 0) : tt, 0), 0) >= 50000
+          .reduce((tt, ss) => tt + setVolume(ss), 0), 0) >= 50000
     },
   },
 ]

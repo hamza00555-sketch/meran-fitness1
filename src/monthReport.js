@@ -11,7 +11,7 @@
 
 import { dayKey } from './day.js'
 import {
-  sessionVolume, resolveExerciseName, getWeightsResetAt,
+  sessionVolume, setVolume, resolveExerciseName, getWeightsResetAt,
   xpProgress, getRank,
 } from './utils.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
@@ -69,13 +69,8 @@ export function monthReportWindow(today) {
 }
 
 // ── Volume, split the same way sessionVolume splits it ────────
-// sessionVolume counts a set once it is either ticked or has a weight
-// typed in. Per-muscle volume has to use the identical rule or the
-// slices will not add up to the total.
-const setVolume = (s) => {
-  if (!s.done && !(parseFloat(s.weight) > 0)) return 0
-  return (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0)
-}
+// Per-muscle volume uses the one shared rule (src/sets.js: a set counts
+// once it is ticked) or the slices would not add up to the total.
 
 const exerciseVolume = (ex) => (ex.sets || []).reduce((n, s) => n + setVolume(s), 0)
 

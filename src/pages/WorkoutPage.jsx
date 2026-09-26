@@ -386,7 +386,7 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
     <div style={{ paddingBottom: 120 }}>
       <SectionTitle>سجل الجلسات</SectionTitle>
       {sessions.map(s => {
-        const muscles  = [...new Set(s.exercises.map(e => e.muscle))]
+        const muscles  = [...new Set(s.exercises.filter(e => e.sets.some(ss => ss.done)).map(e => e.muscle))]
         const allSets  = s.exercises.flatMap(e => e.sets)
         const doneSets = allSets.filter(ss => ss.done).length
         const vol      = sessionVolume(s)
@@ -497,7 +497,9 @@ function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, 
             {/* ── Expanded: read-only or edit ── */}
             {isOpen && !isEditing && (
               <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-                {s.exercises.map((ex, ei) => (
+                {/* Sessions saved before only-done-is-kept still carry the
+                    exercises that were skipped; show what happened. */}
+                {s.exercises.filter(ex => ex.sets.some(ss => ss.done)).map((ex, ei) => (
                   <div key={ei} style={{ marginBottom: 10 }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--cyan)', marginBottom: 4 }}>
                       {ex.name}

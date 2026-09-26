@@ -22,6 +22,7 @@ globalThis.localStorage = {
   getItem(k) { return this._d.has(k) ? this._d.get(k) : null },
   setItem(k, v) { this._d.set(k, String(v)) },
   removeItem(k) { this._d.delete(k) },
+  clear() { this._d.clear() },
   key(i) { return [...this._d.keys()][i] ?? null },
   get length() { return this._d.size },
 }
@@ -101,4 +102,47 @@ test('whitespace and undefined both count as blank', () => {
 test('an index that is not there returns the sets untouched', () => {
   const sets = [blank()]
   assert.equal(markSetDone(sets, 5, true), sets)
+})
+
+// ══ Only what happened counts ═════════════════════════════════
+//
+// Reported from real use: a leg day read 10.1 tons beside "10 sets".
+// The ten ticked sets come to 7,185 kg. The other 2.9 tons were three
+// exercises never started, still carrying the planner's suggested
+// weights — and the old rule counted any set with a weight in it.
+
+const { sessionVolume, setCounts, keepDone } = await import('../src/utils.js')
+
+const set = (w, r, done = true) => ({ weight: String(w), reps: String(r), done })
+const LEG_DAY = {
+  id: 1, date: '2026-09-19T18:00:00.000Z', duration: 36,
+  exercises: [
+    { name: 'Goblet Squat', muscle: 'Legs', sets: [set(20, 12, false), set(20, 12, false), set(20, 12, false)] },
+    { name: 'Leg Press', muscle: 'Legs', sets: [set(65, 15), set(75, 15), set(75, 15), set(75, 15)] },
+    { name: 'Leg Curl', muscle: 'Legs', sets: [set(35, 15), set(35, 15), set(35, 15)] },
+    { name: 'Leg Extension', muscle: 'Legs', sets: [set(35, 12), set(35, 12), set(35, 12)] },
+    { name: 'Bulgarian Split Squat', muscle: 'Legs', sets: [set(20, 10, false), set(20, 10, false), set(20, 10, false)] },
+    { name: 'Calf Raise', muscle: 'Legs', sets: [set(60, 15, false), set(60, 15, false), set(60, 15, false)] },
+  ],
+}
+
+test('the reported leg day weighs what was lifted: 7,185 kg', () => {
+  assert.equal(sessionVolume(LEG_DAY), 7185)
+})
+
+test('a set with a weight in it but no tick is not a set', () => {
+  assert.equal(setCounts(set(100, 10, false)), false)
+  assert.equal(sessionVolume({ exercises: [{ sets: [set(100, 10, false)] }] }), 0)
+})
+
+test('keepDone drops the skipped exercises and the unticked sets', () => {
+  const kept = keepDone(LEG_DAY)
+  assert.deepEqual(kept.exercises.map(e => e.name), ['Leg Press', 'Leg Curl', 'Leg Extension'])
+  assert.ok(kept.exercises.every(e => e.sets.every(s => s.done)))
+  assert.equal(sessionVolume(kept), 7185)
+  assert.equal(kept.duration, 36, 'the rest of the session is untouched')
+})
+
+test('keepDone of a session where nothing was done is null — nothing to save', () => {
+  assert.equal(keepDone({ exercises: [{ sets: [set(50, 10, false)] }] }), null)
 })
