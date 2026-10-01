@@ -463,3 +463,20 @@ test('sessions logged without ticks still count as trained days', () => {
   const r = computeRecovery(sessions.map(normalizeSession).filter(Boolean), CFG, day(30))
   assert.equal(r.consistencyStreak, 30)
 })
+
+// ══ A late session belongs to the evening before ══════════════
+// The gym closes at 03:00. A workout started at 01:30 on the 12th is
+// the 11th's workout: the 11th is trained, nothing is spent on it, and
+// the 12th is still open.
+test('a 01:30 session counts for the day before', () => {
+  // Trained 1,3,5,7,9 at noon; the 11th's session started at 01:30 on the 12th.
+  const sessions = workoutsOn(1, 3, 5, 7, 9)
+  sessions.push({
+    id: 99, date: new Date(2026, 2, 12, 1, 30).toISOString(), duration: 45,
+    exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '12', done: true }] }],
+  })
+  const r = computeRecovery(sessions, CFG, day(12))
+  assert.deepEqual(r.autoPaidDays, [], 'the 11th was trained — nothing to pay for')
+  assert.equal(r.restCredits, 2)
+  assert.ok(r.consistencyStreak >= 11)
+})

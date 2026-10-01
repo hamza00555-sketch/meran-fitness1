@@ -63,7 +63,10 @@ const build = (sessions, extra = {}) => buildMonthReport({
 test('month keys come off the local day, not UTC', () => {
   // 01:00 on the first of the month in UTC+3 is still the previous day
   // in UTC. dayKey is what keeps it in the right month.
-  assert.equal(monthKey(new Date(2026, 2, 1, 1, 0, 0)), '2026-03')
+  // The training day turns at 03:00, so 01:00 on the 1st is still the
+  // last night of February, and 03:30 is March.
+  assert.equal(monthKey(new Date(2026, 2, 1, 1, 0, 0)), '2026-02')
+  assert.equal(monthKey(new Date(2026, 2, 1, 3, 30, 0)), '2026-03')
   assert.equal(monthKey(new Date(2026, 2, 31, 23, 30, 0)), '2026-03')
 })
 

@@ -1,5 +1,5 @@
 import { RANKS, COMMITMENT_LEVELS, GREETINGS } from './constants.js'
-import { dayKey, todayKey, toWesternDigits } from './day.js'
+import { dayKey, todayKey, calendarKey, dayStart, toWesternDigits } from './day.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
 // Every hf_* key is namespaced by the active user so each person
@@ -594,11 +594,13 @@ export const buildCalendarData = (sessions, weeks = 14) => {
     const d = dayKey(s.date)
     counts[d] = (counts[d] || 0) + 1
   })
-  const end = new Date(); end.setHours(0, 0, 0, 0)
+  // Cells are calendar dates, so they are walked unshifted; the last
+  // one is the current TRAINING day, which until 03:00 is yesterday.
+  const end = new Date(dayStart(todayKey()))
   const start = new Date(end); start.setDate(start.getDate() - weeks * 7 + 1)
   const days = []
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const iso = dayKey(d)
+    const iso = calendarKey(d)
     days.push({ iso, count: counts[iso] || 0 })
   }
   return days

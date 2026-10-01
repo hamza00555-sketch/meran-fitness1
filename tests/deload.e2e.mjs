@@ -199,9 +199,13 @@ const accentOf = (page) => page.evaluate(() =>
 
 // ══ 6. The boundary days ══════════════════════════════════════
 for (const [iso, expect, label] of [
+  // The training day turns at 03:00, so 00:30 on the 6th is still the
+  // 5th, and 02:30 on the 13th is still the deload's last day.
   ['2026-07-05T22:00:00+03:00', null, 'the day before it starts'],
-  ['2026-07-06T00:30:00+03:00', '1',  'the first day, just after midnight'],
-  ['2026-07-12T23:30:00+03:00', '1',  'the last day, just before midnight'],
+  ['2026-07-06T00:30:00+03:00', null, 'just after midnight is still the day before'],
+  ['2026-07-06T03:30:00+03:00', '1',  'the first day, just after three'],
+  ['2026-07-12T23:30:00+03:00', '1',  'the last day, late evening'],
+  ['2026-07-13T02:30:00+03:00', '1',  'the last day, after midnight but before three'],
 ]) {
   const { ctx, page, errors } = await open(iso, { deload: DELOAD })
   const attr = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))

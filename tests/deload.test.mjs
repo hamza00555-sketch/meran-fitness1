@@ -401,12 +401,14 @@ test('ordinary sessions are still read normally', () => {
 
 // ══ dates are local, always ═══════════════════════════════════
 
-test('a late-night session lands on its own local day', () => {
-  // 01:00 local in UTC+3 is still the previous day in UTC. Anything
-  // built on toISOString would file this a day early.
+test('a late-night session lands on the evening it belongs to', () => {
+  // The training day turns at 03:00, so 01:00 on the 12th is still the
+  // 11th — the deload's second day, not its third.
   const cfg = startDeload(CFG, day(10))
   const lateNight = new Date(2026, 2, 12, 1, 0, 0)
   assert.equal(deloadState(cfg, lateNight).active, true)
-  assert.equal(deloadState(cfg, lateNight).day, 3)
+  assert.equal(deloadState(cfg, lateNight).day, 2)
   assert.equal(wasDeloadDay(cfg, lateNight), true)
+  // and from 03:00 it is the 12th
+  assert.equal(deloadState(cfg, new Date(2026, 2, 12, 3, 30, 0)).day, 3)
 })

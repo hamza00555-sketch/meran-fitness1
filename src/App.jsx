@@ -12,7 +12,7 @@ import {
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft, dayDiff } from './recovery.js'
-import { todayKey, dayKey } from './day.js'
+import { todayKey, dayKey, nextDayTurn } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
@@ -92,7 +92,7 @@ if (!ls.get('hf_history_restored_v2', false)) {
     ls.set('hf_history_restore_report', {
       at: Date.now(),
       count: returned.length,
-      dates: returned.map(s => String(s.date).slice(0, 10)).sort(),
+      dates: returned.map(s => dayKey(s.date)).sort(),
     })
   }
   ls.set('hf_history_cleaned_v1', true)
@@ -537,14 +537,13 @@ export default function App() {
   // ── Today, as the app currently believes it ──────────────────
   // Left open overnight, nothing would notice the date changing: every
   // dated feature reads todayKey() at render, and React has no reason
-  // to render at midnight. This bumps a counter exactly when the local
-  // day turns, so a deload that ended in the night ends on screen too.
+  // to render when the day turns. This bumps a counter exactly when the
+  // training day turns, so a deload that ended in the night ends on screen too.
   const [dayTick, setDayTick] = useState(0)
   useEffect(() => {
-    const midnight = new Date()
-    midnight.setHours(24, 0, 0, 0)
+    // The training day turns at 03:00, not midnight (see day.js).
     // A minute past, so a clock a shade fast still lands on the new day.
-    const id = setTimeout(() => setDayTick(n => n + 1), midnight - Date.now() + 60_000)
+    const id = setTimeout(() => setDayTick(n => n + 1), nextDayTurn() - Date.now() + 60_000)
     return () => clearTimeout(id)
   }, [dayTick])
 
