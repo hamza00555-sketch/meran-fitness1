@@ -47,7 +47,18 @@ test('slugs never collide', () => {
 test('every animated exercise is a real catalogue exercise', () => {
   const bad = ANIMATED_EXERCISES.filter(n => !EXERCISE_MEDIA[n])
   assert.deepEqual(bad, [])
-  assert.equal(ANIMATED_EXERCISES.length, 22, 'the approved animation budget')
+  // 22 in the first batch, 25 more from the Push Pull Legs plan.
+  assert.equal(ANIMATED_EXERCISES.length, 47, 'the approved animation budget')
+})
+
+test('every animated exercise has a recorded source clip', async () => {
+  // The pack is rebuilt from pack-sources.json; an exercise listed as
+  // animated with no clip recorded there would build a pack that says it
+  // has a video and ships none.
+  const { readFileSync } = await import('node:fs')
+  const sources = JSON.parse(readFileSync(new URL('../scripts/pack-sources.json', import.meta.url), 'utf8')).slots
+  const missing = ANIMATED_EXERCISES.map(n => animSlotFor(n)).filter(s => !sources[s])
+  assert.deepEqual(missing, [])
 })
 
 test('lookups resolve, and unknown names stay quiet', () => {

@@ -161,14 +161,40 @@ function exercisePrompt(slot) {
 // instructional rep looping. The camera line is load-bearing — video
 // models drift into cinematic orbits unless told not to, and a swaying
 // camera teaches nothing.
+//
+// The second batch added two more lines after reviewing the first frame
+// by frame: the body turned to face the camera mid-rep (deadlift), and
+// the green glow pulsed into a full-body aura or slid onto the wrong
+// muscles (five clips). Both are now ruled out in words.
+//
+// ANIM_CUES spell out the movement for lifts the model got wrong when
+// left to the exercise name alone — a seated leg curl rendered as a leg
+// extension, a pushdown as arms swinging out to the sides, a calf raise
+// as a hop off the platform. A cue describes joints and direction, not
+// style, because that is the part the name failed to carry.
+export const ANIM_CUES = {
+  leg_curl:              'seated leg curl, starting and ending in the curled position shown: the roller pad stays against the BACK of the ankles the whole time; the knees straighten as the feet travel forward and up until the legs are nearly straight, then the knees bend and pull the roller back down under the seat; the thighs stay pinned to the seat; only the hamstrings on the back of the thighs are lit',
+  triceps_pushdown:      'triceps pushdown: the upper arms stay pinned to the sides of the torso and do not move; only the forearms extend, pushing the short straight bar DOWN from chest height to the thighs, then let it rise back to chest height; the bar stays straight and rigid',
+  standing_calf_raise:   'standing calf raise: both knees stay locked straight, both feet stay on the platform, the heels rise as high as possible onto the balls of the feet and lower again; the body moves straight up and down only',
+  deadlift:              'conventional deadlift seen from the side: the bar starts on the floor against the shins, the hips and knees extend together until standing tall with the bar at the thighs, then the bar is lowered back to the floor; the body never turns toward the camera; the back muscles stay lit',
+  leg_extension:         'seated leg extension: the knees start bent at ninety degrees with the pad on the front of the lower shins; the knees extend fully until the legs are straight out in front, then lower back to ninety degrees; full range of motion',
+  machine_lateral_raise: 'machine lateral raise through the full range: from the position shown the arms lower all the way down until relaxed at the sides, then raise back out to the sides to shoulder height; the arm pads move with the arms; a large, clearly visible movement',
+  machine_incline_press: 'incline chest press machine: the handles start beside the upper chest, the arms push up and forward until nearly straight, then return to the chest; only the pectorals stay lit',
+  pull_up:               'pull-up through the full range: from the position shown the body lowers all the way to a dead hang with straight arms, then pulls back up until the chin is above the bar; the hands never leave the bar; the whole bar stays fully inside the frame at all times',
+  machine_preacher_curl: 'machine preacher curl: the upper arms rest flat on the angled pad; the forearms curl the handle up toward the shoulders and lower it back; the pad surface stays plain and dark',
+}
+
 export function animPromptFor(slot) {
+  const cue = ANIM_CUES[String(slot.id || '').replace(/^exa_/, '')]
   return [
     `the black 3D mannequin performs one slow, controlled repetition of ${slot.exercise} and returns exactly to the starting position`,
+    cue,
     'a single clean instructional movement, correct exercise form, constant tempo',
     'the camera is completely static, locked off, no zoom, no pan, no orbit',
-    'the green-lit muscles stay lit, the lighting does not change',
+    'the body keeps the same angle to the camera throughout and never turns or rotates',
+    'the green-lit muscles stay lit at a constant brightness on the same muscles, no flashing, no pulsing, no glow aura around the body, the lighting does not change',
     'seamless loop: the final frame matches the first frame',
-  ].join(', ')
+  ].filter(Boolean).join(', ')
 }
 
 export function promptFor(slot) {

@@ -37,8 +37,11 @@ for (const f of files.sort()) {
     // head = everything but the tail; tail fades over the very start,
     // so frame N-ε and frame 0 can never disagree visibly.
     '-filter_complex',
-    `[0:v]trim=0:${body},setpts=PTS-STARTPTS[head];` +
-    `[0:v]trim=${body},setpts=PTS-STARTPTS[tail];` +
+    // fps on each branch, after the timestamp reset: xfade refuses
+    // inputs without a constant frame rate, and FFmpeg 7 reports a
+    // trimmed-and-restamped stream as 1/0 unless it is pinned again.
+    `[0:v]trim=0:${body},setpts=PTS-STARTPTS,fps=24[head];` +
+    `[0:v]trim=${body},setpts=PTS-STARTPTS,fps=24[tail];` +
     `[head][tail]xfade=transition=fade:duration=${FADE}:offset=${(body - FADE).toFixed(3)},` +
     `scale=768:-2,fps=24[v]`,
     '-map', '[v]', '-an',

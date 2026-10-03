@@ -141,11 +141,17 @@ export const EXERCISE_MEDIA = {
   'Sled Push':                           { slug: 'sled_push',              ar: 'دفع زلاجة',             equip: 'cardio' },
 }
 
-// The exercises whose media includes a loop animation. Hamza's own
-// plan (the machines programme, 17 lifts) plus the five free-weight
-// staples — 22, the approved budget. The system does not care about
-// this list beyond slot generation: any exercise gains an animation
-// later by appearing here and republishing the pack. No code changes.
+// The exercises whose media includes a loop animation. First batch:
+// Hamza's own plan (the machines programme, 17 lifts) plus the five
+// free-weight staples. Second batch: every other lift in the built-in
+// Push Pull Legs plan. Seven of its lifts are left as stills, each
+// after two generations failed review: the reverse-fly machine, the
+// dumbbell row, the hip adduction and the shrug barely moved; the
+// dumbbell calf raise kept switching its green off; the Bulgarian split
+// squat kept growing a white patch; and the generator refused the
+// barbell curl outright — so 25 more, 47 in all. The system does not care
+// about this list beyond slot generation: any exercise gains an
+// animation later by appearing here and republishing the pack.
 export const ANIMATED_EXERCISES = [
   'Hammer Strength Machine Bench Press', 'Machine Incline Press', 'Pec Deck',
   'Machine Shoulder Press', 'Machine Lateral Raise', 'Triceps Pushdown',
@@ -153,6 +159,32 @@ export const ANIMATED_EXERCISES = [
   'Machine Preacher Curl', 'Cable Hammer Curls', 'Hack Squat', 'Leg Press',
   'Leg Curl', 'Leg Extension', 'Machine Glute Kickbacks', 'Standing Calf Raise',
   'Bench Press', 'Barbell Squat', 'Deadlift', 'Pull-Up', 'Barbell Row',
+  // ── second batch: the Push Pull Legs plan ──
+  'Dumbbell Shoulder Press',
+  'Cable Overhead Triceps Extension',
+  'Cable Lateral Raise',
+  'Dumbbell Farmers Carry',
+  'Barbell Reverse Curl',
+  'Dumbbell Curl',
+  'Cable Core Rotation',
+  'Dumbbell Romanian Deadlift',
+  'Dumbbell Lunge',
+  'Seated Leg Curl',
+  'Smith Machine Calf Raise',
+  'Machine Hip Abduction',
+  'Hanging Leg Raise',
+  'Incline Dumbbell Press',
+  'Skull Crusher',
+  'Cable Fly',
+  'Lateral Raise',
+  'Reverse Fly',
+  'Cable Triceps Kickback',
+  'Cable Crunch',
+  'Straight Arm Pulldown',
+  'Dumbbell Concentration Curl',
+  'Dumbbell Side Bend',
+  'Hip Thrust',
+  'Lying Leg Curl'
 ]
 
 /** The still-image slot for an exercise, or null for one we don't know. */
