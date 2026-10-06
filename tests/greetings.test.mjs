@@ -21,7 +21,7 @@ globalThis.localStorage = {
 }
 
 const { GREETINGS, NOTIFICATION_MESSAGES } = await import('../src/constants.js')
-const { pickGreeting } = await import('../src/utils.js')
+const { pickGreeting, greetingPoolFor } = await import('../src/utils.js')
 
 const POOLS = Object.keys(GREETINGS)
 const all = POOLS.flatMap(k => GREETINGS[k])
@@ -33,9 +33,12 @@ const words = (s) => s.replace(/[{}]/g, '').split(/\s+/).filter(w => /[\p{L}\p{N
 
 // ══ the copy ═══════════════════════════════════════════════════
 
-test('there are six pools and none is empty', () => {
-  assert.deepEqual(POOLS.sort(), ['comeback', 'creditSpent', 'deload', 'general', 'rest', 'streak'])
-  for (const k of POOLS) assert.ok(GREETINGS[k].length > 0, k)
+test('the pools, none of them thin', () => {
+  assert.deepEqual([...POOLS].sort(),
+    ['comeback', 'creditSpent', 'deload', 'done', 'general', 'milestone', 'rest', 'restTaken', 'streak'])
+  // A pool of one says the same thing every time it is reached — the
+  // credit pool did exactly that. Six is the floor.
+  for (const k of POOLS) assert.ok(GREETINGS[k].length >= 6, `${k}: ${GREETINGS[k].length}`)
 })
 
 test('every line names the person', () => {
@@ -50,9 +53,9 @@ test('no line runs past ten words — the header has 230px', () => {
   for (const l of all) assert.ok(words(l) <= 11, `${words(l)} words: ${l}`)
 })
 
-test('the streak pool carries the number, the others do not', () => {
-  for (const l of GREETINGS.streak) assert.ok(l.includes('{streak}'), l)
-  for (const k of POOLS.filter(k => k !== 'streak')) {
+test('the streak pools carry the number, the others do not', () => {
+  for (const l of [...GREETINGS.streak, ...GREETINGS.milestone]) assert.ok(l.includes('{streak}'), l)
+  for (const k of POOLS.filter(k => k !== 'streak' && k !== 'milestone')) {
     for (const l of GREETINGS[k]) assert.ok(!l.includes('{streak}'), `${k}: ${l}`)
   }
 })
@@ -122,8 +125,7 @@ test('five days away is a comeback, and it outranks a credit spent yesterday', (
 })
 
 test('a credit spent yesterday outranks a rest day and a streak', () => {
-  const g = pick({ creditSpentYesterday: true, isRecoveryDay: true, streak: 30 })
-  assert.equal(g, GREETINGS.creditSpent[0].replaceAll('{name}', 'حمزة'))
+  assert.equal(greetingPoolFor({ creditSpentYesterday: true, isRecoveryDay: true, streak: 30 }), 'creditSpent')
 })
 
 test('the same line is never shown twice running', () => {
@@ -133,9 +135,10 @@ test('the same line is never shown twice running', () => {
 })
 
 test('a one-line pool may repeat rather than go blank', () => {
-  const only = GREETINGS.creditSpent[0]
-  const g = pick({ creditSpentYesterday: true, last: only })
-  assert.equal(g, only.replaceAll('{name}', 'حمزة'))
+  const pools = { ...GREETINGS, creditSpent: ['{name} وحدها 🎟️'] }
+  const g = pickGreeting({ name: 'حمزة', pools, random: first, remember: false,
+                           last: '{name} وحدها 🎟️', creditSpentYesterday: true })
+  assert.equal(g, 'حمزة وحدها 🎟️')
 })
 
 test('it remembers what it showed', () => {
@@ -147,4 +150,43 @@ test('it remembers what it showed', () => {
 test('a missing name falls back to البطل', () => {
   const g = pick({ name: undefined })
   assert.ok(g.includes('البطل'), g)
+})
+
+// ══ variety ════════════════════════════════════════════════════
+
+test('a rest chosen today gets rest lines, not a call to train', () => {
+  assert.equal(greetingPoolFor({ isRestTaken: true, streak: 20 }), 'restTaken')
+})
+
+test('a day already trained gets a closing line', () => {
+  assert.equal(greetingPoolFor({ trainedToday: true, streak: 20 }), 'done')
+})
+
+test('a round-number streak gets a milestone line, the days between get the streak pool', () => {
+  assert.equal(greetingPoolFor({ streak: 30 }), 'milestone')
+  assert.equal(greetingPoolFor({ streak: 31 }), 'streak')
+  assert.equal(greetingPoolFor({ streak: 500 }), 'milestone')
+})
+
+test('every line in a pool is dealt before any repeats', () => {
+  // Simulate many app opens on the same kind of day, with storage.
+  localStorage.clear()
+  for (const [pool, day] of [['streak', { streak: 12 }], ['rest', { isRecoveryDay: true }],
+                             ['creditSpent', { creditSpentYesterday: true }]]) {
+    const n = GREETINGS[pool].length
+    const seen = new Set()
+    for (let i = 0; i < n; i++) seen.add(pickGreeting({ name: 'حمزة', ...day }))
+    assert.equal(seen.size, n, `${pool}: ${seen.size} of ${n} in one deck`)
+  }
+})
+
+test('the next deck never opens with the line that closed the last one', () => {
+  localStorage.clear()
+  const n = GREETINGS.rest.length
+  let prev = null
+  for (let i = 0; i < n * 6; i++) {
+    const g = pickGreeting({ name: 'حمزة', isRecoveryDay: true })
+    assert.notEqual(g, prev, `repeat at draw ${i}`)
+    prev = g
+  }
 })

@@ -559,6 +559,8 @@ export default function App() {
   const greeting = useMemo(() => pickGreeting({
     name: profile?.name,
     isRecoveryDay: recovery.status === DAY_STATUS.RECOVERY,
+    isRestTaken: recovery.status === DAY_STATUS.REST_TAKEN,
+    trainedToday: recovery.status === DAY_STATUS.COMPLETED,
     deload: !!deload?.active,
     streak,
     daysSinceLast: Number.isFinite(recovery.daysSinceLastWorkout) ? recovery.daysSinceLastWorkout : null,

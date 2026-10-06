@@ -608,43 +608,80 @@ export const buildCalendarData = (sessions, weeks = 14) => {
 
 // ── The line under the logo ───────────────────────────────────
 //
-// Picks the greeting pool that fits the day, then a line from it that
-// is not the one shown last time. The order is the order of registers:
-// a deload week sets the whole app's tone («lighter, not weaker») and
-// nothing may contradict it; a comeback after days away is about the
-// person, and beats a line about a mechanic; a credit spent yesterday
-// is then the most specific fact about this morning; a rest day and a
-// streak follow; `general` is the floor. It was tried the other way
-// round first, and a man nine days out in a deload week was greeted
-// with «pay the balance back today».
+// Picks the greeting pool that fits the day, then the next line from
+// that pool's shuffle bag.
 //
-// `random` and `last` are parameters so the choice can be tested; the
-// app passes nothing and gets Math.random and the stored last line.
+// The order is the order of registers: a deload week sets the whole
+// app's tone («lighter, not weaker») and nothing may contradict it; a
+// comeback after days away is about the person; a rest chosen today and
+// a credit spent yesterday are the most specific facts about this
+// morning; then a scheduled rest day, a day already trained, a round-
+// number streak, a running streak, and the training-day voice last.
+//
+// A shuffle bag, not a random draw. The first version only refused to
+// repeat the line shown last, so a three-line pool cycled through the
+// same lines constantly and a one-line pool said the same thing every
+// time. Each pool now deals its whole deck, in a random order, before
+// any line comes round again — and the reshuffle never starts with the
+// line that ended the previous deck.
+//
+// `random`, `last` and `bags` are parameters so the choice can be
+// tested; the app passes nothing and gets Math.random and storage.
+export const STREAK_MILESTONES = new Set([7, 10, 14, 21, 30, 40, 50, 60, 75, 90, 100, 120, 150, 180, 200, 250, 300, 365])
+
+export function greetingPoolFor({
+  isRecoveryDay = false, isRestTaken = false, trainedToday = false,
+  deload = false, streak = 0, daysSinceLast = null, creditSpentYesterday = false,
+} = {}) {
+  if (deload)                                       return 'deload'
+  if (daysSinceLast != null && daysSinceLast >= 5)  return 'comeback'
+  if (isRestTaken)                                  return 'restTaken'
+  if (creditSpentYesterday)                         return 'creditSpent'
+  if (isRecoveryDay)                                return 'rest'
+  if (trainedToday)                                 return 'done'
+  if (STREAK_MILESTONES.has(streak) || (streak > 365 && streak % 100 === 0)) return 'milestone'
+  if (streak >= 7)                                  return 'streak'
+  return 'general'
+}
+
+const shuffled = (n, random) => {
+  const a = [...Array(n).keys()]
+  for (let i = n - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 export function pickGreeting({
   name = 'البطل',
-  isRecoveryDay = false,
-  deload = false,
-  streak = 0,
-  daysSinceLast = null,
-  creditSpentYesterday = false,
   pools = GREETINGS,
   random = Math.random,
-  last = ls.get('hf_last_greeting', null),
   remember = true,
+  last = remember ? ls.get('hf_last_greeting', null) : null,
+  bags = remember ? ls.get('hf_greeting_bags', {}) : {},
+  ...day
 } = {}) {
-  const pool =
-    deload                                      ? pools.deload :
-    daysSinceLast != null && daysSinceLast >= 5 ? pools.comeback :
-    creditSpentYesterday                        ? pools.creditSpent :
-    isRecoveryDay                               ? pools.rest :
-    streak >= 7                                 ? pools.streak :
-                                                  pools.general
-  const list = (pool && pool.length) ? pool : pools.general
-  // Never the same line twice running, unless the pool has only one.
-  const candidates = list.length > 1 ? list.filter(l => l !== last) : list
-  const line = candidates[Math.floor(random() * candidates.length)]
-  if (remember) ls.set('hf_last_greeting', line)
+  let key = greetingPoolFor(day)
+  if (!pools[key] || !pools[key].length) key = 'general'
+  const list = pools[key]
+
+  // The bag holds the indices not yet dealt. Indices outside the pool
+  // (a pool that shrank since the bag was stored) are dropped.
+  let bag = (Array.isArray(bags[key]) ? bags[key] : []).filter(i => Number.isInteger(i) && i < list.length)
+  if (!bag.length) {
+    bag = shuffled(list.length, random)
+    // Never open a fresh deck with the line that just closed the last.
+    if (list.length > 1 && list[bag[0]] === last) bag.push(bag.shift())
+  }
+  const idx = bag.shift()
+  const line = list[idx]
+
+  if (remember) {
+    ls.set('hf_greeting_bags', { ...bags, [key]: bag })
+    ls.set('hf_last_greeting', line)
+  }
   return line
     .replaceAll('{name}', name || 'البطل')
-    .replaceAll('{streak}', toWesternDigits(String(streak)))
+    .replaceAll('{streak}', toWesternDigits(String(day.streak ?? 0)))
 }
