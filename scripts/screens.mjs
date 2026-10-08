@@ -25,7 +25,7 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { spawn, execSync } from 'node:child_process'
+import { spawn, execSync, execFileSync } from 'node:child_process'
 import path from 'node:path'
 import sharp from 'sharp'
 
@@ -279,6 +279,28 @@ const commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim
 const browser = await chromium.launch()
 const results = []
 
+// A desktop Chrome UA, so Google answers with woff2.
+const FONT_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+const fontCache = new Map()
+async function serveFont(route) {
+  const url = route.request().url()
+  try {
+    if (!fontCache.has(url)) {
+      fontCache.set(url, execFileSync('curl', ['-sS', '-f', '-A', FONT_UA, url], { maxBuffer: 1 << 26 }))
+    }
+    await route.fulfill({
+      status: 200, body: fontCache.get(url),
+      headers: {
+        'content-type': url.includes('googleapis') ? 'text/css; charset=utf-8' : 'font/woff2',
+        'access-control-allow-origin': '*',
+      },
+    })
+  } catch {
+    console.warn(`  ! font unreachable, shot will show the fallback: ${url.slice(0, 80)}`)
+    await route.abort()
+  }
+}
+
 // One context per fixture, one page per screen. The init script reseeds
 // on every load, so a fresh page inside a shared context is a clean
 // slate — and the browser is launched once, not thirty times.
@@ -299,6 +321,12 @@ for (const [fixtureName, screens] of byFixture) {
   // are unaffected, only the picture inside differs. Recorded per shot
   // as art:"fallback" so nobody reads a placeholder as the design.
   await ctx.route('**/*.r2.dev/**', r => r.abort())
+  // Google Fonts, on the other hand, must arrive: without them every
+  // shot shows the offline fallback (Zanjabeel, and a system mono in
+  // place of Oxanium) and reads as a different app. The browser cannot
+  // always reach them itself (a re-terminating proxy it does not trust),
+  // so the request is answered with curl, which uses the system CA store.
+  await ctx.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, serveFont)
   await ctx.addInitScript(initScript, [f.seed, f.clock])
 
   for (const screen of screens) {
