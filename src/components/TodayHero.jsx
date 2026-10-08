@@ -4,6 +4,7 @@ import DayPreviewSheet from './DayPreviewSheet.jsx'
 import { DropletIcon } from './Icons.jsx'
 import { toWesternDigits } from '../day.js'
 import { planDayTitle } from '../utils.js'
+import { countAr } from '../streak.js'
 
 // ── Today Hero — the one card that answers "what now?" ────────
 //
@@ -97,7 +98,7 @@ const metaStyle = {
 
 export default function TodayHero({
   active, currentPlanDay, planDayNum, planTotal,
-  isRecoveryDay, deload, restCredits = 0,
+  isRecoveryDay, completedToday = false, deload,
   sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
   onStartPlanned, onStartEmpty, onSkip, onGoToWorkout, onOverrideRecovery,
 }) {
@@ -108,13 +109,17 @@ export default function TodayHero({
   const exCount = currentPlanDay?.exercises?.length || 0
 
   const resting = isRecoveryDay && !active
+  // Today already counts: the streak card says so, and this card must
+  // not keep asking for the workout that was just done.
+  const done = completedToday && !active && !resting
   const tone = resting ? 'var(--purple)' : 'var(--cyan)'
   const toneLo = resting ? 'var(--purple-lo)' : 'var(--cyan-lo)'
   const toneMd = resting ? 'var(--purple-md)' : 'var(--cyan-md)'
 
   const statusWord = active ? 'جلسة شغّالة'
     : onDeload ? 'ديلود'
-    : resting ? 'يوم تعافٍ'
+    : resting ? 'يوم راحة'
+    : done ? 'انحسب اليوم'
     : 'يوم تمرين'
 
   // The day's name is its type — "Push Day" — not the muscles it
@@ -122,6 +127,7 @@ export default function TodayHero({
   // be a heading.
   const title = active ? (planDayTitle(active) || active.name || 'تمرين حر')
     : resting ? 'اليوم للراحة'
+    : done ? 'تمرين اليوم خلص'
     : currentPlanDay ? planDayTitle(currentPlanDay)
     : 'جلسة حرة'
 
@@ -178,14 +184,11 @@ export default function TodayHero({
         </span>
         {/* How many exercises — a count beside the day, where the kind
             of day is already stated, instead of a sentence of its own. */}
-        {!active && !resting && exCount > 0 && (
+        {!active && !resting && !done && exCount > 0 && (
           <span style={{
             ...pill, background: 'var(--bg3)', border: '1px solid var(--border2)',
-            color: 'var(--text2)', fontFamily: 'var(--font-mono)',
-            // Bidi puts a trailing × in front of the digit in an RTL
-            // paragraph, so "6×" came out "×6". The chip is one LTR run.
-            direction: 'ltr',
-          }}>{toWesternDigits(exCount)}×</span>
+            color: 'var(--text2)',
+          }}>{countAr(exCount, 'workout')}</span>
         )}
         {onDeload && (
           <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>
@@ -193,18 +196,8 @@ export default function TodayHero({
             {' · '}<span style={{ direction: 'ltr', display: 'inline-block' }}>−{toWesternDigits(deload.pct)}%</span>
           </span>
         )}
-        {/* Rest credits: a count beside the day, not a sentence above
-            the button. The ticket is the metaphor the recovery card
-            already uses for these, so it stays the ticket. */}
-        {!active && !resting && restCredits > 0 && (
-          <span
-            title={restCredits === 1 ? 'يوم راحة اختياري متاح' : `${toWesternDigits(restCredits)} أيام راحة اختيارية متاحة`}
-            style={{
-              ...pill, marginInlineStart: 'auto',
-              border: '1px solid var(--gold-md)', color: 'var(--gold)',
-              fontFamily: 'var(--font-mono)', fontSize: 12,
-            }}>🎟️ {toWesternDigits(restCredits)}</span>
-        )}
+        {/* Rest tickets live on the streak card now, with their real
+            balance and in the rest colour, not as a gold chip here. */}
       </div>
 
       <div style={titleStyle}>{title}</div>
@@ -212,7 +205,7 @@ export default function TodayHero({
       {/* Only the states that have something to say say it. A planned
           day's count is a chip above and its exercises are a button
           below, so it needs no line of its own. */}
-      {(active && ctx) || resting || !currentPlanDay ? (
+      {(active && ctx) || resting || done || !currentPlanDay ? (
         <div style={{ ...metaStyle, marginTop: 5 }}>
           {active && ctx ? (
             <>
@@ -222,9 +215,11 @@ export default function TodayHero({
             </>
           ) : resting ? (
             <>
-              لن يُحتسب غياباً ولن يكسر الستريك.
-              {currentPlanDay && <> غداً: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>}
+              راحة مجدولة — تنحسب لك وما تكسر الستريك.
+              {currentPlanDay && <> بكرة: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>}
             </>
+          ) : done ? (
+            'جلسة زيادة؟ ما تغيّر الستريك.'
           ) : (
             'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
           )}
@@ -253,13 +248,18 @@ export default function TodayHero({
                 background: 'transparent', border: '1px dashed var(--border2)',
                 borderRadius: 12, color: 'var(--text2)',
                 fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              }}>أشعر أنني قادر على التمرين</button>
+              }}>أبي أتمرّن</button>
               {currentPlanDay && (
                 <button onClick={() => setShowSheet(true)} style={quietBtn}>
-                  تمارين الغد ←
+                  تمارين بكرة
                 </button>
               )}
             </>
+          ) : done ? (
+            <button
+              onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}
+              style={{ ...quietBtn, flex: 'none', padding: '12px', fontSize: 14 }}
+            >جلسة زيادة</button>
           ) : (
             <>
               <button className="btn-cyan" style={ctaStyle}

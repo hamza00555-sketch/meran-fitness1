@@ -11,7 +11,8 @@ import {
   DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
-import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, MAX_REST_CREDITS, changeCooldownLeft, dayDiff } from './recovery.js'
+import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayDiff } from './recovery.js'
+import { streakView, todayStreak, skipCopy, finishToast, spendToast } from './streak.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
@@ -45,6 +46,8 @@ import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
+import StreakChip       from './components/streak/StreakChip.jsx'
+import SkipSheet        from './components/streak/SkipSheet.jsx'
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
@@ -379,9 +382,12 @@ export default function App() {
     setTab('workout')
   }, [planIndex, sessions, exerciseMapping, exerciseSubs, repTarget, recoveryCfg])
 
-  const skipPlanDay = useCallback(() => {
+  // Skipping only moves the plan. The streak still wants today's
+  // workout, which is why the skip sheet states the cost before this
+  // runs, and why the toast says the day is still a workout day.
+  const skipPlanDay = useCallback((message) => {
     setPlanIndex(prev => prev + 1)
-    pushAlert('⏭️', 'تم تخطي يوم التمرين')
+    pushAlert('⏭️', message || 'انتقلت الخطة لليوم الجاي')
   }, [pushAlert])
 
   const startWorkout = useCallback((exercises = []) => {
@@ -411,7 +417,7 @@ export default function App() {
       setShowRest(false)
       ls.remove('hf_rest_timer')
       setTab('home')
-      pushAlert('ℹ️', 'الجلسة فاضية — ما انكتب فيها ولا وزن، فما انحفظت')
+      pushAlert('ℹ️', 'الجلسة فاضية — ما انكتب فيها ولا وزن، فما انحفظت ولا تنحسب للستريك')
       return
     }
 
@@ -436,6 +442,18 @@ export default function App() {
         ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
       }
     }
+
+    // What the save does to the streak, said in place of «عمل رائع»:
+    // counted today, already counted, counted for the night before
+    // (started before 03:00), or not counting after a plan reset.
+    const dayNow = todayKey()
+    const streakBefore = todayStreak(computeRecovery(sessions, recoveryCfg), { config: recoveryCfg, today: dayNow })
+    const streakLine = finishToast({
+      before: streakBefore,
+      after: computeRecovery([finished, ...sessions], recoveryCfg),
+      sessionDay: dayKey(finished.date),
+      today: dayNow,
+    })
 
     setSessions(prev => {
       const newSessions = [finished, ...prev]
@@ -463,8 +481,8 @@ export default function App() {
     setShowRest(false)
     ls.remove('hf_rest_timer')
     setTab('home')
-    pushAlert('🎉', 'جلسة مكتملة! عمل رائع!')
-  }, [active, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
+    pushAlert('🔥', streakLine)
+  }, [active, sessions, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
 
   const updateActive = useCallback((updater) => {
     setActive(prev => prev ? updater(prev) : prev)
@@ -517,10 +535,9 @@ export default function App() {
       // are recorded silently.
       const news = fresh.filter(d => d >= from)
       if (news.length) {
-        setTimeout(() => pushAlert('🎟️',
-          news.length === 1
-            ? `استُخدم يوم راحة من رصيدك عن ${fmtDate(news[0])} — ستريكك مجمّد لا مكسور`
-            : `استُخدمت ${news.length} أيام راحة من رصيدك — ستريكك مجمّد`), 0)
+        // Dated, Gregorian, with what is left — the engine already
+        // spent these, so the numbers in `recovery` are after the spend.
+        setTimeout(() => pushAlert('🎟️', spendToast(news, recovery)), 0)
       }
       return {
         ...prev,
@@ -533,6 +550,13 @@ export default function App() {
   // day taken as planned keeps it alive. calcStreak() counted raw
   // consecutive calendar days, so any rest day wiped it.
   const streak  = recovery.consistencyStreak
+
+  // The header chip stands in for the scoreboard wherever the
+  // scoreboard is not on screen: every other tab, and Home once it has
+  // scrolled away.
+  const [boardVisible, setBoardVisible] = useState(true)
+  const onBoardVisible = useCallback((v) => setBoardVisible(v), [])
+  const [askSkip, setAskSkip] = useState(false)
 
   // ── Today, as the app currently believes it ──────────────────
   // Left open overnight, nothing would notice the date changing: every
@@ -802,14 +826,11 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {streak > 0 && (
-              <div style={{
-                background: 'var(--orange-lo)',
-                border: '1px solid rgba(249,115,22,0.3)',
-                borderRadius: 20, padding: '3px 10px',
-                fontFamily: 'var(--font-mono)', fontSize: 12,
-                color: 'var(--orange)', fontWeight: 700,
-              }}>🔥 {streak}</div>
+            {(tab !== 'home' || !boardVisible) && (
+              <StreakChip
+                view={streakView({ recovery, config: recoveryCfg, active, deload })}
+                onOpen={() => { setTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              />
             )}
             <button
               onClick={() => setShowRest(true)}
@@ -866,15 +887,16 @@ export default function App() {
             exerciseSubs={exerciseSubs}
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             recovery={recovery}
+            recoveryConfig={recoveryCfg}
+            onScoreboardVisible={onBoardVisible}
             onOverrideRecovery={overrideRecoveryDay}
-            restCredits={recovery.restCredits}
+            tickets={recovery.usableCredits}
             creditProgress={recovery.creditProgress}
             creditTarget={recovery.creditTarget}
             daysToNextCredit={recovery.daysToNextCredit}
-            atMaxCredits={recovery.restCredits >= MAX_REST_CREDITS}
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
-            onSkipPlanDay={skipPlanDay}
+            onSkipPlanDay={() => setAskSkip(true)}
             onGoToWorkout={() => setTab('workout')}
             monthReport={monthReport}
             onShowMonthReport={() => setShowReport(true)}
@@ -1076,6 +1098,17 @@ export default function App() {
       )}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
+
+      {askSkip && (() => {
+        const copy = skipCopy(streakView({ recovery, config: recoveryCfg, active, deload }))
+        return (
+          <SkipSheet
+            copy={copy}
+            onConfirm={() => { setAskSkip(false); skipPlanDay(copy.toast) }}
+            onClose={() => setAskSkip(false)}
+          />
+        )
+      })()}
       {showDeloadEnd && (
         <DeloadEndScreen
           entry={lastDeload}

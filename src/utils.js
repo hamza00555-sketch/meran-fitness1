@@ -1,4 +1,5 @@
 import { RANKS, COMMITMENT_LEVELS, GREETINGS } from './constants.js'
+import { STREAK_MILESTONES } from './streak.js'
 import { dayKey, todayKey, calendarKey, dayStart, toWesternDigits } from './day.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
@@ -627,7 +628,8 @@ export const buildCalendarData = (sessions, weeks = 14) => {
 //
 // `random`, `last` and `bags` are parameters so the choice can be
 // tested; the app passes nothing and gets Math.random and storage.
-export const STREAK_MILESTONES = new Set([7, 10, 14, 21, 30, 40, 50, 60, 75, 90, 100, 120, 150, 180, 200, 250, 300, 365])
+// The milestone ladder lives with the rest of the streak's words.
+export { STREAK_MILESTONES }
 
 export function greetingPoolFor({
   isRecoveryDay = false, isRestTaken = false, trainedToday = false,

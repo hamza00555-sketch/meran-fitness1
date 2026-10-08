@@ -69,7 +69,9 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
   // Lifetime stats
   const totalSessions = sessions.length
   const totalVolume   = sessions.reduce((t, s) => t + sessionVolume(s), 0)
-  const bestStreak    = streak
+  // There is no record of the longest streak yet, so the box that said
+  // «أفضل» was showing today's number under the wrong name. It says
+  // what it is until a real best is kept.
 
   const startEdit = (field, current) => {
     setEditField(field)
@@ -428,7 +430,7 @@ export default function ProfilePage({ profile, sessions, xp, streak, level, onUp
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <StatBox label="إجمالي الجلسات" value={totalSessions} color="var(--cyan)" />
           <StatBox label="الحجم (طن)" value={`${(totalVolume / 1000).toFixed(1)}`} color="var(--gold)" />
-          <StatBox label="أفضل streak" value={`${bestStreak} 🔥`} color="var(--orange)" />
+          <StatBox label="الستريك الحالي" value={`${streak} يوم`} color="var(--streak)" />
           <StatBox label="إجمالي XP" value={xp.toLocaleString()} color="var(--purple)" />
         </div>
       </Card>

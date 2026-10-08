@@ -118,8 +118,9 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       status: didWorkoutToday ? DAY_STATUS.COMPLETED : DAY_STATUS.WORKOUT,
       pattern, cyclePosition: 0, cycleLimit: pattern[0],
       consecutiveWorkoutDays: 0, workoutStreak: 0, consistencyStreak: 0,
-      restCredits: 0, spentInStreak: 0, creditsEarned: 0, creditsSpent: 0,
+      restCredits: 0, usableCredits: 0, spentInStreak: 0, creditsEarned: 0, creditsSpent: 0,
       eligibleDays: 0, streakStart: null, ledger: [],
+      tomorrowExpected: DAY_STATUS.WORKOUT, workoutsBeforeRest: pattern[0],
       creditProgress: 0, creditTarget: REST_CREDIT_EVERY, daysToNextCredit: REST_CREDIT_EVERY,
       missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
@@ -166,6 +167,22 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const todayEntry  = dayLog[dayLog.length - 1]
   const cycleLimit  = pattern[position % pattern.length]
   const isOverride  = overrides.has(today)
+
+  // What tomorrow is, if today goes the way the plan says: a workout day
+  // is trained (that is the only way it counts), a rest day is rested.
+  // Training on a rest day already happened if it did, and pushes the
+  // rest to tomorrow exactly as the walk above would. Every «بكرة …»
+  // line reads this rather than assuming a pattern.
+  let tomorrowExpected, workoutsBeforeRest
+  {
+    const restsToday = !todayEntry.trained && todayEntry.expected === DAY_STATUS.RECOVERY
+    const c = restsToday ? 0 : consecutive + 1
+    const p = restsToday ? position + 1 : position
+    const tPattern = patternForDay(config, addDays(today, 1))
+    const tLimit = tPattern[p % tPattern.length]
+    tomorrowExpected   = c >= tLimit ? DAY_STATUS.RECOVERY : DAY_STATUS.WORKOUT
+    workoutsBeforeRest = Math.max(0, tLimit - c)
+  }
 
   let status
   if (didWorkoutToday)                                       status = DAY_STATUS.COMPLETED
@@ -316,6 +333,13 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
 
   const daysToNextCredit = REST_CREDIT_EVERY - creditProgress
   const restCredits = Math.max(0, Math.min(MAX_REST_CREDITS, creditsEarned - spentInStreak))
+  // What a miss is actually charged against. The walk above spends from
+  // earned − spent with no ceiling, so MAX_REST_CREDITS only ever capped
+  // the number on screen: someone holding 8 saw 5, and the 5 stayed put
+  // through three spends. Every surface that tells the user what a miss
+  // costs reads this one. (A real cap would have to start from a dated
+  // capFrom, like autoSpendFrom, or it would rewrite past streaks.)
+  const usableCredits = Math.max(0, creditsEarned - spentInStreak)
 
   const past = dayLog.filter(e => e.date !== today)
   const recoveryDayHistory = past.filter(e => !e.trained && e.expected === DAY_STATUS.RECOVERY).map(e => e.date)
@@ -333,6 +357,9 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
 
   return {
     restCredits,
+    usableCredits,
+    tomorrowExpected,
+    workoutsBeforeRest,
     spentInStreak,
     creditProgress,
     creditTarget: REST_CREDIT_EVERY,

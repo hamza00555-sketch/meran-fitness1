@@ -523,18 +523,35 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
     sessions: julySessions(1, 3, 5, 7, 9),
     recovery: CLEAN_RECOVERY,
   })
-  await page.evaluate(() => document.querySelectorAll('details').forEach(d => { d.open = true }))
   await page.waitForTimeout(300)
 
-  const spent = page.locator('[data-testid="credit-spent"]')
-  ok('credit: the spend is stated', await spent.count() === 1)
-  const text = (await spent.count()) ? await spent.innerText() : ''
-  // fmtDate renders ar-SA, so the date reads as a Hijri day and month.
-  ok('credit: it names the date it paid for', /السبت/.test(text), text)
-  ok('credit: it says what is left', /بقي لك رصيد واحد/.test(text), text)
-  ok('credit: it says the streak survived', /ستريكك سليم/.test(text), text)
-  ok('credit: no break warning while there is balance',
-    await page.locator('[data-testid="credit-warning"]').count() === 0)
+  // The spend is said where the streak is, first thing on Home — not
+  // behind a fold, and with a Gregorian date.
+  const board = page.locator('[data-testid="streak-board"]')
+  ok('streak: the scoreboard is on Home', await board.count() === 1)
+  const note = (await page.locator('[data-testid="streak-note"]').count())
+    ? await page.locator('[data-testid="streak-note"]').innerText() : ''
+  ok('credit: it names the day it paid for', /تذكرة غطّت أمس السبت 11 يوليو/.test(note), note)
+  ok('credit: it says the streak held', /وقف على 10، ما زاد ولا انكسر/.test(note), note)
+  const status = await page.locator('[data-testid="streak-status"]').innerText()
+  ok('credit: today is still owed', /باقي تمرين اليوم/.test(status), status)
+  const detail = await page.locator('[data-testid="streak-detail"]').innerText()
+  ok('credit: it says what a miss today costs', /آخر تذكرة ويوقف على 10/.test(detail), detail)
+  ok('credit: it gives the deadline', /لين 3 الفجر/.test(detail), detail)
+  const tix = await page.locator('[data-testid="streak-tickets"]').innerText()
+  ok('credit: the balance is shown', /تذكرة وحدة/.test(tix), tix)
+
+  // The board comes before Today's card.
+  const order = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="streak-board"]')?.getBoundingClientRect().top
+    const h = [...document.querySelectorAll('button')].find(x => /ابدأ التمرين/.test(x.textContent))?.getBoundingClientRect().top
+    return { b, h }
+  })
+  ok('streak: the board sits above the start button', order.b != null && order.h != null && order.b < order.h, JSON.stringify(order))
+
+  // The toast the engine's spend raises: dated, with what is left.
+  const toast = await page.evaluate(() => document.body.innerText)
+  ok('credit: the spend toast is dated and Gregorian', /انصرفت تذكرة عن السبت 11 يوليو/.test(toast))
 
   // The screen was right before this happened — the Node specs pin that
   // down — but the decision is still written to storage afterwards, so
@@ -544,6 +561,17 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   ok('credit: the spend is recorded after the fact',
     stored.includes('2026-07-11'), JSON.stringify(stored))
 
+  // Skipping states its cost before the plan moves.
+  const skip = page.locator('button', { hasText: 'تخطي اليوم' }).first()
+  if (await skip.count()) {
+    await skip.click()
+    const sheet = page.locator('[data-testid="skip-sheet"]')
+    ok('skip: a sheet asks first', await sheet.count() === 1)
+    const st = (await sheet.count()) ? await sheet.innerText() : ''
+    ok('skip: it says the day still wants a workout', /الستريك لسا يبي تمرين اليوم/.test(st), st)
+    await page.locator('button', { hasText: 'رجوع' }).click()
+  }
+
   await page.screenshot({ path: `${OUT}/credit-spent.png`, fullPage: false })
   ok('credit: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
@@ -551,30 +579,38 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
 
 {
   // Both credits gone on the 11th and 12th. Opened on the 13th: a
-  // training day, an empty balance and a live ten-day streak — the last
-  // moment the warning is still worth giving.
+  // training day, an empty balance and a live ten-day streak.
   const { ctx, page, errors } = await open('2026-07-13T10:00:00+03:00', {
     sessions: julySessions(1, 3, 5, 7, 9),
     recovery: CLEAN_RECOVERY,
   })
-  await page.evaluate(() => document.querySelectorAll('details').forEach(d => { d.open = true }))
   await page.waitForTimeout(300)
 
-  const warn = page.locator('[data-testid="credit-warning"]')
-  ok('credit: the break is warned about before it happens', await warn.count() === 1)
-  const wt = (await warn.count()) ? await warn.innerText() : ''
-  ok('credit: the warning says what is at stake', /ينكسر ستريكك/.test(wt), wt)
-  ok('credit: it warns about today, not a day already gone', /اليوم/.test(wt), wt)
-
-  // Both notices apply here — a day was paid for AND the balance is now
-  // empty. The fold has room for one line, and it must be the one that
-  // needs acting on today, not the one in red saying everything is fine.
-  const fold = await page.locator('summary').first().innerText()
-  ok('credit: the warning outranks the paid notice on the fold',
-    /ينكسر ستريكك/.test(fold) && !/ستريكك سليم/.test(fold), fold)
+  const detail = await page.locator('[data-testid="streak-detail"]').innerText()
+  ok('credit: the break is stated before it happens', /خلصت تذاكرك، لو فاتك يرجع 10 إلى صفر/.test(detail), detail)
+  const tix = await page.locator('[data-testid="streak-tickets"]').innerText()
+  ok('credit: an empty balance says when the next one comes', /0 تذاكر · الجاية بعد/.test(tix), tix)
+  ok('credit: the old folded warning is gone',
+    await page.locator('[data-testid="credit-warning"]').count() === 0)
 
   await page.screenshot({ path: `${OUT}/credit-warning.png`, fullPage: false })
   ok('credit: no page errors on the warning state', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // The same day at 23:40: the last hours, said out loud.
+  const { ctx, page, errors } = await open('2026-07-13T23:40:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9),
+    recovery: CLEAN_RECOVERY,
+  })
+  await page.waitForTimeout(300)
+  const status = await page.locator('[data-testid="streak-status"]').innerText()
+  ok('late: the status says tonight decides it', /بدون تمرين الليلة يرجع 10 إلى صفر/.test(status), status)
+  const detail = await page.locator('[data-testid="streak-detail"]').innerText()
+  ok('late: with the time left', /باقي 3 س 20 د على 3 الفجر/.test(detail), detail)
+  await page.screenshot({ path: `${OUT}/credit-late.png`, fullPage: false })
+  ok('late: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

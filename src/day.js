@@ -54,6 +54,25 @@ export const nextDayTurn = (now = new Date()) => {
   return t
 }
 
+/** Time left until the day turns, as the streak says it: «9 س 40 د»,
+ *  «40 د», or «أقل من دقيقة». Western digits; minutes rounded down so
+ *  it never promises a minute that is not there. */
+export const formatRemaining = (ms) => {
+  const mins = Math.max(0, Math.floor(ms / 60000))
+  if (mins < 1) return 'أقل من دقيقة'
+  const h = Math.floor(mins / 60), m = mins % 60
+  if (!h) return `${m} د`
+  return m ? `${h} س ${m} د` : `${h} س`
+}
+
+/** The last hours before the day turns (23:00–02:59), when a day that
+ *  still needs a workout is worth saying out loud. */
+export const LATE_FROM_HOUR = 23
+export const isLateWindow = (now = new Date()) => {
+  const h = now.getHours()
+  return h >= LATE_FROM_HOUR || h < DAY_START_HOUR
+}
+
 // ── Arabic-Indic numerals ─────────────────────────────────────
 // Typing ١٢٥ on an Arabic keyboard should just work — no switching
 // languages to enter a weight. Maps Arabic-Indic (٠-٩) and Extended

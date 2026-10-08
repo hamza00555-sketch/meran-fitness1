@@ -211,6 +211,27 @@ export const FIXTURES = {
     seed: {},
   },
 
+  /** The same day at 23:40, nothing left to cover it: the last hours. */
+  'credit-late': {
+    clock: '2026-07-13T23:40:00+03:00',
+    extend: 'credit-spent',
+    seed: {},
+  },
+
+  /** Trained today: the streak card says it counted. */
+  'trained-today': {
+    clock: '2026-07-09T21:30:00+03:00',
+    extend: 'credit-spent',
+    seed: {},
+  },
+
+  /** A scheduled rest day: counted from 03:00, nothing to do. */
+  'rest-day': {
+    clock: '2026-07-10T09:00:00+03:00',
+    extend: 'credit-spent',
+    seed: {},
+  },
+
   /** The morning after a deload period lapses. */
   'deload-ended': {
     clock: '2026-07-13T10:00:00+03:00',
@@ -328,7 +349,7 @@ export const SCREENS = [
     label: 'تمرين — بلا جلسة جارية', labelEn: 'Workout — no active session',
     reach: [{ tab: 'workout' }],
     expect: { accent: '#5EC32A' },
-    covers: ['src/pages/WorkoutPage.jsx'],
+    covers: ['src/pages/WorkoutPage.jsx', 'src/components/streak/StreakChip.jsx'],
     state: 'مدخل التمرين وسجل الجلسات السابقة',
   },
   {
@@ -401,25 +422,57 @@ export const SCREENS = [
     id: 'state-recovery-open', group: 'states', fixture: 'veteran', shot: 'fold',
     label: 'كرت دورة التعافي مفتوحاً', labelEn: 'Recovery cycle, expanded',
     reach: [{ tab: 'home' }, { openDetails: true }, { scrollTo: 'دورة التعافي' }],
-    expect: { text: /أيام التزام/ },
+    expect: { text: /للتذكرة الجاية/ },
     covers: ['src/pages/HomePage.jsx'],
-    state: 'الفقاعات، شريط الرصيد، والستريكان',
+    state: 'الفقاعات وتقدّم التذكرة الجاية — الستريك نفسه صار في لوحته فوق',
   },
   {
     id: 'state-credit-spent', group: 'states', fixture: 'credit-spent', shot: 'fold',
-    label: 'يوم راحة دُفع من الرصيد', labelEn: 'A rest day paid from the balance',
-    reach: [{ tab: 'home' }, { openDetails: true }, { scrollTo: 'دورة التعافي' }],
-    expect: { selector: '[data-testid="credit-spent"]' },
-    covers: ['src/pages/HomePage.jsx', 'src/recovery.js'],
-    state: 'غياب يوم واحد امتصّه الرصيد — السطر يذكر التاريخ والباقي',
+    label: 'تذكرة غطّت أمس', labelEn: 'A ticket covered yesterday',
+    reach: [{ tab: 'home' }, { settle: 400 }],
+    expect: { selector: '[data-testid="streak-note"]', text: /تذكرة غطّت أمس/ },
+    covers: ['src/components/streak/Scoreboard.jsx', 'src/streak.js', 'src/recovery.js'],
+    state: 'لوحة الستريك: أمس انصرفت تذكرة، اليوم مطلوب، وثمن الغياب آخر تذكرة',
   },
   {
     id: 'state-credit-warning', group: 'states', fixture: 'credit-warning', shot: 'fold',
-    label: 'إنذار قبل كسر الستريك', labelEn: 'Warning before the streak breaks',
-    reach: [{ tab: 'home' }, { openDetails: true }, { scrollTo: 'دورة التعافي' }],
-    expect: { selector: '[data-testid="credit-warning"]' },
-    covers: ['src/pages/HomePage.jsx'],
-    state: 'الرصيد صفر واليوم يوم تمرين — آخر لحظة يفيد فيها التحذير',
+    label: 'بلا تذاكر — نهاراً', labelEn: 'No tickets left, daytime',
+    reach: [{ tab: 'home' }, { settle: 400 }],
+    expect: { selector: '[data-testid="streak-board"]', text: /يرجع 10 إلى صفر/ },
+    covers: ['src/components/streak/Scoreboard.jsx'],
+    state: 'الرصيد صفر واليوم يوم تمرين — الثمن مكتوب تحت الرقم من الصبح',
+  },
+  {
+    id: 'state-streak-late', group: 'states', fixture: 'credit-late', shot: 'fold',
+    label: 'بلا تذاكر — آخر الليل', labelEn: 'No tickets left, late at night',
+    reach: [{ tab: 'home' }, { settle: 400 }],
+    expect: { text: /بدون تمرين الليلة/ },
+    covers: ['src/components/streak/Scoreboard.jsx', 'src/components/streak/StreakIcons.jsx'],
+    state: '23:40 والرصيد صفر — الحالة تقول الليلة تحسم، ومعها الوقت الباقي على 3 الفجر',
+  },
+  {
+    id: 'state-streak-done', group: 'states', fixture: 'trained-today', shot: 'fold',
+    label: 'تمرّنت اليوم', labelEn: 'Trained today',
+    reach: [{ tab: 'home' }, { settle: 400 }],
+    expect: { text: /انحسب اليوم/ },
+    covers: ['src/components/streak/Scoreboard.jsx', 'src/components/TodayHero.jsx'],
+    state: 'اليوم انحسب — اللهب ممتلئ، وبطاقة اليوم تقول «تمرين اليوم خلص»',
+  },
+  {
+    id: 'state-streak-rest', group: 'states', fixture: 'rest-day', shot: 'fold',
+    label: 'يوم راحة مجدولة', labelEn: 'Scheduled rest day',
+    reach: [{ tab: 'home' }, { settle: 400 }],
+    expect: { text: /انحسبت لك من 3 الفجر/ },
+    covers: ['src/components/streak/Scoreboard.jsx'],
+    state: 'الراحة المجدولة تنحسب من 3 الفجر بلا أي فعل',
+  },
+  {
+    id: 'sheet-skip', group: 'modals', fixture: 'veteran', shot: 'fold',
+    label: 'قبل تخطي اليوم', labelEn: 'Before skipping today',
+    reach: [{ tab: 'home' }, { text: /تخطي اليوم/ }, { settle: 600 }],
+    expect: { selector: '[data-testid="skip-sheet"]' },
+    covers: ['src/components/streak/SkipSheet.jsx'],
+    state: 'الورقة تقول ثمن التخطي على الستريك قبل ما تنتقل الخطة',
   },
   {
     id: 'state-deload-suggestion', group: 'states', fixture: 'stalled', shot: 'fold',

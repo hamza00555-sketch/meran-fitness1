@@ -1,11 +1,12 @@
 import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
-import { DumbbellIcon, FlameIcon, DropletIcon } from '../components/Icons.jsx'
+import { DumbbellIcon } from '../components/Icons.jsx'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import { xpProgress, getRank, planDayType, fmtDate } from '../utils.js'
-import { MUSCLE_GROUPS, COMMITMENT_LEVELS } from '../constants.js'
-import { DAY_STATUS, dayDiff } from '../recovery.js'
-import { todayKey } from '../day.js'
+import Scoreboard from '../components/streak/Scoreboard.jsx'
+import { xpProgress, getRank, planDayType } from '../utils.js'
+import { MUSCLE_GROUPS } from '../constants.js'
+import { DAY_STATUS } from '../recovery.js'
+import { countAr } from '../streak.js'
 
 function PlanProgressCard({ plan, planIndex }) {
   const schedule      = plan.weeklySchedule
@@ -89,39 +90,7 @@ function PlanProgressCard({ plan, planIndex }) {
 
 
 
-// Commitment meter. Five marks, filled by the streak.
-//
-// Normally they are flames and they carry the tier's own colour — that
-// colour is the tier's identity, not the app's accent, which is why it
-// stays put when everything else changes.
-//
-// Under a deload the metaphor itself changes: flames say push harder,
-// and this is a week that says the opposite. They become droplets, they
-// take the accent, and they drift more slowly. The streak underneath is
-// untouched — a deload lightens the load, it does not change what
-// counts as showing up.
-function CommitmentFlames({ streak, deload = false }) {
-  const level = COMMITMENT_LEVELS.slice().reverse().find(c => streak >= c.min) || COMMITMENT_LEVELS[0]
-  const flames = level.flames || 0
-  const Mark = deload ? DropletIcon : FlameIcon
-  const lit  = deload ? 'var(--cyan)' : level.color
-  const beat = deload ? 1.6 : 1
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      {[1,2,3,4,5].map(i => (
-        <div key={i} style={{
-          opacity: i <= flames ? (deload ? 0.9 : 1) : 0.18,
-          animation: i <= flames ? `floatUp ${(2 + i * 0.3) * beat}s ease-in-out infinite` : 'none',
-          animationDelay: `${i * 0.15 * beat}s`,
-        }}>
-          <Mark size={14} color={i <= flames ? lit : '#4B5563'} />
-        </div>
-      ))}
-    </div>
-  )
-}
-
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, onOverrideRecovery, restCredits = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, atMaxCredits = false, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, onOverrideRecovery, onScoreboardVisible, tickets = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
   onStartDeload, onDismissDeloadSuggestion, onOpenDeload }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
@@ -129,28 +98,6 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   // workouts and the chosen frequency — never from the weekday.
   const isRecoveryDay   = recovery?.status === DAY_STATUS.RECOVERY
   const isTodayTraining = !isRecoveryDay
-  // A deload never turns a training day into a rest day (it lightens the
-  // load, nothing else), so this rides alongside the day status rather
-  // than replacing it.
-  const onDeload = !!deload?.active
-
-  // What the balance quietly paid for, and what happens when it empties.
-  // A credit is spent without asking — that is the point of it — so the
-  // spend has to be said out loud, with the date, or it reads as a
-  // streak that broke itself.
-  // Read from the paid-day history, not from what the engine decided on
-  // this pass: once the decision is written down the day is simply a
-  // paid day, and a notice that vanished the moment it was recorded
-  // would be no notice at all.
-  const paidDays      = recovery?.restTakenHistory || []
-  const lastPaidDay   = paidDays[paidDays.length - 1] || null
-  const paidRecently  = lastPaidDay && dayDiff(lastPaidDay, todayKey()) <= 7
-  // Today is a training day and there is nothing left to cover it, so
-  // this is the last moment the warning is still useful. Held back
-  // until the streak is worth a credit, or it fires on everybody's
-  // second day and stops meaning anything.
-  const atRisk = restCredits === 0 && !isRecoveryDay
-    && (recovery?.consistencyStreak || 0) >= 5
 
   const monthAgo = Date.now() - 30 * 86400000
   const monthSessions = sessions.filter(s => new Date(s.date) > monthAgo)
@@ -175,6 +122,18 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   return (
     <div style={{ paddingTop: 12, paddingBottom: 110 }}>
 
+      {/* ── The streak, first ──────────────────────────────────
+          The number, what today does to it, until when, at what cost,
+          and the last seven days. Everything the old header pill, the
+          five flames and the folded warning used to say in pieces. */}
+      <Scoreboard
+        recovery={recovery}
+        config={recoveryConfig}
+        active={active}
+        deload={deload}
+        onVisibleChange={onScoreboardVisible}
+      />
+
       {/* ── Today Hero ────────────────────────────────────────
           One card, one question: what should I do now? It absorbs the
           old today card, the plan-day card, the recovery-day card and
@@ -185,8 +144,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         planDayNum={planDayNum}
         planTotal={planTotal}
         isRecoveryDay={isRecoveryDay}
+        completedToday={recovery?.status === DAY_STATUS.COMPLETED}
         deload={deload}
-        restCredits={restCredits}
         sessions={sessions}
         exerciseMapping={exerciseMapping}
         exerciseSubs={exerciseSubs}
@@ -205,22 +164,15 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         onDismiss={onDismissDeloadSuggestion}
       />
 
-      {/* ── Gamification, one quiet strip ─────────────────────
-          Streak, rank, level and XP all survive in a single slim
-          card: 🔥 · marks · rank pill · Lv · bar · %. The accent is
-          the app's one accent — no gold chrome competing. */}
+      {/* ── Rank and XP, one quiet strip ──────────────────────
+          The streak moved up to its own card, so it is not repeated
+          here: one number, in one place, under one name. */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 9,
         background: 'var(--bg2)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)', padding: '10px 14px',
         marginBottom: 'var(--hp-card-mb)',
       }}>
-        {streak > 0 && (
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: 'var(--orange)', whiteSpace: 'nowrap' }}>
-            🔥 {streak}
-          </span>
-        )}
-        <CommitmentFlames streak={streak} deload={onDeload} />
         <span style={{
           flexShrink: 0, border: `1px solid ${rank.color}40`, color: rank.color,
           borderRadius: 999, padding: '2px 10px',
@@ -278,25 +230,15 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
           background: 'var(--bg2)', border: '1px solid var(--border)',
           borderRadius: 'var(--radius-sm)', padding: '12px 14px',
         }}>
-          <span style={{ fontSize: 16 }}>
-            {atRisk ? '🔴' : paidRecently ? '🎟️' : isRecoveryDay ? '🌙' : '♻️'}
-          </span>
+          <span style={{ fontSize: 16 }}>{isRecoveryDay ? '🌙' : '♻️'}</span>
           <span style={{
-            flex: 1, fontFamily: 'var(--font-ar)', fontSize: 13, lineHeight: 1.6,
-            color: atRisk ? 'var(--red)' : paidRecently ? 'var(--gold)' : 'var(--text2)',
-            fontWeight: (atRisk || paidRecently) ? 700 : 400,
+            flex: 1, fontFamily: 'var(--font-ar)', fontSize: 13, lineHeight: 1.6, color: 'var(--text2)',
           }}>
-            {/* An empty balance on a training day outranks the notice
-                about a day already paid for: one needs doing today. */}
-            {atRisk
-              ? 'لا رصيد راحة — إن لم تتمرّن اليوم ينكسر ستريكك'
-              : paidRecently
-                ? `غبت ${fmtDate(lastPaidDay)} — دُفع من رصيدك، وستريكك سليم`
-                : isRecoveryDay
-                  ? 'اكتملت الدورة — اليوم للتعافي'
-                  : (recovery?.cycleLimit || 0) - (recovery?.workoutStreak || 0) === 1
-                    ? 'باقي تمرين واحد على يوم الراحة'
-                    : `التعافي على المسار · ${recovery?.workoutStreak || 0} من ${recovery?.cycleLimit || 0} في الدورة`}
+            {isRecoveryDay
+              ? 'اكتملت الدورة — اليوم للراحة'
+              : (recovery?.cycleLimit || 0) - (recovery?.workoutStreak || 0) === 1
+                ? 'باقي تمرين واحد على يوم الراحة'
+                : `دورة التعافي · ${recovery?.workoutStreak || 0} من ${recovery?.cycleLimit || 0}`}
           </span>
           <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--cyan)', fontWeight: 700 }}>
             التفاصيل
@@ -339,119 +281,40 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.7, marginBottom: 12 }}>
           {isRecoveryDay
             ? 'اكتملت الدورة — اليوم راحة، وغداً تبدأ دورة جديدة.'
-            : `${recovery?.cycleLimit || 0} تمارين ثم يوم راحة · أنجزت ${recovery?.workoutStreak || 0}`}
+            : `${countAr(recovery?.cycleLimit || 0, 'workout')} ثم يوم راحة · أنجزت ${recovery?.workoutStreak || 0}`}
         </div>
 
-        {/* Earned optional rest days.
-            The bar tracks progress to the NEXT reward, which is not the
-            same thing as the streak beside it: an optional rest day
-            holds the streak but is frozen out of this count. Keeping
-            them in separate blocks stops one being read as the other. */}
+        {/* Rest tickets. The bar tracks progress to the NEXT ticket,
+            which is not the streak: a day a ticket covered holds the
+            streak but is frozen out of this count. The balance is the
+            real one the engine spends from — it used to stop at 5. */}
         <div style={{
-          background: restCredits > 0 ? 'var(--gold-lo)' : 'var(--bg3)',
-          border: `1px solid ${restCredits > 0 ? 'var(--gold-md)' : 'var(--border)'}`,
-          borderRadius: 12, padding: '12px 14px', marginBottom: 12,
+          background: tickets > 0 ? 'rgba(var(--purple-rgb),0.08)' : 'var(--bg3)',
+          border: `1px solid ${tickets > 0 ? 'var(--purple-md)' : 'var(--border)'}`,
+          borderRadius: 12, padding: '12px 14px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 18 }}>🎟️</span>
-            <div style={{ flex: 1 }}>
-              <div style={{
-                fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
-                color: restCredits > 0 ? 'var(--gold)' : 'var(--text3)',
-              }}>
-                {restCredits === 0 ? 'لا يوجد رصيد راحة'
-                  : restCredits === 1 ? 'يوم راحة اختياري واحد'
-                  : restCredits === 2 ? 'يوما راحة اختيارية'
-                  : `${restCredits} أيام راحة اختيارية`}
-              </div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                {restCredits > 0
-                  ? 'يُصرف تلقائياً لو غبت، فيجمّد ستريكك بلا زيادة ولا كسر'
-                  : 'بلا رصيد، الغياب يكسر الستريك'}
-              </div>
-            </div>
-          </div>
-
-          {/* The spend, named and dated. It happens without a tap, so
-              leaving it unsaid is what made a paid day look like a
-              streak that vanished on its own. */}
-          {paidRecently && (
-            <div data-testid="credit-spent" style={{
-              background: 'var(--bg2)', border: '1px solid var(--gold-md)',
-              borderRadius: 10, padding: '9px 11px', marginBottom: 10,
-              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text2)', lineHeight: 1.8,
-            }}>
-              🎟️ يوم <b style={{ color: 'var(--gold)' }}>{fmtDate(lastPaidDay)}</b> كان يوم تمرين وغبت عنه — دُفع من رصيدك.
-              {' '}{restCredits === 0 ? 'لم يبقَ لك رصيد.'
-                : restCredits === 1 ? 'بقي لك رصيد واحد.'
-                : `بقي لك ${restCredits} أرصدة.`}
-              {' '}ستريكك سليم (<span style={{ direction: 'ltr', display: 'inline-block' }}>{recovery?.consistencyStreak || 0}</span> يوم).
-            </div>
-          )}
-
-          {/* And the warning before the break, not the notice after it. */}
-          {atRisk && (
-            <div data-testid="credit-warning" style={{
-              background: 'var(--red-lo)', border: '1px solid var(--red)',
-              borderRadius: 10, padding: '9px 11px', marginBottom: 10,
-              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)', lineHeight: 1.8, fontWeight: 700,
-            }}>
-              🔴 لا رصيد راحة — اليوم يوم تمرين، وإن غبت عنه ينكسر ستريكك
-              (<span style={{ direction: 'ltr', display: 'inline-block' }}>{recovery?.consistencyStreak || 0}</span> يوم)
-            </div>
-          )}
           <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-            marginBottom: 5,
+            fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
+            color: tickets > 0 ? 'var(--rest)' : 'var(--text3)',
           }}>
-            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
-              {atMaxCredits
-                ? 'رصيدك ممتلئ'
-                : daysToNextCredit === 1
-                  ? 'باقي لك يوم واحد للحصول على يوم راحة اختياري'
-                  : daysToNextCredit === 2
-                    ? 'باقي لك يومان للحصول على يوم راحة اختياري'
-                    : `باقي لك ${daysToNextCredit} أيام للحصول على يوم راحة اختياري`}
+            {tickets > 0 ? `عندك ${countAr(tickets, 'ticket')}` : 'ما عندك تذاكر'}
+          </div>
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text2)', marginTop: 2, marginBottom: 10, lineHeight: 1.7 }}>
+            {tickets > 0
+              ? 'تنصرف لحالها الساعة 3 الفجر لو فاتك يوم تمرين، والستريك يوقف: ما يزيد ولا ينكسر'
+              : 'بدون تذاكر، يوم التمرين اللي يفوتك يكسر الستريك'}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
+            <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text2)' }}>
+              باقي {countAr(daysToNextCredit, 'day')} للتذكرة الجاية
             </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
-              {atMaxCredits ? `${creditTarget}/${creditTarget}` : `${creditProgress}/${creditTarget}`}
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--rest)', fontWeight: 700 }}>
+              {creditProgress}/{creditTarget}
             </span>
           </div>
-          <ProgressBar
-            value={atMaxCredits ? creditTarget : creditProgress}
-            max={creditTarget}
-            color="var(--gold)"
-            height={7}
-          />
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', marginTop: 6, opacity: 0.8 }}>
-            يُحسب هنا كل يوم تمرين أنجزته أو راحة مجدولة من خطتك — يوم الراحة
-            الاختياري يحمي ستريكك لكنه لا يُحتسب في هذا العدّاد
-          </div>
-        </div>
-
-        {/* The two distinct streaks */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{
-            flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderTop: '3px solid var(--cyan)', borderRadius: 12, padding: '12px 10px', textAlign: 'center',
-          }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800, color: 'var(--cyan)' }}>
-              {recovery?.workoutStreak || 0}
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
-              تمارين متتالية
-            </div>
-          </div>
-          <div style={{
-            flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderTop: '3px solid var(--gold)', borderRadius: 12, padding: '12px 10px', textAlign: 'center',
-          }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800, color: 'var(--gold)' }}>
-              {recovery?.consistencyStreak || 0}
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
-              أيام التزام
-            </div>
+          <ProgressBar value={creditProgress} max={creditTarget} color="var(--rest)" height={7} />
+          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>
+            كل يوم تمرّنت فيه أو راحة مجدولة يقرّبك منها — اليوم اللي تغطّيه تذكرة ما ينعدّ
           </div>
         </div>
       </Card>
