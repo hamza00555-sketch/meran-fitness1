@@ -15,7 +15,8 @@ import {
   xpProgress, getRank,
 } from './utils.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
-import { computeRecovery, MAX_REST_CREDITS } from './recovery.js'
+import { computeRecovery } from './recovery.js'
+import { countAr } from './streak.js'
 import { isDeloadSession, wasDeloadDay } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
 
@@ -265,7 +266,10 @@ function consistencyIn(sessions, config, month) {
       carried:   shape(carried, month),
     },
     endStreak: recovery.consistencyStreak,
-    restCredits: recovery.restCredits,
+    // The real balance — the one a miss is charged against. The clamped
+    // restCredits stopped at 5 and told people a full balance was being
+    // «wasted», which the engine never did.
+    restCredits: recovery.usableCredits ?? recovery.restCredits,
     // A deload day keeps its own kind — trained, rest, missed — and
     // carries the flag alongside. It is a modifier on the day, not a
     // fourth kind of day: a missed day inside a deload is still a
@@ -632,13 +636,13 @@ export function buildTips(report, { sessions = [], mapping = {}, repTarget, mont
       `${count}× ${WEEKDAYS[day]}`)
   }
 
-  // Rest credits earned and never spent.
+  // Rest tickets earned and never spent. They are spent automatically
+  // at 03:00 on a missed workout day — never by choice — so the tip says
+  // what they do, not when to use them.
   if (consistency.restCredits >= 3) {
     add('credits', 'info',
-      `${consistency.restCredits} أيام راحة في رصيدك`,
-      consistency.restCredits >= MAX_REST_CREDITS
-        ? 'رصيدك ممتلئ ولا يزيد أكثر. استعمل يوماً منه بدل أن يضيع.'
-        : 'كسبتها بالتزامك. استعملها في يوم تحتاجه فعلاً — تحفظ الستريك بلا كسر.',
+      `عندك ${countAr(consistency.restCredits, 'ticket')} راحة`,
+      'كسبتها بالتزامك. لو فاتك يوم تمرين تنصرف وحدة لحالها، والستريك يوقف بدل ما ينكسر.',
       String(consistency.restCredits))
   }
 

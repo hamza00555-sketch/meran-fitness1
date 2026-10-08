@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { streakView } from '../../streak.js'
+import useMinute from './useMinute.js'
+import { streakView, unitAr } from '../../streak.js'
 import { MAX_REST_CREDITS } from '../../recovery.js'
 import { ls } from '../../utils.js'
 import { Flame, Ticket, Moon, Cross, BADGES } from './StreakIcons.jsx'
@@ -16,26 +17,13 @@ import { Flame, Ticket, Moon, Cross, BADGES } from './StreakIcons.jsx'
 // Every word comes from streakView(), the same source the header chip,
 // the skip sheet and the toasts read.
 
-/** Re-render once a minute so the countdown is never stale. */
-function useMinute() {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    let id
-    const tick = () => { setNow(new Date()); id = setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50) }
-    id = setTimeout(tick, 60_000 - (Date.now() % 60_000) + 50)
-    const wake = () => { if (document.visibilityState === 'visible') setNow(new Date()) }
-    document.addEventListener('visibilitychange', wake)
-    return () => { clearTimeout(id); document.removeEventListener('visibilitychange', wake) }
-  }, [])
-  return now
-}
-
 function Cell({ c }) {
   let glyph = null
   if (c.kind === 'trained' || (c.kind === 'today-done' && !c.rest)) glyph = <i className="sb-dot" />
   else if (c.kind === 'rest' || (c.kind === 'today-done' && c.rest)) glyph = <span className="sb-c-rest"><Moon size={14} /></span>
   else if (c.kind === 'credit') glyph = <span className="sb-c-rest"><Ticket size={14} /></span>
   else if (c.kind === 'missed') glyph = <span className="sb-c-miss"><Cross size={12} /></span>
+  else if (c.kind === 'idle') glyph = <span className="sb-c-idle"><Cross size={9} /></span>
   else if (c.kind === 'out') glyph = <i className="sb-dim" />
   const ring = c.kind === 'today-pending' ? ' ring' : c.kind === 'today-done' ? ' ring done' : c.kind === 'today-reset' ? ' ring reset' : ''
   const deltaCls = c.delta === '+1' ? ' up' : c.delta === '0' ? ' held' : c.delta ? ' broke' : ''
@@ -48,16 +36,24 @@ function Cell({ c }) {
   )
 }
 
-export default function Scoreboard({ recovery, config, active, deload, onVisibleChange }) {
+export default function Scoreboard({ recovery, config, active, deload, today, onVisibleChange }) {
   const now = useMinute()
-  const v = streakView({ recovery, config, active, deload, now })
+  const v = streakView({ recovery, config, active, deload, now, today })
   const ref = useRef(null)
+  const numRef = useRef(null)
 
-  // The header chip stands in for this card once it scrolls away.
+  // The header chip stands in for this card once the number scrolls
+  // away. The header is sticky and opaque, so the part of the viewport
+  // behind it does not count as visible: without that margin the number
+  // could sit hidden under the header while the chip stayed away too.
   useEffect(() => {
-    if (!onVisibleChange || !ref.current || typeof IntersectionObserver === 'undefined') return
-    const io = new IntersectionObserver(([e]) => onVisibleChange(e.isIntersecting), { threshold: 0 })
-    io.observe(ref.current)
+    const el = numRef.current
+    if (!onVisibleChange || !el || typeof IntersectionObserver === 'undefined') return
+    const header = document.querySelector('header')
+    const h = Math.ceil(header ? header.getBoundingClientRect().bottom : 0)
+    const io = new IntersectionObserver(([e]) => onVisibleChange(e.isIntersecting),
+      { threshold: 0, rootMargin: `-${h}px 0px 0px 0px` })
+    io.observe(el)
     return () => { io.disconnect(); onVisibleChange(true) }
   }, [onVisibleChange])
 
@@ -91,13 +87,13 @@ export default function Scoreboard({ recovery, config, active, deload, onVisible
         </span>
       </div>
 
-      <div className="sb-num">
+      <div className="sb-num" ref={numRef}>
         <span className="sb-flame">
           <Flame size={30} filled={v.counted} />
           {Badge && <span className={`sb-badge ${v.badgeTone}`}><Badge size={12} /></span>}
         </span>
         <b className={`sb-big${v.number === 0 ? ' zero' : ''}`} data-testid="streak-number">{v.number}</b>
-        <span className="sb-unit">يوم</span>
+        <span className="sb-unit">{unitAr(v.number, 'day')}</span>
         {v.next && (
           <span className="sb-ms">
             <span className="sb-ms-l">المحطة الجاية</span>

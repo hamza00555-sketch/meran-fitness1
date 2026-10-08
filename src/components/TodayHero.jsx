@@ -98,7 +98,7 @@ const metaStyle = {
 
 export default function TodayHero({
   active, currentPlanDay, planDayNum, planTotal,
-  isRecoveryDay, completedToday = false, deload,
+  isRecoveryDay, completedToday = false, streakKind = null, deload,
   sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
   onStartPlanned, onStartEmpty, onSkip, onGoToWorkout, onOverrideRecovery,
 }) {
@@ -112,6 +112,10 @@ export default function TodayHero({
   // Today already counts: the streak card says so, and this card must
   // not keep asking for the workout that was just done.
   const done = completedToday && !active && !resting
+  // A second plan change inside 30 days starts the streak again from
+  // tomorrow, so on that day a saved session is saved, not counted. The
+  // card must not say otherwise right under the streak card.
+  const notCounting = streakKind === 'reset'
   const tone = resting ? 'var(--purple)' : 'var(--cyan)'
   const toneLo = resting ? 'var(--purple-lo)' : 'var(--cyan-lo)'
   const toneMd = resting ? 'var(--purple-md)' : 'var(--cyan-md)'
@@ -119,7 +123,7 @@ export default function TodayHero({
   const statusWord = active ? 'جلسة شغّالة'
     : onDeload ? 'ديلود'
     : resting ? 'يوم راحة'
-    : done ? 'انحسب اليوم'
+    : done && notCounting ? 'انحفظت'
     : 'يوم تمرين'
 
   // The day's name is its type — "Push Day" — not the muscles it
@@ -214,14 +218,17 @@ export default function TodayHero({
               {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
             </>
           ) : resting ? (
-            <>
-              راحة مجدولة — تنحسب لك وما تكسر الستريك.
-              {currentPlanDay && <> بكرة: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>}
-            </>
+            // What the rest day does to the streak is the streak card's
+            // to say; this card says what comes next.
+            currentPlanDay
+              ? <>بكرة: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>
+              : 'استرح — بكرة يوم تمرين.'
           ) : done ? (
-            'جلسة زيادة؟ ما تغيّر الستريك.'
+            notCounting
+              ? 'اليوم ما ينحسب بعد تغيير الخطة — العدّ يبدأ بكرة.'
+              : 'جلسة زيادة؟ ما تغيّر الستريك.'
           ) : (
-            'بلا خطة مفعّلة — ابدأ جلسة حرة، أو فعّل خطة من الإعدادات.'
+            'بلا خطة — فعّل وحدة من الإعدادات.'
           )}
         </div>
       ) : null}

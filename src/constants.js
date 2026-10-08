@@ -151,18 +151,19 @@ export const GREETINGS = {
     'رجعتك أهم من غيابك يا {name} — يلا 🚀',
     '{name} 🔄 صفحة جديدة، نفس البطل',
   ],
-  // A rest credit was spent on yesterday's missed day.
+  // A rest ticket was spent on yesterday's missed day (automatically,
+  // at 03:00 — the lines never suggest it was a choice or a payment).
   creditSpent: [
-    '{name}، رصيدك حماك أمس — اليوم ردّ الجميل 🎟️',
-    'أمس استراحة من رصيدك يا {name}، اليوم شغل 💪',
-    '{name}، الستريك نجا أمس — لا تخلّيه يحتاج رصيد ثاني 🛟',
-    'رصيد الراحة سوّى شغله يا {name}، الحين دورك 🔄',
-    '{name}، استرحت أمس على حسابك — اليوم سدّد بسيت قوي 🏋️',
-    'يوم الراحة المدفوع خلص يا {name}، يلا نرجع 🚀',
-    '{name} 🧾 أمس دفعت يوم، اليوم اكسب غيره',
+    '{name}، تذكرة حمتك أمس — اليوم ردّ الجميل 🎟️',
+    'أمس غطّتك تذكرة يا {name}، اليوم شغل 💪',
+    '{name}، الستريك نجا أمس بتذكرة — لا تخلّيه يحتاج ثانية 🛟',
+    'التذكرة سوّت شغلها يا {name}، الحين دورك 🔄',
+    '{name}، أمس عدّى على تذكرة — اليوم سدّد بسيت قوي 🏋️',
+    'يوم التذكرة خلص يا {name}، يلا نرجع 🚀',
+    '{name} 🧾 أمس انصرفت تذكرة، اليوم اكسب غيرها',
     '{name}، أخذت نفس أمس — اليوم ارفع الإيقاع 🥁',
     'أمس راحة، اليوم عودة يا {name} — الستريك ينتظرك 🔥',
-    'رصيدك غطّاك أمس يا {name}، اليوم أنت تغطّي نفسك ⚡',
+    'تذكرتك غطّتك أمس يا {name}، اليوم أنت تغطّي نفسك ⚡',
   ],
   // A rest day the person chose today, paid from the balance. Until now
   // this day fell through to the streak or training-day lines — telling

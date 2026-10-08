@@ -12,10 +12,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 const { computeRecovery, DAY_STATUS, MAX_REST_CREDITS } = await import('../src/recovery.js')
+const streakModule = await import('../src/streak.js')
 const {
   streakView, todayStreak, missWouldCost, chain7, heldRun, countAr, fmtDayAr,
   nextMilestone, skipCopy, finishToast, spendToast,
-} = await import('../src/streak.js')
+} = streakModule
 const { formatRemaining, isLateWindow } = await import('../src/day.js')
 
 const S = (d, h = 18) => ({ id: `${d}-${h}`, date: `${d}T${String(h).padStart(2, '0')}:00:00`,
@@ -124,9 +125,9 @@ test('a ticket spent yesterday: the day is named, the streak held, the cost of t
   assert.equal(v.kind, 'owed')
   assert.equal(v.number, 10)
   assert.equal(v.status, 'باقي تمرين اليوم — يرجع يزيد: 11')
-  assert.equal(v.note, 'تذكرة غطّت أمس السبت 11 يوليو — وقف على 10، ما زاد ولا انكسر.')
+  assert.equal(v.note, 'تذكرة غطّت أمس — وقف على 10، ما زاد ولا انكسر.')
   assert.equal(v.countdown, '17 س')
-  assert.equal(v.cost, 'لو فاتك تنصرف آخر تذكرة ويوقف على 10')
+  assert.equal(v.cost, 'لو فاتك تنصرف آخر تذكرة')
   assert.equal(v.ticketsText, 'تذكرة وحدة')
   assert.equal(v.badge, 'ticket')
 })
@@ -135,9 +136,9 @@ test('no tickets left, daytime: calm, but the cost is the whole streak', () => {
   const v = view(july(1, 3, 5, 7, 9), CFG, '2026-07-13T10:00:00')
   assert.equal(v.number, 10)
   assert.equal(v.tickets, 0)
-  assert.equal(v.cost, 'خلصت تذاكرك، لو فاتك يرجع 10 إلى صفر')
+  assert.equal(v.cost, 'خلصت تذاكرك — لو فاتك يرجع 10 إلى صفر')
   assert.equal(v.statusWarn, false)
-  assert.match(v.note, /^يومين ورا بعض غطّتها التذاكر \(11 يوليو – 12 يوليو\)/)
+  assert.equal(v.note, 'يومين ورا بعض غطّتها التذاكر — الستريك واقف على 10.')
 })
 
 test('no tickets left, late at night: it says so, with the time left', () => {
@@ -147,7 +148,7 @@ test('no tickets left, late at night: it says so, with the time left', () => {
   assert.equal(v.countdown, '3 س 20 د')
   assert.equal(v.badge, 'hourglass')
   assert.equal(v.badgeTone, 'streak')
-  assert.match(v.lateTail, /الجلسة تنحسب لليوم اللي بدأتها فيه/)
+  assert.match(v.lateTail, /ابدأ قبل 3 وتنحسب حتى لو خلصت بعدها/)
 })
 
 test('after midnight the day is still the same training day', () => {
@@ -267,4 +268,69 @@ test('the spend toast is dated and says what is left', () => {
   assert.equal(spendToast(['2026-07-11'], r), 'انصرفت تذكرة عن السبت 11 يوليو — الستريك وقف على 10. باقي تذكرة وحدة')
   const r2 = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-13')
   assert.equal(spendToast(['2026-07-11', '2026-07-12'], r2), 'انصرفت تذكرتين (11 يوليو – 12 يوليو) — الستريك وقف على 10. وخلصت تذاكرك')
+})
+
+// ══ after review ═══════════════════════════════════════════════
+
+test('only the miss that ended a run says «كسر»; the days after it are idle', () => {
+  // Streak 4 into July 5, then nothing until the 10th.
+  const r = computeRecovery(july(1, 3), CFG, '2026-07-10')
+  const c = chain7(r, { config: CFG, today: '2026-07-10' })
+  const breaks = c.filter(x => x.delta === 'كسر')
+  assert.equal(breaks.length, 1, JSON.stringify(c.map(x => x.kind)))
+  assert.ok(c.some(x => x.kind === 'idle'))
+  const row = r.ledger.find(x => x.date === '2026-07-05')
+  assert.equal(row.broke, 4, 'the miss records the run it ended')
+})
+
+test('the unit after a separately drawn number follows Arabic counting', () => {
+  const { unitAr } = streakModule
+  assert.equal(unitAr(1, 'day'), 'يوم')
+  assert.equal(unitAr(9, 'day'), 'أيام')
+  assert.equal(unitAr(10, 'day'), 'أيام')
+  assert.equal(unitAr(11, 'day'), 'يوم')
+  assert.equal(unitAr(60, 'day'), 'يوم')
+  assert.equal(unitAr(0, 'day'), 'أيام')
+})
+
+test('the day comes from the ledger, not the clock, in the minute after 03:00', () => {
+  // Numbers built for the 12th, viewed at 03:00:10 on the 13th before the
+  // app has recomputed: still the 12th, not a fresh install.
+  const r = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-12')
+  const v = streakView({ recovery: r, config: CFG, now: at('2026-07-13T03:00:10') })
+  assert.equal(v.today, '2026-07-12')
+  assert.notEqual(v.kind, 'fresh')
+  assert.equal(v.countdown, 'أقل من دقيقة')
+  assert.ok(!v.chain.some(x => x.delta === 'كسر'), 'a covered day is not a break')
+})
+
+test('a session started before 03:00 and still running: no deadline, the right day', () => {
+  // The app freezes the streak's day at the session's day (App.jsx).
+  const r = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-13')
+  const v = streakView({ recovery: r, config: CFG, active: { id: 1, date: '2026-07-14T02:30:00' },
+    now: at('2026-07-14T03:20:00'), today: '2026-07-13' })
+  assert.equal(v.kind, 'running')
+  assert.equal(v.number, 10)
+  assert.equal(v.countdown, null)
+  assert.equal(v.cost, '')
+  assert.match(v.status, /تنحسب لـالاثنين 13 يوليو/)
+  assert.equal(v.detail, 'لما تنحفظ يصير ستريكك 11')
+  assert.ok(!v.chain.some(x => x.delta === 'كسر'))
+})
+
+test('no tickets yet: the wording agrees for one and two days', () => {
+  const v1 = view(july(1, 3), CFG, '2026-07-05T10:00:00')
+  assert.equal(v1.cost, 'ما عندك تذاكر لسا — لو فاتك يرجع صفر')
+  assert.equal(v1.ticketsText, '0 تذاكر · الجاية بعد يوم واحد')
+})
+
+test('finish toast: a crossed-03:00 session on a reset day is saved, not counted', () => {
+  const cfg = { ...CFG, streakResetAt: '2026-07-11' }
+  const after = computeRecovery([...july(1, 3, 5, 7, 9), S('2026-07-11')], cfg, '2026-07-12')
+  assert.match(finishToast({ before: 'owed', after, sessionDay: '2026-07-11', today: '2026-07-12' }), /ما ينحسب بعد تغيير الخطة/)
+})
+
+test('finish toast: training on a ticket-held day gives the ticket back', () => {
+  const after = computeRecovery([...july(1, 3, 5, 7, 9), S('2026-07-11')], { ...CFG, restDays: ['2026-07-11'] }, '2026-07-11')
+  assert.match(finishToast({ before: 'held', after, sessionDay: '2026-07-11', today: '2026-07-11' }), /ورجعت لك التذكرة/)
 })

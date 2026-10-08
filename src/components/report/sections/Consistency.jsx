@@ -246,11 +246,11 @@ export default function Consistency({ report }) {
           className={run ? 'mr-rise' : undefined}
           style={{
             '--i': 5, marginTop: 10, textAlign: 'center',
-            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--gold)',
+            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--rest)',
             opacity: run ? undefined : 0,
           }}
         >
-          🎟️ رصيدك في نهاية الشهر: {AR(c.restCredits)} {c.restCredits === 1 ? 'يوم راحة' : 'أيام راحة'}
+          🎟️ تذاكر الراحة في نهاية الشهر: {AR(c.restCredits)}
         </div>
       )}
     </section>

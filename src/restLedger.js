@@ -38,7 +38,7 @@ export const ledgerTotals = (recovery) => [
   ['daysToNextCredit',  recovery.daysToNextCredit,  'الباقي حتى المكافأة القادمة'],
   ['creditsEarned',     recovery.creditsEarned,     'مكافآت كسبتها هذه السلسلة'],
   ['creditsSpent',      recovery.creditsSpent,      'مكافآت صرفتها هذه السلسلة'],
-  ['restCredits',       recovery.restCredits,       'الرصيد المتاح الآن'],
+  ['usableCredits',     recovery.usableCredits ?? recovery.restCredits, 'الرصيد المتاح الآن — بلا سقف'],
 ]
 
 /** The whole audit as monospaced text — what the copy button puts on the clipboard. */

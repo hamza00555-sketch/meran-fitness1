@@ -6,7 +6,8 @@ import Scoreboard from '../components/streak/Scoreboard.jsx'
 import { xpProgress, getRank, planDayType } from '../utils.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
-import { countAr } from '../streak.js'
+import { countAr, todayStreak } from '../streak.js'
+import { todayKey } from '../day.js'
 
 function PlanProgressCard({ plan, planIndex }) {
   const schedule      = plan.weeklySchedule
@@ -90,7 +91,7 @@ function PlanProgressCard({ plan, planIndex }) {
 
 
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, onOverrideRecovery, onScoreboardVisible, tickets = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
+export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, onScoreboardVisible, tickets = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
   onStartDeload, onDismissDeloadSuggestion, onOpenDeload }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
@@ -131,6 +132,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         config={recoveryConfig}
         active={active}
         deload={deload}
+        today={streakToday}
         onVisibleChange={onScoreboardVisible}
       />
 
@@ -145,6 +147,7 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         planTotal={planTotal}
         isRecoveryDay={isRecoveryDay}
         completedToday={recovery?.status === DAY_STATUS.COMPLETED}
+        streakKind={todayStreak(recovery, { config: recoveryConfig, active, today: streakToday || todayKey() })}
         deload={deload}
         sessions={sessions}
         exerciseMapping={exerciseMapping}

@@ -744,12 +744,12 @@ input[type=number] { -moz-appearance: textfield; }
 .sb-badge.rest, .streak-chip-badge.rest { color: var(--rest); }
 .sb-badge.streak, .streak-chip-badge.streak { color: var(--streak); }
 .sb-big {
-  font-family: var(--font-mono); font-size: 64px; font-weight: 800; line-height: 0.95;
+  font-family: var(--font-mono); font-size: 58px; font-weight: 800; line-height: 0.95;
   color: var(--streak); font-variant-numeric: tabular-nums; letter-spacing: -1px;
 }
 /* Zero stays on screen, dimmed — an outline in the squared numeric
    face read as an empty box. */
-.sb-big.zero, .streak-chip .zero { color: rgba(var(--streak-rgb),0.4); }
+.sb-big.zero, .streak-chip .zero { color: var(--text3); }
 .sb-unit { font-family: var(--font-ar); font-size: 17px; font-weight: 600; color: var(--text2); align-self: flex-end; margin-bottom: 8px; }
 .sb-ms { margin-inline-start: auto; display: grid; justify-items: end; line-height: 1.3; font-family: var(--font-ar); font-size: 12px; color: var(--text3); }
 .sb-ms b { font-family: var(--font-mono); font-size: 18px; color: var(--text2); }
@@ -768,7 +768,7 @@ input[type=number] { -moz-appearance: textfield; }
 .sb-cell { display: grid; justify-items: center; gap: 2px; }
 .sb-cell-d { font-family: var(--font-ar); font-size: 11px; color: var(--text3); }
 .sb-cell-d.today { color: var(--text); font-weight: 700; }
-.sb-cell-g { width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center; }
+.sb-cell-g { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
 .sb-cell-g.ring { box-shadow: inset 0 0 0 1.6px var(--streak); }
 .sb-cell-g.ring.done { box-shadow: inset 0 0 0 2.2px var(--streak); }
 .sb-cell-g.ring.reset { box-shadow: inset 0 0 0 1.4px var(--border2); }
@@ -776,6 +776,7 @@ input[type=number] { -moz-appearance: textfield; }
 .sb-dim { width: 5px; height: 5px; border-radius: 999px; background: var(--border2); display: block; }
 .sb-c-rest { color: var(--rest); display: grid; }
 .sb-c-miss { color: var(--text3); display: grid; }
+.sb-c-idle { color: var(--border2); display: grid; }
 /* An isolated LTR run, or the bidi algorithm prints «+1» as «1+». */
 .sb-cell-x { font-family: var(--font-mono); font-size: 11px; font-weight: 700; min-height: 14px; line-height: 14px; direction: ltr; unicode-bidi: isolate; }
 .sb-cell-x.up { color: var(--streak); }
@@ -792,7 +793,9 @@ input[type=number] { -moz-appearance: textfield; }
 .streak-chip::after { content: ""; position: absolute; inset: -4px; } /* a 44pt target */
 .streak-chip.warn { border-color: var(--streak); }
 .streak-chip-flame { position: relative; display: grid; }
-.streak-chip-badge { width: 13px; height: 13px; inset-inline-end: -6px; bottom: -3px; }
+/* Small, and on the chip's outer edge, so it neither hides the flame's
+   filled/outline state nor touches the digits. */
+.streak-chip-badge { width: 10px; height: 10px; inset-inline-end: auto; inset-inline-start: -5px; bottom: -3px; }
 
 .skip-sheet-scrim {
   position: fixed; inset: 0; z-index: 800; background: rgba(0,0,0,0.64);
@@ -817,4 +820,30 @@ input[type=number] { -moz-appearance: textfield; }
 }
 @media (prefers-reduced-motion: reduce) {
   .skip-sheet { animation: none; }
+}
+
+/* Short screens: the start button must stay above the tab bar. The
+   seven days step aside first (they explain the past; the button acts
+   on today), then the number shrinks. */
+@media (max-height: 700px) {
+  .sb { gap: 3px; padding: 0 2px 10px; }
+  .sb-big { font-size: 48px; }
+  .sb-unit { margin-bottom: 5px; font-size: 15px; }
+  .sb-ms b { font-size: 16px; }
+  .sb-status { font-size: 16px; line-height: 1.4; }
+  .sb-status.warn { padding: 5px 10px; }
+  .sb-note, .sb-detail { font-size: 13px; line-height: 1.5; }
+  .sb-cd.late { font-size: 16px; }
+  .sb-chain { margin-top: 3px; gap: 2px; }
+  .sb-cell { gap: 0; }
+  .sb-cell-d, .sb-cell-x { font-size: 10px; line-height: 12px; min-height: 12px; }
+  .sb-cell-g { width: 22px; height: 22px; }
+}
+@media (max-height: 620px) {
+  /* The spend notice already said it, and the ticket mark on the flame
+     still shows it; on a 568pt screen the start button comes first. */
+  .sb-note { display: none; }
+  .sb-chain { display: none; }
+  .sb-big { font-size: 42px; }
+  .sb-flame svg { width: 24px; height: 24px; }
 }

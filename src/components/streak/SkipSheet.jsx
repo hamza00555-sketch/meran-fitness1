@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 // ── Before «تخطي اليوم» ───────────────────────────────────────
@@ -8,6 +9,30 @@ import { createPortal } from 'react-dom'
 // Two quiet buttons, no green: neither choice is the one to push.
 
 export default function SkipSheet({ copy, onConfirm, onClose }) {
+  // Like the app's other sheets: Escape closes, the page behind neither
+  // scrolls nor takes focus, and focus goes back to the button that
+  // opened it.
+  // The opener is read during render: «رجوع» takes focus (autoFocus)
+  // before any effect runs, so reading it there would return focus to
+  // the sheet itself.
+  const [opener] = useState(() => document.activeElement)
+  const close = useRef(onClose)
+  close.current = onClose
+  useEffect(() => {
+    const root = document.getElementById('root')
+    if (root) root.inert = true
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => { if (e.key === 'Escape') close.current() }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+      if (root) root.inert = false
+      opener?.focus?.()
+    }
+  }, [opener])
+
   return createPortal(
     <div className="skip-sheet-scrim" onClick={onClose} role="presentation">
       <div

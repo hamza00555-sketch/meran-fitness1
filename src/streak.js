@@ -16,7 +16,7 @@
 // React, so every line can be pinned in node tests.
 
 import { DAY_STATUS, REST_CREDIT_EVERY, addDays } from './recovery.js'
-import { dayKey, formatRemaining, isLateWindow, nextDayTurn } from './day.js'
+import { dayKey, formatRemaining, isLateWindow, DAY_START_HOUR } from './day.js'
 
 export const STREAK_MILESTONES = new Set([7, 10, 14, 21, 30, 40, 50, 60, 75, 90, 100, 120, 150, 180, 200, 250, 300, 365])
 
@@ -44,6 +44,14 @@ export const countAr = (n, noun) => {
   return `${k} ${f.many}`
 }
 
+/** The unit word alone, for a number drawn separately: «10 أيام»,
+ *  «60 يوم», «1 يوم». (A digit 2 reads «2 يوم», never «2 يومين».) */
+export const unitAr = (n, noun) => {
+  const k = Math.max(0, Math.round(Number(n) || 0))
+  const r = k % 100
+  return (k === 0 || (r >= 3 && r <= 10)) ? NOUNS[noun].few : NOUNS[noun].many
+}
+
 // ── Dates ─────────────────────────────────────────────────────
 // Gregorian, Western digits. fmtDate printed «٢٦ محرم» on the one
 // notice that tells you a credit was spent.
@@ -60,6 +68,12 @@ export const fmtDayAr = (iso, { weekday = true } = {}) => {
   return weekday ? `${WEEKDAYS[dt.getUTCDay()]} ${day}` : day
 }
 export const weekdayLetter = (iso) => WEEKDAY_LETTER[utcDay(iso).getUTCDay()]
+
+/** The moment a training day ends: 03:00 local on the next calendar day. */
+export const dayEnds = (iso) => {
+  const [y, m, d] = String(iso).split('-').map(Number)
+  return new Date(y, m - 1, d + 1, DAY_START_HOUR, 0, 0, 0)
+}
 
 // ── What today is, for the streak ─────────────────────────────
 /**
@@ -117,7 +131,8 @@ export function heldRun(recovery, today) {
 /**
  * Seven cells, oldest first, today last. Each says what the day was
  * and what it did to the number:
- *   trained +1 · rest +1 · credit 0 · missed «كسر» · out (not in this run)
+ *   trained +1 · rest +1 · credit 0 · missed «كسر» (the miss that ended a
+ *   run) · idle (a missed day with no streak left to lose) · out
  *   today-pending · today-done (+1) · today-reset
  */
 export function chain7(recovery, { config = {}, today } = {}) {
@@ -134,7 +149,7 @@ export function chain7(recovery, { config = {}, today } = {}) {
       else if (r && r.inRun && r.kind === 'paid') { kind = 'credit'; delta = '0' }
       else kind = 'today-pending'
     } else if (r) {
-      if (r.kind === 'miss') { kind = 'missed'; delta = 'كسر' }
+      if (r.kind === 'miss') { kind = r.broke ? 'missed' : 'idle'; delta = r.broke ? 'كسر' : '' }
       else if (!r.inRun) kind = 'out'
       else if (r.kind === 'paid') { kind = 'credit'; delta = '0' }
       else { kind = r.completed ? 'trained' : 'rest'; delta = '+1' }
@@ -155,16 +170,17 @@ function tomorrowLine(recovery) {
 function costLine(recovery, n) {
   const usable = recovery?.usableCredits ?? 0
   const cost = missWouldCost(recovery)
+  // Short enough for one line on a 390pt phone: the board has to leave
+  // the start button above the tab bar. When the next ticket comes is
+  // already on the ticket row, so it is not repeated here.
   if (cost === 'ticket') {
     return usable - 1 > 0
-      ? `لو فاتك تنصرف تذكرة ويوقف على ${n} (يبقى ${countAr(usable - 1, 'ticket')})`
-      : `لو فاتك تنصرف آخر تذكرة ويوقف على ${n}`
+      ? `لو فاتك تنصرف تذكرة (يبقى ${countAr(usable - 1, 'ticket')})`
+      : 'لو فاتك تنصرف آخر تذكرة'
   }
   if (cost === 'break') {
-    if ((recovery?.creditsEarned || 0) === 0) {
-      return `ما عندك تذاكر لسا، أول وحدة بعد ${countAr(recovery?.daysToNextCredit ?? REST_CREDIT_EVERY, 'day')} محسوبة. لو فاتك يرجع صفر`
-    }
-    return `خلصت تذاكرك، لو فاتك يرجع ${n} إلى صفر`
+    if ((recovery?.creditsEarned || 0) === 0) return 'ما عندك تذاكر لسا — لو فاتك يرجع صفر'
+    return `خلصت تذاكرك — لو فاتك يرجع ${n} إلى صفر`
   }
   return ''
 }
@@ -174,14 +190,20 @@ function costLine(recovery, n) {
  * `now` is a Date; the countdown is computed from it, so the caller
  * re-renders once a minute.
  */
-export function streakView({ recovery, config = {}, active = null, deload = null, now = new Date() } = {}) {
-  const today = dayKey(now)
+export function streakView({ recovery, config = {}, active = null, deload = null, now = new Date(), today: todayIn = null } = {}) {
+  // The day comes from the ledger the numbers were built for, never
+  // from this function's own clock: at 03:00 the clock turns a moment
+  // before the app recomputes, and pairing the new day with yesterday's
+  // ledger read as a fresh install with yesterday broken.
+  const ledgerDay = recovery?.ledger?.length ? recovery.ledger[recovery.ledger.length - 1].date : null
+  const today = todayIn || ledgerDay || dayKey(now)
   const kind = todayStreak(recovery, { config, active, today })
   const n = recovery?.consistencyStreak || 0
   const usable = recovery?.usableCredits ?? 0
   const cost = missWouldCost(recovery)
-  const late = isLateWindow(now)
-  const remaining = formatRemaining(nextDayTurn(now) - now)
+  const ends = dayEnds(today)
+  const late = isLateWindow(now) && now < ends
+  const remaining = formatRemaining(ends - now)
   const held = heldRun(recovery, today)
   const hasHistory = (recovery?.ledger || []).length > 0
 
@@ -230,7 +252,15 @@ export function streakView({ recovery, config = {}, active = null, deload = null
     case 'owed': {
       v.cost = costLine(recovery, n)
       if (kind === 'running') {
-        v.status = 'الجلسة شغّالة — تنحسب لما تضغط «إنهاء التمرين»'
+        // A session counts for the day it started, whenever it ends, so
+        // there is no deadline to show and nothing at risk while it runs.
+        const crossed = dayKey(now) !== today
+        v.status = crossed
+          ? `الجلسة شغّالة — تنحسب لـ${fmtDayAr(today)} لما تضغط «إنهاء التمرين»`
+          : 'الجلسة شغّالة — تنحسب لما تضغط «إنهاء التمرين»'
+        v.detail = n > 0 ? `لما تنحفظ يصير ستريكك ${n + 1}` : 'لما تنحفظ يبدأ ستريكك من 1'
+        v.cost = ''
+        break
       } else if (n === 0) {
         v.status = 'باقي تمرين اليوم — يبدأ ستريكك من 1'
         if (hasHistory) v.tone = 'restart'
@@ -246,7 +276,7 @@ export function streakView({ recovery, config = {}, active = null, deload = null
         if (cost === 'break') {
           v.status = `بدون تمرين الليلة يرجع ${n} إلى صفر`
           v.statusWarn = true; v.tone = 'warning'; v.badgeTone = 'streak'
-          v.lateTail = 'ابدأ قبل 3 — الجلسة تنحسب لليوم اللي بدأتها فيه'
+          v.lateTail = 'ابدأ قبل 3 وتنحسب حتى لو خلصت بعدها'
         } else {
           v.status = `لو فاتك الليلة تنصرف تذكرة ويوقف على ${n}`
           v.badgeTone = 'rest'
@@ -256,10 +286,12 @@ export function streakView({ recovery, config = {}, active = null, deload = null
         v.countdown = remaining
       }
 
+      // The dates are in the spend notice and on the seven days below;
+      // here, only what it did.
       if (held.count === 1) {
-        v.note = `تذكرة غطّت أمس ${fmtDayAr(held.to)} — وقف على ${n}، ما زاد ولا انكسر.`
+        v.note = `تذكرة غطّت أمس — وقف على ${n}، ما زاد ولا انكسر.`
       } else if (held.count > 1) {
-        v.note = `${countAr(held.count, 'day')} ورا بعض غطّتها التذاكر (${fmtDayAr(held.from, { weekday: false })} – ${fmtDayAr(held.to, { weekday: false })}) — الستريك واقف على ${n}.`
+        v.note = `${countAr(held.count, 'day')} ورا بعض غطّتها التذاكر — الستريك واقف على ${n}.`
       } else if (v.deload && cost !== 'nothing') {
         v.note = 'ديلود: الوزن أخف، والحساب نفسه.'
       }
@@ -269,7 +301,7 @@ export function streakView({ recovery, config = {}, active = null, deload = null
   }
 
   v.aria = [
-    `الستريك ${n} يوم`,
+    `الستريك ${n} ${unitAr(n, 'day')}`,
     v.status,
     usable > 0 ? `عندك ${countAr(usable, 'ticket')}` : 'ما عندك تذاكر',
   ].join('، ')
@@ -311,10 +343,19 @@ export function finishToast({ before, after, sessionDay, today }) {
   const n = after?.consistencyStreak || 0
   if (before === 'reset') return 'انحفظت الجلسة — اليوم ما ينحسب بعد تغيير الخطة، العدّ يبدأ بكرة'
   if (sessionDay && today && sessionDay !== today) {
+    // Ask the ledger whether that day counted rather than assume it: a
+    // plan reset excludes its own day.
+    const row = after?.ledger?.find(r => r.date === sessionDay)
+    if (!row?.inRun || !row.streakDelta) {
+      return `انحفظت الجلسة — ${fmtDayAr(sessionDay)} ما ينحسب بعد تغيير الخطة · ستريكك ${n}`
+    }
     return `انحسب ${fmtDayAr(sessionDay)} — بدأتها قبل 3 الفجر · ستريكك ${n}`
   }
   if (before === 'counted-rest' || before === 'override') return 'انحفظت الجلسة — اليوم كان محسوب، والراحة انتقلت لبكرة'
-  if (before === 'counted-trained' || before === 'held') return 'انحفظت الجلسة — اليوم كان محسوب'
+  // Training on a day a ticket held turns it into a counted day and
+  // gives the ticket back.
+  if (before === 'held') return `انحسب اليوم — ستريكك ${n}، ورجعت لك التذكرة`
+  if (before === 'counted-trained') return 'انحفظت الجلسة — اليوم كان محسوب'
   return `انحسب اليوم — ستريكك ${n}`
 }
 

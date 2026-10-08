@@ -512,7 +512,16 @@ export default function App() {
   }, [pushAlert])
 
   // ── Derived values ────────────────────────────────────────────
-  const recovery = computeRecovery(sessions, recoveryCfg)
+  // While a session is open, the streak's day is the day it started.
+  // A session counts for that day whenever it ends, so a workout begun
+  // at 02:30 must not see its own day judged as missed at 03:00 — no
+  // false «كسر», no ticket spent and written down for a day it covers.
+  // Only for a session started in the last 12 hours: a forgotten one
+  // must not freeze the streak indefinitely.
+  const activeDay = active && Date.now() - (Number(active.id) || 0) < 12 * 3600e3 ? dayKey(active.date) : null
+  const calendarToday = todayKey()
+  const streakToday = activeDay && activeDay < calendarToday ? activeDay : calendarToday
+  const recovery = computeRecovery(sessions, recoveryCfg, streakToday)
 
   // ── Record what the engine already decided ───────────────────
   // The engine spends credits itself while it replays the calendar, so
@@ -565,10 +574,15 @@ export default function App() {
   // training day turns, so a deload that ended in the night ends on screen too.
   const [dayTick, setDayTick] = useState(0)
   useEffect(() => {
-    // The training day turns at 03:00, not midnight (see day.js).
-    // A minute past, so a clock a shade fast still lands on the new day.
-    const id = setTimeout(() => setDayTick(n => n + 1), nextDayTurn() - Date.now() + 60_000)
-    return () => clearTimeout(id)
+    // The training day turns at 03:00, not midnight (see day.js). A
+    // second past, not a minute: the streak card counts down to 03:00
+    // and must not spend a minute pairing the new day with old numbers.
+    const id = setTimeout(() => setDayTick(n => n + 1), nextDayTurn() - Date.now() + 1_000)
+    // A phone asleep at 03:00 never runs that timer on time; catch up
+    // the moment the app is back in front.
+    const wake = () => { if (document.visibilityState === 'visible') setDayTick(n => n + 1) }
+    document.addEventListener('visibilitychange', wake)
+    return () => { clearTimeout(id); document.removeEventListener('visibilitychange', wake) }
   }, [dayTick])
 
   const today = useMemo(() => todayKey(), [dayTick])
@@ -816,19 +830,23 @@ export default function App() {
             }}>
               {greeting}
             </div>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 10,
-              color: 'var(--text3)', marginTop: 3,
-              display: 'flex', alignItems: 'center', gap: 3,
-            }}>
-              اضغط ⚙️ لتغيير اسمك
-            </div>
+            {/* Only until a name is set — it used to stay forever, and the
+                height it took pushed Home's start button under the tabs. */}
+            {(!profile?.name || profile.name === DEFAULT_PROFILE.name) && (
+              <div style={{
+                fontFamily: 'var(--font-ar)', fontSize: 10,
+                color: 'var(--text3)', marginTop: 3,
+                display: 'flex', alignItems: 'center', gap: 3,
+              }}>
+                اضغط ⚙️ لتغيير اسمك
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {(tab !== 'home' || !boardVisible) && (
               <StreakChip
-                view={streakView({ recovery, config: recoveryCfg, active, deload })}
+                recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday}
                 onOpen={() => { setTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
               />
             )}
@@ -888,6 +906,7 @@ export default function App() {
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
             recovery={recovery}
             recoveryConfig={recoveryCfg}
+            streakToday={streakToday}
             onScoreboardVisible={onBoardVisible}
             onOverrideRecovery={overrideRecoveryDay}
             tickets={recovery.usableCredits}
@@ -1100,7 +1119,7 @@ export default function App() {
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
 
       {askSkip && (() => {
-        const copy = skipCopy(streakView({ recovery, config: recoveryCfg, active, deload }))
+        const copy = skipCopy(streakView({ recovery, config: recoveryCfg, active, deload, today: streakToday }))
         return (
           <SkipSheet
             copy={copy}

@@ -16,7 +16,7 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { ACHIEVEMENTS } from '../src/constants.js'
+import { ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
@@ -54,7 +54,7 @@ const DELOAD = { from: '2026-07-06', plannedUntil: '2026-07-12', pct: 40 }
 const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso`, optionally mid-deload. */
-async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, recovery = null } = {}) {
+async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, recovery = null, plan = null } = {}) {
   const ctx = await browser.newContext({
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
@@ -64,8 +64,9 @@ async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, 
   page.on('pageerror', e => errors.push(String(e)))
   await page.route('**/*.r2.dev/**', r => r.abort())
 
-  await page.addInitScript(([sessions, recovery, iso, unlocked]) => {
+  await page.addInitScript(([sessions, recovery, iso, unlocked, plan]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+    if (plan) { localStorage.setItem('hf_plan', JSON.stringify(plan)); localStorage.setItem('hf_plan_index', '0') }
     localStorage.setItem('hf_recovery', JSON.stringify(recovery))
     localStorage.setItem('hf_xp', '4200')
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
@@ -82,7 +83,7 @@ async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, 
       static now() { return fixed }
     }
     globalThis.Date = D
-  }, [sessions, recovery || { ...BASE_RECOVERY, deload }, iso, ACHIEVEMENTS.map(a => a.id)])
+  }, [sessions, recovery || { ...BASE_RECOVERY, deload }, iso, ACHIEVEMENTS.map(a => a.id), plan])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
@@ -531,12 +532,12 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   ok('streak: the scoreboard is on Home', await board.count() === 1)
   const note = (await page.locator('[data-testid="streak-note"]').count())
     ? await page.locator('[data-testid="streak-note"]').innerText() : ''
-  ok('credit: it names the day it paid for', /تذكرة غطّت أمس السبت 11 يوليو/.test(note), note)
+  ok('credit: it says a ticket covered yesterday', /تذكرة غطّت أمس/.test(note), note)
   ok('credit: it says the streak held', /وقف على 10، ما زاد ولا انكسر/.test(note), note)
   const status = await page.locator('[data-testid="streak-status"]').innerText()
   ok('credit: today is still owed', /باقي تمرين اليوم/.test(status), status)
   const detail = await page.locator('[data-testid="streak-detail"]').innerText()
-  ok('credit: it says what a miss today costs', /آخر تذكرة ويوقف على 10/.test(detail), detail)
+  ok('credit: it says what a miss today costs', /لو فاتك تنصرف آخر تذكرة/.test(detail), detail)
   ok('credit: it gives the deadline', /لين 3 الفجر/.test(detail), detail)
   const tix = await page.locator('[data-testid="streak-tickets"]').innerText()
   ok('credit: the balance is shown', /تذكرة وحدة/.test(tix), tix)
@@ -561,16 +562,6 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   ok('credit: the spend is recorded after the fact',
     stored.includes('2026-07-11'), JSON.stringify(stored))
 
-  // Skipping states its cost before the plan moves.
-  const skip = page.locator('button', { hasText: 'تخطي اليوم' }).first()
-  if (await skip.count()) {
-    await skip.click()
-    const sheet = page.locator('[data-testid="skip-sheet"]')
-    ok('skip: a sheet asks first', await sheet.count() === 1)
-    const st = (await sheet.count()) ? await sheet.innerText() : ''
-    ok('skip: it says the day still wants a workout', /الستريك لسا يبي تمرين اليوم/.test(st), st)
-    await page.locator('button', { hasText: 'رجوع' }).click()
-  }
 
   await page.screenshot({ path: `${OUT}/credit-spent.png`, fullPage: false })
   ok('credit: no page errors', errors.length === 0, errors.join('; '))
@@ -587,7 +578,7 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   await page.waitForTimeout(300)
 
   const detail = await page.locator('[data-testid="streak-detail"]').innerText()
-  ok('credit: the break is stated before it happens', /خلصت تذاكرك، لو فاتك يرجع 10 إلى صفر/.test(detail), detail)
+  ok('credit: the break is stated before it happens', /خلصت تذاكرك — لو فاتك يرجع 10 إلى صفر/.test(detail), detail)
   const tix = await page.locator('[data-testid="streak-tickets"]').innerText()
   ok('credit: an empty balance says when the next one comes', /0 تذاكر · الجاية بعد/.test(tix), tix)
   ok('credit: the old folded warning is gone',
@@ -595,6 +586,43 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
 
   await page.screenshot({ path: `${OUT}/credit-warning.png`, fullPage: false })
   ok('credit: no page errors on the warning state', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // «تخطي اليوم» with a plan: the sheet states the cost, Escape and
+  // «رجوع» leave the plan alone, «انقل الخطة» moves it and says the day
+  // is still a workout day.
+  const { ctx, page, errors } = await open('2026-07-12T10:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9),
+    recovery: CLEAN_RECOVERY,
+    plan: BUILT_IN_PLANS[0],
+  })
+  await page.waitForTimeout(300)
+  const skip = page.locator('button', { hasText: 'تخطي اليوم' }).first()
+  ok('skip: the button is there with a plan', await skip.count() === 1)
+  await skip.click()
+  const sheet = page.locator('[data-testid="skip-sheet"]')
+  ok('skip: a sheet asks first', await sheet.count() === 1)
+  const st = (await sheet.count()) ? await sheet.innerText() : ''
+  ok('skip: it says the day still wants a workout', /الستريك لسا يبي تمرين اليوم/.test(st), st)
+  ok('skip: it states the cost', /آخر تذكرة ويوقف على 10/.test(st), st)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(200)
+  ok('skip: Escape closes it', await sheet.count() === 0)
+  ok('skip: closing leaves the plan where it was',
+    await page.evaluate(() => localStorage.getItem('hf_plan_index')) === '0')
+  await skip.click()
+  await page.locator('[data-testid="skip-confirm"]').click()
+  await page.waitForTimeout(300)
+  ok('skip: confirming moves the plan',
+    await page.evaluate(() => localStorage.getItem('hf_plan_index')) === '1')
+  // Toasts queue one at a time; the spend notice for the 11th is ahead.
+  const toasted = await page.waitForFunction(
+    () => /انتقلت الخطة لليوم الجاي — اليوم لسا يوم تمرين/.test(document.body.innerText),
+    null, { timeout: 12000 }).then(() => true, () => false)
+  ok('skip: the toast says today still wants a workout', toasted)
+  ok('skip: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

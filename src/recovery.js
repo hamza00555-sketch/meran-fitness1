@@ -236,14 +236,19 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   // A credit is spent here, the moment it is needed. Storage records the
   // decision afterwards; it no longer makes it.
   const autoPaid = new Set()
+  // Misses that actually ended a run, with the length lost. Only the
+  // first miss after a run breaks anything; the days after it had no
+  // streak left to lose, and calling each of them «كسر» showed one
+  // break as six.
+  const brokeOn = new Map()
   let startIdx = 0
   {
-    let earned = 0, spent = 0, progress = 0
+    let earned = 0, spent = 0, progress = 0, runLen = 0
     // The run restarts, but days already bought stay bought: they were
     // paid for out of a balance that really existed at the time. Wiping
     // them here would reclassify a settled day as a miss the moment a
     // later, unrelated break came along.
-    const restart = (i) => { startIdx = i + 1; earned = 0; spent = 0; progress = 0 }
+    const restart = (i) => { startIdx = i + 1; earned = 0; spent = 0; progress = 0; runLen = 0 }
     for (let i = 0; i < dayLog.length; i++) {
       const e = dayLog[i]
       // A settings change made over quota deliberately ends the streak;
@@ -254,11 +259,12 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       // Today can never be a miss — it is still unfolding.
       if (kind === 'miss' && e.date !== today) {
         if (earned - spent >= 1) { spent++; autoPaid.add(e.date) }
-        else restart(i)
+        else { if (runLen > 0) brokeOn.set(e.date, runLen); restart(i) }
       } else if (kind === 'paid') {
         spent++
       } else {
         progress++
+        runLen++
         if (progress === REST_CREDIT_EVERY) { earned++; progress = 0 }
       }
     }
@@ -306,6 +312,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       kind,
       inRun,
       pending: e.date === today && kind === 'miss',
+      broke: brokeOn.get(e.date) || 0,   // run length this miss ended, if any
       streakDelta: 0, earned: 0, spent: 0,
       streak: null, progress: null, balance: null,
     }
@@ -326,7 +333,8 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     if (inRun) {
       row.streak   = consistencyStreak
       row.progress = creditProgress
-      row.balance  = Math.max(0, Math.min(MAX_REST_CREDITS, creditsEarned - spentInStreak))
+      // The real balance on that day — the one a miss was charged against.
+      row.balance  = Math.max(0, creditsEarned - spentInStreak)
     }
     ledger.push(row)
   }
