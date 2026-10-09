@@ -1,0 +1,46 @@
+/* «ليش 60؟» — the streak explained (components/streak/StreakSheet.jsx) */
+.ss { display: grid; gap: 10px; padding-bottom: var(--space-4); }
+.ss-hero { display: flex; align-items: center; gap: 10px; }
+.ss-flame { color: var(--streak); display: grid; }
+.ss-big { font-size: var(--t-display); font-weight: 800; line-height: 1; color: var(--streak); font-stretch: 85%; }
+.ss-big.zero { color: var(--ink-3); }
+.ss-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 6px; }
+.ss-lead { margin: 0; font-size: var(--t-headline); font-weight: 600; color: var(--ink); line-height: 1.5; }
+.ss-sub { margin: 0; font-size: var(--t-label); color: var(--ink-3); line-height: 1.65; }
+.ss-note { margin: 0; font-size: var(--t-label); color: var(--rest); line-height: 1.6; }
+.ss-eq { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); padding: 10px 12px; background: var(--surface-1); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--edge); }
+.ss-eq b { font-size: var(--t-title); font-weight: 800; }
+.ss-eq .o { color: var(--streak); }
+.ss-eq .b { color: var(--rest); }
+.ss-op { color: var(--ink-3); }
+.ss-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; background: var(--streak); }
+.ss-rest { color: var(--rest); display: inline-grid; }
+.ss-miss { color: var(--ink-3); display: inline-grid; }
+.ss-idle { color: var(--ink-4); display: inline-grid; }
+.ss-sec { display: grid; gap: 8px; padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
+.ss-sec h3 { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.ss-today { margin: 0; font-size: var(--t-headline); font-weight: 700; color: var(--ink); line-height: 1.45; }
+.ss-month { display: grid; gap: 6px; }
+.ss-month-label { font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
+.ss-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.ss-wd { text-align: center; font-size: var(--t-caption); color: var(--ink-3); font-weight: 600; }
+.ss-cell {
+  display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 44px;
+  border: 0; border-radius: var(--r-sm); background: var(--surface-1); color: var(--ink-2); cursor: pointer;
+  font-family: var(--font);
+}
+.ss-cell:disabled { background: transparent; cursor: default; color: var(--ink-4); }
+.ss-cell.k-out { background: transparent; color: var(--ink-4); }
+.ss-cell.k-today-pending, .ss-cell.k-today-done, .ss-cell.k-today-rest { box-shadow: inset 0 0 0 1.6px var(--streak); }
+.ss-cell.picked { background: var(--surface-3); }
+.ss-cell-n { font-size: 11px; line-height: 1; }
+.ss-cell-g { min-height: 14px; display: grid; place-items: center; }
+.ss-picked { margin: 0; min-height: 1.6em; font-size: var(--t-label); color: var(--ink); line-height: 1.6; }
+.ss-key { margin: 0; font-size: var(--t-caption); color: var(--ink-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ss-tix { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--t-headline); font-weight: 700; color: var(--rest); }
+.ss-rows { display: grid; }
+.ss-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: var(--t-body); }
+.ss-rows > div:last-child { border-bottom: 0; }
+.ss-rows span { color: var(--ink-2); }
+.ss-rows b { color: var(--ink); font-weight: 700; }
+.ss-rules { margin: 0; padding-inline-start: 18px; display: grid; gap: 6px; font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; }

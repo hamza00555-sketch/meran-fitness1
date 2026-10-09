@@ -55,6 +55,7 @@ import ProgressPage     from './pages/ProgressPage.jsx'
 import { LargeTitle, NavBar, IconButton } from './components/kit/index.jsx'
 import { House, ClockCounterClockwise, ChartLineUp, Books, GearSix, CaretDown } from './components/kit/icons.js'
 import SkipSheet        from './components/streak/SkipSheet.jsx'
+import StreakSheet      from './components/streak/StreakSheet.jsx'
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
@@ -605,6 +606,21 @@ export default function App() {
   const [boardVisible, setBoardVisible] = useState(true)
   const onBoardVisible = useCallback((v) => setBoardVisible(v), [])
   const [askSkip, setAskSkip] = useState(false)
+  const [showStreak, setShowStreak] = useState(false)
+
+  // The best streak, kept as a high-water mark. The engine can only
+  // replay the last 400 days, and a record must outlive that window. A
+  // new key, ignored by the old design, so the shared data stays
+  // readable on both sides.
+  const [storedBest, setStoredBest] = useState(() => ls.get('hf_streak_best', null))
+  useEffect(() => {
+    const cur = recovery.consistencyStreak
+    if (cur > 0 && cur > (storedBest?.value || 0)) {
+      const next = { value: cur, start: recovery.streakStart, end: streakToday }
+      setStoredBest(next)
+      ls.set('hf_streak_best', next)
+    }
+  }, [recovery.consistencyStreak, recovery.streakStart, streakToday]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Today, as the app currently believes it ──────────────────
   // Left open overnight, nothing would notice the date changing: every
@@ -887,7 +903,7 @@ export default function App() {
         )}
         {!page && tab === 'history' && (
           <>
-            <LargeTitle title="السجل" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
+            <LargeTitle title="السجل" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => setShowStreak(true)} />} />
             <HistoryPage
               sessions={sessions}
               plan={plan}
@@ -902,7 +918,7 @@ export default function App() {
         )}
         {!page && tab === 'progress' && (
           <>
-            <LargeTitle title="التقدم" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
+            <LargeTitle title="التقدم" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => setShowStreak(true)} />} />
             <ProgressPage
               achievements={{ sessions, xp, streak, unlockedAchievements, unlockedAt, level }}
               photos={{ photos, setPhotos, onBack: () => goTab('progress') }}
@@ -911,7 +927,7 @@ export default function App() {
         )}
         {!page && tab === 'library' && (
           <>
-            <LargeTitle title="المكتبة" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
+            <LargeTitle title="المكتبة" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => setShowStreak(true)} />} />
             <ExercisesPage sessions={sessions} exerciseMapping={exerciseMapping} />
           </>
         )}
@@ -1054,6 +1070,17 @@ export default function App() {
       )}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
+
+      <StreakSheet
+        open={showStreak}
+        onClose={() => setShowStreak(false)}
+        recovery={recovery}
+        config={recoveryCfg}
+        active={active}
+        deload={deload}
+        today={streakToday}
+        storedBest={storedBest}
+      />
 
       {askSkip && (() => {
         const copy = skipCopy(streakView({ recovery, config: recoveryCfg, active, deload, today: streakToday }))

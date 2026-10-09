@@ -334,3 +334,60 @@ test('finish toast: training on a ticket-held day gives the ticket back', () => 
   const after = computeRecovery([...july(1, 3, 5, 7, 9), S('2026-07-11')], { ...CFG, restDays: ['2026-07-11'] }, '2026-07-11')
   assert.match(finishToast({ before: 'held', after, sessionDay: '2026-07-11', today: '2026-07-11' }), /ورجعت لك التذكرة/)
 })
+
+// ══ step 2: runs, the best, and «ليش 60؟» ══════════════════════
+
+test('the engine records each run that ended, and how', () => {
+  // A 4-day run broken on the 5th, then a new run from the 10th.
+  const r = computeRecovery([...july(1, 3), ...july(10, 12, 14)], CFG, '2026-07-15')
+  assert.equal(r.runs.length, 1)
+  assert.deepEqual(r.runs[0], { start: '2026-07-01', end: '2026-07-04', length: 4, endedBy: 'miss', breakDay: '2026-07-05' })
+  assert.equal(r.lastBreak.breakDay, '2026-07-05')
+  assert.equal(r.bestRun.length, Math.max(4, r.consistencyStreak))
+})
+
+test('a plan reset ends the run as «settings», not as a miss', () => {
+  const r = computeRecovery(july(1, 3, 5, 7, 9), { ...CFG, streakResetAt: '2026-07-10' }, '2026-07-11')
+  const last = r.runs[r.runs.length - 1]
+  assert.equal(last.endedBy, 'settings')
+  assert.equal(r.lastBreak, null, 'a reset is not a break')
+})
+
+test('«ليش 10؟»: the sum, what did not count, and why it is not 13', () => {
+  const { explainerView } = streakModule
+  const rec = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-13')
+  const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-13T10:00:00') })
+  assert.deepEqual(e.equation, { trained: 5, plannedRest: 5, total: 10 })
+  assert.equal(e.equation.trained + e.equation.plannedRest, e.n, 'the parts always make the number')
+  assert.equal(e.notCounted, 'يومين غطّتها التذاكر — توقفه وما تزيده.')
+  assert.match(e.whyNot, /13 يوم: 10 محسوبة \+ 2 بتذاكر \+ اليوم/)
+  assert.equal(e.stage, 'شعلة')
+  assert.match(e.startLine, /^بدأ الأربعاء 1 يوليو/)
+})
+
+test('«ليش 0؟» right after a break names the break', () => {
+  const { explainerView } = streakModule
+  const rec = computeRecovery(july(1, 3), CFG, '2026-07-07')
+  const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-07T10:00:00') })
+  assert.equal(e.n, 0)
+  assert.match(e.startLine, /^انكسر ستريك 4 أيام — الأحد 5 يوليو كان يوم تمرين وما بقى تذاكر/)
+  assert.equal(e.records.previous.length, 4)
+})
+
+test('the calendar marks every day from the ledger, and only real breaks', () => {
+  const { explainerView, dayLine } = streakModule
+  const rec = computeRecovery(july(1, 3), CFG, '2026-07-10')
+  const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-10T10:00:00') })
+  const cells = e.months.flatMap(g => g.cells).filter(Boolean)
+  assert.equal(cells.filter(c => c.kind === 'missed').length, 1)
+  const jul5 = rec.ledger.find(r => r.date === '2026-07-05')
+  assert.equal(dayLine(jul5, '2026-07-10'), 'الأحد 5 يوليو · يوم تمرين بدون تمرين ولا تذكرة · انكسر ستريك 4')
+})
+
+test('the stored best outlives the replay', () => {
+  const { explainerView } = streakModule
+  const rec = computeRecovery(july(1, 3), CFG, '2026-07-04')
+  const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-04T10:00:00'), storedBest: { value: 60 } })
+  assert.equal(e.records.best, 60)
+  assert.equal(e.records.bestIsCurrent, false)
+})

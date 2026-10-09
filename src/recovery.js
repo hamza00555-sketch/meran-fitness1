@@ -121,6 +121,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       restCredits: 0, usableCredits: 0, spentInStreak: 0, creditsEarned: 0, creditsSpent: 0,
       eligibleDays: 0, streakStart: null, ledger: [],
       tomorrowExpected: DAY_STATUS.WORKOUT, workoutsBeforeRest: pattern[0],
+      runs: [], bestRun: null, lastBreak: null,
       creditProgress: 0, creditTarget: REST_CREDIT_EVERY, daysToNextCredit: REST_CREDIT_EVERY,
       missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
@@ -241,14 +242,30 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   // streak left to lose, and calling each of them «كسر» showed one
   // break as six.
   const brokeOn = new Map()
+  // Every run that ended, oldest first: { start, end, length, endedBy,
+  // breakDay }. endedBy is 'miss' (a workout day with nothing to pay for
+  // it), 'settings' (a second plan change inside 30 days) or
+  // 'windowEdge' (a break manufactured by the 400-day replay cap, never
+  // shown as a miss). Replayed from history like everything else here.
+  const runs = []
+  const capped = sortedDates.length && dayDiff(sortedDates[0], today) > 400
   let startIdx = 0
   {
-    let earned = 0, spent = 0, progress = 0, runLen = 0
+    let earned = 0, spent = 0, progress = 0, runLen = 0, runStart = null
+    const endRun = (i, endedBy) => {
+      if (runLen > 0) {
+        runs.push({
+          start: runStart, end: i > 0 ? dayLog[i - 1].date : runStart, length: runLen,
+          endedBy: capped && i < 14 && endedBy === 'miss' ? 'windowEdge' : endedBy,
+          breakDay: dayLog[i].date,
+        })
+      }
+    }
     // The run restarts, but days already bought stay bought: they were
     // paid for out of a balance that really existed at the time. Wiping
     // them here would reclassify a settled day as a miss the moment a
     // later, unrelated break came along.
-    const restart = (i) => { startIdx = i + 1; earned = 0; spent = 0; progress = 0; runLen = 0 }
+    const restart = (i) => { startIdx = i + 1; earned = 0; spent = 0; progress = 0; runLen = 0; runStart = null }
     for (let i = 0; i < dayLog.length; i++) {
       const e = dayLog[i]
       // A settings change made over quota deliberately ends the streak;
@@ -259,11 +276,12 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       // Today can never be a miss — it is still unfolding.
       if (kind === 'miss' && e.date !== today) {
         if (earned - spent >= 1) { spent++; autoPaid.add(e.date) }
-        else { if (runLen > 0) brokeOn.set(e.date, runLen); restart(i) }
+        else { if (runLen > 0) brokeOn.set(e.date, runLen); endRun(i, 'miss'); restart(i) }
       } else if (kind === 'paid') {
         spent++
       } else {
         progress++
+        if (runLen === 0) runStart = e.date
         runLen++
         if (progress === REST_CREDIT_EVERY) { earned++; progress = 0 }
       }
@@ -363,7 +381,28 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const lastRest = [...recoveryDayHistory, ...restTakenHistory].sort().pop() || null
   const lastWorkout = sortedDates[sortedDates.length - 1]
 
+  // A plan reset voids every day up to it, so the run it ended (and any
+  // before) cannot come out of this walk. Replay once without the reset,
+  // up to the day before it, and put those runs first.
+  if (resetAt && resetAt <= today) {
+    const before = computeRecovery(sessions, { ...config, streakResetAt: null }, addDays(resetAt, -1))
+    const head = [...(before.runs || [])]
+    if (before.consistencyStreak > 0) {
+      head.push({ start: before.streakStart, end: addDays(resetAt, -1), length: before.consistencyStreak, endedBy: 'settings', breakDay: resetAt })
+    }
+    runs.unshift(...head)
+  }
+  const lastBreak = [...runs].reverse().find(r => r.endedBy === 'miss') || null
+  // The longest run the replay can see, the current one included. The
+  // app also keeps a stored high-water mark (hf_streak_best) so a record
+  // survives the 400-day replay window.
+  const bestRun =[...runs.filter(r => r.endedBy !== 'windowEdge'), { length: consistencyStreak, start: streakStart, end: today, current: true }]
+    .reduce((a, r) => (r.length > (a?.length || 0) ? r : a), null)
+
   return {
+    runs,
+    bestRun,
+    lastBreak,
     restCredits,
     usableCredits,
     tomorrowExpected,

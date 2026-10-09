@@ -368,3 +368,163 @@ export function spendToast(days, recovery) {
   const sorted = [...days].sort()
   return `انصرفت ${countAr(days.length, 'ticket')} (${fmtDayAr(sorted[0], { weekday: false })} – ${fmtDayAr(sorted[sorted.length - 1], { weekday: false })}) — الستريك وقف على ${n}. ${left}`
 }
+
+// ── «ليش 60؟» — the number, explained ─────────────────────────
+//
+// Everything here is read from the same ledger the number came from, so
+// the sheet can only ever agree with the scoreboard. It answers, in
+// order: what the number is, where the run began and why, the sum that
+// makes it, what did not count, why it is not the calendar-day count,
+// the tickets, the records, and the rules.
+
+/** The flame's stage, by milestone band. */
+export const flameStage = (n) =>
+  n >= 100 ? 'مشعل' : n >= 30 ? 'لهب' : n >= 7 ? 'شعلة' : n >= 1 ? 'جمرة' : ''
+
+const cellKind = (r, today) => {
+  if (!r) return 'out'
+  if (r.date === today) {
+    if (r.inRun && r.kind === 'eligible') return r.completed ? 'today-done' : 'today-rest'
+    if (r.inRun && r.kind === 'paid') return 'credit'
+    return 'today-pending'
+  }
+  if (r.kind === 'miss') return r.broke ? 'missed' : 'idle'
+  if (!r.inRun) return 'out'
+  if (r.kind === 'paid') return 'credit'
+  return r.completed ? 'trained' : 'rest'
+}
+
+/** One line for a tapped calendar day. */
+export function dayLine(r, today) {
+  if (!r) return ''
+  const d = fmtDayAr(r.date)
+  const k = cellKind(r, today)
+  const trainedOnRest = r.completed && r.scheduled === 'rest'
+  switch (k) {
+    case 'trained':
+      return trainedOnRest
+        ? `${d} · كان راحة مجدولة وتمرّنت · +1 والراحة انتقلت لبكرة`
+        : `${d} · تمرّنت · +1 صار ${r.streak}`
+    case 'rest': return `${d} · راحة مجدولة · +1 صار ${r.streak}`
+    case 'credit': return `${d} · يوم تمرين ما تمرّنت فيه · انصرفت تذكرة · وقف على ${r.streak ?? 0}`
+    case 'missed': return `${d} · يوم تمرين بدون تمرين ولا تذكرة · انكسر ستريك ${r.broke}`
+    case 'idle': return `${d} · يوم تمرين ما تمرّنت فيه · ما كان فيه ستريك`
+    case 'today-pending': return `${d} · اليوم · باقي تمرين لين 3 الفجر`
+    case 'today-done': return `${d} · اليوم · تمرّنت · +1`
+    case 'today-rest': return `${d} · اليوم · راحة مجدولة · +1`
+    default: return `${d} · قبل هالستريك`
+  }
+}
+
+/** Month grids (Sunday first) from the run's start month to today's. */
+function monthGrids(recovery, today, startIso) {
+  const byDate = new Map((recovery?.ledger || []).map(r => [r.date, r]))
+  const [ty, tm] = today.split('-').map(Number)
+  let [y, m] = (startIso || today).split('-').map(Number)
+  // At most the last three months: enough to see the run, not a wall.
+  const monthsBack = (ty - y) * 12 + (tm - m)
+  if (monthsBack > 2) { y = ty; m = tm - 2; while (m < 1) { m += 12; y-- } }
+  const grids = []
+  for (;;) {
+    const first = new Date(Date.UTC(y, m - 1, 1))
+    const days = new Date(Date.UTC(y, m, 0)).getUTCDate()
+    const lead = first.getUTCDay() // 0 = Sunday
+    const cells = Array.from({ length: lead }, () => null)
+    for (let d = 1; d <= days; d++) {
+      const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      if (iso > today) { cells.push({ iso, day: d, kind: 'future', row: null }); continue }
+      const row = byDate.get(iso) || null
+      cells.push({ iso, day: d, kind: cellKind(row, today), row })
+    }
+    grids.push({ label: `${MONTHS[m - 1]} ${y}`, cells })
+    if (y === ty && m === tm) break
+    m++; if (m > 12) { m = 1; y++ }
+  }
+  return grids
+}
+
+export function explainerView({ recovery, config = {}, active = null, deload = null, now = new Date(), today: todayIn = null, storedBest = null } = {}) {
+  const v = streakView({ recovery, config, active, deload, now, today: todayIn })
+  const today = v.today
+  const n = v.number
+  const ledger = recovery?.ledger || []
+  const inRun = ledger.filter(r => r.inRun)
+  const trained = inRun.filter(r => r.streakDelta === 1 && r.completed).length
+  const plannedRest = inRun.filter(r => r.streakDelta === 1 && !r.completed).length
+  const paidRows = inRun.filter(r => r.kind === 'paid' && r.date !== today)
+  const start = recovery?.streakStart || null
+  const calendarDays = start ? dayDiffIso(start, today) + 1 : 0
+  const todayCounts = v.counted
+  const runs = recovery?.runs || []
+  const prev = [...runs].reverse().find(r => r.length > 0 && r.endedBy !== 'windowEdge') || null
+
+  let startLine = ''
+  if (n > 0 && start) {
+    const why = prev?.endedBy === 'miss' ? ` — بعد غياب ${fmtDayAr(prev.breakDay)} بدون تذكرة`
+      : prev?.endedBy === 'settings' ? ' — بعد تغيير الخطة'
+      : ' — من أول جلسة سجّلتها'
+    startLine = `بدأ ${fmtDayAr(start)}${why}`
+  } else if (prev?.endedBy === 'miss') {
+    startLine = `انكسر ستريك ${prev.length} ${unitAr(prev.length, 'day')} — ${fmtDayAr(prev.breakDay)} كان يوم تمرين وما بقى تذاكر. يبدأ من أول يوم ينحسب لك.`
+  } else if (v.kind === 'reset') {
+    startLine = 'بدأ ستريك جديد بعد تغيير الخطة — العدّ يبدأ بكرة.'
+  } else {
+    startLine = 'أول جلسة تحفظها تبدأ ستريكك، وأيام الراحة المجدولة تنحسب لك بعدها.'
+  }
+
+  let notCounted = ''
+  if (paidRows.length) {
+    notCounted = `${countAr(paidRows.length, 'day')} غطّتها التذاكر — توقفه وما تزيده.`
+  }
+
+  let whyNot = ''
+  if (n > 0 && calendarDays > n) {
+    const parts = [`${n} محسوبة`]
+    if (paidRows.length) parts.push(`${paidRows.length} بتذاكر`)
+    if (!todayCounts) parts.push('اليوم')
+    whyNot = `من ${fmtDayAr(start, { weekday: false })} لين اليوم ${calendarDays} يوم: ${parts.join(' + ')}. عشان كذا الرقم ${n} مو ${calendarDays} — الأيام المغطّاة ما تنعد، والستريك مو أيام التقويم ولا عدد الجلسات.`
+  }
+
+  const lastPaid = paidRows.length ? paidRows[paidRows.length - 1].date : null
+  const bestLen = Math.max(recovery?.bestRun?.length || 0, storedBest?.value || 0)
+  const bestIsCurrent = n > 0 && n >= bestLen
+
+  return {
+    view: v,
+    n, unit: unitAr(n, 'day'), stage: flameStage(n),
+    sentence: n > 0 && start ? `${n} ${unitAr(n, 'day')} التزمت فيها بالخطة، من ${fmtDayAr(start)} لين اليوم.` : '',
+    startLine,
+    equation: n > 0 ? { trained, plannedRest, total: n } : null,
+    notCounted,
+    whyNot,
+    tickets: {
+      usable: v.tickets,
+      text: v.tickets > 0 ? countAr(v.tickets, 'ticket') : 'ما عندك تذاكر',
+      progress: recovery?.creditProgress ?? 0,
+      every: REST_CREDIT_EVERY,
+      toNext: recovery?.daysToNextCredit ?? REST_CREDIT_EVERY,
+      spentInRun: recovery?.spentInStreak ?? 0,
+      lastPaid,
+    },
+    records: {
+      best: bestLen,
+      bestIsCurrent,
+      previous: prev ? { length: prev.length, breakDay: prev.breakDay, endedBy: prev.endedBy } : null,
+    },
+    months: monthGrids(recovery, today, start || (ledger[0]?.date ?? today)),
+    rules: [
+      'ينحسب اليوم إذا حفظت جلسة وحدة على الأقل، أو كان راحة مجدولة.',
+      'اليوم التدريبي من 3 الفجر لين 3 الفجر، والجلسة تنحسب لليوم اللي بدأتها فيه.',
+      'تمرّنت بيوم راحة؟ ينحسب، والراحة تنتقل لبكرة.',
+      'يوم تمرين بلا جلسة: تنصرف تذكرة لحالها الساعة 3 الفجر، وبلا تذاكر ينكسر.',
+      `كل ${REST_CREDIT_EVERY} أيام محسوبة تعطيك تذكرة. ما تختار متى تنصرف.`,
+      '«تخطي اليوم» ينقل الخطة بس — يوم التمرين لسا يبي تمرين أو تذكرة.',
+      'الديلود يخفّف الوزن، ما يحمي الستريك.',
+    ],
+    today,
+  }
+}
+
+function dayDiffIso(a, b) {
+  return Math.round((utcDay(b) - utcDay(a)) / 86400000)
+}
