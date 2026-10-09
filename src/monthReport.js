@@ -12,7 +12,7 @@
 import { dayKey } from './day.js'
 import {
   sessionVolume, setVolume, resolveExerciseName, getWeightsResetAt,
-  xpProgress, getRank,
+  xpProgress, getRank, fmtDuration,
 } from './utils.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
 import { computeRecovery } from './recovery.js'
@@ -665,12 +665,12 @@ export function buildTips(report, { sessions = [], mapping = {}, repTarget, mont
     if (time.avgMinutes < 25) {
       add('short', 'info',
         'جلساتك قصيرة',
-        `متوسط جلستك ${time.avgMinutes} دقيقة. إن كان هذا مقصوداً فلا مشكلة، وإلا فقد تكون تتخطى مجموعات.`,
+        `متوسط جلستك ${fmtDuration(time.avgMinutes)}. إن كان هذا مقصوداً فلا مشكلة، وإلا فقد تكون تتخطى مجموعات.`,
         `${time.avgMinutes} د`)
     } else if (time.avgMinutes > 100) {
       add('long', 'info',
         'جلساتك طويلة',
-        `متوسط جلستك ${time.avgMinutes} دقيقة. راحات أقصر بين المجموعات ترفع الكثافة وتقصّر الوقت.`,
+        `متوسط جلستك ${fmtDuration(time.avgMinutes)}. راحات أقصر بين المجموعات ترفع الكثافة وتقصّر الوقت.`,
         `${time.avgMinutes} د`)
     }
   }

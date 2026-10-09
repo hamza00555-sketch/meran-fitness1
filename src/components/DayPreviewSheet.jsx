@@ -16,7 +16,7 @@
 import { Sheet, Button, Num, Weight } from './kit/index.jsx'
 import { ArrowsLeftRight, Play, ArrowUp, SkipForward, Drop } from './kit/icons.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
-import { substitutedName, nextSubIndex, getExerciseStats } from '../utils.js'
+import { substitutedName, nextSubIndex, getExerciseStats, durationShort } from '../utils.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 import { deloadWeight } from '../deload.js'
 import { ExerciseThumb, exerciseNames } from './home/HomeBits.jsx'
@@ -129,7 +129,7 @@ export default function DayPreviewSheet({
         <span className="dp-sub">
           {muscles && <>{muscles} · </>}
           <Num>{n}</Num> {unitAr(n, 'workout')}
-          {mins > 0 && <> · <Num>≈{mins}</Num> د</>}
+          {mins > 0 && <> · ≈<Num>{durationShort(mins)}</Num></>}
         </span>
       </div>
       <ul className="dp-list">

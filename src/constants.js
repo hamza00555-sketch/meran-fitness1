@@ -617,7 +617,7 @@ export const WEEKLY_CHALLENGE_POOL = [
   {
     id: 'wc4', type: 'weekly',
     title: 'ساعتان تدريب أسبوعياً',
-    desc: 'اجمع 120 دقيقة من التدريب هذا الأسبوع',
+    desc: 'اجمع ساعتين من التدريب هذا الأسبوع',
     icon: '⏰', xp: 160, target: 120,
     check: (sessions) => {
       const weekAgo = Date.now() - 7 * 86400000
@@ -707,12 +707,12 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'a8', cat: 'sessions', rarity: 'common',
-    icon: '⏱️', title: 'ساعة في الجيم', desc: 'أكمل جلسة مدتها 60 دقيقة أو أكثر', xp: 120,
+    icon: '⏱️', title: 'ساعة في الجيم', desc: 'أكمل جلسة مدتها ساعة أو أكثر', xp: 120,
     check: (sessions) => sessions.some(s => (s.duration || 0) >= 60),
   },
   {
     id: 'a9', cat: 'sessions', rarity: 'rare',
-    icon: '🕐', title: 'ساعتان متواصلتان', desc: 'أكمل جلسة مدتها 120 دقيقة أو أكثر', xp: 250,
+    icon: '🕐', title: 'ساعتين متواصلة', desc: 'أكمل جلسة مدتها ساعتين أو أكثر', xp: 250,
     check: (sessions) => sessions.some(s => (s.duration || 0) >= 120),
   },
   {

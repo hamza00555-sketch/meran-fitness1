@@ -10,6 +10,7 @@ import Art, { useHasArt } from '../assets/Art.jsx'
 import Numify from '../components/progress/Numify.jsx'
 import { fmtDay } from '../components/progress/achievementMeta.js'
 import '../styles/screens/progress.css'
+import { lockScroll } from '../scrollLock.js'
 
 // ── صور التقدم ────────────────────────────────────────────────
 //
@@ -352,9 +353,8 @@ function Viewer({ list, id, onMove, onClose, onDelete, dimmed }) {
       else if (e.key === 'ArrowRight') go(-1)
     }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    const release = lockScroll()
+    return () => { window.removeEventListener('keydown', onKey); release() }
   }, [go, onClose, dimmed])
 
   if (!photo) return null
@@ -396,9 +396,8 @@ function Compare({ a, b, onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    const release = lockScroll()
+    return () => { window.removeEventListener('keydown', onKey); release() }
   }, [onClose])
   const days = daysBetween(a.date, b.date)
   return createPortal(

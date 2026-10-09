@@ -27,6 +27,7 @@ import Consistency from './sections/Consistency.jsx'
 import Muscles from './sections/Muscles.jsx'
 import Progress from './sections/Progress.jsx'
 import '../../styles/screens/report.css'
+import { lockScroll } from '../../scrollLock.js'
 
 // ShareFat is a forward arrow: under RTL forward points left.
 const ShareRtl = (props) => <ShareFat {...props} mirrored />
@@ -82,12 +83,11 @@ export default function MonthReport({
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') closeRef.current?.() }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const release = lockScroll()
     closeBtn.current?.focus?.({ preventScroll: true })
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
+      release()
     }
   }, [])
 

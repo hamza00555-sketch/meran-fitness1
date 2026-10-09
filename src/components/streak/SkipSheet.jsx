@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../kit/index.jsx'
 import { withNums } from '../home/HomeBits.jsx'
+import { lockScroll } from '../../scrollLock.js'
 
 // ── Before «تخطي اليوم» ───────────────────────────────────────
 // Skipping moves the plan to its next day and nothing else: the streak
@@ -23,16 +24,12 @@ export default function SkipSheet({ copy, onConfirm, onClose }) {
   const close = useRef(onClose)
   close.current = onClose
   useEffect(() => {
-    const root = document.getElementById('root')
-    if (root) root.inert = true
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const release = lockScroll({ inert: true })
     const onKey = (e) => { if (e.key === 'Escape') close.current() }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-      if (root) root.inert = false
+      release()
       opener?.focus?.()
     }
   }, [opener])

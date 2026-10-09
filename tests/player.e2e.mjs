@@ -1116,6 +1116,38 @@ const RAISE_SESSIONS = [
   await ctx.close()
 }
 
+// ══ The rest of the app stays usable during a session ═══════════
+// حمزة: «لما ابدأ التمرين باقي اقسام التطبيق تعلق ومااقدر اتصفحها». Two
+// sheets overlapping (⋯ leaving while «معلومات ونصائح» arrives) used to
+// leave body overflow «hidden» after both closed, so no other tab could
+// scroll until the app was restarted.
+{
+  const HIST = Array.from({ length: 24 }, (_, i) => ({ id: 100 + i, date: new Date(2026, 7, 1 + i, 18).toISOString(), duration: 50,
+    exercises: [{ id: 'h', muscle: 'Chest', name: 'Pec Deck', sets: [{ weight: '50', reps: '12', done: true }] }] }))
+  const { ctx, page, errors } = await open({ sessions: HIST })
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(350)
+  await page.getByText('معلومات ونصائح').click()
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'إغلاق' }).last().click()
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: 'صغّر الجلسة' }).click()
+  await page.waitForTimeout(500)
+  const st = await page.evaluate(() => ({ overflow: document.body.style.overflow, inert: !!document.getElementById('root')?.inert }))
+  ok('session: after two sheets overlap and close, the page is not left locked', st.overflow === '' && !st.inert, JSON.stringify(st))
+  await page.locator('nav.f-tabs > button').nth(1).click()
+  await page.waitForTimeout(500)
+  const y0 = await page.evaluate(() => window.scrollY)
+  await page.mouse.wheel(0, 800)
+  await page.waitForTimeout(400)
+  ok('session: with the session minimised, History still scrolls', (await page.evaluate(() => window.scrollY)) > y0 + 100)
+  await page.locator('nav.f-tabs > button').nth(2).click()
+  await page.waitForTimeout(400)
+  ok('session: and the other tabs still open', await page.locator('.pv').count() === 1)
+  ok('session: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT}\n`)

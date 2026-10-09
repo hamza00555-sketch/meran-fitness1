@@ -104,8 +104,8 @@ const META = {
   a5:  { glyph: CalendarCheck,  mark: { n: '50', u: 'جلسة' },    of: c => c.sessions,         target: 50 },
   a6:  { glyph: CalendarCheck,  mark: { n: '100', u: 'جلسة' },   of: c => c.sessions,         target: 100 },
   a7:  { glyph: CalendarCheck,  mark: { n: '200', u: 'جلسة' },   of: c => c.sessions,         target: 200 },
-  a8:  { glyph: Timer,          mark: { n: '60', u: 'دقيقة' },   of: c => c.maxDuration,      target: 60 },
-  a9:  { glyph: Timer,          mark: { n: '120', u: 'دقيقة' },  of: c => c.maxDuration,      target: 120 },
+  a8:  { glyph: Timer,          mark: { n: '1', u: 'س' },   of: c => c.maxDuration,      target: 60 },
+  a9:  { glyph: Timer,          mark: { n: '2', u: 'س' },  of: c => c.maxDuration,      target: 120 },
   a10: { glyph: SunHorizon,     mark: { n: '3', u: 'بيوم' },     of: c => c.maxPerDay,        target: 3 },
 
   b1:  { glyph: Barbell,        mark: { n: '100', u: 'كجم' },    of: c => c.maxWeight,        target: 100 },

@@ -6,6 +6,7 @@ import { dayDiff } from '../recovery.js'
 import { arabicName } from '../exerciseMedia.js'
 import { Button, Num } from './kit/index.jsx'
 import '../styles/screens/celebrate.css'
+import { lockScroll } from '../scrollLock.js'
 
 /**
  * Shown once, on the first open after a deload closes.
@@ -32,10 +33,9 @@ export default function DeloadEndScreen({ entry, heaviest, onDismiss }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onDismiss?.() }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const release = lockScroll()
     const t = setTimeout(() => foot.current?.closest('.cel')?.focus({ preventScroll: true }), 0)
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; clearTimeout(t) }
+    return () => { window.removeEventListener('keydown', onKey); release(); clearTimeout(t) }
   }, [onDismiss])
 
   return createPortal(

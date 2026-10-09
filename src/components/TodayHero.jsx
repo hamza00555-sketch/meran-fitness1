@@ -4,7 +4,7 @@ import DayPreviewSheet from './DayPreviewSheet.jsx'
 import { Button, IconButton, Num, Weight, Sheet, ListGroup, ListRow } from './kit/index.jsx'
 import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop } from './kit/icons.js'
 import { EXERCISE_ALTERNATIVES } from '../constants.js'
-import { substitutedName, getExerciseStats, planDayTitle } from '../utils.js'
+import { substitutedName, getExerciseStats, planDayTitle, durationShort } from '../utils.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 import { deloadWeight } from '../deload.js'
 import { countAr, unitAr } from '../streak.js'
@@ -252,7 +252,7 @@ export default function TodayHero({
           ) : planned ? (
             <p className="hm-meta">
               {withNums(countAr(exCount, 'workout'))}
-              {mins > 0 && <> · <Num>≈{mins}</Num> د</>}
+              {mins > 0 && <> · ≈<Num>{durationShort(mins)}</Num></>}
               {onDeload && <> · أخف بـ<Num>{deload.pct}%</Num></>}
             </p>
           ) : null}

@@ -109,11 +109,36 @@ export const fmtDate = (iso) => {
   }
 }
 
+// ── Durations ─────────────────────────────────────────────────
+// Under an hour in minutes; from 60 on in hours, the way people say it
+// (حمزة: «اذا عدّت ٦٠ دقيقة تصير ساعة»). Western digits throughout.
+
+/** Hours, counted in Arabic: ساعة، ساعتين، 3 ساعات، 11 ساعة. */
+export const hoursAr = (h) =>
+  h === 1 ? 'ساعة' : h === 2 ? 'ساعتين' : h >= 3 && h <= 10 ? `${h} ساعات` : `${h} ساعة`
+
+/** «45 دقيقة», «ساعة», «ساعة و15 دقيقة», «ساعتين و5 دقيقة»; '—' when unknown. */
 export const fmtDuration = (minutes) => {
-  if (!minutes && minutes !== 0) return '—'
-  const m = Math.round(minutes)
+  if (minutes == null || minutes === '' || !Number.isFinite(Number(minutes))) return '—'
+  const m = Math.max(0, Math.round(Number(minutes)))
   if (m < 60) return `${m} دقيقة`
-  return `${Math.floor(m / 60)}س ${m % 60}د`
+  const h = Math.floor(m / 60), r = m % 60
+  return r ? `${hoursAr(h)} و${r} دقيقة` : hoursAr(h)
+}
+
+/** For a big-number tile, number and unit apart: «45» «دقيقة», «1:15» «ساعة». */
+export const durationParts = (minutes) => {
+  const m = Math.max(0, Math.round(Number(minutes) || 0))
+  if (m < 60) return { value: String(m), unit: 'دقيقة' }
+  return { value: `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`, unit: 'ساعة' }
+}
+
+/** Compact, for a meta line: «45 د», «1 س 15 د», «2 س». */
+export const durationShort = (minutes) => {
+  const m = Math.max(0, Math.round(Number(minutes) || 0))
+  if (m < 60) return `${m} د`
+  const h = Math.floor(m / 60), r = m % 60
+  return r ? `${h} س ${r} د` : `${h} س`
 }
 
 // ── Streak calculator ─────────────────────────────────────────

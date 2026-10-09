@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && vite build --config classic/vite.config.js",
     "preview": "vite preview",
-    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs tests/month-report.test.mjs tests/report-share.test.mjs tests/deload.test.mjs tests/alternatives.test.mjs tests/set-carry.test.mjs tests/plan-day-name.test.mjs tests/exercise-media.test.mjs tests/greetings.test.mjs tests/day.test.mjs tests/streak.test.mjs tests/classic.test.mjs tests/history.test.mjs tests/search.test.mjs tests/session-words.test.mjs",
+    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs tests/month-report.test.mjs tests/report-share.test.mjs tests/deload.test.mjs tests/alternatives.test.mjs tests/set-carry.test.mjs tests/plan-day-name.test.mjs tests/exercise-media.test.mjs tests/greetings.test.mjs tests/day.test.mjs tests/streak.test.mjs tests/classic.test.mjs tests/history.test.mjs tests/search.test.mjs tests/durations.test.mjs tests/session-words.test.mjs",
     "test:live": "node tests/pack.live.mjs",
     "ledger": "node scripts/rest-ledger.mjs",
     "pack:prompts": "node scripts/prompts.mjs",

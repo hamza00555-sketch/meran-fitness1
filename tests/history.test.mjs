@@ -156,7 +156,9 @@ test('the ready-made routines are named in Arabic, without emoji', async () => {
 
 test('durations read in Arabic with Western digits', () => {
   assert.equal(M.durationText(48), '48 دقيقة')
-  assert.equal(M.durationText(65), '1 س 5 د')
-  assert.equal(M.durationText(120), '2 س')
+  assert.equal(M.durationText(60), 'ساعة')
+  assert.equal(M.durationText(65), 'ساعة و5 دقيقة')
+  assert.equal(M.durationText(120), 'ساعتين')
+  assert.equal(M.durationText(195), '3 ساعات و15 دقيقة')
   assert.equal(M.durationText(null), '')
 })

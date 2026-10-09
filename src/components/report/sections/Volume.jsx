@@ -10,6 +10,7 @@ import { Num } from '../../kit/index.jsx'
 import { arabicName } from '../../../exerciseMedia.js'
 import { prevMonth, monthLabel } from '../../../monthReport.js'
 import { Chapter, Figure, AR } from '../parts.jsx'
+import { durationParts } from '../../../utils.js'
 import TrendChart, { monthVerdict, DELOAD_INK } from '../TrendChart.jsx'
 
 const monthName = (m) => monthLabel(m).split(' ')[0]
@@ -129,8 +130,8 @@ export default function Volume({ report, n = 2, id = 'rp-volume', mapping = {} }
         <Figure value={sessionCount} label="جلسة" i={3} />
         <Figure value={sets.completed} label="مجموعة مكتملة" i={3} />
         <Figure value={reps.total} label="تكرار" i={3} />
-        {time.known && <Figure value={time.totalMinutes} label="دقيقة في الجيم" i={4} />}
-        {time.known && <Figure value={time.avgMinutes} label="دقيقة للجلسة" i={4} />}
+        {time.known && <Figure value={durationParts(time.totalMinutes).value} label={`${durationParts(time.totalMinutes).unit} في الجيم`} i={4} />}
+        {time.known && <Figure value={durationParts(time.avgMinutes).value} label={`${durationParts(time.avgMinutes).unit} للجلسة`} i={4} />}
       </div>
 
       {sets.untrackedPct > 0 && (

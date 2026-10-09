@@ -6,6 +6,7 @@ import { sessionVolume, setCounts } from '../sets.js'
 import { dayKey, todayKey, dayStart } from '../day.js'
 import { arabicName } from '../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../constants.js'
+import { durationParts } from '../utils.js'
 import '../styles/screens/progress.css'
 
 // ── الأرقام ───────────────────────────────────────────────────
@@ -193,7 +194,7 @@ export default function StatsPage({ sessions = [] }) {
           <Stat n={sessions.length} label="جلسة" />
           <Stat n={data.totalSets.toLocaleString('en-US')} label="مجموعة مكتملة" />
           <Stat n={tons(data.totalVol)} label="طن رفعتها" />
-          <Stat n={data.avgDur || '—'} label="دقيقة متوسط الجلسة" />
+          <Stat n={data.avgDur ? durationParts(data.avgDur).value : '—'} label={`${data.avgDur ? durationParts(data.avgDur).unit : 'دقيقة'} متوسط الجلسة`} />
         </div>
       </Chapter>
 

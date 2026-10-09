@@ -16,6 +16,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CaretLeft, CaretRight, X } from './icons.js'
+import { lockScroll } from '../../scrollLock.js'
 
 const cx = (...a) => a.filter(Boolean).join(' ')
 
@@ -253,16 +254,14 @@ export function Sheet({ open, onClose, title, children, footer, tall, labelledBy
 
   useEffect(() => {
     if (!mounted) return
-    const root = document.getElementById('root')
-    if (root) root.inert = true
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    // Counted, so two sheets overlapping (one leaving, one arriving)
+    // can't leave the page locked behind them — see scrollLock.js.
+    const release = lockScroll({ inert: true })
     const onKey = (e) => { if (e.key === 'Escape') close.current?.() }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-      if (root) root.inert = false
+      release()
       opener?.focus?.()
     }
   }, [mounted, opener])

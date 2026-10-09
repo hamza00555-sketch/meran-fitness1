@@ -14,7 +14,7 @@
 
 import { dayKey } from '../../day.js'
 import { fmtDayAr } from '../../streak.js'
-import { planDayType, resolveExerciseName } from '../../utils.js'
+import { planDayType, resolveExerciseName, fmtDuration } from '../../utils.js'
 import { setCounts, sessionVolume } from '../../sets.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
 
@@ -219,13 +219,10 @@ export const routineSetCount = (r) =>
   (r?.exercises || []).reduce((t, ex) => t + (Number(ex.defaultSets || ex.sets) || 3), 0)
 
 // ── Durations ─────────────────────────────────────────────────
-/** «48 دقيقة», «1 س 5 د»; '' when the session has none. */
+/** «48 دقيقة», «ساعة و5 دقيقة» (utils.fmtDuration); '' when the session has none. */
 export const durationText = (minutes) => {
   if (minutes == null || minutes === '' || Number.isNaN(Number(minutes))) return ''
-  const m = Math.max(0, Math.round(Number(minutes)))
-  if (m < 60) return `${m} دقيقة`
-  const h = Math.floor(m / 60), r = m % 60
-  return r ? `${h} س ${r} د` : `${h} س`
+  return fmtDuration(minutes)
 }
 
 /** «5.7 طن» from a kilogram total, or «850 كجم» under a ton. */

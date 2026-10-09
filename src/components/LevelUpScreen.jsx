@@ -7,6 +7,7 @@ import RankCrest from './progress/RankCrest.jsx'
 import RankLadder from './progress/RankLadder.jsx'
 import { shareLevelCard } from './progress/levelCard.js'
 import '../styles/screens/celebrate.css'
+import { lockScroll } from '../scrollLock.js'
 
 // ── مستوى جديد ────────────────────────────────────────────────
 //
@@ -35,12 +36,11 @@ export default function LevelUpScreen({ level, from, onDismiss, onShare }) {
       if (e.key === 'Escape' || (e.key === 'Enter' && document.activeElement?.classList?.contains('cel'))) onDismiss?.()
     }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const release = lockScroll()
     // Focus the dialog itself (screen readers land on it, Enter/Escape
     // work) without drawing a focus ring round the button.
     const t = setTimeout(() => foot.current?.closest('.cel')?.focus({ preventScroll: true }), 0)
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; clearTimeout(t) }
+    return () => { window.removeEventListener('keydown', onKey); release(); clearTimeout(t) }
   }, [onDismiss])
 
   useEffect(() => () => { if (inline) URL.revokeObjectURL(inline) }, [inline])

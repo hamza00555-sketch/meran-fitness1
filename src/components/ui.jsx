@@ -17,6 +17,7 @@ import { Button, IconButton, Gauge, Num } from './kit/index.jsx'
 import { X, Barbell, ClockCounterClockwise, Camera, Trophy, MagnifyingGlass, Notepad } from './kit/icons.js'
 import { resolveGlyph, stripEmoji } from './system/glyphs.jsx'
 import '../styles/screens/system.css'
+import { lockScroll } from '../scrollLock.js'
 
 const cx = (...a) => a.filter(Boolean).join(' ')
 
@@ -184,11 +185,7 @@ export function Overlay({ children, onClose, align = 'center' }) {
 
   useEffect(() => {
     alive.current = true
-    const root = document.getElementById('root')
-    const wasInert = root ? root.inert : false
-    if (root) root.inert = true
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const release = lockScroll({ inert: true })
     // Into the sheet — unless a field inside it already took focus.
     const panel = panelRef.current
     if (panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true })
@@ -198,8 +195,7 @@ export function Overlay({ children, onClose, align = 'center' }) {
       alive.current = false
       timers.current.forEach(clearTimeout)
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-      if (root) root.inert = wasInert
+      release()
       if (opener && opener.isConnected) opener.focus?.({ preventScroll: true })
     }
   }, [opener, requestClose])

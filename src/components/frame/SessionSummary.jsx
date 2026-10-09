@@ -4,8 +4,9 @@ import { Button, Num, Gauge } from '../kit/index.jsx'
 import { Flame } from '../streak/StreakIcons.jsx'
 import { Trophy, Medal, ArrowUp } from '../kit/icons.js'
 import { arabicName } from '../../exerciseMedia.js'
-import { xpProgress } from '../../utils.js'
+import { xpProgress, durationParts } from '../../utils.js'
 import '../../styles/summary.css'
+import { lockScroll } from '../../scrollLock.js'
 
 // ── The end of a workout ──────────────────────────────────────
 // Finishing used to fire up to five effects in different places and
@@ -19,15 +20,15 @@ export default function SessionSummary({ summary, xp, onDone }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') onDone() }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    const release = lockScroll()
+    return () => { window.removeEventListener('keydown', onKey); release() }
   }, [onDone])
   if (!summary) return null
   const { level, currentXP, neededXP } = xpProgress(xp)
   const s = summary
   let beat = 0
   const b = () => ({ '--b': beat++ })
+  const dur = durationParts(s.duration)
 
   return createPortal(
     <div className={`sum${skipped ? ' sum-skip' : ''}`} role="dialog" aria-modal="true" aria-label="ملخص الجلسة"
@@ -36,7 +37,7 @@ export default function SessionSummary({ summary, xp, onDone }) {
         <span className="k-eyebrow sum-beat" style={b()}>انحفظت الجلسة</span>
         <h1 className="sum-title sum-beat" style={b()}>{s.title}</h1>
         <div className="sum-stats sum-beat" style={b()}>
-          <span><b><Num>{s.duration}</Num></b><small>دقيقة</small></span>
+          <span><b><Num>{dur.value}</Num></b><small>{dur.unit}</small></span>
           <span><b><Num>{s.sets}</Num></b><small>مجموعة</small></span>
           <span><b><Num>{(s.volume / 1000).toFixed(1)}</Num></b><small>طن</small></span>
         </div>
