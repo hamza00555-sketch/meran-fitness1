@@ -1,11 +1,21 @@
-// ── Day Preview bottom sheet ──────────────────────────────────
-// The tappable preview of a plan day: every exercise with its muscle,
-// last/best weights, swap cycling and YouTube link, plus start/skip.
-// Lived inside HomePage until the Today hero needed it too.
+// ── Day Preview sheet ─────────────────────────────────────────
+// Every exercise of a plan day: the picture, the Arabic name with the
+// English under it, sets, the last and best weight, swap cycling
+// (machine taken) and the form video — then start or skip.
+//
+// Drawn on the kit's one sheet (grabber, title, close, Escape, inert
+// page behind, focus back to the opener). Its rows are open rows with
+// hairlines, the start button the sheet's one green fill, docked in the
+// footer so it never scrolls away.
 
-import { createPortal } from 'react-dom'
+import { Sheet, Button, Num, Weight } from './kit/index.jsx'
+import { ArrowsLeftRight, Play, ArrowUp, SkipForward } from './kit/icons.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
-import { substitutedName, nextSubIndex, getExerciseStats, planDayTitle } from '../utils.js'
+import { substitutedName, nextSubIndex, getExerciseStats } from '../utils.js'
+import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { ExerciseThumb, exerciseNames } from './home/HomeBits.jsx'
+import { dayWord, musclesLine, estimateMinutes, setsUnit } from './home/dayParts.js'
+import { unitAr } from '../streak.js'
 
 export function findVideoUrl(name) {
   for (const group of Object.values(MUSCLE_GROUPS)) {
@@ -15,176 +25,105 @@ export function findVideoUrl(name) {
   return null
 }
 
-// ── Day Preview bottom sheet ──────────────────────────────────────────
-export default function DayPreviewSheet({ day, sessions, exerciseMapping, exerciseSubs = {}, onCycleSub, onStart, onSkip, onClose }) {
-  return createPortal(
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 750,
-        background: 'rgba(0,0,0,0.68)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '100%', maxWidth: 560,
-          background: 'var(--bg2)',
-          borderRadius: '24px 24px 0 0',
-          border: '1px solid var(--border2)',
-          borderBottom: 'none',
-          maxHeight: '88dvh',
-          display: 'flex', flexDirection: 'column',
-          animation: 'slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1)',
-          boxShadow: '0 -8px 48px rgba(0,0,0,0.5)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Handle */}
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border2)', margin: '12px auto 0', flexShrink: 0 }} />
+function PreviewRow({ ex, sessions, exerciseMapping, exerciseSubs, onCycleSub, repTarget }) {
+  const shownName = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
+  const swapped   = shownName !== ex.name
+  const alts      = EXERCISE_ALTERNATIVES[ex.name] || []
+  const subIdx    = exerciseSubs[ex.name] || 0
+  const videoUrl  = findVideoUrl(shownName)
+  const { lastWeight, maxWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
+  const raise = analyzeProgression(sessions, shownName, exerciseMapping, repTarget).hint === 'raise'
+  const { ar, en } = exerciseNames(shownName, exerciseMapping)
+  const sets = Number(ex.sets) || 3
+  const from = swapped ? exerciseNames(ex.name, exerciseMapping).ar : ''
 
-        {/* Header */}
-        <div style={{ padding: '14px 20px 12px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: 2, marginBottom: 3 }}>
-            تمارين اليوم
-          </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 19, fontWeight: 800, color: 'var(--text)' }}>
-            {planDayTitle(day)}
-          </div>
-          {/* The muscle list left the heading, so it lands here — this
-              is the screen that is about the day's detail. */}
-          {String(day.name || '').includes('—') && (
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-              {day.name.split('—').slice(1).join('—').trim()}
-            </div>
+  return (
+    <li className="dp-row">
+      <ExerciseThumb name={shownName} muscle={ex.muscle} size={48} />
+      <div className="dp-main">
+        <span className="dp-ar">{ar}</span>
+        {en && <span className="dp-en" dir="ltr">{en}</span>}
+        <span className="dp-meta">
+          <span><Num>{sets}</Num> {setsUnit(sets)}</span>
+          {lastWeight != null && (
+            <span className="dp-last">
+              · آخر مرة <Weight kg={lastWeight} />
+              {raise && <ArrowUp size={14} weight="bold" className="hm-raise" aria-label="ارفع الوزن" />}
+            </span>
+          )}
+          {maxWeight != null && lastWeight != null && maxWeight > lastWeight && (
+            <span className="dp-best">· أعلى <Weight kg={maxWeight} /></span>
+          )}
+        </span>
+        {swapped && <span className="dp-from">بدل {from}</span>}
+      </div>
+      <div className="dp-actions">
+        {alts.length > 0 && (
+          <button
+            type="button"
+            className={`dp-swap${swapped ? ' on' : ''}`}
+            onClick={() => onCycleSub?.(ex.name, nextSubIndex(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES))}
+            aria-label={subIdx < alts.length ? `استبدال التمرين — التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي'}
+            title={subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي'}
+          >
+            <ArrowsLeftRight size={18} weight="bold" aria-hidden="true" />
+            {swapped ? <Num>{subIdx}/{alts.length}</Num> : <span>بدّل</span>}
+          </button>
+        )}
+        {videoUrl && (
+          <a className="dp-video" href={videoUrl} target="_blank" rel="noopener noreferrer"
+            aria-label={`فيديو طريقة ${ar}`} title="فيديو الطريقة">
+            <Play size={18} weight="fill" aria-hidden="true" />
+          </a>
+        )}
+      </div>
+    </li>
+  )
+}
+
+export default function DayPreviewSheet({
+  day, sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
+  onStart, onSkip, onClose, open = true, heading = 'تمارين اليوم',
+  repTarget = DEFAULT_REP_TARGET,
+}) {
+  if (!day) return null
+  const { word, variant, latin } = dayWord(day)
+  const muscles = musclesLine(day)
+  const mins = estimateMinutes(day)
+  const n = day.exercises?.length || 0
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={heading}
+      tall={n > 5}
+      footer={(onStart || onSkip) ? (
+        <div className="dp-foot">
+          {onStart && <Button variant="primary" size="lg" full onClick={onStart}>ابدأ التمرين</Button>}
+          {onSkip && (
+            <Button variant="secondary" size="lg" onClick={onSkip} className="dp-skip"
+              icon={(p) => <SkipForward {...p} mirrored />}>تخطي اليوم</Button>
           )}
         </div>
-
-        {/* Exercise list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-          {day.exercises.map((ex, i) => {
-            const muscle   = MUSCLE_GROUPS[ex.muscle]
-            const shownName = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
-            const swapped   = shownName !== ex.name
-            const alts      = EXERCISE_ALTERNATIVES[ex.name] || []
-            const subIdx    = exerciseSubs[ex.name] || 0
-            const videoUrl = findVideoUrl(shownName)
-            const { lastWeight, maxWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
-            const color = muscle?.color || '#5EC32A'
-            return (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 20px',
-                borderBottom: i < day.exercises.length - 1 ? '1px solid var(--border)' : 'none',
-              }}>
-                {/* Muscle emoji box */}
-                <div style={{
-                  width: 44, height: 44, flexShrink: 0, borderRadius: 12,
-                  background: color + '1A',
-                  border: `1px solid ${color}40`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22,
-                }}>{muscle?.emoji || '💪'}</div>
-
-                {/* Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
-                    color: swapped ? 'var(--gold)' : 'var(--text)', marginBottom: 4,
-                    lineHeight: 1.35, overflowWrap: 'anywhere',
-                  }}>{swapped && '⇄ '}{shownName}</div>
-
-                  {swapped && (
-                    <div style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)',
-                      marginBottom: 4, lineHeight: 1.35, overflowWrap: 'anywhere',
-                    }}>بدلاً من {ex.name}</div>
-                  )}
-
-                  <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Muscle label tag */}
-                    <span style={{
-                      background: color + '1A', border: `1px solid ${color}40`,
-                      borderRadius: 20, padding: '2px 10px',
-                      fontFamily: 'var(--font-ar)', fontSize: 13, color, fontWeight: 700,
-                    }}>{muscle?.label || ex.muscle}</span>
-
-                    {/* Sets */}
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
-                      ×{ex.sets || 3} سيت
-                    </span>
-
-                    {/* Weight history */}
-                    {lastWeight != null && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)' }}>
-                        آخر <span style={{ color: 'var(--text2)' }}>{lastWeight}kg</span>
-                        {maxWeight != null && maxWeight !== lastWeight && (
-                          <> · <span style={{ color: 'var(--gold)' }}>🏆{maxWeight}kg</span></>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Swap exercise (machine unavailable) */}
-                {alts.length > 0 && (
-                  <button
-                    onClick={() => onCycleSub?.(ex.name, nextSubIndex(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES))}
-                    title={subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي'}
-                    style={{
-                      flexShrink: 0, height: 36, borderRadius: 10, padding: '0 10px',
-                      background: swapped ? 'var(--gold-lo)' : 'var(--bg3)',
-                      border: `1px solid ${swapped ? 'var(--gold-md)' : 'var(--border2)'}`,
-                      color: swapped ? 'var(--gold)' : 'var(--text3)',
-                      display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                      fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
-                    }}
-                  >
-                    <span style={{ fontSize: 14 }}>⇄</span>
-                    {swapped ? `${subIdx}/${alts.length}` : 'استبدال'}
-                  </button>
-                )}
-
-                {/* YouTube button */}
-                {videoUrl && (
-                  <a
-                    href={videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flexShrink: 0, width: 36, height: 36, borderRadius: 10,
-                      background: 'rgba(255,0,0,0.12)', border: '1px solid rgba(255,0,0,0.28)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      textDecoration: 'none', fontSize: 16,
-                    }}
-                  >▶️</a>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* CTA */}
-        <div style={{ padding: '12px 20px calc(var(--safe-bottom) + 12px)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onStart} style={{
-              flex: 1, padding: '14px',
-              background: 'var(--grad-primary)', border: 'none', borderRadius: 14,
-              color: 'white', fontFamily: 'var(--font-ar)', fontWeight: 800, fontSize: 16,
-              cursor: 'pointer', boxShadow: '0 4px 16px rgba(var(--cyan-rgb),0.35)',
-            }}>⚡ ابدأ التمرين</button>
-            <button onClick={onSkip} style={{
-              padding: '14px 16px',
-              background: 'var(--bg3)', border: '1px solid var(--border2)',
-              borderRadius: 14, color: 'var(--text3)',
-              fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-            }}>⏭️ تخطي</button>
-          </div>
-        </div>
+      ) : null}
+    >
+      <div className="dp-head">
+        <span className={`dp-word${latin ? ' is-latin' : ''}`}>
+          {word}{variant && <Num className="dp-variant">{variant}</Num>}
+        </span>
+        <span className="dp-sub">
+          {muscles && <>{muscles} · </>}
+          <Num>{n}</Num> {unitAr(n, 'workout')}
+          {mins > 0 && <> · <Num>≈{mins}</Num> د</>}
+        </span>
       </div>
-    </div>,
-    document.body
+      <ul className="dp-list">
+        {(day.exercises || []).map((ex, i) => (
+          <PreviewRow key={i} ex={ex} sessions={sessions} exerciseMapping={exerciseMapping}
+            exerciseSubs={exerciseSubs} onCycleSub={onCycleSub} repTarget={repTarget} />
+        ))}
+      </ul>
+    </Sheet>
   )
 }
