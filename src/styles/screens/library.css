@@ -1,0 +1,246 @@
+/* ══ المكتبة — the library (pages/ExercisesPage.jsx) and the exercise
+   sheet (components/ExerciseInfoModal.jsx) ═══════════════════════════
+   Written against the role tokens only. Rows open on the ground with
+   hairlines between them; the lit moments are the muscle tiles and the
+   sheet's media stage. No colour per muscle: green is the art's own
+   light and the trend line, gold is the best weight, nothing else. */
+
+.lib { padding-bottom: var(--space-6); }
+
+/* ── Search: a 44pt pill that stays under the title ── */
+.lib-bar {
+  position: sticky; top: var(--safe-top); z-index: 5;
+  margin-inline: calc(-1 * var(--gutter)); padding: 4px var(--gutter) 8px;
+  background: var(--ground);
+}
+.lib-bar::before {
+  content: ""; position: absolute; inset-inline: 0; bottom: 100%;
+  height: var(--safe-top); background: var(--ground);
+}
+.lib-search {
+  display: flex; align-items: center; gap: 8px; height: 44px;
+  padding-inline: 16px 0; border-radius: var(--r-pill);
+  background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--ink-3); cursor: text;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+.lib-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.lib-search-icon { flex: none; }
+.lib-search input {
+  flex: 1; min-width: 0; height: 100%; padding: 0; padding-inline-end: 16px;
+  background: transparent; border: 0; outline: 0; color: var(--ink);
+  font-family: var(--font); font-size: var(--t-headline); font-weight: 500;
+  -webkit-appearance: none; appearance: none;
+}
+.lib-search input::placeholder { color: var(--ink-3); }
+.lib-search input::-webkit-search-cancel-button,
+.lib-search input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.lib-search:has(.lib-search-clear) input { padding-inline-end: 0; }
+.lib-search .lib-search-clear { color: var(--ink-2); }
+
+.lib-seg { margin: 4px 0 var(--space-4); }
+
+/* ── Muscle tiles: small lit stages in one row ── */
+.lib-tiles {
+  display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain;
+  margin-inline: calc(-1 * var(--gutter)); padding: 0 var(--gutter) 4px;
+  scroll-snap-type: x proximity; scroll-padding-inline: var(--gutter);
+  scrollbar-width: none;
+}
+.lib-tiles::-webkit-scrollbar { display: none; }
+.lib-tile {
+  position: relative; isolation: isolate; flex: none;
+  width: 92px; aspect-ratio: 3 / 4; overflow: hidden;
+  display: flex; align-items: flex-end; padding: 8px 12px;
+  border: 0; border-radius: var(--r-md); cursor: pointer; text-align: start;
+  background: radial-gradient(85% 62% at 50% 34%, var(--stage-light), var(--surface-1) 80%);
+  box-shadow: inset 0 0 0 1px var(--edge);
+  color: var(--ink); font-family: var(--font);
+  scroll-snap-align: start; -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.lib-tile:active { transform: scale(0.97); }
+.lib-tile::after {
+  /* the dark third the label sits on */
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(to top, var(--surface-1) 30%, rgba(20, 23, 27, 0) 52%);
+  border-radius: inherit;
+}
+.lib-tile-art {
+  position: absolute; z-index: -2; top: 4px; left: 50%; transform: translateX(-50%);
+  height: 64%; width: auto; max-width: 108%; object-fit: contain; pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.lib-tile-text { display: grid; gap: 0; line-height: 1.3; }
+.lib-tile-label { font-size: var(--t-label); font-weight: 700; white-space: nowrap; }
+.lib-tile-count { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); justify-self: start; }
+.lib-tile[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.lib-tiles:has([aria-pressed="true"]) .lib-tile[aria-pressed="false"] .lib-tile-art { opacity: 0.45; }
+
+/* ── Sections ── */
+.lib-sec { margin-top: var(--space-6); }
+.lib-sec-h { display: flex; align-items: center; gap: 8px; min-height: 32px; margin-bottom: 4px; }
+.lib-sec-title { margin: 0; font-size: var(--t-headline); font-weight: 700; line-height: 1.3; color: var(--ink); }
+.lib-sec-count { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.lib-sec-action { margin-inline-start: auto; margin-inline-end: -8px; }
+.lib-note { margin: 0 0 4px; font-size: var(--t-label); line-height: 1.6; color: var(--ink-3); }
+
+/* ── Rows: 64pt, open on the ground, hairlines inset past the thumbnail ── */
+.lib-list { display: grid; }
+.lib-row {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  width: calc(100% + 16px); min-height: 64px; margin-inline: -8px; padding: 8px;
+  background: transparent; border: 0; border-radius: var(--r-sm); cursor: pointer;
+  color: var(--ink); text-align: start; font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-press);
+}
+.lib-row:active { background: var(--surface-1); }
+.lib-row + .lib-row::before {
+  content: ""; position: absolute; top: 0; height: 1px; background: var(--hairline);
+  inset-inline-start: 68px; inset-inline-end: 8px;
+}
+.lib-row:active::before, .lib-row:active + .lib-row::before { opacity: 0; }
+
+.lib-thumb {
+  flex: none; width: 48px; height: 48px; border-radius: var(--r-sm); overflow: hidden;
+  display: grid; place-items: center;
+  background: radial-gradient(80% 80% at 50% 38%, var(--stage-light), var(--surface-1) 85%);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+.lib-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; transform: scale(1.18); }
+.lib-thumb-still img { object-fit: contain; object-position: 50% 50%; transform: scale(1.08); }
+/* No still for this lift: the muscle's art stays, but quiet — grey and
+   dimmed on an unlit tile. The tiles and the section titles say which
+   muscle; green in the list is left for a real picture of the lift, so
+   a column of identical bright chests does not become a second lit
+   moment under the tiles. */
+.lib-thumb-art { background: var(--surface-1); }
+.lib-thumb-art img { filter: grayscale(1) brightness(0.7); }
+
+.lib-row-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.lib-row-title {
+  font-size: var(--t-headline); font-weight: 600; line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.lib-row-sub {
+  font-size: var(--t-label); font-weight: 500; color: var(--ink-3); line-height: 1.4;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Two facts on one line; on a 320pt screen the second (the session
+   count, also in the sheet) gives way rather than truncating the first.
+   A «ديلود» mark stays: it explains why «آخر» is under the estimate. */
+.lib-row-sub-wrap > span + span::before { content: "·"; padding-inline: 6px; }
+@media (max-width: 359px) { .lib-row-sub-wrap > span + span:not(.lib-sub-keep) { display: none; } }
+.lib-en { font-weight: 600; }
+.lib-row-val { flex: none; display: grid; justify-items: end; gap: 0; line-height: 1.25; }
+.lib-val-label { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); }
+.lib-row-val .k-weight { font-size: var(--t-body); font-weight: 700; color: var(--ink-2); }
+.lib-row-val .k-weight .k-unit { font-size: var(--t-caption); }
+.lib-row-chev { flex: none; color: var(--ink-3); }
+.lib-best, .lib-row-val .k-weight.lib-best { color: var(--raise); }
+
+/* ── تقدمي: name · trend · numbers ── */
+.lib-prow { gap: 12px; }
+.lib-prow + .lib-prow::before { inset-inline-start: 8px; }
+.lib-spark { flex: none; display: block; color: var(--accent); overflow: visible; }
+/* A fixed column, so the trend lines stack in one column down the list. */
+.lib-prow-vals { flex: none; width: 92px; display: grid; justify-items: end; gap: 2px; line-height: 1.25; }
+.lib-prow-est { font-size: var(--t-headline); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.lib-prow-est .lib-val-label { font-size: var(--t-caption); }
+.lib-prow-best { font-size: var(--t-label); font-weight: 600; color: var(--raise); white-space: nowrap; }
+
+.lib-empty { padding-block: var(--space-7); }
+.lib-empty img { margin-bottom: 4px; }
+
+@media (max-width: 359px) {
+  .lib-tile { width: 84px; }
+  .lib-prow-vals { width: 64px; }
+  .lib-prow-unit { display: none; }
+}
+
+/* ══ The exercise sheet ═══════════════════════════════════════════ */
+.xi { display: grid; grid-template-columns: minmax(0, 1fr); }
+.xi-stagebox { position: relative; margin: -8px calc(-1 * var(--gutter)) 0; }
+.xi-stage {
+  position: relative; aspect-ratio: 3 / 2; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(70% 72% at 50% 42%, var(--stage-light), var(--surface-2) 74%);
+}
+/* The art is cropped at its own bottom edge; let it sink into the sheet
+   instead of ending on a hard line. */
+.xi-stage::after {
+  content: ""; position: absolute; inset-inline: 0; bottom: 0; height: 28%; pointer-events: none;
+  background: linear-gradient(to top, var(--surface-2), rgba(29, 33, 38, 0));
+}
+.xi .xi-stage-art .k-stage-art {
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 92%);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 92%);
+}
+.xi-media { display: block; width: 100%; height: 100%; object-fit: contain; }
+.xi .xi-play { position: absolute; inset: 0; margin: auto; background: rgba(20, 23, 27, 0.72); color: var(--ink); }
+.xi .xi-stage-art {
+  margin-inline: 0;
+  background: radial-gradient(70% 80% at 22% 45%, var(--stage-light), var(--surface-2) 72%);
+}
+.xi .xi-stage-art .k-stage-body { max-width: 62%; }
+/* Narrow screens clamp the width; keep the drawn art on the box's
+   bottom so the fade below still lands on its cropped edge. */
+.xi .xi-stage-art .k-stage-art { max-width: 58%; object-position: 50% 100%; }
+/* The close button never scrolls away: a zero-height sticky bar ahead
+   of the content (a sibling of .xi, not a grid item — a sticky grid item
+   cannot leave its own zero-height row), edge to edge like the media,
+   with the 44pt X floating at its end over the stage. */
+.xi-closebar {
+  position: sticky; top: 0; z-index: 3; height: 0;
+  margin-inline: calc(-1 * var(--gutter));
+}
+.xi-closebar .xi-close {
+  position: absolute; top: 0; inset-inline-end: 8px;
+  background: rgba(20, 23, 27, 0.72); color: var(--ink);
+}
+.xi-name { display: grid; gap: 4px; padding-top: var(--space-4); }
+.xi-name-on { padding-top: 0; }
+.xi-name-on .xi-chips { margin-top: 4px; }
+.xi-title { margin: 0; font-size: var(--t-title); font-weight: 700; line-height: 1.3; color: var(--ink); text-wrap: balance; }
+.xi-en { margin: 0; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); line-height: 1.4; }
+.xi-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+.xi-sec { display: grid; gap: 12px; margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
+.xi-h { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); line-height: 1.4; }
+
+.xi-cues { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.xi-cues li { display: flex; align-items: flex-start; gap: 12px; }
+.xi-cue-n {
+  flex: none; width: 24px; height: 24px; margin-top: 1px; border-radius: var(--r-pill);
+  display: grid; place-items: center; background: var(--surface-3); color: var(--ink-2);
+  font-size: var(--t-label); font-weight: 700; line-height: 1;
+}
+.xi-cue-t { font-size: var(--t-body); line-height: 1.6; color: var(--ink); text-wrap: pretty; }
+.xi-none { margin: 0; font-size: var(--t-body); line-height: 1.6; color: var(--ink-2); }
+
+.xi-stats { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.xi-stat { display: grid; align-content: start; gap: 2px; padding-inline: 12px; }
+.xi-stat:first-child { padding-inline-start: 0; }
+.xi-stat + .xi-stat { border-inline-start: 1px solid var(--hairline); }
+.xi-stat dt { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.xi-stat dd { margin: 0; }
+.xi-stat-v { font-size: var(--t-title); font-weight: 700; line-height: 1.2; color: var(--ink); white-space: nowrap; }
+.xi-unit { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.xi-stat-c { font-size: var(--t-label); color: var(--ink-3); }
+.xi-best { color: var(--raise); }
+
+.xi-trend { display: grid; gap: 8px; margin-top: 8px; }
+.xi-trend-h { display: flex; align-items: baseline; gap: 8px; }
+.xi-trend-l { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.xi-trend-v { font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
+.xi-spark { display: block; color: var(--accent); overflow: visible; }
+.xi-cap { margin: 0; font-size: var(--t-caption); line-height: 1.5; color: var(--ink-3); }
+
+.xi-yt {
+  display: flex; align-items: center; gap: 12px; min-height: 52px; margin-top: var(--space-6);
+  border-top: 1px solid var(--hairline); color: var(--ink-2); text-decoration: none;
+  font-size: var(--t-body); font-weight: 500; -webkit-tap-highlight-color: transparent;
+}
+.xi-yt > span { flex: 1; }
+.xi-yt-out { color: var(--ink-3); }
+.xi-yt:active { color: var(--ink); }

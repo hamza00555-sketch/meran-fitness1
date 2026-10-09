@@ -1,195 +1,247 @@
-import { useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { MUSCLE_GROUPS } from '../constants.js'
+import { useCallback, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { YoutubeLogo, ArrowSquareOut } from '@phosphor-icons/react'
+import { Sheet, IconButton, Chip, Num, Stage } from './kit/index.jsx'
+import { X, Play } from './kit/icons.js'
+import { subscribe, getVersion, urlFor, remoteUrlFor } from '../assets/registry.js'
+import Sparkline from './library/Sparkline.jsx'
+import { webp } from './library/Thumb.jsx'
+import { buildProgress, recordFor, summarize, countWord, fmtKg, SESSION_WORDS } from './library/progress.js'
+import { MUSCLE_GROUPS, DEFAULT_EXERCISE_MAPPING } from '../constants.js'
+import { EXERCISE_MEDIA, arabicName, equipLabel, mediaSlotFor, animSlotFor } from '../exerciseMedia.js'
+import { ls, resolveExerciseName } from '../utils.js'
+import '../styles/screens/library.css'
 
-export default function ExerciseInfoModal({ exercise, onClose }) {
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
-  }, [])
-  const group = MUSCLE_GROUPS[exercise.muscle] || {}
-  const color = group.color || 'var(--cyan)'
-  const label = group.label || exercise.muscle
-  const emoji = group.emoji || '🏋️'
+// ── The exercise, explained ───────────────────────────────────
+//
+// A kit sheet (critique F61, modal-exercise-info):
+//
+//   · the media on a lit stage, edge to edge — the art pack's loop when
+//     it is installed (47 lifts have one), its still otherwise, the
+//     muscle's own art as the last resort. The old sheet read a field
+//     nobody defined and promised «قادماً» for loops that already ship.
+//   · the Arabic name, the English one under it in the Latin face, the
+//     muscle and the equipment as neutral chips
+//   · «نقاط الأداء»: the cues, numbered in a neutral colour
+//   · «سجلك»: last time, the best weight (gold — the one gold here), how
+//     many sessions, and the trend of the estimated one-rep max (deload
+//     sessions left out of it: they are light on purpose)
+//   · YouTube as one quiet last row, no red
+//
+// Opened from the library, the player and the old exercise card, with
+// the same props as before. `sessions` and `mapping` are optional: when
+// a caller does not pass them, the sheet reads what is saved (read-only)
+// so «سجلك» is never empty by accident.
 
-  const exDef = (group.exercises || []).find(e => e.name === exercise.name) || {}
-  const videoUrl    = exDef.videoUrl ||
-    `https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.name + ' proper form')}`
-  const { animationUrl, tips } = exDef
+const CATALOGUE = Object.entries(MUSCLE_GROUPS).flatMap(([key, g]) =>
+  (g.exercises || []).map(def => ({ key, def })))
 
-  const ytId = videoUrl ? (() => {
-    const m = videoUrl.match(/(?:v=|youtu\.be\/|shorts\/)([A-Za-z0-9_-]{11})/)
-    return m ? m[1] : null
-  })() : null
+function lookup(name, mapping) {
+  if (!name) return null
+  const exact = CATALOGUE.find(c => c.def.name === name)
+  if (exact) return exact
+  const want = resolveExerciseName(name, mapping)
+  return CATALOGUE.find(c => c.def.name.toLowerCase() === want) || null
+}
 
-  // Portal to body: page containers keep a transform from the enter
-  // animation, which would trap position:fixed inside the page.
-  return createPortal(
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 400,
-        background: 'rgba(0,0,0,0.80)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        backdropFilter: 'blur(6px)',
-        padding: '12px 16px',
-        overflowY: 'auto',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          width: '100%', maxWidth: 500,
-          background: 'var(--bg2)',
-          borderRadius: 20,
-          border: '1px solid var(--border)',
-          overflow: 'hidden',
-          maxHeight: '88vh',
-          display: 'flex', flexDirection: 'column',
-        }}
-      >
-        {/* Accent bar */}
-        <div style={{ height: 3, background: color, flexShrink: 0 }} />
+export default function ExerciseInfoModal({ exercise, onClose, sessions, mapping }) {
+  const [open, setOpen] = useState(true)
+  const titleId = useId()
+  const close = useCallback(() => {
+    setOpen(false)
+    // Let the sheet play its exit before the caller unmounts it.
+    setTimeout(() => onClose?.(), 220)
+  }, [onClose])
 
-        {/* Header */}
-        <div style={{
-          padding: '16px 18px 12px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-          flexShrink: 0,
-        }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
-              {exercise.name}
-            </div>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              background: color + '18', border: `1px solid ${color}40`,
-              borderRadius: 20, padding: '3px 10px',
-              fontSize: 12, color,
-            }}>
-              {emoji} {label}
-            </span>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'var(--bg3)', border: '1px solid var(--border)',
-              borderRadius: '50%', width: 34, height: 34,
-              color: 'var(--text3)', fontSize: 18, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >×</button>
+  const map = useMemo(
+    () => mapping ?? { ...DEFAULT_EXERCISE_MAPPING, ...ls.get('hf_exercise_mapping', {}) },
+    [mapping])
+  const history = useMemo(() => sessions ?? ls.get('hf_sessions', []), [sessions])
+
+  const hit = lookup(exercise?.name, map)
+  const name = hit?.def.name || exercise?.name || ''
+  const muscleKey = exercise?.muscle && MUSCLE_GROUPS[exercise.muscle] ? exercise.muscle : hit?.key
+  const group = MUSCLE_GROUPS[muscleKey] || null
+  const def = hit?.def || {}
+  const ar = arabicName(name, map)
+  const equip = equipLabel(name, map)
+  const tips = def.tips || exercise?.tips || []
+  const videoUrl = def.videoUrl || exercise?.videoUrl ||
+    `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' proper form')}`
+
+  const record = useMemo(() => {
+    const progress = buildProgress(history, map)
+    return summarize(recordFor(progress, exercise?.name || name, map) || recordFor(progress, name, map))
+  }, [history, map, exercise?.name, name])
+
+  // Done, but never with a weight (pull-ups, planks): say so, rather
+  // than claiming it was never logged.
+  const bodyweightOnly = useMemo(() => {
+    if (record) return false
+    const want = new Set([resolveExerciseName(name, map), resolveExerciseName(exercise?.name || name, map)])
+    return (history || []).some(s => (s.exercises || []).some(ex =>
+      want.has(resolveExerciseName(ex.name, map)) &&
+      (ex.sets || []).some(st => (parseInt(st.reps) || 0) > 0) &&
+      !(ex.sets || []).some(st => parseFloat(st.weight) > 0)))
+  }, [record, history, map, name, exercise?.name])
+
+  const media = useStageMedia(EXERCISE_MEDIA[name] ? name : (exercise?.name || name))
+
+  const nameBlock = (
+    <header className={media.kind === 'art' ? 'xi-name xi-name-on' : 'xi-name'}>
+      <h2 id={titleId} className="xi-title">{ar || name}</h2>
+      {ar && <p className="xi-en"><bdi dir="ltr">{name}</bdi></p>}
+      {(group || equip) && (
+        <div className="xi-chips">
+          {group && <Chip>{group.label}</Chip>}
+          {equip && <Chip>{equip}</Chip>}
         </div>
+      )}
+    </header>
+  )
 
-        {/* Scrollable body */}
-        <div style={{ overflowY: 'auto', padding: '0 18px 40px', WebkitOverflowScrolling: 'touch' }}>
-
-          {/* Tips — shown first */}
-          {tips && tips.length > 0 && (
-            <div style={{
-              background: 'var(--bg3)', border: '1px solid var(--border2)',
-              borderRadius: 12, padding: '14px 16px', marginBottom: 12,
-            }}>
-              <div style={{
-                fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
-                color: 'var(--text2)', marginBottom: 10,
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ fontSize: 14 }}>⚡</span> نصائح مهمة
-              </div>
-              {tips.map((tip, i) => (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 8,
-                  marginBottom: i < tips.length - 1 ? 8 : 0,
-                }}>
-                  <span style={{
-                    minWidth: 20, height: 20, borderRadius: '50%',
-                    background: color + '20', border: `1px solid ${color}40`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-                    color, flexShrink: 0, marginTop: 1,
-                  }}>{i + 1}</span>
-                  <span style={{
-                    fontFamily: 'var(--font-ar)', fontSize: 13,
-                    color: 'var(--text2)', lineHeight: 1.55,
-                  }}>{tip}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Compact YouTube link */}
-          {(videoUrl || animationUrl) && (
-            <a
-              href={videoUrl || animationUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                background: 'rgba(255,0,0,0.08)', border: '1px solid rgba(255,0,0,0.25)',
-                borderRadius: 12, padding: '12px 14px', marginBottom: 12,
-                textDecoration: 'none',
-              }}
-            >
-              <div style={{
-                width: 36, height: 36, borderRadius: '50%', background: '#FF0000', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <div style={{
-                  width: 0, height: 0,
-                  borderTop: '7px solid transparent',
-                  borderBottom: '7px solid transparent',
-                  borderLeft: '12px solid white',
-                  marginRight: -2,
-                }} />
-              </div>
-              <div>
-                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700, color: '#FF4444', marginBottom: 2 }}>
-                  شاهد الشرح على YouTube
-                </div>
-                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
-                  {exercise.name}
-                </div>
-              </div>
-            </a>
-          )}
-
-          {/* Muscle group info */}
-          <div style={{
-            background: color + '0D', border: `1px solid ${color}25`,
-            borderRadius: 12, padding: '12px 14px', marginBottom: 12,
-          }}>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
-              color, marginBottom: 4,
-            }}>
-              {emoji} المجموعة العضلية: {label}
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
-              lineHeight: 1.6,
-            }}>
-              سجّل وزنك وتكراراتك في كل سيت لمتابعة تقدمك وتجاوز أرقامك القياسية.
-            </div>
-          </div>
-
-          {/* Coming soon notice */}
-          {!animationUrl && (
-            <div style={{
-              background: 'var(--cyan-lo)', border: '1px solid rgba(var(--cyan-rgb),0.18)',
-              borderRadius: 10, padding: '10px 14px',
-              fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
-              lineHeight: 1.6,
-            }}>
-              <span style={{ color: 'var(--purple)', fontWeight: 700 }}>🎨 قادماً: </span>
-              سيُستبدل بأنيميشن مخصص للتمرين
-            </div>
-          )}
-        </div>
+  return (
+    <Sheet open={open} onClose={close} labelledBy={titleId}>
+      {/* Pinned: a zero-height sticky bar, so the X floats over the media
+          at first and stays in reach while the body scrolls to «سجلك». */}
+      <div className="xi-closebar">
+        <IconButton icon={X} label="إغلاق" variant="filled" weight="bold" className="xi-close" onClick={close} />
       </div>
-    </div>,
-    document.body
+      <div className="xi">
+        <div className="xi-stagebox">
+          {media.kind === 'art'
+            ? (
+              // No pack picture: the muscle's art on a lit stage, past the
+              // end edge, with the name in the dark third (Floodlight).
+              <Stage className="xi-stage-art" art={webp(group?.img)} height={208}>
+                {nameBlock}
+              </Stage>
+            )
+            : <MediaStage media={media} />}
+        </div>
+
+        {media.kind !== 'art' && nameBlock}
+
+        {tips.length > 0 && (
+          <section className="xi-sec" aria-labelledby={titleId + '-cues'}>
+            <h3 id={titleId + '-cues'} className="xi-h">نقاط الأداء</h3>
+            <ol className="xi-cues">
+              {tips.map((tip, i) => (
+                <li key={i}>
+                  <span className="xi-cue-n" aria-hidden="true"><Num>{i + 1}</Num></span>
+                  <span className="xi-cue-t">{tip}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        <section className="xi-sec" aria-labelledby={titleId + '-rec'}>
+          <h3 id={titleId + '-rec'} className="xi-h">سجلك</h3>
+          {record ? <Record r={record} /> : (
+            <p className="xi-none">
+              {bodyweightOnly
+                ? 'سجّلته بوزن جسمك، فما فيه وزن نرسم له خط. أول ما تضيف وزن يطلع سجلك هنا.'
+                : 'ما سجّلت هذا التمرين للحين. أول جلسة تسجّله فيها يطلع سجلك هنا.'}
+            </p>
+          )}
+        </section>
+
+        <a className="xi-yt" href={videoUrl} target="_blank" rel="noopener noreferrer">
+          <YoutubeLogo size={20} weight="regular" aria-hidden="true" />
+          <span>فيديوهات شرح على يوتيوب</span>
+          <ArrowSquareOut size={16} weight="bold" mirrored className="xi-yt-out" aria-hidden="true" />
+        </a>
+      </div>
+    </Sheet>
+  )
+}
+
+// ── The media ladder ──────────────────────────────────────────
+// The same order as the player's hero (assets/ExerciseMedia.jsx): the
+// pack's loop (local only, videos never stream), the pack's still
+// (local, or streamed once from the manifest), and only then the
+// muscle's art. Each rung falls through on error, so a corrupt video
+// becomes a picture, never a broken frame.
+function useStageMedia(name) {
+  useSyncExternalStore(subscribe, getVersion, getVersion)
+  const [videoBroken, setVideoBroken] = useState(false)
+  const [stillBroken, setStillBroken] = useState(false)
+  const stillSlot = mediaSlotFor(name)
+  const animSlot = animSlotFor(name)
+  const still = stillSlot ? (urlFor(stillSlot) || remoteUrlFor(stillSlot)) : undefined
+  const anim = !videoBroken && animSlot ? urlFor(animSlot) : undefined
+  if (anim) return { kind: 'video', src: anim, poster: stillBroken ? undefined : still, onError: () => setVideoBroken(true) }
+  if (still && !stillBroken) return { kind: 'still', src: still, onError: () => setStillBroken(true) }
+  return { kind: 'art' }
+}
+
+const prefersReducedMotion = () => {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
+}
+
+function MediaStage({ media }) {
+  // With reduced motion the loop waits for a tap instead of autoplaying.
+  const [reduce] = useState(prefersReducedMotion)
+  const [playing, setPlaying] = useState(!reduce)
+  const video = useRef(null)
+  return (
+    <div className="xi-stage">
+      {media.kind === 'video'
+        ? (
+          <video ref={video} key={media.src} className="xi-media" src={media.src} poster={media.poster}
+            autoPlay={!reduce} loop muted playsInline onError={media.onError}
+            onPlay={() => setPlaying(true)} aria-label="الحركة" />
+        )
+        : <img className="xi-media" src={media.src} alt="" onError={media.onError} />}
+      {media.kind === 'video' && !playing && (
+        <IconButton icon={Play} label="شغّل الحركة" variant="filled" size={56} weight="fill"
+          className="xi-play" onClick={() => { video.current?.play?.(); setPlaying(true) }} />
+      )}
+    </div>
+  )
+}
+
+function Record({ r }) {
+  const trend = r.trend.slice(-12)
+  const tw = countWord(trend.length, SESSION_WORDS)
+  return (
+    <>
+      <dl className="xi-stats">
+        <div className="xi-stat">
+          <dt>آخر مرة</dt>
+          <dd className="xi-stat-v"><Num>{fmtKg(r.last.maxW)}</Num><span className="xi-unit"> كجم</span></dd>
+          {(r.last.reps > 0 || r.lastDeload) && (
+            <dd className="xi-stat-c">
+              {r.last.reps > 0 && <><Num>{r.last.reps}</Num> تكرار</>}
+              {r.last.reps > 0 && r.lastDeload && ' · '}
+              {r.lastDeload && 'ديلود'}
+            </dd>
+          )}
+        </div>
+        <div className="xi-stat">
+          <dt>أعلى وزن</dt>
+          <dd className="xi-stat-v xi-best"><Num>{fmtKg(r.best)}</Num><span className="xi-unit"> كجم</span></dd>
+        </div>
+        <div className="xi-stat">
+          <dt>الجلسات</dt>
+          <dd className="xi-stat-v"><Num>{r.sessions}</Num></dd>
+        </div>
+      </dl>
+      {trend.length > 1 && (
+        <div className="xi-trend">
+          <div className="xi-trend-h">
+            <span className="xi-trend-l">التقدير</span>
+            <span className="xi-trend-v"><Num>{r.e1rm}</Num><span className="xi-unit"> كجم</span></span>
+          </div>
+          <Sparkline fluid height={56} values={trend} className="xi-spark"
+            label={`التقدير في ${trend.length} جلسات: من ${Math.round(trend[0])} إلى ${r.e1rm} كجم`} />
+          <p className="xi-cap">
+            {tw.n != null ? <>آخر <Num>{tw.n}</Num> {tw.word}</> : <>آخر {tw.word}</>}
+            {' · '}تقدير لأقصى وزن تشيله مرة وحدة، والأحدث على اليسار
+            {r.deloads > 0 && r.deloads < r.sessions && '. جلسات الديلود خفيفة بقصد، فما تدخل فيه'}
+          </p>
+        </div>
+      )}
+    </>
   )
 }
