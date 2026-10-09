@@ -29,6 +29,10 @@ git cat-file -e "$RESTORE_POINT^{commit}" 2>/dev/null \
 git cat-file -e "$RESTORE_POINT^{commit}" 2>/dev/null \
   || { echo "✗ restore point $RESTORE_POINT not found — nothing restored"; exit 1; }
 TAG=$RESTORE_POINT
+# The list of what gets undone needs the history in between.
+if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+  git fetch -q --unshallow origin 2>/dev/null || true
+fi
 
 APP_PATHS=(src public tests index.html vite.config.js package.json package-lock.json)
 
