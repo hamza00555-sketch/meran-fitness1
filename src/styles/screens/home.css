@@ -1,84 +1,36 @@
 /* ══ Home — «تحت الأضواء» ═══════════════════════════════════════════
-   The streak board, the Today stage and the quiet lists under it.
-   Written only against role tokens (src/styles/tokens.css).
+   The top (the streak number, date, greeting), the Today stage and the
+   quiet lists under it. Written only against role tokens
+   (src/styles/tokens.css).
 
    This file is imported by HomePage, which App imports before the
    global sheets (tokens, index, kit), so it lands EARLIER in the bundle:
    every rule that meets a kit or index.css rule is scoped one level
-   deeper (.hm …, or a doubled class) to win on specificity, not order.
-
-   The scoreboard's old rules stay in index.css (shared with the header
-   chip); the board's Floodlight look is restated here over them. */
+   deeper (.hm …, or a doubled class) to win on specificity, not order. */
 
 /* ── The top ─────────────────────────────────────────────────────── */
-.hm .h-top { padding: 8px 0 12px; }
+/* The streak number and the two buttons share the first line; the date
+   and the greeting under them take the full width (on a 320pt phone a
+   column beside the buttons broke the date in two). */
+.hm .h-top { position: relative; display: block; padding: 4px 0 12px; }
+.hm .h-top-actions { position: absolute; top: 4px; inset-inline-end: 0; }
+.hm .h-avatar { width: 44px; height: 44px; }
 .hm .h-greet {
   font-size: clamp(17px, 4.9vw, 20px); font-weight: 700; line-height: 1.35;
   min-height: 2.7em; text-wrap: pretty;
 }
-
-/* ── The streak board ────────────────────────────────────────────── */
-.hm .sb {
-  padding: 0 0 var(--space-5); margin-bottom: 0; border-bottom: 0;
-  gap: 6px;
+/* «أضف اسمك» rides at the end of the date line: a 44pt target whose
+   extra height is taken back with negative margins, so the block is the
+   same height with or without it. */
+.hm .h-eyebrow-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.hm .h-eyebrow-row .k-eyebrow { min-width: 0; }
+.hm .h-name-hint {
+  flex: none; min-height: 44px; margin-block: -13px; padding: 0 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+  /* Neutral, not the accent: a rest day carries no green at all, and the
+     screen's one green belongs to its one action. */
+  color: var(--ink-2);
 }
-/* No glow, in any state: the orange number is the light. */
-.hm .sb.counted::before { content: none; }
-.hm .sb-top { min-height: 24px; gap: 8px; }
-.hm .sb-eyebrow { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
-.hm .sb-deload {
-  font-size: var(--t-caption); font-weight: 600; color: var(--ink-2); line-height: 1.6;
-  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--edge);
-  padding: 0 10px; border-radius: var(--r-pill);
-}
-.hm .sb-tix { gap: 6px; font-size: var(--t-label); font-weight: 600; color: var(--rest); }
-.hm .sb-tix .k-num { font-size: var(--t-headline); font-weight: 700; }
-.hm .sb-tix.empty { color: var(--ink-3); }
-.hm .sb-tix.empty .k-num { font-size: inherit; font-weight: 600; }
-
-.hm .sb-num { gap: 12px; }
-.hm .sb-flame { color: var(--streak); }
-.hm .sb-badge { background: var(--ground); width: 18px; height: 18px; inset-inline-end: -6px; bottom: -3px; }
-/* index.css sizes every svg in the flame on short screens, the badge's
-   too; the badge keeps its own size. */
-.hm .sb-badge svg { width: 12px; height: 12px; }
-.hm .sb-big {
-  font-size: var(--t-display); font-weight: 800; line-height: 1; letter-spacing: 0;
-  font-variant-numeric: tabular-nums lining-nums;
-}
-.hm .sb-big.zero { color: var(--ink-3); }
-.hm .sb-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
-.hm .sb-ms { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 1.35; }
-.hm .sb-ms b { font-size: 20px; font-weight: 700; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-
-.hm .sb-status {
-  display: flex; align-items: flex-start; gap: 8px;
-  font-size: var(--t-headline); font-weight: 600; line-height: 1.45; color: var(--ink);
-}
-/* At risk: a streak-tinted line with the flame — no side bar. */
-.hm .sb-status.warn {
-  background: rgba(var(--streak-rgb), 0.14); box-shadow: none;
-  border-radius: 12px; padding: 8px 12px;
-}
-.hm .sb-status-icon { color: var(--streak); display: grid; flex: none; margin-top: 3px; }
-.hm .sb-note { font-size: var(--t-label); line-height: 1.55; color: var(--rest); }
-.hm .sb-detail { font-size: 14px; line-height: 1.6; color: var(--ink-2); }
-.hm .sb-cd { font-family: var(--font); font-weight: 700; color: var(--ink); }
-.hm .sb-cd.late { color: var(--streak); font-size: 19px; }
-
-.hm .sb-chain { gap: 4px; margin-top: 6px; }
-.hm .sb-cell { gap: 2px; }
-.hm .sb-cell-d { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 16px; }
-.hm .sb-cell-d.today { color: var(--ink); font-weight: 700; }
-.hm .sb-cell-g { width: 32px; height: 32px; }
-.hm .sb-cell-g.ring { box-shadow: inset 0 0 0 1.5px var(--streak); }
-.hm .sb-cell-g.ring.done { box-shadow: inset 0 0 0 2px var(--streak); }
-.hm .sb-cell-g.ring.reset { box-shadow: inset 0 0 0 1.5px var(--ink-4); }
-.hm .sb-dot { width: 10px; height: 10px; }
-.hm .sb-dim { width: 6px; height: 6px; background: var(--surface-3); }
-.hm .sb-c-idle { color: var(--ink-4); }
-.hm .sb-cell-x { font-size: var(--t-caption); min-height: 16px; line-height: 16px; }
-.hm .sb-cell-x.broke { color: var(--ink-3); }
 
 /* ── Today ───────────────────────────────────────────────────────── */
 .hm-today { position: relative; margin-bottom: var(--space-7); }
@@ -86,15 +38,15 @@
 /* The stage: full bleed, neutral light at the art's side, the text on
    the dark start side. Radius 0 — edge to edge is the signal. */
 .hm .hm-stage {
-  min-height: 232px; border-radius: var(--r-0);
-  padding-block: var(--space-7) var(--space-5);
+  min-height: 196px; border-radius: var(--r-0);
+  padding-block: var(--space-6) var(--space-4);
   background: radial-gradient(70% 85% at 24% 48%, var(--stage-light), var(--ground) 72%);
 }
 /* Anchored low, so the figure stands in the stage with head room and
    the crop falls at the waist, not across the head. */
 .hm .hm-stage .k-stage-art {
   top: auto; bottom: -12%; transform: none;
-  height: 106%; max-width: 62%; inset-inline-end: -24px;
+  height: 112%; max-width: 62%; inset-inline-end: -24px;
   /* The figure's inner edge dissolves into the dark the words stand on,
      so a long muscles line never prints across an arm. */
   -webkit-mask-image: linear-gradient(to right, #000 52%, transparent 96%);
@@ -193,6 +145,9 @@
   font-size: var(--t-headline); font-weight: 700; color: var(--ink-2);
 }
 .hm-raise { color: var(--raise); flex: none; }
+/* A deload's weight: the deload's droplet (the accent is glacier blue
+   for the whole period), never the gold. */
+.hm-deload-mark { color: var(--accent); flex: none; }
 
 .hm-thumb {
   flex: none; display: grid; place-items: center; overflow: hidden;
@@ -201,6 +156,10 @@
 .hm-thumb img { width: 90%; height: 90%; object-fit: contain; }
 .hm-thumb.is-still img { width: 100%; height: 100%; object-fit: cover; }
 .hm-thumb-sm { width: 36px; height: 36px; }
+/* The shipped muscle art is lime; a deload cools it like the stage's,
+   on Home, in the muscles list and in the (portaled) day sheet alike.
+   The pack's photographic stills keep their colour. */
+:root[data-deload="1"] .hm-thumb:not(.is-still) img { filter: hue-rotate(95deg) saturate(0.8); }
 
 .hm-more {
   display: inline-flex; align-items: center; gap: 6px;
@@ -218,15 +177,20 @@
   position: sticky; z-index: 3;
   bottom: calc(var(--safe-bottom) + 64px);
 }
+/* Docked, the ground behind it starts at the button's own top edge, so
+   a row half under it is cut cleanly, never painted over. */
 .hm-dock.is-docked::before {
   content: ""; position: absolute; z-index: -1; pointer-events: none;
-  inset-inline: calc(-1 * var(--gutter)); top: -16px; bottom: -64px;
-  background: linear-gradient(to bottom, transparent, var(--ground) 16px);
+  inset-inline: calc(-1 * var(--gutter)); top: 50%; bottom: -64px;
+  background: var(--ground);
 }
-.hm-dock.is-docked .k-btn { box-shadow: 0 -12px 40px rgba(0,0,0,0.55); }
+.hm-dock.is-docked .k-btn { box-shadow: 0 -4px 16px rgba(0,0,0,0.45); }
 .hm-dock-sentinel { display: block; height: 1px; }
 
 .hm-quiet-actions { display: grid; justify-items: center; gap: 4px; margin-top: var(--space-3); }
+/* A running session: the way back, quiet, inside the stage — the live
+   bar at the foot of the screen is the loud one. */
+.hm .k-btn.hm-resume { justify-self: start; margin-top: var(--space-3); }
 .hm .hm-plain { color: var(--ink-2); }
 
 /* ── Under the stage: quiet lists ────────────────────────────────── */
@@ -272,6 +236,7 @@
   font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
 }
 .dp-last { display: inline-flex; align-items: center; gap: 4px; }
+.dp-deload { color: var(--ink); }
 .dp-best .k-num { color: var(--raise); }
 .dp-from { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); }
 .dp-actions { flex: none; display: flex; align-items: center; gap: 4px; }
@@ -290,7 +255,7 @@
   background: var(--surface-3); color: var(--ink); text-decoration: none;
 }
 .dp-foot { display: flex; gap: 8px; }
-.dp-foot .k-btn-primary { flex: 1; }
+.dp-foot .k-btn:not(.dp-skip) { flex: 1; }
 .dp-foot .k-btn.dp-skip { flex: none; padding-inline: 16px; }
 
 /* ── The skip sheet (portaled) ───────────────────────────────────── */
@@ -301,29 +266,25 @@
 .skip-sheet-k-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 /* ── Short screens ───────────────────────────────────────────────────
-   The start button has to be on screen above the tab bar. The board
-   tightens first, then the stage. index.css already hides the seven
-   days and the note below 620pt; this restates sizes over its own. */
+   The start button has to be on screen above the tab bar, with the
+   first exercise readable above it. The stage tightens first. */
 @media (max-height: 700px) {
-  .hm .sb { gap: 4px; padding-bottom: var(--space-4); }
-  .hm .sb-big { font-size: 48px; }
-  .hm .sb-unit { font-size: 15px; margin-bottom: 4px; }
-  .hm .sb-ms b { font-size: 17px; }
-  .hm .sb-status { font-size: 16px; line-height: 1.4; }
-  .hm .sb-status.warn { padding: 6px 10px; }
-  .hm .sb-note, .hm .sb-detail { font-size: 13px; line-height: 1.5; }
-  .hm .sb-cd.late { font-size: 16px; }
-  .hm .sb-chain { margin-top: 2px; gap: 2px; }
-  .hm .sb-cell { gap: 0; }
-  .hm .sb-cell-d, .hm .sb-cell-x { font-size: var(--t-caption); line-height: 15px; min-height: 15px; }
-  .hm .sb-cell-g { width: 26px; height: 26px; }
-  .hm .hm-stage { min-height: 200px; padding-block: var(--space-6) var(--space-4); }
+  .hm .hm-stage { min-height: 176px; padding-block: var(--space-5) var(--space-3); }
 }
 @media (max-height: 620px) {
   .hm .h-top { padding-bottom: 8px; }
-  .hm .sb-big { font-size: 44px; }
-  .hm .sb-flame > svg { width: 26px; height: 26px; }
-  .hm .hm-stage { min-height: 176px; padding-block: var(--space-5) var(--space-3); }
+  .hm .hm-stage { min-height: 164px; padding-block: var(--space-4) var(--space-3); }
   .hm .hm-word { font-size: 44px; }
   .hm .hm-line:not(.hm-line-sm) { font-size: 18px; }
 }
+
+/* ── The streak on Home: flame + number ── */
+.h-streak {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--streak); font-family: var(--font);
+  min-height: 44px;
+}
+.h-streak-flame { display: grid; }
+.h-streak b { font-size: 40px; font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--streak); }
+.h-streak b.zero { color: var(--ink-3); }
+.h-streak-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 4px; }

@@ -1,9 +1,9 @@
 import '../styles/screens/home.css'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import Scoreboard from '../components/streak/Scoreboard.jsx'
+import StreakNumber from '../components/streak/StreakNumber.jsx'
 import { IconButton, ListGroup, ListRow, Gauge, Num } from '../components/kit/index.jsx'
-import { GearSix, ChartBar, CalendarBlank, Moon, Ticket } from '../components/kit/icons.js'
+import { GearSix, ChartBar, CalendarBlank, Moon, Plus } from '../components/kit/icons.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
 import { countAr, todayStreak, fmtDayAr } from '../streak.js'
@@ -14,11 +14,16 @@ import { setsUnit } from '../components/home/dayParts.js'
 
 // ── Home — «تحت الأضواء» ──────────────────────────────────────
 //
-//   the top           date · greeting · profile · settings
-//   the streak        first, always (Scoreboard)
+//   the top           the streak number · date · greeting · profile · settings
 //   Today             the one lit stage, three exercises, one green button
 //   a notice          the deload suggestion, when the engine raises one
-//   quiet lists       month report · plan progress · recovery · muscles
+//   quiet lists       month report · plan progress · rest cycle · muscles
+//
+// The streak is its number and nothing else (حمزة: «انا اللي همني فقط
+// رقم الستريك لا اكثر»): the flame, the number, «يوم/أيام». No status
+// line, countdown, cost of a miss, seven days, tickets or milestone on
+// Home — tapping the number opens «ليش N؟» (onOpenStreak), where all of
+// that lives.
 //
 // One lit moment, one green fill. Everything under the stage is an
 // inset list on the ground: hairlines, not boxes. Rank and XP left
@@ -43,43 +48,37 @@ function PlanProgress({ plan, planIndex }) {
           : <>الأسبوع <Num>{currentWeek}</Num> من <Num>{durationWeeks}</Num> · أنجزت <Num>{doneSessions}</Num> من <Num>{totalSessions}</Num> جلسة</>}
         trailing={<Num className="hm-pct">{pct}%</Num>}
       >
-        <Gauge value={doneSessions} max={totalSessions} tone="accent" label="تقدم البرنامج" className="hm-gauge" />
+        <Gauge value={doneSessions} max={totalSessions} tone="ink" label="تقدم البرنامج" className="hm-gauge" />
       </ListRow>
     </ListGroup>
   )
 }
 
-function RecoveryGroup({ recovery, isRecoveryDay, tickets, creditProgress, creditTarget, daysToNextCredit }) {
+// Where the rest-day cycle stands: workouts until the next scheduled
+// rest. Tickets are the streak's business and live in «ليش N؟», not here.
+function RestCycle({ recovery, isRecoveryDay }) {
   const limit = recovery?.cycleLimit || 0
+  if (!limit) return null
   const streak = recovery?.workoutStreak || 0
   const left = Math.max(0, limit - streak)
   const cycleTitle = isRecoveryDay
-    ? 'اكتملت الدورة — اليوم راحة'
+    ? 'اليوم يوم الراحة'
     : left === 0
-      ? 'اكتملت الدورة — الراحة جاية'
+      ? 'الراحة جاية'
       : left === 1
-      ? 'باقي تمرين واحد على يوم الراحة'
-      : `باقي ${countAr(left, 'workout')} على يوم الراحة`
-  const footer = tickets > 0
-    ? 'التذكرة تنصرف لحالها الساعة 3 الفجر لو فاتك يوم تمرين، والستريك يوقف: ما يزيد ولا ينكسر. اليوم اللي تغطّيه تذكرة ما ينعدّ للجاية.'
-    : 'بدون تذاكر، يوم التمرين اللي يفوتك يكسر الستريك. كل يوم تمرّنت فيه أو راحة مجدولة يقرّبك من تذكرة.'
+      ? 'باقي تمرين واحد على الراحة'
+      : `باقي ${countAr(left, 'workout')} على الراحة`
 
   return (
-    <ListGroup header="دورة التعافي" footer={withNums(footer)} className="hm-group">
-      <ListRow
-        leading={<span className="k-row-icon hm-ic-rest"><Ticket size={22} weight="bold" aria-hidden="true" /></span>}
-        title="التذكرة الجاية"
-        subtitle={withNums(`باقي ${countAr(daysToNextCredit, 'day')} للتذكرة الجاية`)}
-        trailing={<Num className="hm-rest-num">{creditProgress}/{creditTarget}</Num>}
-      >
-        <Gauge value={creditProgress} max={creditTarget} tone="rest" label="التقدم للتذكرة الجاية" className="hm-gauge" />
-      </ListRow>
+    <ListGroup header="دورة التعافي" className="hm-group">
       <ListRow
         leading={<span className="k-row-icon hm-ic-rest"><Moon size={22} weight="fill" aria-hidden="true" /></span>}
         title={withNums(cycleTitle)}
-        subtitle={withNums(`الدورة: ${countAr(limit, 'workout')} ثم يوم راحة`)}
-        trailing={<Num>{Math.min(streak, limit)}/{limit}</Num>}
-      />
+        subtitle={withNums(`كل ${countAr(limit, 'workout')} ثم يوم راحة`)}
+        trailing={<Num className="hm-rest-num">{Math.min(streak, limit)}/{limit}</Num>}
+      >
+        <Gauge value={Math.min(streak, limit)} max={limit} tone="rest" label="التقدم ليوم الراحة" className="hm-gauge" />
+      </ListRow>
     </ListGroup>
   )
 }
@@ -107,8 +106,12 @@ function MuscleGroup({ entries }) {
   )
 }
 
-export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, onScoreboardVisible, tickets = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
-  onStartDeload, onDismissDeloadSuggestion, onOpenDeload, greeting = '', onOpenProfile, onOpenSettings,
+// tickets, creditProgress, creditTarget, daysToNextCredit and
+// onScoreboardVisible are still accepted (App passes them) but no longer
+// drawn: they were the scoreboard's, and the streak's details now live
+// in the sheet behind the number.
+export default function HomePage({ sessions, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
+  onStartDeload, onDismissDeloadSuggestion, greeting = '', onOpenProfile, onOpenSettings, onOpenStreak,
   repTarget = DEFAULT_REP_TARGET }) {
   // Training vs recovery comes from the recovery engine — real completed
   // workouts and the chosen frequency — never from the weekday.
@@ -134,9 +137,12 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   const planDayNum = schedule?.length ? ((planIndex ?? 0) % schedule.length) + 1 : 1
   const planTotal  = schedule?.length ?? 1
 
-  // The top of Home: today's date (and the plan week), the greeting —
-  // two lines at most, a fixed height so nothing under it jumps from
-  // one day to the next — the avatar for the profile, the gear.
+  // The top of Home: the streak number first, with the avatar for the
+  // profile and the gear on the same line at the end; then today's date
+  // (and the plan week) across the full width, «أضف اسمك» at the end of
+  // that line while there is no name (so the block keeps its height),
+  // and the greeting — two lines at most, a fixed height so nothing under
+  // it jumps from one day to the next.
   const planWeek = schedule?.length && plan
     ? ` · الأسبوع ${Math.min(Math.floor((planIndex ?? 0) / schedule.length) + 1, plan.durationWeeks || 6)} من ${plan.durationWeeks || 6}`
     : ''
@@ -147,27 +153,23 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
     <div className="hm">
       <div className="h-top">
         <div className="h-top-text">
-          <span className="k-eyebrow">{withNums(`${fmtDayAr(streakToday || todayKey())}${planWeek}`)}</span>
+          <StreakNumber recovery={recovery} config={recoveryConfig} active={active} deload={deload}
+            today={streakToday} onOpen={onOpenStreak} />
+          <div className="h-eyebrow-row">
+            <span className="k-eyebrow">{withNums(`${fmtDayAr(streakToday || todayKey())}${planWeek}`)}</span>
+            {unnamed && (
+              <button type="button" className="h-name-hint" onClick={onOpenSettings}>
+                <Plus size={14} weight="bold" aria-hidden="true" />أضف اسمك
+              </button>
+            )}
+          </div>
           <p className="h-greet">{greeting}</p>
-          {unnamed && (
-            <button type="button" className="h-name-hint" onClick={onOpenSettings}>أضف اسمك</button>
-          )}
         </div>
         <div className="h-top-actions">
           <button type="button" className="h-avatar" onClick={onOpenProfile} aria-label="الملف الشخصي">{initial}</button>
           <IconButton icon={GearSix} label="الإعدادات" onClick={onOpenSettings} />
         </div>
       </div>
-
-      {/* ── The streak, first ── */}
-      <Scoreboard
-        recovery={recovery}
-        config={recoveryConfig}
-        active={active}
-        deload={deload}
-        today={streakToday}
-        onVisibleChange={onScoreboardVisible}
-      />
 
       {/* ── Today ── */}
       <TodayHero
@@ -218,15 +220,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         {/* ── Plan progress ── */}
         {plan && !active && <PlanProgress plan={plan} planIndex={planIndex ?? 0} />}
 
-        {/* ── Recovery: the cycle and the next ticket ── */}
-        <RecoveryGroup
-          recovery={recovery}
-          isRecoveryDay={isRecoveryDay}
-          tickets={tickets}
-          creditProgress={creditProgress}
-          creditTarget={creditTarget}
-          daysToNextCredit={daysToNextCredit}
-        />
+        {/* ── The rest-day cycle ── */}
+        <RestCycle recovery={recovery} isRecoveryDay={isRecoveryDay} />
 
         {/* ── Muscles this month ── */}
         {muscleEntries.length > 0 && <MuscleGroup entries={muscleEntries} />}

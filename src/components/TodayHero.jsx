@@ -6,6 +6,7 @@ import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop } from './
 import { EXERCISE_ALTERNATIVES } from '../constants.js'
 import { substitutedName, getExerciseStats, planDayTitle } from '../utils.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { deloadWeight } from '../deload.js'
 import { countAr, unitAr } from '../streak.js'
 import { ExerciseThumb, exerciseNames, withNums } from './home/HomeBits.jsx'
 import { dayWord, musclesLine, mainMuscle, muscleArt, estimateMinutes } from './home/dayParts.js'
@@ -28,10 +29,18 @@ import { dayWord, musclesLine, mainMuscle, muscleArt, estimateMinutes } from './
 // ⋯. Skipping still goes through onSkip → the skip sheet that states
 // the cost to the streak first.
 //
-// Other states keep their meaning: a running session («أكمل التمرين»),
-// a rest day (the word «راحة» in the rest blue, no green anywhere, a
-// quiet «أبي أتمرّن»), today already done (the streak's number becomes
-// the lit moment; this block goes quiet), and no plan (a free session).
+// Other states keep their meaning: a running session (the stage names
+// it and offers a quiet «أكمل التمرين» — the live bar at the foot of
+// the screen is the main way back, so no second green button sits
+// under it), a rest day (the word «راحة» in the rest blue, no green
+// anywhere, a quiet «أبي أتمرّن» — the day sheet offers the same and
+// nothing else), today already done (this block goes quiet), and no
+// plan (a free session).
+//
+// Under a deload the rows show the weight the session will actually
+// load (the last weight made lighter by the deload's percentage, as the
+// player does) and never the gold «raise» arrow: the week is meant to
+// be light, and Home must not say the opposite of the player.
 
 function sessionContext(active, mapping) {
   if (!active?.exercises?.length) return null
@@ -58,12 +67,12 @@ const moreLabel = (n) => n <= 2
 // column is still below the fold, and sits in the column again once you
 // scroll to it. position:sticky does the moving; a sentinel just under
 // it says when it is floating, which is the only time it casts a shadow.
-function Dock({ children, sticky = true }) {
+function Dock({ children }) {
   const sentinel = useRef(null)
   const [docked, setDocked] = useState(false)
   useEffect(() => {
     const el = sentinel.current
-    if (!sticky || !el || typeof IntersectionObserver === 'undefined') { setDocked(false); return }
+    if (!el || typeof IntersectionObserver === 'undefined') return
     // What the tab bar covers at the bottom, measured rather than
     // assumed, so the safe area on a real phone is counted too.
     const tabs = document.querySelector('.f-tabs')
@@ -73,20 +82,23 @@ function Dock({ children, sticky = true }) {
     }, { threshold: 0, rootMargin: `0px 0px -${covered + 8}px 0px` })
     io.observe(el)
     return () => io.disconnect()
-  }, [sticky])
+  }, [])
   return (
     <>
-      <div className={`hm-dock${sticky ? ' is-sticky' : ''}${docked ? ' is-docked' : ''}`}>{children}</div>
+      <div className={`hm-dock is-sticky${docked ? ' is-docked' : ''}`}>{children}</div>
       <i ref={sentinel} className="hm-dock-sentinel" aria-hidden="true" />
     </>
   )
 }
 
-function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, onOpen }) {
+function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, deload, onOpen }) {
   const shownName = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
   const { ar, en } = exerciseNames(shownName, exerciseMapping)
   const { lastWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
-  const raise = analyzeProgression(sessions, shownName, exerciseMapping, repTarget).hint === 'raise'
+  const onDeload = !!deload?.active
+  // Silenced during a deload, exactly as the player silences it.
+  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, repTarget).hint === 'raise'
+  const today = lastWeight != null && onDeload ? deloadWeight(lastWeight, deload.pct) : lastWeight
   return (
     <li>
       <button type="button" className="hm-row" onClick={onOpen}>
@@ -95,10 +107,12 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, o
           <span className="hm-row-ar">{ar}</span>
           {en && <span className="hm-row-en" dir="ltr">{en}</span>}
         </span>
-        {lastWeight != null && (
-          <span className="hm-row-w">
+        {today != null && (
+          <span className="hm-row-w"
+            title={onDeload ? `وزن الديلود — آخر مرة ${lastWeight} كجم` : undefined}>
             {raise && <ArrowUp size={14} weight="bold" className="hm-raise" aria-label="ارفع الوزن" />}
-            <Weight kg={lastWeight} />
+            {onDeload && <Drop size={14} weight="fill" className="hm-deload-mark" aria-label="وزن الديلود" />}
+            <Weight kg={today} />
           </span>
         )}
       </button>
@@ -128,11 +142,12 @@ export default function TodayHero({
   const exCount = exercises.length
 
   const resting = isRecoveryDay && !active
-  // Today already counts: the streak board says so, and this block must
-  // not keep asking for the workout that was just done.
+  // Today already counts (the flame by the number is filled), and this
+  // block must not keep asking for the workout that was just done.
   const done = completedToday && !active && !resting
   // A second plan change inside 30 days starts the streak again from
-  // tomorrow, so on that day a saved session is saved, not counted.
+  // tomorrow, so on that day a saved session is saved, not counted. Why
+  // is the sheet's to explain («ليش N؟»); the stage just says saved.
   const notCounting = streakKind === 'reset'
   const planned = !active && !resting && !done && !!currentPlanDay
   const free = !active && !resting && !done && !currentPlanDay
@@ -146,7 +161,7 @@ export default function TodayHero({
   // ── What the stage says ──
   const dayOf = active || currentPlanDay
   const { word, variant, latin } = dayOf ? dayWord(dayOf) : { word: '', variant: '', latin: false }
-  const muscles = dayOf ? musclesLine(dayOf) : ''
+  const muscles = dayOf ? musclesLine(dayOf, word) : ''
   const mins = currentPlanDay ? estimateMinutes(currentPlanDay) : 0
   const muscle = dayOf ? mainMuscle(dayOf) : null
   const art = muscleArt(muscle)
@@ -169,10 +184,11 @@ export default function TodayHero({
     artShown = true
   }
 
+  // How far into the deload, said where the day is.
   const deloadChip = onDeload && !resting && !done ? (
     <span className="hm-chip-deload">
       <Art id="deload_badge" size={14} fallback={<Drop size={14} weight="fill" aria-hidden="true" />} />
-      ديلود · أخف <Num>{deload.pct}%</Num>
+      <span>ديلود · اليوم <Num>{deload.day}</Num> من <Num>{deload.totalDays}</Num></span>
     </span>
   ) : null
 
@@ -218,13 +234,9 @@ export default function TodayHero({
           {active && ctx ? (
             <p className="hm-line">{ctx.name}</p>
           ) : resting ? (
-            <p className="hm-line hm-line-sm">راحة مجدولة — تنحسب لك وما تكسر الستريك</p>
+            <p className="hm-line hm-line-sm">راحة مجدولة — عضلاتك تبني وانت مرتاح</p>
           ) : done ? (
-            <p className="hm-line hm-line-sm">
-              {notCounting
-                ? withNums('اليوم ما ينحسب بعد تغيير الخطة — العدّ يبدأ بكرة.')
-                : 'جلسة زيادة؟ ما تغيّر الستريك.'}
-            </p>
+            <p className="hm-line hm-line-sm">شغل اليوم انحفظ — ارتاح وكُل زين.</p>
           ) : planned ? (
             muscles && <p className="hm-line">{muscles}</p>
           ) : (
@@ -241,8 +253,18 @@ export default function TodayHero({
             <p className="hm-meta">
               {withNums(countAr(exCount, 'workout'))}
               {mins > 0 && <> · <Num>≈{mins}</Num> د</>}
+              {onDeload && <> · أخف بـ<Num>{deload.pct}%</Num></>}
             </p>
           ) : null}
+
+          {/* A running session: the live bar at the foot of the screen
+              is the way back; the stage offers it too, quietly, where
+              nothing floats over it. */}
+          {active && (
+            <Button variant="secondary" size="md" className="hm-resume" onClick={onGoToWorkout}>
+              أكمل التمرين
+            </Button>
+          )}
         </div>
       </div>
 
@@ -251,7 +273,7 @@ export default function TodayHero({
         <ul className="hm-rows" aria-label="أول التمارين">
           {shown.map((ex, i) => (
             <ExerciseRow key={i} ex={ex} sessions={sessions} exerciseMapping={exerciseMapping}
-              exerciseSubs={exerciseSubs} repTarget={repTarget} onOpen={openSheet} />
+              exerciseSubs={exerciseSubs} repTarget={repTarget} deload={deload} onOpen={openSheet} />
           ))}
         </ul>
       )}
@@ -263,11 +285,7 @@ export default function TodayHero({
       )}
 
       {/* ── The one action ── */}
-      {active ? (
-        <Dock sticky={false}>
-          <Button variant="primary" size="lg" full onClick={onGoToWorkout}>أكمل التمرين</Button>
-        </Dock>
-      ) : resting ? (
+      {active ? null : resting ? (
         <div className="hm-quiet-actions">
           <Button variant="secondary" size="lg" full onClick={onOverrideRecovery}>أبي أتمرّن</Button>
           {currentPlanDay && (
@@ -319,8 +337,20 @@ export default function TodayHero({
           exerciseSubs={exerciseSubs}
           onCycleSub={onCycleSub}
           repTarget={repTarget}
-          onStart={() => { setShowSheet(false); onStartPlanned(currentPlanDay) }}
-          onSkip={() => { setShowSheet(false); setTimeout(() => onSkip?.(), 240) }}
+          deload={deload}
+          {...(resting ? {
+            // A rest day: no green, no skip (there is nothing owed to
+            // skip). Training anyway goes the stage's way — through the
+            // override — so the sheet and the stage never disagree.
+            startLabel: 'أبي أتمرّن',
+            startVariant: 'secondary',
+            onStart: onOverrideRecovery
+              ? () => { setShowSheet(false); setTimeout(() => onOverrideRecovery(), 240) }
+              : undefined,
+          } : {
+            onStart: () => { setShowSheet(false); onStartPlanned(currentPlanDay) },
+            onSkip: () => { setShowSheet(false); setTimeout(() => onSkip?.(), 240) },
+          })}
           onClose={() => setShowSheet(false)}
         />
       )}

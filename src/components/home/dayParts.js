@@ -63,20 +63,65 @@ export function dayWord(day) {
   return { word: raw, variant: '', latin: true }
 }
 
+// «الأرجل» and «أرجل» are the same word for this purpose.
+const bare = (s) => String(s || '').trim().replace(/^ال/, '')
+const sameWord = (a, b) => !!a && !!b && bare(a) === bare(b)
+
+// A leg day is one group in the catalogue, so its groups only repeat
+// «أرجل». What tells two leg days apart is which part of the leg each
+// exercise works — read from the name, because that is all a plan
+// stores. UI wording only.
+const LEG_PARTS = [
+  ['front', /squat|leg press|extension|lunge|split|step[- ]?up|sissy/i],
+  ['back',  /curl|romanian|\brdl\b|stiff|good morning|hamstring|nordic/i],
+  ['glute', /glute|hip thrust|kickback|bridge|abduct/i],
+  ['calf',  /calf|calves/i],
+]
+function legParts(exercises) {
+  const found = new Set()
+  for (const ex of exercises) {
+    if (ex?.muscle !== 'Legs') continue
+    const hit = LEG_PARTS.find(([, re]) => re.test(ex.name || ''))
+    if (hit) found.add(hit[0])
+  }
+  const out = []
+  if (found.has('front') && found.has('back')) out.push('فخذ')
+  else if (found.has('front')) out.push('فخذ أمامي')
+  else if (found.has('back')) out.push('فخذ خلفي')
+  if (found.has('glute')) out.push('أرداف')
+  if (found.has('calf')) out.push('سمانة')
+  return out
+}
+
 /** The muscles the day trains, in Arabic: the plan's own line after «—»
- *  when it has one, otherwise the groups its exercises name. */
-export function musclesLine(day) {
+ *  when it has one, otherwise the groups its exercises name. Never the
+ *  day's own word again: «أرجل» over «أرجل» says nothing, so a leg day
+ *  names the parts of the leg instead, and a line with nothing new to
+ *  say is left out (''). Pass the word the stage already prints. */
+export function musclesLine(day, word = dayWord(day).word) {
   const name = String(day?.name || '')
   if (name.includes('—')) {
-    const tail = name.split('—').slice(1).join('—').trim()
-    if (tail) return tail
+    // «انفجاري، مؤخرة، بطن» under «انفجاري»: the list without the word.
+    const items = name.split('—').slice(1).join('—').split(/[،,]/).map(s => s.trim()).filter(Boolean)
+    const fresh = items.filter(s => !sameWord(s, word))
+    if (fresh.length) return fresh.join('، ')
   }
+  const exercises = day?.exercises || []
   const seen = []
-  for (const ex of day?.exercises || []) {
-    const label = MUSCLE_GROUPS[ex.muscle]?.label
+  for (const ex of exercises) {
+    const label = GROUP_WORD[ex.muscle] || bare(MUSCLE_GROUPS[ex.muscle]?.label)
     if (label && !seen.includes(label)) seen.push(label)
   }
-  return seen.join('، ')
+  const fresh = seen.filter(l => !sameWord(l, word))
+  if (fresh.length === seen.length) return seen.join('، ')
+  // A group repeats the word (a leg day): the parts of the leg instead.
+  return [...legParts(exercises), ...fresh].join('، ')
+}
+
+// The groups as the plans write them: «صدر، أكتاف»، not «الصدر، الأكتاف».
+const GROUP_WORD = {
+  Chest: 'صدر', Back: 'ظهر', Shoulders: 'أكتاف', Legs: 'أرجل',
+  Biceps: 'بايسبس', Triceps: 'ترايسبس', Core: 'بطن', Cardio: 'كارديو',
 }
 
 /** The muscle most of the day's exercises work — the one the stage lights. */
