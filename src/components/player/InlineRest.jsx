@@ -1,20 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
-import { ls, playBeep } from '../../utils.js'
+import { Num } from '../kit/index.jsx'
+import { Timer } from '../kit/icons.js'
+import { ls } from '../../utils.js'
+import { primeAudio, audioPrimed, scheduleRestTones, chimeNow } from './sessionAudio.js'
+import { restClock } from './sessionWords.js'
 
 const STORE = 'hf_rest_timer'
 
-// ── Rest, inside the player ───────────────────────────────────
+// ── Rest takes the docked button's place ──────────────────────
 //
-// Reads the exact state the floating RestTimer writes — selected,
-// endsAt, pausedLeft — so a rest started anywhere continues here and
-// vice versa. Wall-clock driven for the same reason the original is:
-// a phone locked mid-rest must come back with the truth, not with a
-// frozen tick count.
+// Reads and writes exactly what the floating RestTimer does — selected,
+// endsAt, pausedLeft in hf_rest_timer — so a rest started anywhere
+// continues here and vice versa, and the old design reads it too.
+// Wall-clock driven: a phone locked mid-rest comes back with the truth.
 //
-// The floating overlay is suppressed while the player is on screen
-// (App skips it for the workout tab), which makes this the mounted
-// owner of the finish beep. ±15s just moves endsAt; the original
-// component reads the same key and needs no teaching.
+// While counting: «راحة» in the rest blue, the time at 56px, −15/+15 at
+// 44pt, «تخطي» as plain grey text (skipping is ordinary, never red), and
+// a 4px blue bar draining from the start edge — one CSS animation per
+// rest, so it moves smoothly without a render per frame.
+//
+// At zero it does not dismiss itself. It wipes into a full-width green
+// field, «جاهز · المجموعة التالية», that waits for a tap — the signal
+// stays until you look up — and counts the overtime, «+0:23».
+//
+// Sound: tones scheduled on the shared AudioContext the moment the rest
+// starts (primed by the tap that started it), rescheduled on ±15.
 
 function read() {
   return ls.get(STORE, null)
@@ -22,46 +32,86 @@ function read() {
 
 const DEFAULT_SECONDS = 90
 
-export default function InlineRest({ onDone, onSkip, seconds = DEFAULT_SECONDS }) {
+export default function InlineRest({ onDone, onSkip, seconds = DEFAULT_SECONDS, hidden = false }) {
   const [, force] = useState(0)
-  const firedRef = useRef(false)
+  const liveRef = useRef(false)      // saw a positive count while mounted
 
-  // The floating card used to write this state when it mounted; with
-  // it suppressed inside the player, whoever renders the rest owns
-  // starting the clock. Seeding only when absent keeps a rest that was
-  // started elsewhere (the header's ⏱ button) ticking untouched.
+  // Whoever renders the rest owns starting the clock. Seeding only when
+  // absent keeps a rest started elsewhere ticking untouched.
   useEffect(() => {
-    if (!read()) {
-      ls.set(STORE, { selected: seconds, endsAt: Date.now() + seconds * 1000 })
-    }
+    if (!read()) ls.set(STORE, { selected: seconds, endsAt: Date.now() + seconds * 1000 })
     force(n => n + 1)
-  }, [])
-
-  useEffect(() => {
-    const id = setInterval(() => force(n => n + 1), 300)
-    return () => clearInterval(id)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const st = read()
-  const left = st?.pausedLeft != null
-    ? st.pausedLeft
-    : st?.endsAt ? Math.max(0, Math.ceil((st.endsAt - Date.now()) / 1000)) : 0
+  const msLeft = st?.pausedLeft != null ? st.pausedLeft * 1000
+    : st?.endsAt ? Math.max(0, st.endsAt - Date.now()) : 0
+  const left = Math.ceil(msLeft / 1000)
+  const finished = !!st && left === 0
+  const overtime = finished && st?.endsAt ? Math.floor((Date.now() - st.endsAt) / 1000) : 0
+  if (left > 0) liveRef.current = true
 
-  // The beep belongs to whoever is on screen when zero arrives.
+  // The drain: full width at the rest's length, shrinking toward the end
+  // edge, started part-way through by a negative delay. Fixed per rest
+  // (recomputed only when the end moves), because changing the delay of
+  // a running animation would make it jump.
+  const drainKey = st ? `${st.endsAt}|${st.selected}|${st.pausedLeft}` : ''
+  const drain = useRef({ key: null, total: 1, delay: 0 })
+  if (drain.current.key !== drainKey) {
+    const total = Math.max(st?.selected || 0, msLeft / 1000, 1)
+    drain.current = { key: drainKey, total, delay: -(total - msLeft / 1000) }
+  }
+
+  // One render per whole second, aligned to the second boundary, plus a
+  // resync whenever the app comes back to the front.
   useEffect(() => {
-    if (left === 0 && st?.endsAt && !firedRef.current) {
-      firedRef.current = true
-      playBeep(4)
-      if (navigator.vibrate) navigator.vibrate([180, 80, 180])
-      const t = setTimeout(() => onDone?.(), 1200)
-      return () => clearTimeout(t)
+    let t = 0
+    const tick = () => {
+      force(n => n + 1)
+      const s = read()
+      const ms = s?.endsAt ? (s.endsAt - Date.now()) : 1000
+      const next = ((ms % 1000) + 1000) % 1000 || 1000
+      t = setTimeout(tick, Math.min(1000, next + 15))
     }
-    if (left > 0) firedRef.current = false
-  }, [left === 0, st?.endsAt])
+    t = setTimeout(tick, 250)
+    const sync = () => force(n => n + 1)
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('pageshow', sync)
+    return () => {
+      clearTimeout(t)
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('pageshow', sync)
+    }
+  }, [])
+
+  // The tones, scheduled ahead on the audio clock; redone when the end
+  // moves (±15) and cancelled on skip or unmount.
+  const endsAt = st?.pausedLeft == null ? st?.endsAt : null
+  const scheduled = useRef(false)
+  useEffect(() => {
+    if (!endsAt) return
+    const secs = (endsAt - Date.now()) / 1000
+    if (secs <= 0 || !audioPrimed()) { scheduled.current = false; return }
+    scheduled.current = true
+    const cancel = scheduleRestTones(secs)
+    return cancel
+  }, [endsAt])
+
+  // At zero: a buzz where the platform has one, and a chime if nothing
+  // was scheduled (a rest started before any tap primed the audio).
+  const firedRef = useRef(false)
+  useEffect(() => {
+    if (!finished) { firedRef.current = false; return }
+    if (firedRef.current || !liveRef.current) return
+    firedRef.current = true
+    if (!scheduled.current) chimeNow()
+    try { navigator.vibrate?.([180, 80, 180]) } catch {}
+  }, [finished])
 
   if (!st) return null
 
   const nudge = (delta) => {
+    primeAudio()
     const cur = read()
     if (!cur) return
     if (cur.pausedLeft != null) {
@@ -77,54 +127,45 @@ export default function InlineRest({ onDone, onSkip, seconds = DEFAULT_SECONDS }
     onSkip?.()
   }
 
-  const mm = String(Math.floor(left / 60)).padStart(2, '0')
-  const ss = String(left % 60).padStart(2, '0')
-  const finished = left === 0
-
-  const nudgeBtn = {
-    flex: 1, padding: '9px 6px', borderRadius: 10,
-    background: 'var(--bg3)', border: '1px solid var(--border2)',
-    color: 'var(--text2)', fontFamily: 'var(--font-ar)', fontSize: 12,
-    fontWeight: 700, cursor: 'pointer',
+  if (finished) {
+    return (
+      <button type="button" className="s-ready" data-testid="rest-ready" hidden={hidden}
+        onClick={() => { primeAudio(); ls.remove(STORE); onDone?.() }}>
+        <span className="s-ready-title">جاهز · المجموعة التالية</span>
+        <span className="s-ready-over">
+          {overtime > 0 ? <>راحتك زادت <Num>+{restClock(overtime)}</Num></> : 'اضغط للبدء'}
+        </span>
+      </button>
+    )
   }
 
+  const paused = st.pausedLeft != null
+
   return (
-    <div style={{
-      background: 'var(--bg2)', border: `1px solid ${finished ? '#22C55E50' : 'var(--border2)'}`,
-      borderRadius: 'var(--radius-sm)', padding: 12, textAlign: 'center',
-    }}>
-      <div style={{
-        fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-      }}>
-        <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: finished ? '#22C55E' : 'var(--cyan)', display: 'inline-block' }} />
-        {finished ? 'جاهز' : 'الراحة'}
+    <div className="s-rest" data-testid="rest-bar" role="timer" aria-label="الراحة" hidden={hidden}>
+      <div className="s-rest-top">
+        <span className="s-rest-label"><Timer size={16} weight="bold" aria-hidden="true" />راحة</span>
+        <button type="button" className="s-rest-skip" onClick={skip}>تخطي</button>
       </div>
-      <div style={{
-        fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 800,
-        color: finished ? '#22C55E' : 'var(--text)', lineHeight: 1.3,
-        fontVariantNumeric: 'tabular-nums',
-      }}>
-        {mm}:{ss}
-      </div>
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', marginBottom: 8 }}>
-        {finished ? 'المجموعة التالية' : 'راحة بين المجموعات'}
-      </div>
-      {!finished && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
-          <button style={nudgeBtn} onClick={() => nudge(-15)}>−15 ثانية</button>
-          <button style={nudgeBtn} onClick={() => nudge(15)}>+15 ثانية</button>
+      <div className="s-rest-main">
+        <Num className="s-rest-time">{restClock(left)}</Num>
+        <div className="s-rest-nudges">
+          <button type="button" className="s-rest-nudge" aria-label="أنقص 15 ثانية" onClick={() => nudge(-15)}>
+            <Num>−15</Num>
+          </button>
+          <button type="button" className="s-rest-nudge" aria-label="زد 15 ثانية" onClick={() => nudge(15)}>
+            <Num>+15</Num>
+          </button>
         </div>
-      )}
-      <button
-        onClick={skip}
-        style={{
-          width: '100%', padding: '9px 6px', borderRadius: 10,
-          background: 'transparent', border: '1px solid transparent',
-          color: finished ? '#22C55E' : 'var(--red)', fontFamily: 'var(--font-ar)',
-          fontSize: 13, fontWeight: 700, cursor: 'pointer',
-        }}
-      >{finished ? '✓ تمام' : 'تخطي الراحة'}</button>
+      </div>
+      <div className="s-rest-bar" aria-hidden="true">
+        <i key={drainKey}
+          style={{
+            animationDuration: `${drain.current.total}s`,
+            animationDelay: `${drain.current.delay}s`,
+            animationPlayState: paused ? 'paused' : 'running',
+          }} />
+      </div>
     </div>
   )
 }

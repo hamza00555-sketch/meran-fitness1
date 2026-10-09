@@ -1,103 +1,124 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Num } from '../kit/index.jsx'
+import { Check, CaretLeft, CheckCircle, ArrowUp } from '../kit/icons.js'
 import ExerciseHero from './ExerciseHero.jsx'
 import WorkingArea from './WorkingArea.jsx'
 import SetHistory from './SetHistory.jsx'
 import ExerciseQueue from './ExerciseQueue.jsx'
 import InlineRest from './InlineRest.jsx'
-import { toWesternDigits } from '../../day.js'
-import { getExerciseStats } from '../../utils.js'
+import { primeAudio } from './sessionAudio.js'
+import { kg, setLabel, setsPhrase } from './sessionWords.js'
+import { arabicName } from '../../exerciseMedia.js'
+import { PLATE_STEP, roundToPlate } from '../../utils.js'
 
-// ── The workout player ────────────────────────────────────────
+// ── Session mode: the workout player ──────────────────────────
 //
-// The session as a flow instead of a list. One exercise fills the
-// screen; the rest peek from the edges and wait their turn. Only the
-// exercise on screen has a working area at all, which is the old
-// focus/dimming rule made structural: logging a weight into the wrong
-// exercise now requires the wrong exercise to be on screen.
+// One exercise on screen, top to bottom: a 4px segmented progress bar
+// (one segment per exercise), the exercise head (a lit stage before the
+// first set, a 72pt row after it), the sets table whose active row is
+// the live block, and the rest of the session as a list. Under it all,
+// docked at the bottom, the one green action — «تمّت المجموعة» — which
+// the rest takes over in place while you rest.
 //
-// Swiping is navigation and nothing else. It never completes, never
-// clears, never reorders — the only state it touches is which slide
-// is centred.
+// The exercise on screen is the only one with a live block, which is
+// the old focus rule made structural: a weight typed now can only land
+// on the exercise you are looking at. Moving between exercises is a tap
+// in the list or a swipe on the head; it never completes, clears or
+// reorders anything.
 
-const useSnapIndex = (count) => {
-  const trackRef = useRef(null)
-  const [index, setIndex] = useState(0)
-  const indexRef = useRef(0)
+// The raise prefill happens once per exercise per session: after that
+// the numbers are the lifter's, including a «خلّها 75». Kept in
+// sessionStorage (tab-scoped, nothing the stored data or the old design
+// ever sees) so a reload doesn't put back a weight he declined.
+const RAISE_KEY = 'meran_raise_applied'
+const raiseSeen = (key) => {
+  try { return JSON.parse(sessionStorage.getItem(RAISE_KEY) || '[]').includes(key) } catch { return false }
+}
+const markRaiseSeen = (key) => {
+  try {
+    const list = JSON.parse(sessionStorage.getItem(RAISE_KEY) || '[]')
+    if (!list.includes(key)) sessionStorage.setItem(RAISE_KEY, JSON.stringify([...list, key].slice(-60)))
+  } catch {}
+}
 
-  // The centred child is the active one. Measured from geometry rather
-  // than scrollLeft, because scrollLeft's sign in RTL differs between
-  // engines and geometry doesn't lie in either direction.
-  useEffect(() => {
-    const el = trackRef.current
-    if (!el) return
-    let raf = 0
-    const measure = () => {
-      raf = 0
-      const mid = el.getBoundingClientRect().left + el.clientWidth / 2
-      let best = 0, bestDist = Infinity
-      for (let i = 0; i < el.children.length; i++) {
-        const r = el.children[i].getBoundingClientRect()
-        const d = Math.abs(r.left + r.width / 2 - mid)
-        if (d < bestDist) { bestDist = d; best = i }
-      }
-      if (best !== indexRef.current) {
-        indexRef.current = best
-        setIndex(best)
-        if (navigator.vibrate) navigator.vibrate(8)
-      }
-    }
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(measure) }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    measure()
-    return () => { el.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf) }
-  }, [count])
-
-  const jump = (i, smooth = true) => {
-    const el = trackRef.current
-    const child = el?.children[i]
-    if (child) child.scrollIntoView({ inline: 'center', block: 'nearest', behavior: smooth ? 'smooth' : 'instant' })
+const firstUnfinished = (list, from = 0) => {
+  const n = list.length
+  for (let k = 0; k < n; k++) {
+    const i = (from + k) % n
+    const e = list[i]
+    if (e.sets.length && !e.sets.every(s => s.done)) return i
   }
+  return -1
+}
 
-  return { trackRef, index, jump }
+function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
+  const t = prog?.target
+  const last = setLabel(prevSet)
+  const lead = last ? <>آخر مرة <Num>{last}</Num></>
+    : lastWeight != null ? <>آخر مرة <Num>{kg(lastWeight)}</Num> كجم</>
+    : <>أول مرة</>
+  if (deloadPct > 0) return <>{lead} — ديلود، أخف بـ<Num>{deloadPct}%</Num></>
+  switch (prog?.hint) {
+    case 'raise':
+      return raisedW != null ? <>{lead} — جرّب <Num>{kg(raisedW)}</Num></> : lead
+    case 'lower':
+      return prog.suggestedWeight != null
+        ? <>{lead} — خفّف إلى <Num>{kg(prog.suggestedWeight)}</Num></>
+        : <>{lead} — خفّف الوزن شوي</>
+    case 'push':
+      return t ? <>{lead} — حاول توصل <Num>{t.top}</Num> عدّة</> : lead
+    default:
+      return t ? <>{lead} — الهدف <Num>{t.base}–{t.top}</Num> عدّة</> : lead
+  }
 }
 
 export default function WorkoutPlayer({
-  exercises, sessionName, elapsedLabel, doneSets, totalSets, pct,
+  sessionId, exercises,
   deloadPct = 0, isResting,
-  getLastW, getSuggested, progressionFor, ytUrlFor, statsFor, swapMeta,
-  onUpdateSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwap,
-  onAddExercise, onFinish, onBack, onCloseRest,
+  getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapMeta,
+  onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwap,
+  onAddExercise, onRequestFinish, onDiscard, onCloseRest,
 }) {
-  const { trackRef, index, jump } = useSnapIndex(exercises.length)
+  const [index, setIndex] = useState(() => Math.max(0, firstUnfinished(exercises)))
   const [editingSet, setEditingSet] = useState(null)   // { exId, si }
-  const [celebrating, setCelebrating] = useState(null) // { exId } — the exercise that just finished
+  const [celebrating, setCelebrating] = useState(null) // { exId }
+  const [peek, setPeek] = useState(null)               // ex id whose stage was reopened
+  const [fresh, setFresh] = useState(null)             // { exId, si } — the check to draw
   const celebratedRef = useRef(new Set())
+  const ringStart = useRef(new Map())
+  const scrollRef = useRef(null)
 
-  const ex = exercises[Math.min(index, exercises.length - 1)]
+  const safeIndex = Math.min(index, Math.max(0, exercises.length - 1))
+  const ex = exercises[safeIndex]
+
+  const jump = (i) => {
+    if (i < 0 || i >= exercises.length) return
+    setIndex(i)
+    setEditingSet(null)
+    setPeek(null)
+    setFresh(null)
+    scrollRef.current?.scrollTo?.({ top: 0 })
+  }
 
   // The set being worked: the first unticked one.
   const currentSetIndex = ex ? ex.sets.findIndex(s => !s.done) : -1
-  const exComplete = ex && ex.sets.length > 0 && currentSetIndex === -1
+  const exComplete = !!ex && ex.sets.length > 0 && currentSetIndex === -1
+  const editing = editingSet && editingSet.exId === ex?.id && ex.sets[editingSet.si] ? editingSet.si : null
+  const liveIndex = editing != null ? editing : currentSetIndex
 
-  const editing = editingSet && editingSet.exId === ex?.id ? editingSet.si : null
-
-  // Completing the last set of an exercise earns a short transition —
-  // what happened, and whether it beat last session — then the carousel
-  // moves itself to the next unfinished exercise. Once per exercise per
-  // session, so re-editing a set never re-celebrates.
+  // Completing an exercise's last set earns a short line — what was
+  // done, whether it beat last time — then the next unfinished exercise
+  // comes on screen by itself (during the rest, which is when its demo
+  // can actually be watched). Once per exercise per session.
   useEffect(() => {
     if (!ex || !exComplete || celebratedRef.current.has(ex.id)) return
     celebratedRef.current.add(ex.id)
     setCelebrating({ exId: ex.id })
   }, [exComplete, ex?.id])
 
-  // The celebration owns its own lifetime, keyed on itself.
-  //
-  // This used to live in the effect above, whose deps include the
-  // carousel's current exercise — so swiping during the 1.6s ran that
-  // effect's cleanup, cancelled the timeout that clears the card, and
-  // left `celebrating` set forever. The completion card then covered
-  // the working area for the rest of the session with no way back.
+  // The celebration owns its own lifetime, keyed on itself — never on
+  // the exercise on screen, or moving away mid-line would cancel the
+  // timer and leave it up for good.
   const exercisesRef = useRef(exercises)
   exercisesRef.current = exercises
   useEffect(() => {
@@ -105,198 +126,221 @@ export default function WorkoutPlayer({
     const t = setTimeout(() => {
       setCelebrating(null)
       const list = exercisesRef.current
-      const next = list.findIndex(e => e.sets.length && !e.sets.every(s => s.done))
+      const at = list.findIndex(e => e.id === celebrating.exId)
+      const next = firstUnfinished(list, at + 1)
       if (next !== -1) jump(next)
     }, 1600)
     return () => clearTimeout(t)
-  }, [celebrating?.exId])
+  }, [celebrating?.exId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Numbers for the transition card, computed only while it shows.
-  //
-  // The card belongs to the exercise it is about, so it only draws
-  // while that exercise is the one on screen: swipe on and you get the
-  // new exercise's working area at once, not a stale trophy over it.
+  // Keep the live block in view as sets go by.
+  useEffect(() => {
+    const el = scrollRef.current?.querySelector('[data-testid="live-block"]')
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [ex?.id, liveIndex])
+
+  // ── The exercise on screen ──
+  const prog = ex ? progressionFor(ex.name) : null
+  const stats = ex ? statsFor(ex.name) : { lastWeight: null, maxWeight: null }
+  const prevSets = useMemo(() => (ex ? previousFor(ex.name) : []), [ex?.name]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // RAISE: the engine said add weight (it is silent during a deload).
+  // The new number is last + one plate step, computed here.
+  const raiseOn = !!ex && prog?.hint === 'raise'
+  const snapW = ex ? parseFloat(getLastW(ex.name)) : NaN
+  const base = raiseOn
+    ? (prog.workingWeight ?? (Number.isFinite(snapW) ? snapW : null))
+    : null
+  const raisedW = base != null ? roundToPlate(base + PLATE_STEP) : null
+
+  // Prefill once: every set still to do that holds the old weight now
+  // holds the new one, so set 2 doesn't fall back to 75.
+  useEffect(() => {
+    if (!ex || !raiseOn || base == null || raisedW == null) return
+    if (ex.sets.some(s => s.done)) return
+    const key = `${sessionId}:${ex.id}`
+    if (raiseSeen(key)) return
+    markRaiseSeen(key)
+    ex.sets.forEach((s, i) => {
+      if (s.done) return
+      const w = parseFloat(s.weight)
+      if (String(s.weight ?? '').trim() === '' || w === base || w === snapW) {
+        onUpdateSet(ex.id, i, 'weight', kg(raisedW))
+      }
+    })
+  }, [ex?.id, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const keepBase = () => {
+    if (!ex || base == null) return
+    ex.sets.forEach((s, i) => {
+      if (!s.done && parseFloat(s.weight) !== base) onUpdateSet(ex.id, i, 'weight', kg(base))
+    })
+  }
+
+  // The ring is drawn once per exercise: the first time it shows, and
+  // for the length of that one drawing; after that it is simply there.
+  const liveSet = ex && liveIndex >= 0 ? ex.sets[liveIndex] : null
+  const liveRaised = raiseOn && base != null && liveSet && parseFloat(liveSet.weight) > base
+  if (liveRaised && ex && !ringStart.current.has(ex.id)) ringStart.current.set(ex.id, Date.now())
+  const ringDraw = !!ex && ringStart.current.has(ex.id) && Date.now() - ringStart.current.get(ex.id) < 1400
+
+  // A set heavier than anything on record: the heaviest such done set.
+  const prIndex = useMemo(() => {
+    if (!ex || deloadPct > 0 || stats.maxWeight == null) return null
+    let best = null, bestW = stats.maxWeight
+    ex.sets.forEach((s, i) => {
+      const w = parseFloat(s.weight)
+      if (s.done && w > bestW) { best = i; bestW = w }
+    })
+    return best
+  }, [ex, stats.maxWeight, deloadPct])
+
   const summary = useMemo(() => {
-    if (!celebrating || celebrating.exId !== ex?.id) return null
-    const done = exercises.find(e => e.id === celebrating.exId)
-    if (!done) return null
-    const weights = done.sets.filter(s => s.done).map(s => parseFloat(s.weight)).filter(w => w > 0)
+    if (!ex || !exComplete) return null
+    const weights = ex.sets.filter(s => s.done).map(s => parseFloat(s.weight)).filter(w => w > 0)
     const top = weights.length ? Math.max(...weights) : null
-    const { lastWeight } = statsFor(done.name)
-    const delta = top != null && lastWeight != null ? Math.round((top - lastWeight) * 10) / 10 : null
-    return { name: done.name, sets: done.sets.length, top, delta }
-  }, [celebrating, ex?.id])
+    const delta = top != null && stats.lastWeight != null ? Math.round((top - stats.lastWeight) * 10) / 10 : null
+    return { sets: ex.sets.filter(s => s.done).length, top, delta }
+  }, [ex, exComplete, stats.lastWeight])
 
   if (!ex) return null
 
-  const prog = progressionFor(ex.name)
+  const complete = () => {
+    if (currentSetIndex < 0) return
+    primeAudio()
+    setPeek(null)
+    setFresh({ exId: ex.id, si: currentSetIndex })
+    onDoneSet(ex.id, currentSetIndex, true)
+  }
+
+  const hasDone = ex.sets.some(s => s.done)
+  const expanded = !hasDone || peek === ex.id
+  const nextIdx = firstUnfinished(exercises, safeIndex + 1)
+  const meta = swapMeta(ex)
+  const ar = arabicName(ex.name)
+
+  const live = liveIndex >= 0 ? (
+    <WorkingArea
+      ex={ex} setIndex={liveIndex} editing={editing != null}
+      prevSet={prevSets[liveIndex] || null}
+      coach={editing != null ? null : coachFor({
+        prog, prevSet: prevSets[liveIndex] || prevSets[prevSets.length - 1] || null,
+        lastWeight: stats.lastWeight ?? (deloadPct === 0 && Number.isFinite(snapW) && snapW > 0 ? snapW : null),
+        raisedW, deloadPct,
+      })}
+      raise={raiseOn && base != null && editing == null ? { base, raised: raisedW, ringDraw } : null}
+      onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
+      onStepSet={(si, f, d) => onStepSet(ex.id, si, f, d)}
+      onKeepBase={keepBase}
+    />
+  ) : null
+
+  // ── The dock: one green action, or the rest in its place ──
+  let dock = null
+  if (editing != null) {
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => setEditingSet(null)}>حفظ التعديل</Button>
+  } else if (isResting) {
+    dock = null   // InlineRest below
+  } else if (currentSetIndex >= 0) {
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={complete} data-testid="complete-set">تمّت المجموعة</Button>
+  } else if (nextIdx !== -1) {
+    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={() => jump(nextIdx)}>التمرين التالي</Button>
+  } else {
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={onRequestFinish}>إنهاء الجلسة</Button>
+  }
+  const restOnTop = isResting && editing == null
+
+  const phrase = summary ? setsPhrase(summary.sets) : null
 
   return (
-    <div style={{ paddingBottom: 24 }}>
-
-      {/* ── Session header: timer · name · position, then progress ── */}
-      <div style={{ marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800,
-            color: 'var(--cyan)', fontVariantNumeric: 'tabular-nums', flexShrink: 0,
-          }}>⏱ {elapsedLabel}</span>
-          <span style={{
-            flex: 1, textAlign: 'center', overflow: 'hidden',
-            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800, color: 'var(--text)',
-          }}>{sessionName}</span>
-          <span style={{
-            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', flexShrink: 0,
-          }}>{toWesternDigits(index + 1)} من {toWesternDigits(exercises.length)}</span>
-        </div>
-        <div style={{ height: 4, borderRadius: 2, background: 'var(--bg3)', overflow: 'hidden', marginBottom: 6 }}>
-          <div style={{
-            height: '100%', width: `${pct}%`, borderRadius: 2,
-            background: pct >= 100 ? '#22C55E' : 'var(--cyan)',
-            transition: 'width 0.4s ease',
-          }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={onFinish} style={{
-            background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
-            fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 800, color: 'var(--red)',
-          }}>⏻ إنهاء التمرين</button>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)' }}>
-            sets {toWesternDigits(doneSets)}/{toWesternDigits(totalSets)}
-          </span>
-          {deloadPct > 0 && (
-            <span style={{
-              marginInlineStart: 'auto',
-              background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-              borderRadius: 20, padding: '2px 10px',
-              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 800, color: 'var(--cyan)',
-            }}>DELOAD · −{deloadPct}%</span>
-          )}
-          <button onClick={onBack} style={{
-            marginInlineStart: deloadPct > 0 ? 0 : 'auto',
-            background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
-            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
-          }}>← تراجع</button>
-        </div>
-      </div>
-
-      {/* ── The carousel ── */}
-      <div
-        ref={trackRef}
-        style={{
-          display: 'flex', gap: 10,
-          overflowX: 'auto', scrollSnapType: 'x mandatory',
-          padding: '2px 2px 6px',
-          scrollbarWidth: 'none',
-          // The 88% slide is what makes the neighbours peek; bleeding
-          // past the page padding looked nicer but inflated the
-          // document's scroll width on small screens.
-        }}
-      >
+    <>
+      {/* ── One segment per exercise, filled by its done sets ── */}
+      <div className="s-segs" role="progressbar" aria-label="تقدّم الجلسة"
+        aria-valuemin={0} aria-valuemax={exercises.length}
+        aria-valuenow={exercises.filter(e => e.sets.length && e.sets.every(s => s.done)).length}>
         {exercises.map((e, i) => {
-          const stats = statsFor(e.name)
-          const meta = swapMeta(e)
+          const done = e.sets.filter(s => s.done).length
+          const frac = e.sets.length ? done / e.sets.length : 0
           return (
-            <div key={e.id} style={{ flex: '0 0 88%', scrollSnapAlign: 'center', minWidth: 0 }}>
-              <ExerciseHero
-                ex={e}
-                ytUrl={ytUrlFor(e.name)}
-                progression={i === index ? prog : null}
-                lastWeight={stats.lastWeight}
-                maxWeight={stats.maxWeight}
-                isComplete={e.sets.length > 0 && e.sets.every(s => s.done)}
-                deloadPct={deloadPct}
-                isActive={i === index}
-                canSwap={meta.canSwap}
-                swapTitle={meta.title}
-                onSwap={() => onSwap(e.id)}
-                onRemove={() => onRemoveEx(e.id)}
-                onAddSet={() => onAddSet(e.id)}
-                onRemoveSet={() => onRemoveSet(e.id, e.sets.length - 1)}
-                onMoveSet={(toId) => onMoveSet(e.id, e.sets.length - 1, toId)}
-                moveTargets={exercises.filter(o => o.id !== e.id).map(o => ({ id: o.id, name: o.name }))}
-              />
-            </div>
+            <span key={e.id} className="s-seg" data-on={i === safeIndex ? '1' : undefined}>
+              <i style={{ transform: `scaleX(${frac})` }} />
+            </span>
           )
         })}
       </div>
 
-      {/* ── The working area for the exercise on screen ──
-          minmax(0,1fr): a grid's auto column refuses to shrink below
-          its widest item's min-content, and one stubborn intrinsic
-          width (a mono input, a long exercise name) would push the
-          whole column past a small phone. Zero-basis makes the column
-          obey the page and lets each card solve its own overflow. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, marginTop: 10 }}>
-        {celebrating && summary ? (
-          <div style={{
-            background: 'var(--bg2)', border: '1px solid #22C55E50',
-            borderRadius: 'var(--radius)', padding: 20, textAlign: 'center',
-            animation: 'scaleIn 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-          }}>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 900, color: '#22C55E' }}>
-              {summary.name} مكتمل ✓
-            </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text2)', marginTop: 6 }}>
-              {toWesternDigits(summary.sets)} sets{summary.top != null && <> · {summary.top}kg</>}
-            </div>
-            {summary.delta > 0 && (
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--gold)', marginTop: 4, fontWeight: 700 }}>
-                ⬆️ ‎+{summary.delta}kg عن الجلسة الماضية
-              </div>
-            )}
-          </div>
-        ) : editing != null ? (
-          <WorkingArea
-            ex={ex} setIndex={editing} editing
-            lastWeight={statsFor(ex.name).lastWeight}
-            suggested={getSuggested(ex.name)}
-            target={prog?.target}
-            onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
-            onStepWeight={(si, d) => onUpdateSet(ex.id, si, 'weight', String(Math.max(0, Math.round(((parseFloat(ex.sets[si]?.weight) || 0) + d) * 10) / 10)))}
-            onStepReps={(si, d) => onUpdateSet(ex.id, si, 'reps', String(Math.max(0, (parseInt(ex.sets[si]?.reps) || 0) + d)))}
-            onDoneEditing={() => setEditingSet(null)}
-          />
-        ) : isResting ? (
-          <InlineRest onDone={onCloseRest} onSkip={onCloseRest} />
-        ) : exComplete ? (
-          <div style={{
-            background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)', padding: 16, textAlign: 'center',
-            fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
-          }}>
-            هذا التمرين مكتمل ✓ — اسحب للتمرين التالي أو عدّل مجموعة سابقة من القائمة تحت
-          </div>
-        ) : (
-          <WorkingArea
-            ex={ex} setIndex={currentSetIndex}
-            lastWeight={statsFor(ex.name).lastWeight}
-            suggested={getSuggested(ex.name)}
-            target={prog?.target}
-            onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
-            onStepWeight={(si, d) => onUpdateSet(ex.id, si, 'weight', String(Math.max(0, Math.round(((parseFloat(ex.sets[si]?.weight) || 0) + d) * 10) / 10)))}
-            onStepReps={(si, d) => onUpdateSet(ex.id, si, 'reps', String(Math.max(0, (parseInt(ex.sets[si]?.reps) || 0) + d)))}
-            onComplete={(si) => onDoneSet(ex.id, si, true)}
-          />
-        )}
+      <div className="s-scroll" ref={scrollRef}>
+        <ExerciseHero
+          ex={ex}
+          expanded={expanded}
+          collapsible={hasDone && peek === ex.id}
+          animate
+          onToggleStage={() => setPeek(p => (p === ex.id ? null : ex.id))}
+          maxWeight={stats.maxWeight}
+          quietBest={raiseOn}
+          deloadPct={deloadPct}
+          ytUrl={ytUrlFor(ex.name)}
+          canSwap={meta.canSwap}
+          swapTitle={meta.title}
+          onSwap={() => onSwap(ex.id)}
+          onRemove={() => onRemoveEx(ex.id)}
+          onAddSet={() => onAddSet(ex.id)}
+          onRemoveSet={() => onRemoveSet(ex.id, ex.sets.length - 1)}
+          onMoveSet={(toId) => onMoveSet(ex.id, ex.sets.length - 1, toId)}
+          moveTargets={exercises.filter(o => o.id !== ex.id).map(o => ({ id: o.id, name: o.name }))}
+          onAddExercise={onAddExercise}
+          onDiscard={onDiscard}
+          onSwipe={(dir) => jump(Math.max(0, Math.min(exercises.length - 1, safeIndex + dir)))}
+        />
 
-        {ex.sets.length > 0 && (
+        {ex.sets.length > 0 ? (
           <SetHistory
             ex={ex}
+            liveIndex={liveIndex}
             currentIndex={currentSetIndex}
             editingIndex={editing}
-            onEdit={(si) => setEditingSet({ exId: ex.id, si })}
+            prevSets={prevSets}
+            freshIndex={fresh && fresh.exId === ex.id ? fresh.si : null}
+            prIndex={prIndex}
+            onEdit={(si) => setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si }))}
+            live={live}
           />
+        ) : (
+          <p className="s-note">ما فيه مجموعات — أضف مجموعة من <span aria-hidden="true">⋯</span>.</p>
+        )}
+
+        {exComplete && editing == null && summary && (
+          <div className="s-done-line" data-testid="exercise-done" role="status">
+            <CheckCircle size={22} weight="fill" className="s-done-icon" aria-hidden="true" />
+            <div className="s-done-text">
+              <strong>{celebrating?.exId === ex.id ? `اكتمل ${ar || ex.name}` : 'اكتمل هذا التمرين'}</strong>
+              <span>
+                {phrase.num != null && <><Num>{phrase.num}</Num> </>}{phrase.word}
+                {summary.top != null && <> · أعلى <Num>{kg(summary.top)}</Num> كجم</>}
+                {summary.delta > 0 && (
+                  <span className="s-done-delta">
+                    {' · '}<ArrowUp size={14} weight="bold" aria-hidden="true" /><Num>+{kg(summary.delta)}</Num> عن آخر مرة
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
         )}
 
         <ExerciseQueue
           exercises={exercises}
-          activeIndex={index}
+          activeIndex={safeIndex}
           onJump={jump}
           onAdd={onAddExercise}
         />
       </div>
-    </div>
+
+      <div className="s-dock" data-mode={restOnTop ? 'rest' : 'button'}>
+        {isResting && (
+          <InlineRest onDone={onCloseRest} onSkip={onCloseRest} hidden={!restOnTop} />
+        )}
+        {dock}
+      </div>
+    </>
   )
 }

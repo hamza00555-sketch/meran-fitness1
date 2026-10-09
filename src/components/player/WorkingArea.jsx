@@ -1,157 +1,177 @@
-import { useRef } from 'react'
-import { toWesternDigits } from '../../day.js'
+import { useEffect, useRef } from 'react'
+import { Chip, Num } from '../kit/index.jsx'
+import { ArrowUp, Minus, Plus, PencilSimple } from '../kit/icons.js'
+import RaiseRing from './RaiseRing.jsx'
+import { primeAudio } from './sessionAudio.js'
+import { kg, setLabel } from './sessionWords.js'
 
-// ── The current set, made the size it deserves ────────────────
+// ── The live block: the set being worked ──────────────────────
 //
-// The one place a hand with chalk on it interacts with the app. The
-// numbers are enormous, the buttons are thumb-sized, and tapping a
-// number opens the keyboard for direct entry. The steppers move by the
-// same amounts the old card used — ±2.5kg, ±1 rep — because that is
-// the granularity the gym actually has.
+// The active row of the sets table, opened up. The one place a hand
+// with chalk on it touches the app, so the numbers are broadcast-sized
+// (56px Archivo, tabular), the steppers are 56pt discs, and holding a
+// stepper repeats it — 40 to 80kg is one press, not sixteen. Tapping a
+// number opens the keyboard for direct entry and selects what is there,
+// so a typed weight replaces it in one go.
 //
-// Everything routes through the same handlers the old card called:
-// completing a set here IS onDoneSet, with its XP, its rest timer and
-// its PR check. This component decides sizes, never rules.
+// The steps are the gym's own: ±2.5kg, ±1 rep. Every change routes
+// through the same handlers as before; this decides sizes, not rules.
+//
+// RAISE: when the progression engine says the weight should go up, the
+// number itself is gold and already holds the new weight, with a gold
+// ring drawn once around it, a chip saying by how much, and «خلّها 75»
+// to put it back in one tap. No other gold on the screen.
 
-function BigStepper({ value, unit, onInput, onStep }) {
-  const inputRef = useRef(null)
-  const round = {
-    width: 52, height: 52, borderRadius: '50%', flexShrink: 0,
-    background: 'var(--bg3)', border: '1px solid var(--border2)',
-    color: 'var(--text)', fontSize: 24, fontWeight: 700,
-    cursor: 'pointer', lineHeight: 1,
+// Hold to repeat: one step on press, then after 400ms every 150ms,
+// stepping up to 100ms after 1.5s — never faster. Stops on release,
+// cancel or leaving the button. A keyboard press still steps once.
+function HoldButton({ label, onStep, children }) {
+  const timer = useRef(null)
+  const started = useRef(0)
+  const step = useRef(onStep)
+  step.current = onStep
+
+  const stop = (e) => {
+    clearTimeout(timer.current)
+    timer.current = null
+    e?.currentTarget?.removeAttribute?.('data-held')
   }
+  useEffect(() => () => clearTimeout(timer.current), [])
+
+  const loop = () => {
+    const held = performance.now() - started.current
+    timer.current = setTimeout(() => { step.current(); loop() }, held > 1500 ? 100 : 150)
+  }
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-      <button style={round} onClick={() => onStep(-1)} aria-label={`أنقص ${unit}`}>−</button>
-      <div
-        onClick={() => inputRef.current?.focus()}
-        style={{
-          // minWidth 0 lets the flex item shrink below the input's
-          // intrinsic width — without it, a text input's default size
-          // blows the whole card past a small phone's viewport.
-          flex: 1, minWidth: 0, background: 'var(--bg3)', border: '1px solid var(--border)',
-          borderRadius: 16, padding: '8px 6px', textAlign: 'center', cursor: 'text',
-        }}
-      >
+    <button
+      type="button"
+      className="s-step-btn"
+      aria-label={label}
+      onPointerDown={(e) => {
+        if (e.button != null && e.button !== 0) return
+        primeAudio()
+        e.currentTarget.setAttribute('data-held', '1')
+        try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
+        started.current = performance.now()
+        step.current()
+        clearTimeout(timer.current)
+        timer.current = setTimeout(loop, 400)
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+      onLostPointerCapture={stop}
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={(e) => {
+        // A pointer press already stepped on pointerdown; only a keyboard
+        // activation (a click with no pointer behind it, detail 0) steps here.
+        if (e.detail > 0) return
+        step.current()
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, ringDraw, inputTestId }) {
+  const fieldRef = useRef(null)
+  const len = Math.max(1, String(value ?? '').length)
+  return (
+    <div className="s-step" data-field={field}>
+      <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)}>
+        <Minus size={24} weight="bold" aria-hidden="true" />
+      </HoldButton>
+      <label className="s-field" ref={fieldRef} data-raise={raise ? '1' : undefined}>
         <input
-          ref={inputRef}
-          type="text" inputMode="decimal" size={1}
-          value={value}
+          type="text" inputMode="decimal" dir="ltr" size={1}
+          aria-label={unitLabel}
+          data-testid={inputTestId}
+          placeholder="0"
+          value={value ?? ''}
+          style={{ '--len': len }}
+          onFocus={e => e.target.select()}
           onChange={e => onInput(e.target.value)}
-          style={{
-            width: '100%', minWidth: 0, background: 'none', border: 'none', outline: 'none',
-            textAlign: 'center', color: 'var(--text)',
-            fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 800,
-            fontVariantNumeric: 'tabular-nums', padding: 0,
-          }}
         />
-        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: -2 }}>
-          {unit}
-        </div>
-      </div>
-      <button style={round} onClick={() => onStep(1)} aria-label={`زد ${unit}`}>+</button>
+        <span className="s-field-unit">{unit}</span>
+        {ring && <RaiseRing hostRef={fieldRef} draw={ringDraw} />}
+      </label>
+      <HoldButton label={`زد ${unitLabel}`} onStep={() => onStep(1)}>
+        <Plus size={24} weight="bold" aria-hidden="true" />
+      </HoldButton>
     </div>
   )
 }
 
 export default function WorkingArea({
   ex, setIndex, editing = false,
-  lastWeight, suggested, target,
-  onUpdateSet, onStepWeight, onStepReps, onComplete, onDoneEditing,
+  prevSet = null, coach = null,
+  raise = null,            // { base, raised, ringDraw } when the engine says raise
+  onUpdateSet, onStepSet, onKeepBase,
 }) {
   const set = ex.sets[setIndex]
   if (!set) return null
 
-  const ctxCell = { flex: 1, textAlign: 'center', minWidth: 0 }
-  const ctxLabel = { fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginBottom: 2 }
-  const ctxValue = { fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 800, color: 'var(--text2)' }
+  const w = parseFloat(set.weight)
+  const raised = !!raise && Number.isFinite(w) && raise.base != null && w > raise.base
+  const delta = raised ? Math.round((w - raise.base) * 100) / 100 : 0
+  const showKeep = !!raise && raise.base != null && Number.isFinite(w) && w !== raise.base
+  const prev = setLabel(prevSet)
 
   return (
-    <div style={{
-      background: 'var(--bg2)',
-      border: `1px solid ${editing ? 'var(--gold-md)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius)', padding: 16,
-    }}>
-      {/* Which set — or a loud flag that this is surgery on a past one */}
-      {editing ? (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 800,
-          color: 'var(--gold)', marginBottom: 12,
-        }}>
-          ✏️ تعديل مجموعة سابقة · سيت {toWesternDigits(setIndex + 1)}
-        </div>
-      ) : (
-        <div style={{
-          display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8, marginBottom: 12,
-        }}>
-          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>
-            المجموعة الحالية
+    <div className="s-live" data-testid="live-block" data-editing={editing ? '1' : undefined}>
+      <div className="s-live-h">
+        {editing ? (
+          <span className="s-live-set">
+            <PencilSimple size={18} weight="bold" aria-hidden="true" />
+            تعديل المجموعة <Num>{setIndex + 1}</Num>
           </span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800, color: 'var(--cyan)' }}>
-            {toWesternDigits(setIndex + 1)} من {toWesternDigits(ex.sets.length)}
+        ) : (
+          <span className="s-live-set">
+            المجموعة <Num>{setIndex + 1}</Num>
+            <span className="s-live-of">من <Num>{ex.sets.length}</Num></span>
           </span>
+        )}
+        {raised ? (
+          <Chip tone="raise" icon={ArrowUp} className="s-raise-chip">
+            <Num>+{kg(delta)}</Num> كجم عن آخر مرة
+          </Chip>
+        ) : prev && !editing ? (
+          <button type="button" className="s-prev"
+            aria-label={`انسخ السابق ${prev}`}
+            onClick={() => {
+              if (prevSet.weight !== '' && prevSet.weight != null) onUpdateSet(setIndex, 'weight', kg(prevSet.weight))
+              if (parseInt(prevSet.reps) > 0) onUpdateSet(setIndex, 'reps', String(parseInt(prevSet.reps)))
+            }}>
+            السابق <Num>{prev}</Num>
+          </button>
+        ) : null}
+      </div>
+
+      <Stepper
+        field="weight" value={set.weight} unit="كجم" unitLabel="الوزن"
+        inputTestId="weight-input"
+        raise={raised} ring={raised} ringDraw={!!raise?.ringDraw}
+        onInput={v => onUpdateSet(setIndex, 'weight', v)}
+        onStep={dir => onStepSet(setIndex, 'weight', dir * 2.5)}
+      />
+      <Stepper
+        field="reps" value={set.reps} unit="عدّة" unitLabel="العدّات"
+        inputTestId="reps-input"
+        onInput={v => onUpdateSet(setIndex, 'reps', v)}
+        onStep={dir => onStepSet(setIndex, 'reps', dir)}
+      />
+
+      {(coach || showKeep) && (
+        <div className="s-coach">
+          <span className="s-coach-text">{coach}</span>
+          {showKeep && (
+            <button type="button" className="s-keep" onClick={onKeepBase}>
+              خلّها <Num>{kg(raise.base)}</Num>
+            </button>
+          )}
         </div>
       )}
-
-      {/* Context: what happened, what's suggested, what's the aim */}
-      <div style={{
-        display: 'flex', gap: 4, marginBottom: 14,
-        borderBlock: '1px solid var(--border)', padding: '9px 0',
-      }}>
-        <div style={ctxCell}>
-          <div style={ctxLabel}>آخر مرة</div>
-          <div style={ctxValue}>{lastWeight != null ? `${lastWeight}kg` : '—'}</div>
-        </div>
-        <div style={{ width: 1, background: 'var(--border)' }} />
-        <div style={ctxCell}>
-          <div style={ctxLabel}>الوزن المقترح</div>
-          <div style={{ ...ctxValue, color: 'var(--cyan)' }}>{suggested ? `${suggested}kg` : '—'}</div>
-        </div>
-        <div style={{ width: 1, background: 'var(--border)' }} />
-        <div style={ctxCell}>
-          <div style={ctxLabel}>هدفك</div>
-          <div style={ctxValue}>{target ? `${target.base}–${target.top} تكرار` : '—'}</div>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
-        <BigStepper
-          value={set.weight} unit="كغ"
-          onInput={v => onUpdateSet(setIndex, 'weight', v)}
-          onStep={dir => onStepWeight(setIndex, dir * 2.5)}
-        />
-        <BigStepper
-          value={set.reps} unit="تكرار"
-          onInput={v => onUpdateSet(setIndex, 'reps', v)}
-          onStep={dir => onStepReps(setIndex, dir * 1)}
-        />
-      </div>
-
-      {editing ? (
-        <button
-          onClick={onDoneEditing}
-          style={{
-            width: '100%', padding: '15px', borderRadius: 14, border: 'none',
-            background: 'var(--gold)', color: '#0A0A0A',
-            fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 800, cursor: 'pointer',
-          }}
-        >✓ حفظ التعديل</button>
-      ) : (
-        <button
-          className="btn-cyan"
-          onClick={() => onComplete(setIndex)}
-          style={{ padding: '15px', fontSize: 17 }}
-        >✓ إنهاء المجموعة</button>
-      )}
-
-      <div style={{
-        marginTop: 8, textAlign: 'center',
-        fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', opacity: 0.75,
-      }}>
-        🔒 يمكنك تعديل الأوزان والتكرارات للمجموعة النشطة فقط
-      </div>
     </div>
   )
 }

@@ -1,0 +1,54 @@
+/* ══ Sheets the session opens: add an exercise, ready-made routines ══
+   On the kit Sheet; only what the kit does not already say. */
+
+/* Routines */
+.rt-intro { margin: 0 0 12px; font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; }
+
+/* Add exercise */
+.ax-chips {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 calc(-1 * var(--gutter)) 16px; padding: 4px var(--gutter);
+}
+.ax-chips::-webkit-scrollbar { display: none; }
+.ax-chips .k-chip { flex: none; min-height: 40px; padding-inline: 16px; font-size: var(--t-body); }
+.ax-en { font-stretch: 87.5%; }
+.ax-on .k-row-title { color: var(--ink); font-weight: 700; }
+.ax-check { color: var(--accent); }
+.ax-input {
+  display: block; width: 100%; min-height: 48px; margin: -12px 0 24px; padding: 0 16px;
+  border: 0; border-radius: var(--r-sm); outline: 0;
+  background: var(--surface-3); color: var(--ink);
+  font-family: var(--font); font-size: var(--t-body); font-weight: 500;
+}
+.ax-input:focus { box-shadow: inset 0 0 0 2px rgba(var(--accent-rgb), 0.55); }
+.ax-input::placeholder { color: var(--ink-3); }
+.ax-sets { display: grid; gap: 8px; padding-bottom: 8px; }
+.ax-sets .k-seg-opt { min-height: 40px; font-size: var(--t-headline); font-weight: 700; }
+.ax-cta { display: inline-flex; gap: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── The rest away from the player: docked above the tabs ── */
+.rt-bar {
+  position: fixed; left: 0; right: 0; margin: 0 auto; z-index: var(--z-live);
+  width: calc(100% - 16px); max-width: 544px;
+  bottom: calc(var(--safe-bottom) + 49px + 12px + 8px);
+  display: grid; gap: 8px; padding: 8px 12px 0; overflow: hidden;
+  border-radius: var(--r-md); background: var(--surface-2); color: var(--ink);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 0 0 1px var(--edge), inset 0 1px 0 rgba(255,255,255,0.08);
+  font-family: var(--font);
+}
+/* Stacked above the live bar when a session is docked there. */
+body:has(.f-livebar) .rt-bar { bottom: calc(var(--safe-bottom) + 49px + 12px + 8px + 56px + 8px); }
+.rt-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.rt-label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-label); font-weight: 700; color: var(--rest); white-space: nowrap; }
+.rt-time { font-size: 28px; font-weight: 800; line-height: 1; font-stretch: 87.5%; }
+.rt-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 2px; margin-inline-end: -6px; }
+.rt-presets { margin-bottom: 4px; }
+.rt-presets .k-seg-opt { min-height: 40px; font-size: var(--t-body); font-weight: 700; }
+.rt-drain { height: 4px; margin: 0 -12px; background: rgba(var(--rest-rgb), 0.18); }
+.rt-drain i {
+  display: block; height: 100%; background: var(--rest);
+  transform-origin: left;   /* RTL: drains from the start edge */
+  transition: transform 250ms linear;
+}
+.rt-bar[data-done="1"] .rt-label { color: var(--ink); }
+.rt-bar[data-done="1"] .rt-drain i { background: var(--accent); transform: scaleX(1) !important; }

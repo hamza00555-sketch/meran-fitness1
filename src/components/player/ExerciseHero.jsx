@@ -1,166 +1,177 @@
 import { useRef, useState } from 'react'
-import ExerciseMedia from '../../assets/ExerciseMedia.jsx'
+import { IconButton, ListGroup, ListRow, Sheet, Num } from '../kit/index.jsx'
+import {
+  DotsThree, Info, ArrowsLeftRight, Plus, Minus, Copy, Check, Trash, Play, X, CaretUp,
+} from '../kit/icons.js'
+import { ArrowBendDownLeft } from '@phosphor-icons/react'
+import SessionMedia from './SessionMedia.jsx'
 import ExerciseTags from './ExerciseTags.jsx'
-import RaiseRing from './RaiseRing.jsx'
-import ExerciseInfoModal from '../ExerciseInfoModal.jsx'
 import { arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
 
-// ── One exercise, presented ───────────────────────────────────
+// ── The exercise, presented like a broadcast name strap ───────
 //
-// The carousel slide: names (English over Arabic, like the reference),
-// the media area at a fixed 3:2 so the page never jumps while an image
-// arrives, the muscle art in the corner, the shared tag row, and the
-// swipe hint. Everything the old card could do that isn't set-logging
-// lives behind the ⋯ sheet — info, swap, add/remove set, move set,
-// copy, remove — so no feature died in the move to slides.
+// Before the first set: a lit stage, edge to edge (max ~30% of the
+// screen), the exercise's media standing on neutral light at the end
+// side, and over its dark lower third the Arabic name at 22/700 above
+// the English at 15/600 in the Latin face — the way a sports broadcast
+// straps a player's name. Once a set is logged the stage folds into a
+// 72pt row (thumbnail, names, ⋯) and the numbers own the screen. The
+// thumbnail brings the stage back for a look. The muscle art appears
+// once, never twice.
+//
+// A horizontal swipe on the head moves to the neighbouring exercise —
+// the carousel's one job, without its clipped neighbour card.
+//
+// Everything that isn't set-logging lives behind ⋯: info, video, swap,
+// add/remove a set, move a set, copy the name, remove the exercise —
+// and, in its own group, the session's «إلغاء التمرين».
+
+function useSwipe(onSwipe) {
+  const start = useRef(null)
+  return {
+    onPointerDown: (e) => { start.current = { x: e.clientX, y: e.clientY } },
+    onPointerUp: (e) => {
+      const s = start.current
+      start.current = null
+      if (!s || !onSwipe) return
+      const dx = e.clientX - s.x
+      const dy = e.clientY - s.y
+      // RTL: the next exercise waits on the left, so dragging right brings it.
+      if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx > 0 ? 1 : -1)
+    },
+    onPointerCancel: () => { start.current = null },
+  }
+}
 
 export default function ExerciseHero({
-  ex, ytUrl, progression, lastWeight, maxWeight, isComplete, deloadPct,
-  isActive, canSwap, swapTitle,
-  onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
+  ex, expanded, animate = false, onToggleStage, collapsible = false,
+  maxWeight = null, deloadPct = 0, quietBest = false, ytUrl,
+  canSwap, swapTitle, onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
+  onAddExercise, onDiscard, onSwipe,
 }) {
-  const [showInfo, setShowInfo] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
+  const [menu, setMenu] = useState(false)
+  const [info, setInfo] = useState(false)
   const [copied, setCopied] = useState(false)
-  const cardRef = useRef(null)
-  // The one piece of advice worth the whole card's edge. Null on every
-  // slide but the active one, and nulled upstream during a deload.
-  const raise = progression?.hint === 'raise'
+  const swipe = useSwipe(onSwipe)
 
-  const group = MUSCLE_GROUPS[ex.muscle] || {}
-  const color = group.color || 'var(--cyan)'
   const ar = arabicName(ex.name)
+  const primary = ar || ex.name
+  const secondary = ar ? ex.name : null
 
-  const menuRow = {
-    width: '100%', textAlign: 'right', padding: '13px 16px',
-    background: 'none', border: 'none', borderBottom: '1px solid var(--border)',
-    color: 'var(--text2)', fontFamily: 'var(--font-ar)', fontSize: 14,
-    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-  }
+  const act = (fn) => () => { setMenu(false); fn?.() }
 
-  const menu = (action) => () => { setShowMenu(false); action() }
+  const names = (
+    <div className="s-strap-names">
+      <h2 className="s-name-ar" data-testid="exercise-name">{primary}</h2>
+      {secondary && <p className="s-name-en" dir="ltr">{secondary}</p>}
+    </div>
+  )
+  const more = (
+    <IconButton icon={DotsThree} label="خيارات التمرين" weight="bold" iconSize={26}
+      className="s-more" onClick={() => setMenu(true)} />
+  )
 
   return (
-    <div ref={cardRef} style={{
-      position: 'relative',
-      background: 'var(--bg2)',
-      border: `1px solid ${isActive ? 'var(--cyan-md)' : 'var(--border)'}`,
-      borderRadius: 'var(--radius)',
-      overflow: 'hidden',
-      opacity: isActive ? 1 : 0.55,
-      transition: 'opacity 0.25s, border-color 0.25s',
-    }}>
-      {raise && <RaiseRing hostRef={cardRef} />}
-      <div style={{ height: 3, background: color }} />
-      <div style={{ padding: '12px 14px 14px' }}>
-
-        {/* Names + corner: muscle art and the ⋯ menu */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 8 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 17, fontWeight: 800,
-              color: 'var(--text)', lineHeight: 1.3, overflowWrap: 'anywhere',
-            }}>{ex.name}</div>
-            {ar && (
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>
-                {ar}
-              </div>
-            )}
-            {ex.originalName && ex.originalName !== ex.name && (
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gold)', marginTop: 2 }}>
-                ⇄ بدلاً من {ex.originalName}
-              </div>
-            )}
-          </div>
-          {group.img && (
-            <img src={group.img} alt={group.label || ex.muscle} style={{
-              width: 44, height: 44, objectFit: 'contain', flexShrink: 0,
-              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
-            }} />
+    <>
+      {expanded ? (
+        <section className="s-stage" data-testid="exercise-stage" {...swipe}>
+          {collapsible && (
+            <IconButton icon={CaretUp} label="أخفِ الصورة" weight="bold" className="s-stage-fold"
+              onClick={onToggleStage} />
           )}
-          <button
-            onClick={() => setShowMenu(true)}
-            aria-label="خيارات التمرين"
-            style={{
-              width: 34, height: 34, flexShrink: 0, borderRadius: 10,
-              background: 'var(--bg3)', border: '1px solid var(--border)',
-              color: 'var(--text3)', fontSize: 17, cursor: 'pointer', lineHeight: 1,
-            }}
-          >⋯</button>
-        </div>
-
-        {/* Media, fixed aspect — the page never reflows around it */}
-        <ExerciseMedia name={ex.name} animate={isActive} />
-
-        <div style={{ marginTop: 10 }}>
-          <ExerciseTags
-            ex={ex} color={color} label={group.label || ex.muscle} emoji={group.emoji || '🏋️'}
-            ytUrl={ytUrl} progression={progression}
-            lastWeight={lastWeight} maxWeight={maxWeight}
-          />
-        </div>
-
-        <div style={{
-          marginTop: 8, textAlign: 'center',
-          fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', opacity: 0.75,
-        }}>
-          ← اسحب للتبديل إذا الجهاز مشغول →
-        </div>
-      </div>
-
-      {/* ── The ⋯ sheet: everything else the old card offered ── */}
-      {showMenu && (
-        <div
-          onClick={() => setShowMenu(false)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 700,
-            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-          }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 560, background: 'var(--bg2)',
-              borderRadius: '20px 20px 0 0', border: '1px solid var(--border2)', borderBottom: 'none',
-              paddingBottom: 'calc(var(--safe-bottom) + 8px)',
-              animation: 'slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
-            }}
-          >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border2)', margin: '10px auto' }} />
-            <button style={menuRow} onClick={menu(() => setShowInfo(true))}>ℹ️ معلومات التمرين</button>
-            {canSwap && (
-              <button style={menuRow} onClick={menu(onSwap)} title={swapTitle}>⇄ استبدال التمرين</button>
-            )}
-            <button style={menuRow} onClick={menu(onAddSet)}>➕ إضافة سيت</button>
-            {ex.sets.length > 1 && (
-              <button style={menuRow} onClick={menu(onRemoveSet)}>➖ حذف آخر سيت</button>
-            )}
-            {moveTargets.length > 0 && ex.sets.length > 0 && (
-              <div>
-                <div style={{ padding: '10px 16px 4px', fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
-                  نقل آخر سيت إلى:
-                </div>
-                {moveTargets.map(t => (
-                  <button key={t.id} style={{ ...menuRow, paddingRight: 28 }} onClick={menu(() => onMoveSet(t.id))}>
-                    ↪ {t.name}
-                  </button>
-                ))}
-              </div>
-            )}
-            <button style={menuRow} onClick={() => {
-              navigator.clipboard?.writeText(ex.name).then(() => setCopied(true))
-              setTimeout(() => { setCopied(false); setShowMenu(false) }, 700)
-            }}>{copied ? '✓ نُسخ' : '⎘ نسخ الاسم'}</button>
-            <button style={{ ...menuRow, color: 'var(--red)', borderBottom: 'none' }} onClick={menu(onRemove)}>
-              ✕ إزالة التمرين من الجلسة
-            </button>
+          <div className="s-stage-media">
+            <SessionMedia key={ex.name} name={ex.name} muscle={ex.muscle} animate={animate} className="s-stage-img" />
           </div>
-        </div>
+          <div className="s-strap">
+            <div className="s-strap-row">{names}{more}</div>
+            <ExerciseTags ex={ex} maxWeight={maxWeight} deloadPct={deloadPct} quietBest={quietBest} />
+          </div>
+        </section>
+      ) : (
+        <section className="s-exrow" data-testid="exercise-row" {...swipe}>
+          <button type="button" className="s-thumb" onClick={onToggleStage} aria-label="اعرض صورة التمرين">
+            <SessionMedia key={ex.name} name={ex.name} muscle={ex.muscle} className="s-thumb-img" />
+          </button>
+          {names}
+          {more}
+        </section>
       )}
 
-      {showInfo && <ExerciseInfoModal exercise={ex} onClose={() => setShowInfo(false)} />}
-    </div>
+      <Sheet open={menu} onClose={() => setMenu(false)} title={primary}>
+        <ListGroup header="هذا التمرين">
+          <ListRow leading={Info} title="معلومات ونصائح" onClick={act(() => setInfo(true))} />
+          {ytUrl && (
+            <ListRow leading={Play} title="شاهد الأداء الصحيح" subtitle="يفتح يوتيوب"
+              onClick={act(() => window.open(ytUrl, '_blank', 'noopener,noreferrer'))} />
+          )}
+          {canSwap && (
+            <ListRow leading={ArrowsLeftRight} title="استبدال التمرين"
+              subtitle={swapTitle ? <bdi>{swapTitle}</bdi> : 'الجهاز مشغول؟ جرّب البديل'}
+              onClick={act(onSwap)} />
+          )}
+          <ListRow leading={Plus} title="إضافة مجموعة" onClick={act(onAddSet)} />
+          {ex.sets.length > 1 && (
+            <ListRow leading={Minus} title="حذف آخر مجموعة" onClick={act(onRemoveSet)} />
+          )}
+          <ListRow leading={copied ? Check : Copy} title={copied ? 'نُسخ الاسم' : 'نسخ الاسم'}
+            onClick={() => {
+              navigator.clipboard?.writeText(ex.name).then(() => setCopied(true)).catch(() => {})
+              setTimeout(() => { setCopied(false); setMenu(false) }, 700)
+            }} />
+          <ListRow leading={Trash} title="إزالة التمرين من الجلسة" tone="danger" onClick={act(onRemove)} />
+        </ListGroup>
+
+        {moveTargets.length > 0 && ex.sets.length > 0 && (
+          <ListGroup header="نقل آخر مجموعة إلى">
+            {moveTargets.map(t => (
+              <ListRow key={t.id} leading={ArrowBendDownLeft}
+                title={arabicName(t.name) || t.name}
+                subtitle={arabicName(t.name) ? <bdi dir="ltr">{t.name}</bdi> : null}
+                onClick={act(() => onMoveSet(t.id))} />
+            ))}
+          </ListGroup>
+        )}
+
+        <ListGroup header="الجلسة">
+          {onAddExercise && <ListRow leading={Plus} title="إضافة تمرين" onClick={act(onAddExercise)} />}
+          {onDiscard && (
+            <ListRow leading={X} title="إلغاء التمرين" subtitle="تنحذف الجلسة كاملة بدون حفظ"
+              tone="danger" onClick={act(onDiscard)} />
+          )}
+        </ListGroup>
+      </Sheet>
+
+      <ExerciseInfoSheet open={info} ex={ex} ytUrl={ytUrl} onClose={() => setInfo(false)} />
+    </>
+  )
+}
+
+// The exercise's tips and video, as a sheet. (The old info modal is a
+// portal under the session cover, so it opened invisibly here.)
+function ExerciseInfoSheet({ open, ex, ytUrl, onClose }) {
+  const group = MUSCLE_GROUPS[ex.muscle] || {}
+  const def = (group.exercises || []).find(e => e.name === ex.name)
+    || Object.values(MUSCLE_GROUPS).flatMap(g => g.exercises || []).find(e => e.name === ex.name)
+    || {}
+  const ar = arabicName(ex.name)
+  return (
+    <Sheet open={open} onClose={onClose} title={ar || ex.name}>
+      {ar && <p className="s-info-en" dir="ltr">{ex.name}</p>}
+      {def.tips?.length > 0 && (
+        <ListGroup header="نصائح">
+          {def.tips.map((tip, i) => (
+            <ListRow key={i} leading={<span className="s-info-n"><Num>{i + 1}</Num></span>} title={<span className="s-info-tip">{tip}</span>} />
+          ))}
+        </ListGroup>
+      )}
+      <ListGroup>
+        {group.label && <ListRow leading={Info} title="العضلة" trailing={group.label} />}
+        {ytUrl && (
+          <ListRow leading={Play} title="شاهد الأداء الصحيح" subtitle="يفتح يوتيوب" chevron
+            onClick={() => window.open(ytUrl, '_blank', 'noopener,noreferrer')} />
+        )}
+      </ListGroup>
+    </Sheet>
   )
 }
