@@ -17,8 +17,9 @@ import {
   Brain, Flame, ArrowCounterClockwise, Target, CalendarBlank, Scales, Mountains,
   Planet, Notepad, ListChecks, Waves,
 } from '@phosphor-icons/react'
-import { setCounts, setVolume, sessionVolume } from '../../sets.js'
+import { setCounts, sessionVolume } from '../../sets.js'
 import { dayKey } from '../../day.js'
+import { arabicName } from '../../exerciseMedia.js'
 
 /** The numbers every progress bar is measured from — one pass over the history. */
 export function progressContext(sessions = [], streak = 0) {
@@ -78,10 +79,22 @@ export function progressContext(sessions = [], streak = 0) {
   }
 }
 
+// The lifts b7/b8 name, by their Arabic names first — the copy in
+// constants.js writes them in English inside an Arabic sentence.
+const lifts = (...names) => {
+  const ar = names.map(n => arabicName(n) || n)
+  const last = ar.pop()
+  const andLast = /^[A-Za-z]/.test(last) ? `و ${last}` : `و${last}`
+  return ar.length ? `${ar.join('، ')} ${andLast}` : last
+}
+
 // One row per achievement. `mark` is what is engraved on the medal
 // (n = the number, u = its unit, shown only where there is room);
 // `of` reads the current value from the context and `target` is where
 // the check flips. `of: null` = a yes/no badge with no meaningful bar.
+// `title` / `desc`, where present, replace the constants.js copy on
+// screen only: «سيت» becomes «مجموعة», lifts get their Arabic names.
+// constants.js — and so the old design and stored data — is untouched.
 const T = 1000 // a ton, in kg
 const META = {
   a1:  { glyph: Footprints,     mark: { n: '1' },                of: c => c.sessions,         target: 1 },
@@ -99,12 +112,17 @@ const META = {
   b2:  { glyph: Barbell,        mark: { n: '140', u: 'كجم' },    of: c => c.maxWeight,        target: 140 },
   b3:  { glyph: Barbell,        mark: { n: '180', u: 'كجم' },    of: c => c.maxWeight,        target: 180 },
   b4:  { glyph: Barbell,        mark: { n: '200', u: 'كجم' },    of: c => c.maxWeight,        target: 200 },
-  b5:  { glyph: Stack,          mark: { n: '15', u: 'مجموعة' },  of: c => c.maxSets,          target: 15 },
-  b6:  { glyph: Stack,          mark: { n: '30', u: 'مجموعة' },  of: c => c.maxSets,          target: 30 },
-  b7:  { glyph: Barbell,        mark: { n: '2', u: 'رفعات' },    of: c => c.bigTwo,           target: 2 },
-  b8:  { glyph: Barbell,        mark: { n: '3', u: 'رفعات' },    of: c => c.bigThree,         target: 3 },
+  b5:  { glyph: Stack,          mark: { n: '15', u: 'مجموعة' },  of: c => c.maxSets,          target: 15,
+         title: '15 مجموعة في جلسة', desc: 'كمّل 15 مجموعة في جلسة وحدة' },
+  b6:  { glyph: Stack,          mark: { n: '30', u: 'مجموعة' },  of: c => c.maxSets,          target: 30,
+         title: '30 مجموعة في جلسة', desc: 'كمّل 30 مجموعة في جلسة وحدة' },
+  b7:  { glyph: Barbell,        mark: { n: '2', u: 'رفعات' },    of: c => c.bigTwo,           target: 2,
+         desc: `تمرّن ${lifts('Deadlift', 'Bench Press')} في نفس الجلسة` },
+  b8:  { glyph: Barbell,        mark: { n: '3', u: 'رفعات' },    of: c => c.bigThree,         target: 3,
+         desc: `تمرّن ${lifts('Deadlift', 'Barbell Squat', 'Bench Press')} في نفس الجلسة` },
   b9:  { glyph: PersonSimple,   mark: { n: '6', u: 'عضلات' },    of: c => c.maxMuscles,       target: 6 },
-  b10: { glyph: Brain,          mark: { n: '500', u: 'مجموعة' }, of: c => c.totalSets,        target: 500 },
+  b10: { glyph: Brain,          mark: { n: '500', u: 'مجموعة' }, of: c => c.totalSets,        target: 500,
+         desc: 'كمّل 500 مجموعة من أول جلسة لين الحين' },
 
   c1:  { glyph: Flame,          mark: { n: '3', u: 'أيام' },     of: c => c.streak,           target: 3 },
   c2:  { glyph: Flame,          mark: { n: '7', u: 'أيام' },     of: c => c.streak,           target: 7 },
@@ -122,8 +140,10 @@ const META = {
   d3:  { glyph: Scales,         mark: { n: '10', u: 'طن' },      of: c => c.maxSessionVolume, target: 10 * T },
   d4:  { glyph: Mountains,      mark: { n: '100', u: 'طن' },     of: c => c.totalVolume,      target: 100 * T },
   d5:  { glyph: Planet,         mark: { n: '1000', u: 'طن' },    of: c => c.totalVolume,      target: 1000 * T },
-  d6:  { glyph: Notepad,        mark: { n: '10', u: 'مجموعات' }, of: c => c.weightedSets,     target: 10 },
-  d7:  { glyph: Notepad,        mark: { n: '100', u: 'مجموعة' }, of: c => c.weightedSets,     target: 100 },
+  d6:  { glyph: Notepad,        mark: { n: '10', u: 'مجموعات' }, of: c => c.weightedSets,     target: 10,
+         desc: 'سجّل الوزن في 10 مجموعات' },
+  d7:  { glyph: Notepad,        mark: { n: '100', u: 'مجموعة' }, of: c => c.weightedSets,     target: 100,
+         desc: 'سجّل الوزن في 100 مجموعة' },
   d8:  { glyph: ListChecks,     mark: { n: '5', u: 'تمارين' },   of: c => c.exercises,        target: 5 },
   d9:  { glyph: ListChecks,     mark: { n: '20', u: 'تمرين' },   of: c => c.exercises,        target: 20 },
   d10: { glyph: Waves,          mark: { n: '50', u: 'طن' },      of: c => c.weekVolume,       target: 50 * T },
@@ -135,6 +155,13 @@ const FALLBACK_GLYPH = { sessions: CalendarCheck, strength: Barbell, streak: Fla
 export function medalFace(a) {
   const m = META[a.id]
   return { glyph: m?.glyph || FALLBACK_GLYPH[a.cat] || Target, mark: m?.mark || null }
+}
+
+/** The title and description to show: the display copy where META has
+ *  one, otherwise constants.js as written. */
+export function achText(a) {
+  const m = a && META[a.id]
+  return { title: m?.title || a?.title || '', desc: m?.desc || a?.desc || '' }
 }
 
 /**
@@ -152,14 +179,31 @@ export function progressOf(a, ctx) {
   return { value: show(Math.min(raw, m.target)), target: show(m.target), ratio, unit: m.mark?.u || '' }
 }
 
-/** The three locked achievements nearest to flipping, closest first. */
+/**
+ * The three locked achievements nearest to flipping, closest first.
+ * Equal progress keeps the order constants.js lists them in (sessions
+ * first, then strength, streak, volume — roughly the order a new lifter
+ * meets them).
+ *
+ * Before the first session «الخطوة الأولى» is pinned first, and
+ * «عاد من جديد» («come back after a break») is left out: it flips on
+ * the same first session, and it means nothing to someone who has not
+ * started yet.
+ */
 export function nearestLocked(list, isEarned, ctx, n = 3) {
+  const first = !ctx || !ctx.sessions
   return list
-    .filter(a => !isEarned(a.id))
-    .map(a => ({ a, p: progressOf(a, ctx) }))
+    .map((a, i) => ({ a, i }))
+    .filter(({ a }) => !isEarned(a.id) && !(first && a.id === 'c7'))
+    .map(({ a, i }) => ({ a, i, p: progressOf(a, ctx) }))
     .filter(x => x.p)
-    .sort((x, y) => (y.p.ratio - x.p.ratio) || (x.a.xp - y.a.xp))
+    .sort((x, y) => (
+      (first ? (y.a.id === 'a1') - (x.a.id === 'a1') : 0)
+      || (y.p.ratio - x.p.ratio)
+      || (x.i - y.i)
+    ))
     .slice(0, n)
+    .map(({ a, p }) => ({ a, p }))
 }
 
 // Dates the way the monthly report writes them: Gregorian months in

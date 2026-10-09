@@ -7,11 +7,15 @@
 // What it proves on a phone-sized page: the deload-end and level-up
 // screens appear, speak Arabic only and dismiss the way App expects;
 // the achievements view has its stage, ladder, «التالي» and 40 medals
-// with no gold on it and no text under 12px; the numbers view draws its
-// two twelve-week charts; and photos can be added from the library
+// with no gold on it and no text under 12px, «التالي» starts a new
+// lifter at «الخطوة الأولى», and the copy says «مجموعة» and names lifts
+// in Arabic; the numbers view draws its two twelve-week charts, never
+// leads with a bold zero, and in a best week the scale and the newest
+// bar's value do not overlap; and photos can be added from the library
 // through a preview step, compared, and deleted only after a confirm —
 // stored in exactly the shape the old design reads — and a full store
-// says so instead of showing a photo that was never saved.
+// says so where the user can actually see it (inside the preview sheet,
+// not under its scrim), instead of showing a photo that was never saved.
 //
 // Fixtures come from scripts/screens.manifest.mjs, like the screenshots.
 
@@ -49,17 +53,66 @@ function init([seed, clock]) {
 }
 
 const browser = await chromium.launch()
-async function open(fixture, extra = {}) {
+const SE = { ...devices['iPhone SE'], viewport: { width: 320, height: 568 } }
+async function open(fixture, extra = {}, { device = devices['iPhone 13'], photos = 0 } = {}) {
   const f = resolve(fixture)
-  const ctx = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar' })
+  const ctx = await browser.newContext({ ...device, timezoneId: 'Asia/Riyadh', locale: 'ar' })
   await ctx.route('**/*.r2.dev/**', r => r.abort())
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  await ctx.addInitScript(init, [{ hf_onboarded: true, ...f.seed, ...extra }, f.clock])
+  const seed = { hf_onboarded: true, ...f.seed, ...extra }
+  if (photos) { await page.goto('about:blank'); seed.hf_photos = await makePhotos(page, photos) }
+  await ctx.addInitScript(init, [seed, f.clock])
   await page.goto(APP, { waitUntil: 'networkidle' })
   return { ctx, page, errors }
 }
+
+/** Small portrait JPEGs in the stored shape, oldest first. */
+function makePhotos(page, n) {
+  return page.evaluate((n) => Array.from({ length: n }, (_, i) => {
+    const c = document.createElement('canvas'); c.width = 60; c.height = 80
+    const g = c.getContext('2d'); g.fillStyle = `hsl(${i * 70},30%,40%)`; g.fillRect(0, 0, 60, 80)
+    return { id: 1000 + i, date: new Date(2026, 3 + i, 1, 9).toISOString(), note: '', src: c.toDataURL('image/jpeg', 0.6) }
+  }), n)
+}
+
+/** Can the user see it? On screen, and the topmost thing at its centre
+ *  is the element itself — not a scrim or a sheet drawn over it. */
+const seen = (page, sel) => page.evaluate((sel) => {
+  const el = document.querySelector(sel)
+  if (!el) return 'missing'
+  const r = el.getBoundingClientRect()
+  if (r.height === 0 || r.bottom <= 0 || r.top >= innerHeight) return 'off screen'
+  const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+  return hit && el.contains(hit) ? 'ok' : `covered by ${hit?.className || hit?.tagName}`
+}, sel)
+
+/** Fill localStorage to the brim with throwaway keys. */
+const fillStorage = (page) => page.evaluate(() => {
+  let chunk = 'x'.repeat(1024 * 256)
+  let i = 0
+  try { for (;;) localStorage.setItem('__fill' + i++, chunk) } catch {}
+  chunk = 'x'.repeat(1024 * 8)
+  try { for (;;) localStorage.setItem('__fillb' + i++, chunk) } catch {}
+})
+
+/** Text of every chart's scale tick that overlaps a value label —
+ *  measured on the glyphs (a Range), not on the padded boxes. */
+const chartClashes = (page) => page.evaluate(() => {
+  const box = (el) => { const r = document.createRange(); r.selectNodeContents(el); return r.getBoundingClientRect() }
+  const meet = (a, b) => a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5
+  const out = [], missing = []
+  for (const fig of document.querySelectorAll('.bc')) {
+    const vals = [...fig.querySelectorAll('.bc-val')]
+    const ticks = [...fig.querySelectorAll('.bc-tick')]
+    if (!ticks.some(t => t.textContent.trim()) || !fig.querySelector('.bc-col.on .bc-val')) missing.push(fig.getAttribute('aria-label').slice(0, 30))
+    for (const t of ticks) {
+      for (const v of vals) if (meet(box(t), box(v))) out.push(`${t.textContent} × ${v.textContent}`)
+    }
+  }
+  return { out, missing }
+})
 const toProgress = async (page, view) => {
   await page.locator('nav > button').nth(2).click()
   await page.waitForTimeout(400)
@@ -147,7 +200,29 @@ const toProgress = async (page, view) => {
     .filter(el => el.childNodes.length && [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()))
     .filter(el => parseFloat(getComputedStyle(el).fontSize) < 12).map(el => el.textContent.slice(0, 20)))
   ok('ach: no text under 12px', small.length === 0, small.slice(0, 3).join(' | '))
+  await page.getByRole('button', { name: 'الكل' }).click()
+  await page.waitForTimeout(200)
+  const wall = await page.locator('[data-testid="achievements"]').innerText()
+  ok('ach: «مجموعة», never «سيت»', !/سيت/.test(wall) && /15 مجموعة في جلسة/.test(wall), (wall.match(/.{0,12}سيت.{0,12}/) || [''])[0])
+  await page.getByRole('button', { name: /^الثلاثية الكبرى/ }).click()
+  await page.waitForTimeout(500)
+  const b8 = await page.getByRole('dialog').innerText()
+  ok('ach: lifts named in Arabic', /ديدلفت/.test(b8) && /سكوات/.test(b8) && /بنش/.test(b8) && !/Deadlift|Bench|Squat/.test(b8), b8.replace(/\s+/g, ' ').slice(0, 120))
+  await page.getByRole('button', { name: 'إغلاق' }).click()
+  await page.waitForTimeout(300)
   ok('ach: no errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 3b. Achievements, day one: «التالي» starts at the first step
+{
+  const { ctx, page, errors } = await open('fresh')
+  await page.waitForTimeout(800)
+  await toProgress(page, 'الإنجازات')
+  const titles = await page.locator('.pg-next-title').allInnerTexts()
+  ok('ach fresh: «التالي» starts with «الخطوة الأولى»', titles[0] === 'الخطوة الأولى', titles.join(' · '))
+  ok('ach fresh: no «عاد من جديد» before the first session', !titles.includes('عاد من جديد'), titles.join(' · '))
+  ok('ach fresh: no errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
 
@@ -166,6 +241,57 @@ const toProgress = async (page, view) => {
   ok('numbers: no text under 12px', small.length === 0, small.slice(0, 3).join(' | '))
   ok('numbers: no errors', !errors.length, errors.join('; '))
   await ctx.close()
+}
+
+// 4b. Numbers before the first session of the week: no bold zero, and
+//     a number never parts from its unit
+{
+  const { ctx, page, errors } = await open('veteran')
+  await page.waitForTimeout(800)
+  await toProgress(page, 'الأرقام')
+  const hero = await page.locator('.nb-hero').innerText()
+  ok('numbers quiet week: leads with last week', /حجم الأسبوع اللي فات/.test(hero) && /1\.9/.test(hero), hero.replace(/\s+/g, ' '))
+  ok('numbers quiet week: big number is not zero', (await page.locator('.nb-big').innerText()).trim() !== '0')
+  ok('numbers quiet week: says this week is still empty', /ما تمرّنت هذا الأسبوع للحين/.test(hero))
+  // A bidi-isolated number makes its own box, so one line can hold
+  // several rects: count the lines (distinct centres), not the rects.
+  const split = await page.evaluate(() => [...document.querySelectorAll('[data-testid="numbers"] .nb-nw')]
+    .filter(el => {
+      const mids = [...el.getClientRects()].map(r => (r.top + r.bottom) / 2)
+      return Math.max(...mids) - Math.min(...mids) > 4
+    }).map(el => el.textContent))
+  ok('numbers: units stay with their numbers', split.length === 0, split.join(' | '))
+  ok('numbers quiet week: no errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 4c. A best week — this week is the twelve-week max — on both phones:
+//     the scale and the newest bar's value never overlap
+{
+  const base = resolve('veteran').seed.hf_sessions
+  const tmpl = base[base.length - 1]
+  const extra = ['2026-07-05T15:00:00.000Z', '2026-07-06T15:00:00.000Z', '2026-07-07T15:00:00.000Z', '2026-07-08T05:00:00.000Z']
+    .map((d, i) => ({ ...JSON.parse(JSON.stringify(tmpl)), id: 900000 + i, date: d }))
+  for (const [name, device] of [['iPhone 13', devices['iPhone 13']], ['SE', SE]]) {
+    const { ctx, page, errors } = await open('veteran', { hf_sessions: [...base, ...extra] }, { device })
+    await page.waitForTimeout(800)
+    await toProgress(page, 'الأرقام')
+    const best = await page.evaluate(() => [...document.querySelectorAll('.bc')].map(fig => {
+      const hs = [...fig.querySelectorAll('.bc-bar')].map(b => b.getBoundingClientRect().height)
+      return hs[hs.length - 1] >= Math.max(...hs) - 0.5
+    }))
+    ok(`numbers best week (${name}): this week is the tallest bar`, best.length === 2 && best.every(Boolean), JSON.stringify(best))
+    const clash = await chartClashes(page)
+    ok(`numbers best week (${name}): each chart has its scale and this week's value`, clash.missing.length === 0, clash.missing.join(' | '))
+    ok(`numbers best week (${name}): scale and values do not overlap`, clash.out.length === 0, clash.out.join(' | '))
+    const wide = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
+    ok(`numbers best week (${name}): no sideways scroll`, wide)
+    await page.evaluate(() => document.querySelector('.nb-card').scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(200)
+    await page.locator('.nb-card').first().screenshot({ path: `${OUT}/best-week-${name.replace(/\s/g, '')}.png` })
+    ok(`numbers best week (${name}): no errors`, !errors.length, errors.join('; '))
+    await ctx.close()
+  }
 }
 
 // 5. Photos: add from library via preview, compare, delete with confirm
@@ -209,19 +335,13 @@ const toProgress = async (page, view) => {
   await ctx.close()
 }
 
-// 6. Photos: storage full says so and keeps state honest
+// 6. Photos: storage full says so where the user is looking, and keeps
+//    state honest — on the small phone, where the sheet covers the most
 {
-  const { ctx, page, errors } = await open('veteran')
+  const { ctx, page, errors } = await open('veteran', {}, { device: SE })
   await page.waitForTimeout(800)
   await toProgress(page, 'الصور')
-  // Fill localStorage to the brim with a throwaway key.
-  await page.evaluate(() => {
-    let chunk = 'x'.repeat(1024 * 256)
-    let i = 0
-    try { for (;;) localStorage.setItem('__fill' + i++, chunk) } catch {}
-    chunk = 'x'.repeat(1024 * 8)
-    try { for (;;) localStorage.setItem('__fillb' + i++, chunk) } catch {}
-  })
+  await fillStorage(page)
   await page.getByRole('button', { name: 'أضف صورة' }).first().click()
   await page.waitForTimeout(300)
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /اختر من الصور/ }).click()])
@@ -229,10 +349,49 @@ const toProgress = async (page, view) => {
   await page.waitForTimeout(900)
   await page.getByRole('button', { name: 'احفظ الصورة' }).click()
   await page.waitForTimeout(500)
-  const t = await page.evaluate(() => document.body.innerText)
-  ok('photos full: says the store is full', /التخزين ممتلئ/.test(t))
+  const inSheet = await seen(page, '.k-sheet .k-banner')
+  ok('photos full: the notice is visible in the preview sheet', inSheet === 'ok', inSheet)
+  ok('photos full: the notice says the store is full', /التخزين ممتلئ/.test(await page.locator('.k-sheet .k-banner').innerText().catch(() => '')))
+  ok('photos full: no save button that cannot work', await page.getByRole('button', { name: 'احفظ الصورة' }).count() === 0)
+  await page.screenshot({ path: `${OUT}/photos-full-sheet-se.png` })
+  await page.getByRole('button', { name: 'إلغاء' }).click()
+  await page.waitForTimeout(900)
+  const onPage = await seen(page, '.ph-alert .k-banner')
+  ok('photos full: after «إلغاء» the notice stays visible on the page', onPage === 'ok', onPage)
   ok('photos full: no phantom photo', await page.locator('.ph-thumb').count() === 0)
   ok('photos full: no errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 6b. Photos: storage full with old photos — «احذف صور قديمة» leads to
+//     the oldest one, and deleting it clears the notice
+{
+  const { ctx, page, errors } = await open('veteran', {}, { photos: 3 })
+  await page.waitForTimeout(800)
+  await toProgress(page, 'الصور')
+  await fillStorage(page)
+  await page.getByRole('button', { name: 'أضف صورة' }).first().click()
+  await page.waitForTimeout(300)
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /اختر من الصور/ }).click()])
+  await chooser.setFiles(PHOTO)
+  await page.waitForTimeout(900)
+  await page.getByRole('button', { name: 'احفظ الصورة' }).click()
+  await page.waitForTimeout(500)
+  ok('photos full + old: notice visible in the sheet', await seen(page, '.k-sheet .k-banner') === 'ok')
+  await page.getByRole('button', { name: 'احذف صور قديمة' }).click()
+  await page.waitForTimeout(700)
+  const pos = await page.locator('.ph-view-pos').innerText().catch(() => '')
+  ok('photos full + old: opens the oldest photo', /3\s*\/\s*3/.test(pos), pos)
+  await page.getByRole('button', { name: 'حذف الصورة' }).click()
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: 'احذف الصورة' }).click()
+  await page.waitForTimeout(600)
+  const left = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_photos') || '[]').map(p => p.id))
+  ok('photos full + old: the oldest is gone', left.length === 2 && !left.includes(1000), JSON.stringify(left))
+  await page.locator('.ph-view .ph-view-back').click()
+  await page.waitForTimeout(400)
+  ok('photos full + old: the notice clears once space is freed', await page.locator('.ph-alert').count() === 0)
+  ok('photos full + old: no errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
 

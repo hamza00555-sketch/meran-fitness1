@@ -6,7 +6,7 @@ import Medal from '../components/progress/Medal.jsx'
 import RankLadder from '../components/progress/RankLadder.jsx'
 import RankCrest from '../components/progress/RankCrest.jsx'
 import Numify from '../components/progress/Numify.jsx'
-import { progressContext, progressOf, nearestLocked, fmtEarned } from '../components/progress/achievementMeta.js'
+import { progressContext, progressOf, nearestLocked, fmtEarned, achText } from '../components/progress/achievementMeta.js'
 import '../styles/screens/progress.css'
 
 // ── الإنجازات ─────────────────────────────────────────────────
@@ -72,19 +72,22 @@ export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, un
       {next.length > 0 && (
         <Chapter eyebrow="أقرب ميداليات لك" title="التالي">
           <div className="pg-next">
-            {next.map(({ a, p }) => (
-              <button key={a.id} type="button" className="pg-next-row" onClick={() => setOpen(a.id)}>
-                <Medal achievement={a} earned={false} size={44} compact />
-                <span className="pg-next-main">
-                  <span className="pg-next-top">
-                    <span className="pg-next-title"><Numify>{a.title}</Numify></span>
-                    <Num className="pg-next-count">{p.value}/{p.target}</Num>
+            {next.map(({ a, p }) => {
+              const { title, desc } = achText(a)
+              return (
+                <button key={a.id} type="button" className="pg-next-row" onClick={() => setOpen(a.id)}>
+                  <Medal achievement={a} earned={false} size={44} compact />
+                  <span className="pg-next-main">
+                    <span className="pg-next-top">
+                      <span className="pg-next-title"><Numify>{title}</Numify></span>
+                      <Num className="pg-next-count">{p.value}/{p.target}</Num>
+                    </span>
+                    <Gauge value={p.ratio} max={1} tone="accent" label={`${title}: ${p.value} من ${p.target}`} />
+                    <span className="pg-next-sub"><Numify>{desc}</Numify></span>
                   </span>
-                  <Gauge value={p.ratio} max={1} tone="accent" label={`${a.title}: ${p.value} من ${p.target}`} />
-                  <span className="pg-next-sub"><Numify>{a.desc}</Numify></span>
-                </span>
-              </button>
-            ))}
+                </button>
+              )
+            })}
           </div>
         </Chapter>
       )}
@@ -102,12 +105,13 @@ export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, un
         <div className="pg-grid">
           {shown.map(a => {
             const earned = isEarned(a.id)
+            const { title } = achText(a)
             return (
               <button key={a.id} type="button" className={`pg-tile${earned ? ' on' : ''}`}
                 onClick={() => setOpen(a.id)}
-                aria-label={`${a.title} — ${earned ? 'محققة' : 'مقفلة'}`}>
+                aria-label={`${title} — ${earned ? 'محققة' : 'مقفلة'}`}>
                 <Medal achievement={a} earned={earned} />
-                <span className="pg-tile-title"><Numify>{a.title}</Numify></span>
+                <span className="pg-tile-title"><Numify>{title}</Numify></span>
               </button>
             )
           })}
@@ -134,12 +138,13 @@ function MedalSheet({ a, open, earned, earnedAt, progress, onClose }) {
   if (!m) return null
   const catLabel = ACHIEVEMENT_CATS.find(c => c.id === m.cat)?.label
   const rarity = RARITY_COLORS[m.rarity]?.label || 'عادي'
+  const { title, desc } = achText(m)
 
   return (
-    <Sheet open={open} onClose={onClose} title={<Numify>{m.title}</Numify>}>
+    <Sheet open={open} onClose={onClose} title={<Numify>{title}</Numify>}>
       <div className="pg-sheet">
         <Medal achievement={m} earned={earned} size={132} showUnit />
-        <p className="pg-sheet-desc"><Numify>{m.desc}</Numify></p>
+        <p className="pg-sheet-desc"><Numify>{desc}</Numify></p>
         <div className="pg-sheet-chips">
           <Chip>{rarity}</Chip>
           {catLabel && <Chip>{catLabel}</Chip>}

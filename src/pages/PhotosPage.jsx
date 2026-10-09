@@ -26,8 +26,11 @@ import '../styles/screens/progress.css'
 //
 // Storage is exactly what it was: the same `photos` array (id, date,
 // note, src as a JPEG data URL) that App keeps in localStorage — the old
-// design reads it too. What changed is that a full store says so here,
-// instead of the photo appearing and then vanishing on the next open.
+// design reads it too. What changed is that a full store says so, where
+// the user is looking: inside the preview sheet when «احفظ» is what
+// failed (the page behind is under the scrim), on the page when App's
+// own write failed after the sheet closed — instead of the photo
+// appearing and then vanishing on the next open.
 
 function compressImage(file, maxPx = 800, quality = 0.72) {
   return new Promise((resolve, reject) => {
@@ -80,6 +83,7 @@ export default function PhotosPage({ photos = [], setPhotos, onBack, embedded })
   const camRef = useRef(null)
   const libRef = useRef(null)
   const pending = useRef(null)
+  const bannerRef = useRef(null)
 
   const newestFirst = [...photos].reverse()
   const byId = (id) => photos.find(p => p.id === id)
@@ -99,6 +103,12 @@ export default function PhotosPage({ photos = [], setPhotos, onBack, embedded })
     window.addEventListener('meran:storage-full', onFull)
     return () => window.removeEventListener('meran:storage-full', onFull)
   }, [setPhotos])
+
+  // The page banner sits at the top of a grid that may be scrolled away.
+  const pageBanner = failed && !draft
+  useEffect(() => {
+    if (pageBanner) bannerRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
+  }, [pageBanner, failed])
 
   const choose = (ref) => {
     // Synchronously, inside the tap: iOS only opens a file picker from a
@@ -134,11 +144,19 @@ export default function PhotosPage({ photos = [], setPhotos, onBack, embedded })
     setDraft(null)
   }
 
+  // From the full-store notice: close the preview and open the oldest
+  // photo, with its delete button right there.
+  const clearOld = () => {
+    setDraft(null)
+    if (photos.length) setViewing(photos[0].id)
+  }
+
   const remove = (id) => {
     const idx = newestFirst.findIndex(p => p.id === id)
     const rest = newestFirst.filter(p => p.id !== id)
     setPhotos(prev => prev.filter(p => p.id !== id))
     setConfirmDel(null)
+    setFailed(null) // space was freed: the old notice no longer holds
     if (viewing === id) setViewing(rest.length ? rest[Math.min(idx, rest.length - 1)].id : null)
     setPicks(prev => prev.filter(x => x !== id))
   }
@@ -167,14 +185,11 @@ export default function PhotosPage({ photos = [], setPhotos, onBack, embedded })
       <input ref={camRef} type="file" accept="image/*" capture="environment" onChange={handleFile} hidden />
       <input ref={libRef} type="file" accept="image/*" onChange={handleFile} hidden />
 
-      {failed && (
-        <Banner tone="danger" icon={Warning}
-          title={failed === 'full' ? 'ما انحفظت الصورة — التخزين ممتلئ' : 'ما قدرنا نقرأ الصورة'}
-          action={<IconButton icon={X} label="إخفاء" onClick={() => setFailed(null)} />}>
-          {failed === 'full'
-            ? 'احذف صور قديمة أو خذ نسخة احتياطية من الإعدادات، وبعدها جرّب مرة ثانية. جلساتك ما تأثرت.'
-            : 'جرّب صورة ثانية، أو صوّر من جديد.'}
-        </Banner>
+      {pageBanner && (
+        <div ref={bannerRef} className="ph-alert">
+          <FailNotice kind={failed} hasPhotos={photos.length > 0}
+            action={<IconButton icon={X} label="إخفاء" onClick={() => setFailed(null)} />} />
+        </div>
       )}
 
       {photos.length === 0 ? (
@@ -228,8 +243,18 @@ export default function PhotosPage({ photos = [], setPhotos, onBack, embedded })
       </Sheet>
 
       {/* ── Preview, note, save ── */}
+      {/* A save that did not fit is told here, above the buttons — the
+          footer never scrolls, and the page behind is under the scrim. */}
       <Sheet open={!!draft} onClose={() => setDraft(null)} title="صورة جديدة"
-        footer={(
+        footer={failed === 'full' ? (
+          <div className="ph-preview-actions">
+            <FailNotice kind="full" hasPhotos={photos.length > 0} />
+            {photos.length > 0 && (
+              <Button variant="secondary" size="lg" full icon={Trash} onClick={clearOld}>احذف صور قديمة</Button>
+            )}
+            <Button variant={photos.length > 0 ? 'plain' : 'secondary'} size="lg" full onClick={() => setDraft(null)}>إلغاء</Button>
+          </div>
+        ) : (
           <div className="ph-preview-actions">
             <Button variant="primary" size="lg" full onClick={save}>احفظ الصورة</Button>
             <Button variant="secondary" size="lg" full onClick={() => setDraft(null)}>إلغاء</Button>
@@ -272,6 +297,24 @@ export default function PhotosPage({ photos = [], setPhotos, onBack, embedded })
         onConfirm={() => remove(confirmDel)}
       />
     </div>
+  )
+}
+
+/** Why a photo did not make it, and what to do about it. */
+function FailNotice({ kind, hasPhotos, action }) {
+  if (kind === 'read') {
+    return (
+      <Banner tone="danger" icon={Warning} title="ما قدرنا نقرأ الصورة" action={action}>
+        جرّب صورة ثانية، أو صوّر من جديد.
+      </Banner>
+    )
+  }
+  return (
+    <Banner tone="danger" icon={Warning} title="ما انحفظت الصورة — التخزين ممتلئ" action={action}>
+      {hasPhotos
+        ? 'احذف صور قديمة أو خذ نسخة احتياطية من الإعدادات، وبعدها جرّب مرة ثانية. جلساتك ما تأثرت.'
+        : 'ما بقى مكان لصورة جديدة على هذا الجهاز. جلساتك ما تأثرت، وتقدر تاخذ منها نسخة احتياطية من الإعدادات.'}
+    </Banner>
   )
 }
 

@@ -11,7 +11,9 @@ import '../styles/screens/progress.css'
 // ── الأرقام ───────────────────────────────────────────────────
 //
 // The charts that used to sit on an orphaned stats page, back where
-// progress lives: this week's tonnage as the one big number, the last
+// progress lives: the week's tonnage as the one big number (this week's
+// once there is any; before that, the last week that had some — never
+// a bold «0» on a Sunday morning), the last
 // twelve weeks of volume and of sessions drawn to scale, the totals,
 // the heaviest weight on each main lift (gold — it is the best weight),
 // and where the sets went this month.
@@ -29,6 +31,47 @@ const tons = (kg) => {
 const repsWord = (n) => (n >= 3 && n <= 10 ? 'تكرارات' : 'تكرار')
 const sessionsWord = (n) => (n === 1 ? 'جلسة' : n === 2 ? 'جلستين' : n >= 3 && n <= 10 ? 'جلسات' : 'جلسة')
 const dm = (ms) => { const d = new Date(ms); return `${d.getDate()}/${d.getMonth() + 1}` }
+/** A number and its unit that never break apart: «1.9 طن», «3 جلسات». */
+const Qty = ({ n, u }) => <span className="nb-nw"><Num>{n}</Num> {u}</span>
+const sessionsQty = (n) => (n === 2 ? 'جلستين' : <Qty n={n} u={sessionsWord(n)} />)
+const weeksAgo = (n) => (n === 2 ? 'قبل أسبوعين' : n <= 10 ? <>قبل <Qty n={n} u="أسابيع" /></> : <>قبل <Qty n={n} u="أسبوع" /></>)
+
+/**
+ * What the big number says. This week's tonnage once there is some;
+ * otherwise the latest week in the window that had some, named as such,
+ * with this week's state underneath; with nothing lifted in twelve weeks,
+ * the total since the first session.
+ */
+function heroOf(weeks, totalVol, sessionCount) {
+  const n = weeks.length
+  const now = weeks[n - 1]
+  const prev = weeks[n - 2]
+  const thisWeek = now.sessions > 0
+    ? <>{sessionsQty(now.sessions)} هذا الأسبوع</>
+    : 'ما تمرّنت هذا الأسبوع للحين'
+
+  if (now.volume > 0) {
+    return {
+      eyebrow: 'حجم هذا الأسبوع', value: tons(now.volume), unit: 'طن',
+      sub: <>{thisWeek}{prev.volume > 0 && <> · الأسبوع اللي قبله <Qty n={tons(prev.volume)} u="طن" /></>}</>,
+    }
+  }
+  let i = n - 2
+  while (i >= 0 && !(weeks[i].volume > 0)) i--
+  if (i === n - 2) {
+    return { eyebrow: 'حجم الأسبوع اللي فات', value: tons(prev.volume), unit: 'طن', sub: thisWeek }
+  }
+  if (i >= 0) {
+    return {
+      eyebrow: 'آخر أسبوع رفعت فيه أوزان', value: tons(weeks[i].volume), unit: 'طن',
+      sub: <>{weeksAgo(n - 1 - i)} · {thisWeek}</>,
+    }
+  }
+  if (totalVol > 0) {
+    return { eyebrow: 'رفعت من أول جلسة', value: tons(totalVol), unit: 'طن', sub: thisWeek }
+  }
+  return { eyebrow: 'جلساتك من البداية', value: sessionCount, unit: sessionsWord(sessionCount), sub: thisWeek }
+}
 
 function weekly(sessions) {
   const today = dayStart(todayKey())
@@ -102,24 +145,20 @@ export default function StatsPage({ sessions = [] }) {
     )
   }
 
-  const { weeks, now, prev } = data
+  const { weeks, now } = data
   const label = (w, i) => (i === weeks.length - 1 ? 'هذا الأسبوع' : <Num>{dm(w.start)}</Num>)
+  const hero = heroOf(weeks, data.totalVol, sessions.length)
 
   return (
     <div className="nb" data-testid="numbers">
-      {/* ── The one big number: this week's tonnage ── */}
+      {/* ── The one big number: the week's tonnage ── */}
       <section className="nb-hero">
-        <span className="k-eyebrow">حجم هذا الأسبوع</span>
+        <span className="k-eyebrow">{hero.eyebrow}</span>
         <div className="nb-hero-n">
-          <Num className="nb-big">{tons(now.volume)}</Num>
-          <span className="nb-unit">طن</span>
+          <Num className="nb-big">{hero.value}</Num>
+          <span className="nb-unit">{hero.unit}</span>
         </div>
-        <p className="nb-hero-sub">
-          {now.sessions > 0
-            ? <>{now.sessions === 2 ? 'جلستين' : <><Num>{now.sessions}</Num> {sessionsWord(now.sessions)}</>} هذا الأسبوع</>
-            : 'ما تمرّنت هذا الأسبوع للحين'}
-          {prev.volume > 0 && <> · الأسبوع اللي قبله <Num>{tons(prev.volume)}</Num> طن</>}
-        </p>
+        <p className="nb-hero-sub">{hero.sub}</p>
       </section>
 
       <Chapter eyebrow={<>آخر <Num>{WEEKS}</Num> أسبوع</>} title="الحجم الأسبوعي">
@@ -144,7 +183,7 @@ export default function StatsPage({ sessions = [] }) {
             ariaLabel={`عدد الجلسات في كل أسبوع لآخر ${WEEKS} أسبوع. هذا الأسبوع ${now.sessions}.`}
           />
           {data.avg > 0 && (
-            <p className="nb-note">متوسطك <Num>{data.avg.toFixed(1)}</Num> جلسة بالأسبوع</p>
+            <p className="nb-note">متوسطك <Qty n={data.avg.toFixed(1)} u="جلسة" /> بالأسبوع</p>
           )}
         </div>
       </Chapter>
@@ -171,7 +210,7 @@ export default function StatsPage({ sessions = [] }) {
                   </span>
                   <span className="nb-lift-v">
                     <Weight kg={l.best} className="nb-best" />
-                    {l.reps > 0 && <span className="nb-lift-reps"><Num>{l.reps}</Num> {repsWord(l.reps)}</span>}
+                    {l.reps > 0 && <span className="nb-lift-reps"><Qty n={l.reps} u={repsWord(l.reps)} /></span>}
                   </span>
                 </div>
               )
@@ -189,7 +228,7 @@ export default function StatsPage({ sessions = [] }) {
                 <div key={m} className="nb-m">
                   <div className="nb-m-top">
                     <span>{MUSCLE_GROUPS[m]?.label || m}</span>
-                    <span className="nb-m-v"><Num>{c}</Num> مجموعة · <Num>{pct}%</Num></span>
+                    <span className="nb-m-v"><Qty n={c} u="مجموعة" /> · <Num>{pct}%</Num></span>
                   </div>
                   <div className="nb-m-track"><i style={{ transform: `scaleX(${pct / 100})` }} /></div>
                 </div>

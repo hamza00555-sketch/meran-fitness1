@@ -11,6 +11,11 @@ import '../styles/screens/charts.css'
 // Rules it keeps:
 //   · drawn to scale from zero, with the top gridline at a round number
 //     so the eye can read the bars against it;
+//   · the scale («8 طن» … «0») has its own column on the start edge,
+//     outside the bars. It used to sit inside the plot over the newest
+//     bar, so in a best week — the top gridline is within a few percent
+//     of the max by construction — the scale and that bar's value were
+//     drawn on top of each other;
 //   · time runs with the reading direction — oldest on the start edge
 //     (right, in Arabic), newest at the end — the same way every
 //     progress bar in the app fills;
@@ -47,10 +52,12 @@ export default function BarChart({
 
   return (
     <figure className={`bc bc-${tone}${animate ? ' bc-anim' : ''}`} role="img" aria-label={summary}>
+      <div className="bc-scale" style={{ height }} aria-hidden="true">
+        <span className="bc-tick"><Num>{format(top)}</Num>{unit && <> {unit}</>}</span>
+        <span className="bc-tick"><Num>0</Num></span>
+      </div>
       <div className="bc-plot" style={{ height }}>
-        <div className="bc-grid" style={{ bottom: '100%' }} aria-hidden="true">
-          <span><Num>{format(top)}</Num>{unit && <> {unit}</>}</span>
-        </div>
+        <div className="bc-grid" style={{ bottom: '100%' }} aria-hidden="true" />
         <div className="bc-grid bc-grid-mid" style={{ bottom: '50%' }} aria-hidden="true" />
         {target > 0 && target <= top && (
           <div className="bc-target" style={{ bottom: `${(target / top) * 100}%` }} aria-hidden="true">

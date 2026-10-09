@@ -174,6 +174,8 @@
 .nb-big { font-size: var(--t-display); font-weight: 800; line-height: 1; font-stretch: 75%; color: var(--ink); }
 .nb-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-3); }
 .nb-hero-sub { margin: 4px 0 0; font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; }
+/* a number and its unit wrap as one word */
+.nb-nw { white-space: nowrap; }
 .nb-card {
   display: grid; gap: 12px; padding: 16px;
   background: var(--surface-1); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--edge);
@@ -216,6 +218,8 @@
 /* ══ الصور (pages/PhotosPage.jsx) ══════════════════════════════════ */
 .ph { display: grid; gap: var(--space-4); padding-bottom: var(--space-4); }
 .ph-back { margin-inline-start: -8px; }
+/* the full-store notice, when it is shown on the page: clear of the bar above when scrolled to */
+.ph-alert { scroll-margin-top: 96px; }
 .ph-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
 .ph-count { font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
 .ph-count-n { color: var(--ink-3); font-weight: 600; }
