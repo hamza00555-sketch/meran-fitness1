@@ -9,3 +9,6 @@ screenshot.mjs
 # icon pack — generated art and the built pack never enter the repo
 assets-src/
 pack/
+
+# Parallel agents' git worktrees (temporary working copies)
+.claude/worktrees/
