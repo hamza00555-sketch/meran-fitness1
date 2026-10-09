@@ -2,7 +2,7 @@ import { Card, SectionTitle, ProgressBar } from '../components/ui.jsx'
 import { DumbbellIcon } from '../components/Icons.jsx'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import Scoreboard from '../components/streak/Scoreboard.jsx'
+import StreakNumber from '../components/streak/StreakNumber.jsx'
 import { xpProgress, getRank, planDayType } from '../utils.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
@@ -94,7 +94,7 @@ function PlanProgressCard({ plan, planIndex }) {
 
 
 export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, onScoreboardVisible, tickets = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
-  onStartDeload, onDismissDeloadSuggestion, onOpenDeload, greeting = '', onOpenProfile, onOpenSettings }) {
+  onStartDeload, onDismissDeloadSuggestion, onOpenDeload, greeting = '', onOpenProfile, onOpenSettings, onOpenStreak }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -135,6 +135,8 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
     <div>
       <div className="h-top">
         <div className="h-top-text">
+          <StreakNumber recovery={recovery} config={recoveryConfig} active={active} deload={deload}
+            today={streakToday} onOpen={onOpenStreak} />
           <span className="k-eyebrow">{fmtDayAr(streakToday || todayKey())}{planWeek}</span>
           <p className="h-greet">{greeting}</p>
           {unnamed && (
@@ -147,18 +149,6 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
         </div>
       </div>
 
-      {/* ── The streak, first ──────────────────────────────────
-          The number, what today does to it, until when, at what cost,
-          and the last seven days. Everything the old header pill, the
-          five flames and the folded warning used to say in pieces. */}
-      <Scoreboard
-        recovery={recovery}
-        config={recoveryConfig}
-        active={active}
-        deload={deload}
-        today={streakToday}
-        onVisibleChange={onScoreboardVisible}
-      />
 
       {/* ── Today Hero ────────────────────────────────────────
           One card, one question: what should I do now? It absorbs the

@@ -253,3 +253,14 @@ button.k-chip { cursor: pointer; min-height: 36px; }
   width: 40px; height: 40px; border-radius: var(--r-pill); border: 0; cursor: pointer;
   background: var(--surface-3); color: var(--ink); font-family: var(--font); font-size: var(--t-headline); font-weight: 700;
 }
+
+/* ── The streak on Home: flame + number ── */
+.h-streak {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--streak); font-family: var(--font);
+  min-height: 44px;
+}
+.h-streak-flame { display: grid; }
+.h-streak b { font-size: 40px; font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--streak); }
+.h-streak b.zero { color: var(--ink-3); }
+.h-streak-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 4px; }

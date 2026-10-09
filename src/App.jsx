@@ -946,6 +946,7 @@ export default function App() {
             profile={profile}
             greeting={greeting}
             onOpenProfile={() => pushPage('profile')}
+            onOpenStreak={() => setShowStreak(true)}
             onOpenSettings={() => pushPage('settings')}
             active={active}
             plan={plan}
