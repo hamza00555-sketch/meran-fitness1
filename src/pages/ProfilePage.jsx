@@ -1,829 +1,203 @@
 import { useState } from 'react'
-import { Card, SectionTitle, ProgressBar, RankBadge } from '../components/ui.jsx'
-import { AgeIcon, WeightIcon, HeightIcon, BodyFatIcon, TargetIcon, SystemIcon } from '../components/Icons.jsx'
-import {
-  xpProgress, getRank, getCommitmentLevel,
-  calcBMI, bmiCategory, calcAge, fmtDuration,
-  sessionVolume, calcStreak,
-} from '../utils.js'
+import { Chip, Gauge, Chapter, ListGroup, ListRow, Num } from '../components/kit/index.jsx'
+import { Target, Barbell, Ruler, GearSix, Camera, CaretLeft, Flame, Scales, Person, CalendarBlank } from '../components/kit/icons.js'
+import { ForkKnife, Percent } from '@phosphor-icons/react'
+import { xpProgress, getRank, calcBMI, bmiCategory, calcAge, sessionVolume, ls } from '../utils.js'
 import { GOALS } from '../constants.js'
-import { toWesternDigits } from '../day.js'
+import { countAr } from '../streak.js'
+import { Ar } from './settings/parts.jsx'
+import {
+  EditSheet, GoalSheet, SystemSheet, MeasurementsSheet, ProteinSheet,
+  BODY_MEASUREMENTS, TRAINING_SYSTEMS, proteinPlan,
+} from './profile/ProfileSheets.jsx'
+import '../styles/screens/profile.css'
 
-const ACTIVITY_LEVELS = [
-  { id: 'sedentary',   label: 'قليل الحركة',   mult: 1.2,   desc: 'مكتب / لا رياضة' },
-  { id: 'light',       label: 'خفيف',           mult: 1.375, desc: '1-3 أيام/أسبوع' },
-  { id: 'moderate',    label: 'متوسط',          mult: 1.55,  desc: '3-5 أيام/أسبوع' },
-  { id: 'active',      label: 'نشيط',           mult: 1.725, desc: '6-7 أيام/أسبوع' },
-]
+// ── الملف ─────────────────────────────────────────────────────
+//
+// A pushed page (App draws the «الملف» bar and the gear). In order:
+// who you are, your level, your body, your photos, your totals, and the
+// rows that open the rest (critique F55). The stale-weight reminder is a
+// dot in the weight cell, not a banner over the page; gold is gone — it
+// belongs to «ارفع الوزن».
 
-const PROTEIN_FACTORS = {
-  muscle: 2.0, fat_loss: 2.2, strength: 1.8,
-  endurance: 1.6, recomp: 2.2, maintain: 1.6,
-}
+const hasValue = (v) => v !== null && v !== undefined && v !== ''
+const STALE_DAYS = 30
 
-const CALORIE_ADJUST = {
-  muscle: 350, fat_loss: -400, strength: 200,
-  endurance: 150, recomp: 0, maintain: 0,
-}
+export default function ProfilePage({
+  profile, sessions = [], xp = 0, streak = 0, level, onUpdateProfile, onGoToPhotos, recovery,
+  photos: photosProp, storedBest: storedBestProp, onOpenSettings,
+}) {
+  const [editField, setEditField] = useState(null)
+  const [editOpen, setEditOpen] = useState(false)
+  const [sheet, setSheet] = useState(null)   // 'goal' | 'system' | 'measure' | 'protein'
+  const [activity, setActivity] = useState('moderate')
 
-// Most commonly tracked body measurements (all in cm)
-const BODY_MEASUREMENTS = [
-  { id: 'neck',     label: 'الرقبة',   emoji: '🧣', color: 'var(--cyan)'   },
-  { id: 'shoulders',label: 'الأكتاف',  emoji: '🦾', color: 'var(--blue)'   },
-  { id: 'chest',    label: 'الصدر',    emoji: '🫁', color: 'var(--purple)' },
-  { id: 'biceps',   label: 'البايسبس', emoji: '💪', color: 'var(--gold)'   },
-  { id: 'forearm',  label: 'الساعد',   emoji: '🤜', color: 'var(--orange)' },
-  { id: 'waist',    label: 'الخصر',    emoji: '📏', color: 'var(--green)'  },
-  { id: 'hips',     label: 'الأرداف',  emoji: '🍑', color: 'var(--red)'    },
-  { id: 'thigh',    label: 'الفخذ',    emoji: '🦵', color: 'var(--cyan)'   },
-  { id: 'calf',     label: 'السمانة',  emoji: '🦶', color: 'var(--blue)'   },
-]
+  const { currentXP, neededXP, level: lvl } = xpProgress(xp)
+  const lv = level || lvl
+  const rank = getRank(lv)
+  const age = calcAge(profile?.birthday)
+  const bmi = calcBMI(profile?.weight, profile?.height)
+  const goal = GOALS.find(g => g.id === profile?.goal) || GOALS[0]
+  const system = TRAINING_SYSTEMS.find(s => s.id === profile?.trainingSystem) || null
+  const name = profile?.name || 'البطل'
 
-const TRAINING_SYSTEMS = [
-  { id: 'ppl',        label: 'PPL',               desc: 'Push / Pull / Legs' },
-  { id: 'upper-lower',label: 'Upper-Lower',        desc: 'أعلى / أسفل الجسم' },
-  { id: 'full-body',  label: 'Full Body',          desc: 'الجسم كامل' },
-  { id: 'bro-split',  label: 'Bro Split',          desc: 'تقسيم كلاسيكي' },
-  { id: 'custom',     label: 'مخصص',               desc: 'حسب الجدول الشخصي' },
-]
+  // Weight update reminder: missing, or older than a month.
+  const lastUpdate = profile?.lastWeightUpdate
+  const daysSince = lastUpdate ? Math.floor((Date.now() - new Date(lastUpdate)) / 86400000) : null
+  const needsUpdate = daysSince === null || daysSince > STALE_DAYS
 
-export default function ProfilePage({ profile, sessions, xp, streak, level, onUpdateProfile, onGoToPhotos, recovery }) {
-  const [editField,  setEditField]  = useState(null)
-  const [editValue,  setEditValue]  = useState('')
-  const [activity,   setActivity]   = useState('moderate')
-
-  const { currentXP, neededXP, pct } = xpProgress(xp)
-  const rank       = getRank(level)
-  const commitment = getCommitmentLevel(streak)
-  const age        = calcAge(profile?.birthday)
-  const bmi        = calcBMI(profile?.weight, profile?.height)
-  const bmiCat     = bmiCategory(bmi)
-  const goal       = GOALS.find(g => g.id === profile?.goal) || GOALS[0]
-  const trainingSystem = TRAINING_SYSTEMS.find(s => s.id === profile?.trainingSystem) || null
-
-  // Weight update reminder
-  const lastUpdate  = profile?.lastWeightUpdate
-  const daysSince   = lastUpdate ? Math.floor((Date.now() - new Date(lastUpdate)) / 86400000) : null
-  const needsUpdate = daysSince === null || daysSince > 30
-
-  // Lifetime stats
+  // Lifetime totals.
   const totalSessions = sessions.length
-  const totalVolume   = sessions.reduce((t, s) => t + sessionVolume(s), 0)
-  // There is no record of the longest streak yet, so the box that said
-  // «أفضل» was showing today's number under the wrong name. It says
-  // what it is until a real best is kept.
+  const tons = sessions.reduce((t, s) => t + sessionVolume(s), 0) / 1000
+  // Read once, not on every render: the photos are data URLs and can run
+  // to megabytes. App passes both when wired; storage is the fallback.
+  const [stored] = useState(() => ({
+    best: storedBestProp === undefined ? ls.get('hf_streak_best', null) : null,
+    photos: photosProp ? null : (ls.get('hf_photos', []) || []),
+  }))
+  const storedBest = storedBestProp !== undefined ? storedBestProp : stored.best
+  const bestStreak = Math.max(recovery?.bestRun?.length || 0, storedBest?.value || 0, streak || 0)
 
-  const startEdit = (field, current) => {
-    setEditField(field)
-    setEditValue(current !== null && current !== undefined ? String(current) : '')
-  }
+  const photos = photosProp || stored.photos || []
+  const shelf = [...photos].reverse().slice(0, 4)
 
-  const saveEdit = () => {
-    if (!editField) return
-    let update
-    if (editField.startsWith('m_')) {
-      const id = editField.slice(2)
-      update = {
-        ...profile,
-        measurements: { ...(profile?.measurements || {}), [id]: editValue },
-        lastMeasurementsUpdate: new Date().toISOString(),
-      }
-    } else {
-      update = { ...profile, [editField]: editValue }
-      if (editField === 'weight') update.lastWeightUpdate = new Date().toISOString()
-    }
+  const measured = BODY_MEASUREMENTS.filter(m => hasValue(profile?.measurements?.[m.id])).length
+  const protein = proteinPlan(profile, activity).protein
+
+  const startEdit = (field) => { setEditField(field); setEditOpen(true) }
+  const saveField = (field, value) => {
+    const update = { ...profile, [field]: value }
+    if (field === 'weight') update.lastWeightUpdate = new Date().toISOString()
     onUpdateProfile(update)
-    setEditField(null)
   }
+  // From the protein sheet to a field: one sheet at a time.
+  const editFromProtein = (field) => { setSheet(null); setTimeout(() => startEdit(field), 260) }
 
-  const cancelEdit = () => setEditField(null)
-
-  // BMI color
-  const bmiColor = !bmi ? 'var(--text2)'
-    : bmi < 18.5 ? 'var(--blue)'
-    : bmi < 25   ? 'var(--green)'
-    : bmi < 30   ? 'var(--orange)'
-    : 'var(--red)'
-
-  return (
-    <div style={{ paddingBottom: 100 }}>
-
-      {/* ── Weight Update Banner ──────────────────────────────── */}
-      {needsUpdate && (
-        <div style={{
-          background: 'var(--orange-lo)', border: '1px solid var(--orange)',
-          borderRadius: 12, padding: '12px 16px', marginBottom: 14,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, color: 'var(--orange)' }}>
-              ⚠️ تذكير تحديث الوزن
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>
-              {daysSince ? `آخر تحديث منذ ${daysSince} يوم` : 'لم تسجل وزنك بعد'}
-            </div>
-          </div>
-          <button
-            onClick={() => startEdit('weight', profile?.weight)}
-            style={{
-              background: 'var(--orange)', border: 'none',
-              borderRadius: 8, padding: '8px 14px',
-              color: '#0A0A0A', fontFamily: 'var(--font-ar)',
-              fontWeight: 700, fontSize: 13, cursor: 'pointer',
-            }}
-          >تحديث</button>
-        </div>
-      )}
-
-      {/* ── Player Card ───────────────────────────────────────── */}
-      <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--cyan)">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-          {/* Avatar with pulsing ring */}
-          <div style={{ position: 'relative', flexShrink: 0 }}>
-            {/* Pulse ring */}
-            <div style={{
-              position: 'absolute', inset: -4,
-              borderRadius: '50%',
-              border: `2px solid ${rank.color}`,
-              animation: 'ringExpand 2.5s ease-out infinite',
-              pointerEvents: 'none',
-            }} />
-            <div style={{
-              width: 68, height: 68, borderRadius: '50%',
-              background: `linear-gradient(135deg, ${rank.color}, ${rank.color}80)`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 30, fontWeight: 900, color: '#F0F4FF',
-              boxShadow: `0 0 20px ${rank.color}40`,
-            }}>
-              {(profile?.name || 'H')[0]}
-            </div>
-          </div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 22, fontWeight: 900 }}>
-              {profile?.name || 'البطل'}
-            </div>
-            <div style={{ marginTop: 5 }}>
-              <RankBadge rank={rank} />
-            </div>
-          </div>
-        </div>
-
-        {/* XP + Level badges */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-          <div style={{
-            background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-            borderRadius: 20, padding: '5px 14px',
-            fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)', fontWeight: 700,
-          }}>
-            ⭐ {xp.toLocaleString()} XP
-          </div>
-          <div style={{
-            background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.3)',
-            borderRadius: 20, padding: '5px 14px',
-            fontFamily: 'var(--font-mono)', fontSize: 13, color: '#F59E0B', fontWeight: 700,
-          }}>
-            LVL {level}
-          </div>
-        </div>
-
-        <ProgressBar value={currentXP} max={neededXP} color="var(--gold)" height={8} />
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
-          marginTop: 6,
-        }}>
-          {currentXP} / {neededXP} XP للمستوى التالي
-        </div>
-      </Card>
-
-      {/* ════════════════════════════════════════════════════════ */}
-      {/* ══ VITALS SECTION — THE MAIN FEATURE ══════════════════ */}
-      {/* ════════════════════════════════════════════════════════ */}
-      <div style={{
-        background: 'var(--bg1)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', marginBottom: 14,
-        overflow: 'hidden',
-      }}>
-        {/* Section header with rank color left bar */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '18px 20px 14px',
-          borderBottom: '1px solid var(--border)',
-        }}>
-          <div style={{
-            width: 4, height: 24, background: rank.color,
-            borderRadius: 3, flexShrink: 0,
-          }} />
-          <span style={{
-            fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800,
-            color: 'var(--text)',
-          }}>العلامات الحيوية</span>
-        </div>
-
-        <div style={{ padding: '16px 20px 20px' }}>
-          {/* 2×2 Vital Cards Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-            <VitalCard
-              label="العمر"
-              value={age || null}
-              unit="سنة"
-              color="var(--cyan)"
-              Icon={AgeIcon}
-              onEdit={() => startEdit('birthday', profile?.birthday)}
-            />
-            <VitalCard
-              label="الوزن"
-              value={profile?.weight || null}
-              unit="كغ"
-              color="var(--gold)"
-              Icon={WeightIcon}
-              onEdit={() => startEdit('weight', profile?.weight)}
-            />
-            <VitalCard
-              label="الطول"
-              value={profile?.height || null}
-              unit="سم"
-              color="var(--green)"
-              Icon={HeightIcon}
-              onEdit={() => startEdit('height', profile?.height)}
-            />
-            <VitalCard
-              label="دهون الجسم"
-              value={profile?.bodyFat || null}
-              unit="%"
-              color="var(--orange)"
-              Icon={BodyFatIcon}
-              onEdit={() => startEdit('bodyFat', profile?.bodyFat)}
-            />
-          </div>
-
-          {/* BMI — full-width prominent card */}
-          <div style={{
-            background: 'var(--bg2)',
-            border: `2px solid ${bmiColor}40`,
-            borderRadius: 14,
-            padding: '16px 20px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            marginBottom: 12,
-          }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>
-                مؤشر كتلة الجسم (BMI)
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800,
-                color: bmiColor,
-              }}>
-                {bmi > 0 ? bmiCat : 'أدخل الوزن والطول'}
-              </div>
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 40, fontWeight: 900,
-              color: bmiColor, lineHeight: 1,
-            }}>
-              {bmi > 0 ? bmi : '—'}
-            </div>
-          </div>
-
-          {/* Goal row */}
-          <div
-            onClick={() => startEdit('goal', profile?.goal)}
-            style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-              background: 'var(--bg2)', border: '1px solid var(--border2)',
-              borderRadius: 14, padding: '10px',
-              cursor: 'pointer', marginBottom: 10,
-              transition: 'border-color 0.15s', textAlign: 'center',
-            }}
-          >
-            {goal.img
-              ? <img src={goal.img} alt={goal.label} style={{ width: 120, height: 120, objectFit: 'contain', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
-              : <TargetIcon size={66} color="var(--purple)" />
-            }
-            <div style={{ width: '100%' }}>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>الهدف</div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
-                {goal.label}
-              </div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)', marginTop: 4 }}>اضغط للتغيير</div>
-            </div>
-          </div>
-
-          {/* Training System row */}
-          <div
-            onClick={() => startEdit('trainingSystem', profile?.trainingSystem)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              background: 'var(--bg2)', border: '1px solid var(--border2)',
-              borderRadius: 14, padding: '14px 16px',
-              cursor: 'pointer',
-              transition: 'border-color 0.15s',
-            }}
-          >
-            <SystemIcon size={22} color="var(--blue)" />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 2 }}>نظام التمرين</div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>
-                {trainingSystem ? trainingSystem.label : (
-                  <span style={{ color: 'var(--text3)', fontWeight: 400 }}>اضغط للاختيار</span>
-                )}
-              </div>
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--cyan)' }}>تغيير</div>
-          </div>
-        </div>
-      </div>
-      {/* ════════════════════════════════════════════════════════ */}
-
-      {/* ── Body Measurements ─────────────────────────────────── */}
-      <div style={{
-        background: 'var(--bg1)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius)', marginBottom: 14,
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '18px 20px 14px',
-          borderBottom: '1px solid var(--border)',
-        }}>
-          <div style={{
-            width: 4, height: 24, background: 'var(--purple)',
-            borderRadius: 3, flexShrink: 0,
-          }} />
-          <div style={{ flex: 1 }}>
-            <span style={{
-              fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800,
-              color: 'var(--text)',
-            }}>قياسات الجسم</span>
-            {profile?.lastMeasurementsUpdate && (
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                آخر تحديث: {new Date(profile.lastMeasurementsUpdate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })}
-              </div>
-            )}
-          </div>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)' }}>cm</span>
-        </div>
-
-        <div style={{ padding: '16px 20px 20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-            {BODY_MEASUREMENTS.map(m => {
-              const val = profile?.measurements?.[m.id]
-              const hasValue = val !== null && val !== undefined && val !== ''
-              return (
-                <div
-                  key={m.id}
-                  onClick={() => startEdit(`m_${m.id}`, val)}
-                  style={{
-                    background: 'var(--bg2)',
-                    border: '1px solid var(--border)',
-                    borderTop: `3px solid ${m.color}`,
-                    borderRadius: 12,
-                    padding: '12px 10px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'transform 0.15s',
-                  }}
-                  onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)' }}
-                  onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                  onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-                >
-                  <div style={{ fontSize: 20, marginBottom: 6 }}>{m.emoji}</div>
-                  {hasValue ? (
-                    <div style={{
-                      fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800,
-                      color: m.color, lineHeight: 1, marginBottom: 4,
-                    }}>
-                      {val}
-                      <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text3)', marginRight: 2 }}>سم</span>
-                    </div>
-                  ) : (
-                    <div style={{
-                      fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)',
-                      marginBottom: 4,
-                    }}>—</div>
-                  )}
-                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
-                    {m.label}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Training rhythm (recovery engine) ─────────────────── */}
-      <Card style={{ padding: 6, marginBottom: 4 }}>
-        <SectionTitle>إيقاع التدريب</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <StatBox label="تمارين متتالية" value={recovery?.workoutStreak ?? 0} color="var(--cyan)" />
-          <StatBox label="أيام التزام"    value={recovery?.consistencyStreak ?? 0} color="var(--gold)" />
-        </div>
-        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', lineHeight: 1.8 }}>
-          دورة التعافي: {(recovery?.pattern || []).map(n => `${n} تمارين ← راحة`).join(' ← ') || '—'}
-          {profile?.workoutTime && <><br/>وقت التدريب المفضل: {profile.workoutTime}</>}
-        </div>
-      </Card>
-
-      {/* ── Lifetime Stats ────────────────────────────────────── */}
-      <Card style={{ padding: 6, marginBottom: 4 }}>
-        <SectionTitle>إحصائيات كاملة</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <StatBox label="إجمالي الجلسات" value={totalSessions} color="var(--cyan)" />
-          <StatBox label="الحجم (طن)" value={`${(totalVolume / 1000).toFixed(1)}`} color="var(--gold)" />
-          <StatBox label="الستريك الحالي" value={`${streak} يوم`} color="var(--streak)" />
-          <StatBox label="إجمالي XP" value={xp.toLocaleString()} color="var(--purple)" />
-        </div>
-      </Card>
-
-      {/* ── Photo Progress ────────────────────────────────────── */}
-      {onGoToPhotos && (
-        <button
-          onClick={onGoToPhotos}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-            background: 'var(--bg1)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)', padding: '16px 20px',
-            cursor: 'pointer', marginBottom: 14, transition: 'border-color 0.15s',
-          }}
-          onMouseOver={e => e.currentTarget.style.borderColor = 'var(--cyan)'}
-          onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border)'}
-        >
-          <div style={{ fontSize: 28 }}>📸</div>
-          <div style={{ flex: 1, textAlign: 'right' }}>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700 }}>صور التقدم</div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-              صوّر يومياً وقارن قبل وبعد
-            </div>
-          </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--cyan)' }}>←</div>
-        </button>
-      )}
-
-      {/* ── Protein Calculator ───────────────────────────────── */}
-      <ProteinCalc profile={profile} activity={activity} setActivity={setActivity} />
-
-      {/* ── Edit Modal ────────────────────────────────────────── */}
-      {editField && (
-        <EditModal
-          field={editField}
-          value={editValue}
-          onChange={setEditValue}
-          onSave={saveEdit}
-          onCancel={cancelEdit}
-          profile={profile}
-        />
-      )}
-    </div>
-  )
-}
-
-// ── Protein Calculator ────────────────────────────────────────
-function ProteinCalc({ profile, activity, setActivity }) {
-  const weight = parseFloat(profile?.weight) || null
-  const height = parseFloat(profile?.height) || null
-  const age    = calcAge(profile?.birthday)  || null
-  const goal   = profile?.goal || 'muscle'
-
-  const protein = weight ? Math.round(weight * (PROTEIN_FACTORS[goal] || 2.0)) : null
-
-  let calories = null, fatG = null, carbG = null
-  if (weight && height && age) {
-    const bmr   = 88.36 + 13.4 * weight + 4.8 * height - 5.7 * age
-    const mult  = ACTIVITY_LEVELS.find(a => a.id === activity)?.mult || 1.55
-    const tdee  = bmr * mult
-    calories    = Math.round(tdee + (CALORIE_ADJUST[goal] || 0))
-    const protCals = (protein || 0) * 4
-    const fatCals  = Math.round(calories * 0.27)
-    fatG           = Math.round(fatCals / 9)
-    carbG          = Math.round((calories - protCals - fatCals) / 4)
-  }
-
-  const missing = !weight || !height || !age
-
-  return (
-    <Card style={{ padding: 6, marginBottom: 4 }} topColor="var(--cyan)">
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <div style={{ fontSize: 24 }}>🥩</div>
-        <div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800 }}>
-            حاسبة البروتين
-          </div>
-          <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
-            احتياجاتك اليومية حسب هدفك
-          </div>
-        </div>
-      </div>
-
-      {missing ? (
-        <div style={{
-          background: 'var(--bg2)', borderRadius: 12, padding: '14px 16px',
-          fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)',
-          textAlign: 'center',
-        }}>
-          أدخل وزنك وطولك وتاريخ ميلادك من العلامات الحيوية لحساب احتياجاتك
-        </div>
+  const cell = ({ field, label, icon: Icon, value, unit, sub, dot }) => (
+    <button type="button" className="pf-cell" onClick={() => startEdit(field)}
+      aria-label={`${label}: ${hasValue(value) ? `${value} ${unit}` : 'أضف'}`}>
+      <span className="pf-cell-label">
+        <Icon size={16} weight="regular" aria-hidden="true" />{label}
+        {dot && <i className="pf-dot" aria-hidden="true" />}
+      </span>
+      {hasValue(value) ? (
+        <span className="pf-cell-value"><Num>{value}</Num><span className="pf-unit">{unit}</span></span>
       ) : (
-        <>
-          {/* Activity selector */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 8 }}>
-              مستوى النشاط
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              {ACTIVITY_LEVELS.map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => setActivity(a.id)}
-                  style={{
-                    background: activity === a.id ? 'var(--cyan-lo)' : 'var(--bg2)',
-                    border: `1px solid ${activity === a.id ? 'var(--cyan)' : 'var(--border)'}`,
-                    borderRadius: 10, padding: '8px 10px', cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 700,
-                    color: activity === a.id ? 'var(--cyan)' : 'var(--text2)' }}>
-                    {a.label}
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>
-                    {a.desc}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Main protein stat */}
-          <div style={{
-            background: 'linear-gradient(135deg, var(--cyan-lo), var(--bg2))',
-            border: '1px solid var(--cyan-md)',
-            borderRadius: 14, padding: '18px 20px', marginBottom: 10,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>
-                البروتين اليومي
-              </div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
-                {(PROTEIN_FACTORS[goal] || 2.0)}g × {weight}كغ
-              </div>
-            </div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 44, fontWeight: 900, color: 'var(--cyan)', lineHeight: 1 }}>
-                {protein}
-              </div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
-                جرام / يوم
-              </div>
-            </div>
-          </div>
-
-          {/* Calories + macros */}
-          {calories && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-              <MacroBox label="سعرات" value={calories} unit="kcal" color="var(--gold)" />
-              <MacroBox label="دهون" value={fatG} unit="g" color="var(--orange)" />
-              <MacroBox label="كارب" value={carbG} unit="g" color="var(--green)" />
-            </div>
-          )}
-        </>
+        <span className="pf-cell-empty">—<span className="pf-add">أضف</span></span>
       )}
-    </Card>
+      {sub && <span className="pf-cell-sub">{sub}</span>}
+    </button>
   )
-}
 
-function MacroBox({ label, value, unit, color }) {
   return (
-    <div style={{
-      background: 'var(--bg2)', border: `1px solid ${color}30`,
-      borderTop: `3px solid ${color}`,
-      borderRadius: 12, padding: '12px 10px', textAlign: 'center',
-    }}>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 800, color }}>
-        {value}
-      </div>
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
-        {unit}
-      </div>
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)' }}>
-        {label}
-      </div>
-    </div>
-  )
-}
-
-// ── Vital Card ────────────────────────────────────────────────
-function VitalCard({ label, value, unit, color, Icon, onEdit }) {
-  const hasValue = value !== null && value !== undefined && value !== ''
-  return (
-    <div style={{
-      background: 'var(--bg2)',
-      border: `1px solid var(--border)`,
-      borderTop: `3px solid ${color}`,
-      borderRadius: 14,
-      padding: '16px 14px',
-      position: 'relative',
-      cursor: 'pointer',
-      transition: 'transform 0.15s',
-    }}
-    onClick={onEdit}
-    onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.97)' }}
-    onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
-    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-    >
-      {/* Icon + edit pencil row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <Icon size={22} color={color} />
-        <div style={{
-          background: 'var(--bg3)', border: '1px solid var(--border2)',
-          borderRadius: 7, padding: '3px 6px',
-          color: 'var(--text3)', fontSize: 13, lineHeight: 1,
-        }}>✏️</div>
-      </div>
-
-      {/* Value */}
-      {hasValue ? (
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 900,
-          color, lineHeight: 1, marginBottom: 4,
-        }}>
-          {value}
-          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text3)', marginRight: 4 }}>
-            {unit}
-          </span>
+    <div className="pf">
+      {/* ── Who ── */}
+      <section className="pf-id">
+        <div className="pf-avatar" aria-hidden="true">{name[0]}</div>
+        <div className="pf-id-text">
+          <h1 className="pf-name">{name}</h1>
+          <Chip><Num>{rank.tier}</Num> · {rank.label}</Chip>
         </div>
-      ) : (
-        <div style={{
-          fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text3)',
-          lineHeight: 1, marginBottom: 4, marginTop: 4,
-        }}>
-          اضغط للإضافة
+      </section>
+
+      {/* ── Level ── */}
+      <section className="pf-level" aria-label="المستوى">
+        <p className="pf-level-line">
+          <span>المستوى <Num>{lv}</Num></span>
+          <span aria-hidden="true">·</span>
+          <Num>{`${xp.toLocaleString('en-US')} XP`}</Num>
+        </p>
+        <Gauge value={currentXP} max={neededXP} tone="accent" label="التقدم للمستوى الجاي" />
+        <p className="pf-level-left">
+          باقي <Num>{`${Math.max(0, neededXP - currentXP).toLocaleString('en-US')} XP`}</Num> للمستوى <Num>{lv + 1}</Num>
+        </p>
+      </section>
+
+      {/* ── Body ── */}
+      <Chapter title="الجسم">
+        <div className="pf-grid">
+          {cell({
+            field: 'weight', label: 'الوزن', icon: Scales, value: profile?.weight, unit: 'كجم',
+            dot: needsUpdate,
+            sub: hasValue(profile?.weight) && needsUpdate
+              ? (daysSince !== null ? <Ar>{`آخر تحديث قبل ${countAr(daysSince, 'day')}`}</Ar> : 'حدّث وزنك')
+              : null,
+          })}
+          {cell({ field: 'height', label: 'الطول', icon: Ruler, value: profile?.height, unit: 'سم' })}
+          {cell({ field: 'birthday', label: 'العمر', icon: CalendarBlank, value: age || null, unit: 'سنة' })}
+          {cell({ field: 'bodyFat', label: 'الدهون', icon: Percent, value: profile?.bodyFat, unit: '%' })}
         </div>
-      )}
-
-      {/* Label */}
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
-        {label}
-      </div>
-    </div>
-  )
-}
-
-// ── Stat Box ──────────────────────────────────────────────────
-function StatBox({ label, value, color }) {
-  return (
-    <div style={{
-      background: 'var(--bg2)', border: '1px solid var(--border)',
-      borderRadius: 12, padding: '16px 14px', textAlign: 'center',
-    }}>
-      <div style={{
-        fontFamily: 'var(--font-mono)', fontSize: 24,
-        fontWeight: 800, color, marginBottom: 6,
-      }}>{value}</div>
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>{label}</div>
-    </div>
-  )
-}
-
-// ── Edit Modal ────────────────────────────────────────────────
-function EditModal({ field, value, onChange, onSave, onCancel, profile }) {
-  const FIELD_LABELS = {
-    name:           'الاسم',
-    birthday:       'تاريخ الميلاد',
-    height:         'الطول (سم)',
-    weight:         'الوزن (كجم)',
-    bodyFat:        'نسبة الدهون (%)',
-    goal:           'الهدف',
-    trainingSystem: 'نظام التمرين',
-  }
-
-  const FIELD_TYPES = {
-    name:           'text',
-    birthday:       'date',
-    height:         'number',
-    weight:         'number',
-    bodyFat:        'number',
-    goal:           'select',
-    trainingSystem: 'select-system',
-  }
-
-  const measurement = field.startsWith('m_')
-    ? BODY_MEASUREMENTS.find(m => m.id === field.slice(2))
-    : null
-  const label    = measurement ? `${measurement.label} (سم)` : (FIELD_LABELS[field] || field)
-  const type     = measurement ? 'number' : (FIELD_TYPES[field] || 'text')
-
-  return (
-    <div
-      onClick={onCancel}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 300,
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '80px 20px 20px',
-        overflowY: 'auto',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="scale-enter"
-        style={{
-          background: 'var(--bg1)', border: '1px solid var(--border)',
-          borderRadius: 16, padding: 24, width: '100%', maxWidth: 400,
-        }}
-      >
-        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 18, fontWeight: 800, marginBottom: 18 }}>
-          تعديل {label}
-        </div>
-
-        {type === 'select' ? (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 18 }}>
-            {GOALS.map(g => {
-              const isSelected = value === g.id
-              return (
-                <div
-                  key={g.id}
-                  onClick={() => onChange(g.id)}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                    padding: '10px 6px',
-                    background: isSelected ? 'var(--cyan-lo)' : 'var(--bg3)',
-                    border: `2px solid ${isSelected ? 'var(--cyan)' : 'var(--border)'}`,
-                    borderRadius: 12, cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {g.img
-                    ? <img src={g.img} alt={g.label} style={{ width: 48, height: 48, objectFit: 'contain', filter: isSelected ? 'none' : 'grayscale(0.4) brightness(0.75)' }} />
-                    : <span style={{ fontSize: 28 }}>{g.icon}</span>
-                  }
-                  <div style={{
-                    fontFamily: 'var(--font-ar)', fontSize: 11, fontWeight: isSelected ? 700 : 400,
-                    color: isSelected ? 'var(--cyan)' : 'var(--text3)', textAlign: 'center',
-                  }}>{g.label}</div>
-                </div>
-              )
-            })}
-          </div>
-        ) : type === 'select-system' ? (
-          <select
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            style={{
-              width: '100%', background: 'var(--bg3)',
-              border: '1px solid var(--border2)', borderRadius: 10,
-              padding: '12px 14px', color: 'var(--text)',
-              fontFamily: 'var(--font-ar)', fontSize: 15, outline: 'none',
-              marginBottom: 18, cursor: 'pointer',
-            }}
-          >
-            {TRAINING_SYSTEMS.map(s => (
-              <option key={s.id} value={s.id}>{s.label} — {s.desc}</option>
-            ))}
-          </select>
-        ) : (
-          <input
-            type={type === 'number' ? 'text' : type}
-            inputMode={type === 'number' ? 'decimal' : undefined}
-            autoFocus
-            value={value}
-            onChange={e => onChange(type === 'number' ? toWesternDigits(e.target.value) : e.target.value)}
-            style={{
-              width: '100%', background: 'var(--bg3)',
-              border: '1px solid var(--cyan)', borderRadius: 10,
-              padding: '14px', color: 'var(--text)',
-              fontFamily: type === 'text' ? 'var(--font-ar)' : 'var(--font-mono)',
-              fontSize: 16, outline: 'none', marginBottom: 18,
-              direction: type === 'number' || type === 'date' ? 'ltr' : 'rtl',
-              textAlign: type === 'number' || type === 'date' ? 'left' : 'right',
-            }}
-          />
+        {bmi > 0 && (
+          <p className="pf-bmi">
+            مؤشر كتلة الجسم <Num>{bmi}</Num> · {bmiCategory(bmi)}
+          </p>
         )}
+      </Chapter>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={onSave}
-            className="btn-cyan"
-            style={{ flex: 1, fontSize: 15 }}
-          >
-            حفظ
-          </button>
-          <button
-            onClick={onCancel}
-            style={{
-              flex: 1, background: 'var(--bg2)',
-              border: '1px solid var(--border2)', borderRadius: 10,
-              padding: '14px', color: 'var(--text2)',
-              fontFamily: 'var(--font-ar)', fontWeight: 700,
-              fontSize: 15, cursor: 'pointer',
-            }}
-          >
-            إلغاء
-          </button>
+      {/* ── Photos ── */}
+      {onGoToPhotos && (
+        <Chapter title="صور التقدم"
+          action={photos.length > 0 && (
+            <button type="button" className="pf-more" onClick={onGoToPhotos}>
+              الكل <Num>{photos.length}</Num>
+              <CaretLeft size={16} weight="bold" aria-hidden="true" />
+            </button>
+          )}>
+          {photos.length > 0 ? (
+            <button type="button" className="pf-shelf" onClick={onGoToPhotos} aria-label="افتح صور التقدم">
+              {shelf.map((p, i) => (
+                <span key={p.id || i} className="pf-shot">
+                  <img src={p.src} alt="" loading="lazy" />
+                  {i === 3 && photos.length > 4 && <span className="pf-shot-more"><Num>{`+${photos.length - 4}`}</Num></span>}
+                </span>
+              ))}
+            </button>
+          ) : (
+            <button type="button" className="pf-shelf-empty" onClick={onGoToPhotos}>
+              <span className="pf-shelf-icon"><Camera size={22} aria-hidden="true" /></span>
+              <span className="pf-shelf-text">
+                <b>أضف أول صورة</b>
+                <span>صوّر كل كم أسبوع وقارن قبل وبعد</span>
+              </span>
+              <CaretLeft size={16} weight="bold" className="k-row-chev" aria-hidden="true" />
+            </button>
+          )}
+        </Chapter>
+      )}
+
+      {/* ── Totals ── */}
+      <section className="pf-stats" aria-label="مجموعك">
+        <div className="pf-stat"><b><Num>{totalSessions.toLocaleString('en-US')}</Num></b><span>جلسة</span></div>
+        <div className="pf-stat"><b><Num>{tons > 0 ? tons.toFixed(1) : '0'}</Num></b><span>طن رفعتها</span></div>
+        <div className="pf-stat">
+          <b><Num>{bestStreak}</Num>{bestStreak > 0 && <Flame size={18} weight="fill" className="pf-flame" aria-hidden="true" />}</b>
+          <span>أطول ستريك</span>
         </div>
-      </div>
+      </section>
+
+      {/* ── The rest ── */}
+      <ListGroup>
+        <ListRow leading={Target} title="الهدف" chevron onClick={() => setSheet('goal')}
+          trailing={<span className="st-row-value">{goal.label}</span>} />
+        <ListRow leading={Barbell} title="نظام التدريب" chevron onClick={() => setSheet('system')}
+          trailing={<span className="st-row-value">{system ? system.label : 'اختر'}</span>} />
+        <ListRow leading={Person} title="القياسات" chevron onClick={() => setSheet('measure')}
+          trailing={measured ? <Ar>{`${measured} من ${BODY_MEASUREMENTS.length}`}</Ar> : 'أضف'} />
+        <ListRow leading={ForkKnife} title="حاسبة البروتين" chevron onClick={() => setSheet('protein')}
+          trailing={protein ? <Ar>{`${protein} جرام`}</Ar> : null} />
+        {onOpenSettings && <ListRow leading={GearSix} title="الإعدادات" chevron onClick={onOpenSettings} />}
+      </ListGroup>
+
+      <EditSheet open={editOpen} field={editField} profile={profile}
+        onClose={() => setEditOpen(false)} onSave={saveField} />
+      <GoalSheet open={sheet === 'goal'} value={goal.id} onClose={() => setSheet(null)}
+        onPick={id => onUpdateProfile({ ...profile, goal: id })} />
+      <SystemSheet open={sheet === 'system'} value={profile?.trainingSystem} onClose={() => setSheet(null)}
+        onPick={id => onUpdateProfile({ ...profile, trainingSystem: id })} />
+      <MeasurementsSheet open={sheet === 'measure'} profile={profile} onClose={() => setSheet(null)}
+        onUpdateProfile={onUpdateProfile} />
+      <ProteinSheet open={sheet === 'protein'} profile={profile} activity={activity} setActivity={setActivity}
+        onClose={() => setSheet(null)} onEdit={editFromProtein} />
     </div>
   )
 }

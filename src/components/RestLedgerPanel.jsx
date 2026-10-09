@@ -1,27 +1,20 @@
-// ── Rest-reward audit panel ───────────────────────────────────
-// Shows, day by day, how the reward bar arrived at the number on the
+// ── Rest-ticket audit panel ───────────────────────────────────
+// Shows, day by day, how the ticket balance arrived at the number on the
 // home screen. Every row comes from computeRecovery's own transcript, so
-// this can disagree with the bar only if the bar is wrong.
+// this can disagree with the balance only if the balance is wrong.
+// Lives under Settings › متقدم: it is a diagnostic, not a feature.
 
-import { Fragment, useState } from 'react'
-import { Card } from './ui.jsx'
+import { useState } from 'react'
+import { Button, Num } from './kit/index.jsx'
+import { CaretDown, Check, Copy, Notebook } from './kit/icons.js'
 import { ls } from '../utils.js'
 import { LEDGER_COLUMNS, recentLedger, ledgerRow, ledgerTotals, ledgerText } from '../restLedger.js'
+import '../styles/screens/settings.css'
 
-const KIND_COLOR = {
-  eligible: 'var(--green)',
-  paid:     'var(--amber, #F59E0B)',
-  miss:     'var(--red, #EF4444)',
-}
+// Columns that hold numbers or dates read left to right.
+const LTR_COLS = new Set([0, 5, 6, 7, 8, 9])
 
-const cell = {
-  padding: '7px 8px',
-  borderBottom: '1px solid var(--border2)',
-  whiteSpace: 'nowrap',
-  fontVariantNumeric: 'tabular-nums',
-}
-
-export default function RestLedgerPanel({ recovery, days = 20 }) {
+export default function RestLedgerPanel({ recovery = {}, days = 20 }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -35,137 +28,77 @@ export default function RestLedgerPanel({ recovery, days = 20 }) {
     } catch { setCopied(false) }
   }
 
+  const restore = open ? ls.get('hf_history_restore_report', null) : null
+
   return (
-    <div style={{ marginBottom: 10 }}>
-      <Card style={{ padding: 0, overflow: 'hidden' }}>
-        <button
-          onClick={() => setOpen(o => !o)}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-            background: 'transparent', border: 'none', padding: '14px 16px',
-            color: 'var(--text)', cursor: 'pointer',
-            fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 600,
-            textAlign: 'right',
-          }}
-        >
-          <span style={{ fontSize: 20 }}>🧾</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700 }}>سجل المكافأة (تشخيص)</div>
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
-              كيف وصل شريط الراحة الاختيارية إلى رقمه الحالي، يوماً بيوم
-            </div>
-          </div>
-          <span style={{ color: 'var(--text3)', fontSize: 13 }}>{open ? '▲' : '▼'}</span>
+    <section className="k-group">
+      <div className="k-group-body">
+        <button type="button" className="k-row k-row-tap rl-toggle" aria-expanded={open} aria-controls="rl-body"
+          onClick={() => setOpen(o => !o)}>
+          <span className="k-row-icon"><Notebook size={22} aria-hidden="true" /></span>
+          <span className="k-row-main">
+            <span className="k-row-title">سجل الراحة</span>
+            <span className="k-row-sub">كيف وصل رصيد التذاكر لرقمه، يوم بيوم</span>
+          </span>
+          <CaretDown size={16} weight="bold" className="rl-toggle-caret" aria-hidden="true" />
         </button>
 
         {open && (
-          <div style={{ padding: '0 16px 16px' }}>
+          <div className="rl-body" id="rl-body">
             {!rows.length ? (
-              <div style={{ color: 'var(--text3)', fontSize: 13, padding: '8px 0' }}>
-                لا يوجد تاريخ كافٍ بعد.
-              </div>
+              <p className="rl-start">ما فيه أيام كافية للحين.</p>
             ) : (
               <>
-                <div style={{ fontSize: 12, color: 'var(--text3)', margin: '4px 0 10px' }}>
-                  بداية السلسلة الحالية: <strong style={{ color: 'var(--text)' }}>
-                    {recovery.streakStart || '—'}
-                  </strong>
-                </div>
+                <p className="rl-start">
+                  بداية الستريك الحالي: <b><Num>{recovery.streakStart || '—'}</Num></b>
+                </p>
+
                 {/* Which sessions the history repair brought back, by date,
                     so the claim can be checked against memory rather than
                     taken on trust. */}
-                {(() => {
-                  const rep = ls.get('hf_history_restore_report', null)
-                  if (!rep?.count) return null
-                  return (
-                    <div data-testid="restore-report" style={{
-                      fontSize: 12, color: 'var(--text2)', margin: '0 0 10px', lineHeight: 1.7,
-                      background: 'var(--bg3)', border: '1px solid var(--border2)',
-                      borderRadius: 10, padding: '8px 10px',
-                    }}>
-                      ♻️ أُرجعت <strong style={{ color: 'var(--text)' }}>{rep.count}</strong> جلسة
-                      كانت انحذفت بالغلط لأنها سُجّلت بدون ✓:
-                      <div style={{ direction: 'ltr', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>
-                        {rep.dates.join(' · ')}
-                      </div>
-                    </div>
-                  )
-                })()}
+                {restore?.count > 0 && (
+                  <p className="rl-restore" data-testid="restore-report">
+                    رجّعنا <Num>{restore.count}</Num> جلسة كانت انحذفت بالغلط لأنها انحفظت بدون علامة إنجاز:
+                    <Num>{restore.dates.join(' · ')}</Num>
+                  </p>
+                )}
 
-                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                  <table style={{
-                    borderCollapse: 'collapse', fontSize: 12,
-                    fontFamily: 'var(--font-ar)', minWidth: '100%',
-                  }}>
+                <div className="rl-scroll">
+                  <table className="rl-table">
                     <thead>
-                      <tr style={{ color: 'var(--text3)', textAlign: 'right' }}>
-                        {LEDGER_COLUMNS.map(c => (
-                          <th key={c} style={{ ...cell, fontWeight: 600 }}>{c}</th>
-                        ))}
-                      </tr>
+                      <tr>{LEDGER_COLUMNS.map(c => <th key={c} scope="col">{c}</th>)}</tr>
                     </thead>
                     <tbody>
-                      {rows.map(r => {
-                        const cols = ledgerRow(r)
-                        return (
-                          <tr
-                            key={r.date}
-                            style={{
-                              opacity: r.inRun ? 1 : 0.45,
-                              background: r.earned ? 'color-mix(in srgb, var(--green) 12%, transparent)' : 'transparent',
-                            }}
-                          >
-                            {cols.map((c, i) => (
-                              <td
-                                key={i}
-                                style={{
-                                  ...cell,
-                                  color: i === 4 ? (r.inRun ? KIND_COLOR[r.kind] : 'var(--text3)') : 'var(--text2)',
-                                  fontWeight: i === 0 || i === 4 ? 600 : 400,
-                                }}
-                              >
-                                {c}
-                              </td>
-                            ))}
-                          </tr>
-                        )
-                      })}
+                      {rows.map(r => (
+                        <tr key={r.date} className={[!r.inRun && 'out', r.earned && 'earned'].filter(Boolean).join(' ') || undefined}>
+                          {ledgerRow(r).map((c, i) => (
+                            <td key={i} className={i === 4 && r.inRun && !r.pending ? `k-${r.kind}` : undefined}>
+                              {LTR_COLS.has(i) ? <Num>{c}</Num> : c}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
 
-                <div style={{
-                  marginTop: 14, display: 'grid',
-                  gridTemplateColumns: 'auto 1fr', gap: '6px 12px',
-                  fontSize: 12, fontFamily: 'var(--font-ar)',
-                }}>
+                <dl className="rl-totals">
                   {ledgerTotals(recovery).map(([key, value, desc]) => (
-                    <Fragment key={key}>
-                      <div style={{ color: 'var(--text)', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                        {key} = {value}
-                      </div>
-                      <div style={{ color: 'var(--text3)' }}>{desc}</div>
-                    </Fragment>
+                    <div key={key} style={{ display: 'contents' }}>
+                      <dt>{desc}</dt>
+                      <dd><Num>{value ?? '—'}</Num></dd>
+                    </div>
                   ))}
-                </div>
+                </dl>
 
-                <button
-                  onClick={copy}
-                  style={{
-                    marginTop: 14, width: '100%',
-                    background: 'var(--bg3)', border: '1px solid var(--border2)',
-                    borderRadius: 10, padding: '10px 12px',
-                    color: copied ? 'var(--green)' : 'var(--text)', cursor: 'pointer',
-                    fontFamily: 'var(--font-ar)', fontSize: 13, fontWeight: 600,
-                  }}
-                >
-                  {copied ? '✓ تم النسخ' : 'نسخ السجل كنص'}
-                </button>
+                <Button variant="secondary" full icon={copied ? Check : Copy} onClick={copy}>
+                  {copied ? 'انتسخ' : 'انسخ السجل كنص'}
+                </Button>
               </>
             )}
           </div>
         )}
-      </Card>
-    </div>
+      </div>
+    </section>
   )
 }
