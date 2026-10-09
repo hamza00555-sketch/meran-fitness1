@@ -114,7 +114,9 @@
 .rp-caption { font-size: var(--t-label); color: var(--ink-3); line-height: 1.65; text-wrap: pretty; }
 .rp-caption b { color: var(--ink-2); font-weight: 700; }
 .rp-muted { color: var(--ink-3); }
-.rp-latin { font-family: var(--font); font-stretch: 85%; font-weight: 600; direction: ltr; unicode-bidi: isolate; }
+/* Normal width: the bundled Latin face spaces lowercase «a» unevenly when
+   condensed («Ma chine», «Roma nia n»), so the name line stays at 100%. */
+.rp-latin { font-family: var(--font); font-weight: 600; direction: ltr; unicode-bidi: isolate; }
 
 /* ── Tips ── */
 .rp-tips { display: grid; }
@@ -186,6 +188,13 @@
 .rp-best-w b { font-size: var(--t-display); font-weight: 800; line-height: 1; font-stretch: 85%; }
 .rp-best-w span { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
 .rp-best-sub { font-size: var(--t-body); color: var(--ink-2); }
+
+/* The English name is an LTR run inside an RTL name plate. As a stretched grid
+   item its own `start` would be the left edge, so pin it to the plate's start
+   (right) edge, directly under the Arabic name — shrink-wrapped, and any
+   wrapped line stays flush right too. */
+.rp-best-name .rp-latin,
+.rp-row-main .rp-latin { justify-self: start; max-width: 100%; text-align: right; }
 
 .rp-more { display: grid; gap: var(--space-2); }
 .rp-rows { display: grid; }
