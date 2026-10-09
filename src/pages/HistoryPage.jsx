@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import RoutinesModal from '../components/RoutinesModal.jsx'
 import { EmptyState, Sheet, ListGroup, ListRow } from '../components/kit/index.jsx'
 import { ClockCounterClockwise, PencilSimple, Trash } from '../components/kit/icons.js'
 import TodayCard from '../components/history/TodayCard.jsx'
 import SessionRow, { UndoRow } from '../components/history/SessionRow.jsx'
 import EditSessionSheet from '../components/history/EditSessionSheet.jsx'
+import RoutinePickerSheet from '../components/history/RoutinePickerSheet.jsx'
 import Txt from '../components/history/Txt.jsx'
 import {
   groupByWeek, weekTotalsText, sessionTitle, sessionDateText, sessionDay, firstBestSessions,
@@ -20,6 +20,8 @@ import '../styles/screens/history.css'
 //
 // App draws the large title «السجل» above this page. Under it:
 //   1. «تمرين اليوم», pinned, so the tab is never a dead end (F12);
+//      «اختر روتين» opens RoutinePickerSheet (the ROUTINES on the kit,
+//      in Arabic) and starts the picked routine through onStartWorkout;
 //   2. the sessions, grouped by training week under sticky headers
 //      «هذا الأسبوع · 3 جلسات · 5.7 طن» (F67, F36);
 //   3. each session an open row — day, date, the first two lifts with
@@ -49,7 +51,7 @@ export default function HistoryPage({
   const [menu, setMenu] = useState(null)           // { session, open, n }
   const [edit, setEdit] = useState(null)           // { session, data, open, n }
   const [pending, setPending] = useState(null)     // { id, label }
-  const [showRoutines, setShowRoutines] = useState(false)
+  const [picker, setPicker] = useState(null)       // { open, n }
   const sheetN = useRef(0)
 
   // ── Deferred delete, so «تراجع» never has to un-delete anything ──
@@ -104,6 +106,9 @@ export default function HistoryPage({
     }))
     onStartWorkout?.(exercises)
   }
+  const openPicker = () => setPicker({ open: true, n: ++sheetN.current })
+  const closePicker = () => setPicker(p => (p ? { ...p, open: false } : p))
+  const pickRoutine = (routine) => { closePicker(); startRoutine(routine) }
 
   // ── The feed ──
   const weeks = useMemo(() => groupByWeek(sessions, today), [sessions, today])
@@ -163,7 +168,7 @@ export default function HistoryPage({
         trainedToday={trainedToday}
         onStartPlanned={onStartPlannedWorkout}
         onStartFree={() => onStartWorkout?.()}
-        onPickRoutine={() => setShowRoutines(true)}
+        onPickRoutine={openPicker}
         onResume={onResumeWorkout}
       />
 
@@ -230,8 +235,8 @@ export default function HistoryPage({
         />
       )}
 
-      {showRoutines && (
-        <RoutinesModal onSelect={startRoutine} onClose={() => setShowRoutines(false)} />
+      {picker && (
+        <RoutinePickerSheet key={picker.n} open={picker.open} onClose={closePicker} onSelect={pickRoutine} />
       )}
     </div>
   )

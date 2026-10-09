@@ -133,6 +133,27 @@ test('the day is named in Arabic', () => {
   assert.equal(M.planDayTitleAr({ name: 'Pull — ظهر، بايسبس', exercises: [] }), 'سحب — ظهر، بايسبس')
 })
 
+test('the ready-made routines are named in Arabic, without emoji', async () => {
+  const { ROUTINES } = await import('../src/constants.js')
+  const titles = ROUTINES.map(M.routineTitle)
+  assert.deepEqual(titles, [
+    'صدر وترايسبس',
+    'سحب — ظهر وبايسبس',
+    'دفع — صدر، أكتاف وترايسبس',
+    'أرجل',
+    'جسم كامل — صدر، ظهر، أرجل وأكتاف',
+    'علوي — صدر، ظهر، أكتاف، بايسبس وترايسبس',
+  ])
+  for (const t of titles) {
+    assert.doesNotMatch(t, /[A-Za-z]/)
+    assert.doesNotMatch(t, /\p{Extended_Pictographic}/u)
+  }
+  // an English name with no Arabic word falls back to the muscles
+  assert.equal(M.routineTitle({ name: 'Arnold Split', muscles: ['Chest', 'Back'] }), 'صدر وظهر')
+  assert.equal(M.routineSetCount(ROUTINES[0]), 19)
+  assert.equal(M.routineSetCount({ exercises: [{}, { defaultSets: 4 }] }), 7)
+})
+
 test('durations read in Arabic with Western digits', () => {
   assert.equal(M.durationText(48), '48 دقيقة')
   assert.equal(M.durationText(65), '1 س 5 د')

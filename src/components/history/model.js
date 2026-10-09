@@ -198,6 +198,26 @@ export const planDayTitleAr = (day) => {
   return nameDay(day.name, day.exercises, musclePhrase((day.exercises || []).map(ex => ex.muscle))) || 'تمرين اليوم'
 }
 
+// ── Ready-made routines (ROUTINES in constants.js) ────────────
+// Their stored names are English with an emoji tail ('Pull Day 🗂️',
+// 'Upper Body 🏆'); the picker says them in the same voice as the
+// history: «سحب — ظهر وبايسبس». A day word the muscles already say
+// («صدر» before «صدر وترايسبس») is said once, and an English word with
+// no Arabic match is dropped rather than shown.
+export const routineTitle = (r) => {
+  const clean = String(r?.name || '').replace(/[^\x20-\x7E]/g, ' ').replace(/\s+/g, ' ').trim()
+  const key = /^full\s*body/i.test(clean) ? clean : clean.replace(/\s*body$/i, '')
+  const word = dayWordOf(key)
+  const what = musclePhrase(r?.muscles?.length ? r.muscles : (r?.exercises || []).map(ex => ex.muscle))
+  if (!word || /^[\x20-\x7E]+$/.test(word)) return what || 'روتين'
+  if (!what || what === word || what.startsWith(word)) return what || word
+  return `${word} — ${what}`
+}
+
+/** How many sets a routine starts with (3 for an exercise that says none). */
+export const routineSetCount = (r) =>
+  (r?.exercises || []).reduce((t, ex) => t + (Number(ex.defaultSets || ex.sets) || 3), 0)
+
 // ── Durations ─────────────────────────────────────────────────
 /** «48 دقيقة», «1 س 5 د»; '' when the session has none. */
 export const durationText = (minutes) => {

@@ -43,18 +43,22 @@
   .k-btn.hs-routine { min-height: 44px; }
 }
 
-/* ── Training weeks ── */
-.hs-week + .hs-week { margin-top: var(--space-4); }
+/* ── Training weeks ──
+   A 32pt label, quieter than the rows it heads (13/600 ink-2, the
+   totals in ink-3). Sticky under the status bar, not under y=0: the
+   installed app runs edge to edge (viewport-fit=cover, translucent
+   status bar), so top:0 would park «هذا الأسبوع» behind the clock. */
+.hs-week + .hs-week { margin-top: var(--space-3); }
 .hs-week-h {
-  position: sticky; top: 0; z-index: 5;
-  display: flex; align-items: baseline; flex-wrap: wrap; column-gap: var(--space-2);
-  margin: 0 calc(-1 * var(--gutter)); padding: var(--space-2) var(--gutter);
-  min-height: 40px;
+  position: sticky; top: var(--safe-top); z-index: 5;
+  box-sizing: border-box; min-height: 32px;
+  display: flex; align-items: center; flex-wrap: wrap; column-gap: 6px;
+  margin: 0 calc(-1 * var(--gutter)); padding: 6px var(--gutter);
   background: var(--ground); box-shadow: inset 0 -1px 0 var(--hairline);
-  font-weight: 600; line-height: 1.5;
+  font-size: var(--t-label); font-weight: 600; line-height: 20px;
 }
-.hs-week-name { font-size: var(--t-body); font-weight: 700; color: var(--ink); }
-.hs-week-sum { font-size: var(--t-label); color: var(--ink-3); }
+.hs-week-name { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
+.hs-week-sum { font-weight: 500; color: var(--ink-3); }
 .hs-week-sum::before { content: "· "; }
 
 /* ── A session row: open, no box ── */
@@ -62,7 +66,7 @@
 .hs-rows > * + * { border-top: 1px solid var(--hairline); }
 .hs-row-main {
   flex: 1; min-width: 0;
-  display: grid; gap: 2px; padding: var(--space-4) var(--space-2);
+  display: grid; padding: var(--space-4) var(--space-2);
   margin-inline: calc(-1 * var(--space-2));
   background: none; border: 0; border-radius: var(--r-sm);
   color: var(--ink); text-align: start; font-family: var(--font); cursor: pointer;
@@ -70,32 +74,68 @@
   transition: background var(--dur-press);
 }
 .hs-row-main:active { background: var(--surface-1); }
-.hs-row-title { font-size: 16px; font-weight: 600; line-height: 1.375; color: var(--ink); text-wrap: balance; }
-.hs-row-date { font-size: var(--t-label); font-weight: 500; line-height: 1.4; color: var(--ink-3); }
-.k-iconbtn.hs-more-btn { margin-top: 6px; margin-inline-end: -12px; color: var(--ink-2); }
+/* Line 1: the day at the start, its date at the end (16/22 and 13 ink-3).
+   A title too long to share the line keeps its words and the date
+   drops under it. */
+.hs-row-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  column-gap: var(--space-3);
+}
+.hs-row-title { min-width: 0; font-size: 16px; font-weight: 600; line-height: 22px; color: var(--ink); text-wrap: balance; }
+.hs-row-date { flex: none; font-size: var(--t-label); font-weight: 500; line-height: 18px; color: var(--ink-3); }
+.k-iconbtn.hs-more-btn { margin-top: 5px; margin-inline-end: -12px; color: var(--ink-2); }
 
-.hs-row-lines { display: grid; gap: var(--space-1); margin-top: var(--space-2); }
+/* Lines 2–3: two lifts at 13/18 with their best set. The name comes
+   first and is not cut while there is room: when it and the set cannot
+   share a line, the set drops under it, still at the end edge. */
+.hs-row-lines { display: grid; gap: 2px; margin-top: 6px; }
 .hs-ex { display: grid; }
-.hs-ex-line { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); font-size: var(--t-body); line-height: 1.5; }
-.hs-ex-name { flex: 1; min-width: 0; display: grid; }
+.hs-ex-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3);
+  font-size: var(--t-label); line-height: 18px;
+}
+.hs-ex-name { flex: 1 1 auto; min-width: 0; display: grid; }
 .hs-ex-ar { color: var(--ink-2); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-ex-en { justify-self: start; font-size: var(--t-label); color: var(--ink-3); line-height: 1.4; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-best { flex: none; display: inline-flex; align-items: baseline; gap: 4px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+/* A Latin name (no Arabic one known) is its own LTR box at the start
+   edge, so a long one is cut at its end — «Some Custom Machine…» —
+   never at its first word. */
+.hs-ex-latin { justify-self: start; max-width: 100%; }
+/* The English name under an open exercise (the label on the machine)
+   adds nothing to the line's width — the Arabic name decides whether
+   the best set fits beside it — and wraps in full under it. */
+.hs-ex-en {
+  width: 0; min-width: 100%; text-align: right;   /* the RTL start edge */
+  font-size: var(--t-label); color: var(--ink-3); line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.hs-best {
+  flex: none; margin-inline-start: auto;
+  display: inline-flex; align-items: baseline; gap: 4px;
+  font-weight: 600; color: var(--ink); white-space: nowrap;
+}
 .hs-best .k-num { font-weight: 700; }
 /* Gold is drawn on the number itself, with its name in front of it:
    «أعلى وزن 77.5 كجم × 12» — no pill, so two in a row stay quiet. */
 .hs-gold, .hs-gold .k-num, .hs-gold .hs-unit { color: var(--raise); }
 .hs-pr { font-size: var(--t-label); font-weight: 700; color: var(--raise); }
+.hs-pr-icon { display: none; flex: none; align-self: center; }
+/* On a 320pt phone the word would take the name's room: a gold trophy
+   (labelled «أعلى وزن») says it in 16pt. */
+@media (max-width: 359px) {
+  .hs-pr-word { display: none; }
+  .hs-pr-icon { display: block; }
+}
 .hs-row-meta {
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  margin-top: var(--space-2); font-size: var(--t-label); font-weight: 500; color: var(--ink-3);
+  margin-top: var(--space-1); font-size: var(--t-label); font-weight: 500; line-height: 18px; color: var(--ink-3);
 }
 .hs-toggle { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); font-weight: 600; color: var(--ink-2); }
 .hs-caret { flex: none; color: var(--ink-3); transition: transform var(--dur-fast) var(--ease-out); }
 .hs-row-main[aria-expanded="true"] .hs-caret { transform: rotate(180deg); }
 
-/* Open: every exercise, every set */
+/* Open: every exercise, every set, at reading size */
 .hs-ex-open { padding-block: var(--space-2); }
+.hs-ex-open .hs-ex-line { font-size: var(--t-body); line-height: 1.5; }
 .hs-ex-open + .hs-ex-open { border-top: 1px solid var(--hairline); }
 .hs-sets { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-2); }
 .hs-set { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--ink); }
@@ -123,6 +163,10 @@
   animation-name: hs-undo-run; animation-timing-function: linear; animation-fill-mode: forwards;
 }
 @keyframes hs-undo-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ── اختر روتين ── */
+.hs-pick-note { margin: 0 0 var(--space-3); font-size: var(--t-label); line-height: 1.5; color: var(--ink-3); }
+.k-group.hs-pick { margin-bottom: 0; }
 
 /* ── ⋯ menu ── */
 .hs-menu-date { margin: 0 0 var(--space-3); font-size: var(--t-label); color: var(--ink-3); }

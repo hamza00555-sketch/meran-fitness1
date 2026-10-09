@@ -1,5 +1,5 @@
 import { IconButton, Button, Num } from '../kit/index.jsx'
-import { DotsThree, CaretDown, ArrowCounterClockwise } from '../kit/icons.js'
+import { DotsThree, CaretDown, ArrowCounterClockwise, Trophy } from '../kit/icons.js'
 import { arabicName } from '../../exerciseMedia.js'
 import Txt, { Count } from './Txt.jsx'
 import { bestSet, doneExercises, durationText, isFirstBest, sessionSetCount } from './model.js'
@@ -18,11 +18,24 @@ export function SetText({ weight, reps }) {
   return reps > 0 ? <><Num>{reps}</Num> <span className="hs-unit">تكرار</span></> : null
 }
 
+/** «أعلى وزن» in front of a record set; under 360pt the word gives its
+ *  room to the exercise name and a gold trophy says it instead. */
+function BestMark() {
+  return (
+    <>
+      <span className="hs-pr hs-pr-word">أعلى وزن</span>
+      <Trophy size={16} weight="fill" className="hs-pr hs-pr-icon" role="img" aria-label="أعلى وزن" />
+    </>
+  )
+}
+
 function ExerciseName({ name, mapping, withLatin }) {
   const ar = arabicName(name, mapping)
   return (
     <span className="hs-ex-name">
-      <span className="hs-ex-ar">{ar ? ar : <bdi dir="ltr" className="hs-latin">{name}</bdi>}</span>
+      {ar
+        ? <span className="hs-ex-ar">{ar}</span>
+        : <bdi dir="ltr" className="hs-ex-ar hs-ex-latin hs-latin">{name}</bdi>}
       {withLatin && ar && <bdi dir="ltr" className="hs-ex-en hs-latin">{name}</bdi>}
     </span>
   )
@@ -40,8 +53,10 @@ export default function SessionRow({ session, title, dateText, firsts, mapping =
     <article className="hs-row" aria-label={`${title} · ${dateText}`}>
       <button type="button" className="hs-row-main" onClick={onToggle}
         aria-expanded={!!expanded} aria-controls={detailsId}>
-        <span className="hs-row-title"><Txt>{title}</Txt></span>
-        <span className="hs-row-date"><Txt>{dateText}</Txt></span>
+        <span className="hs-row-head">
+          <span className="hs-row-title"><Txt>{title}</Txt></span>
+          <span className="hs-row-date"><Txt>{dateText}</Txt></span>
+        </span>
 
         <span className="hs-row-lines" id={detailsId}>
           {shown.map((ex, i) => {
@@ -53,7 +68,7 @@ export default function SessionRow({ session, title, dateText, firsts, mapping =
                   <ExerciseName name={ex.name} mapping={mapping} withLatin={expanded} />
                   {best && (
                     <span className={gold ? 'hs-best hs-gold' : 'hs-best'}>
-                      {gold && <span className="hs-pr">أعلى وزن</span>}
+                      {gold && <BestMark />}
                       <SetText {...best} />
                     </span>
                   )}
