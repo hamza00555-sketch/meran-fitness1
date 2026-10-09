@@ -100,28 +100,40 @@ export function SystemSheet({ open, value, onClose, onPick }) {
 }
 
 // ── Measurements ──────────────────────────────────────────────
-// Each row is its own field; a value is written when you leave it, and
-// only if it changed.
+// Each row is its own field. A value is written when you leave it, and
+// every changed value is written again in one update when the sheet
+// closes («تم», ×, the scrim): on iOS a tap on «تم» leaves the focus in
+// the field and no blur ever comes.
+const cleanMeasure = (v) => toWesternDigits(String(v ?? '')).trim()
+
 export function MeasurementsSheet({ open, profile, onClose, onUpdateProfile }) {
   const saved = profile?.measurements || {}
   const [draft, setDraft] = useState(saved)
   useEffect(() => { if (open) setDraft(profile?.measurements || {}) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const commit = (id) => {
-    const v = toWesternDigits(draft[id] ?? '').trim()
-    if ((saved[id] ?? '') === v) return
+  // Only what differs from what is stored; nothing changed, nothing written.
+  const write = (ids) => {
+    const dirty = {}
+    for (const id of ids) {
+      if (!(id in draft)) continue
+      const v = cleanMeasure(draft[id])
+      if (cleanMeasure(saved[id]) !== v) dirty[id] = v
+    }
+    if (!Object.keys(dirty).length) return
     onUpdateProfile({
       ...profile,
-      measurements: { ...saved, [id]: v },
+      measurements: { ...saved, ...dirty },
       lastMeasurementsUpdate: new Date().toISOString(),
     })
   }
+  const commit = (id) => write([id])
+  const finish = () => { write(BODY_MEASUREMENTS.map(m => m.id)); onClose() }
 
   const last = profile?.lastMeasurementsUpdate
   return (
-    <Sheet open={open} onClose={onClose} title="القياسات" tall
-      footer={<Button variant="primary" size="lg" full onClick={onClose}>تم</Button>}>
-      <ListGroup footer={last ? <Ar>{`آخر تحديث ${fmtDayAr(calendarKey(new Date(last)), { weekday: false })}`}</Ar> : 'بالسنتيمتر. اكتب الرقم واطلع من الخانة وينحفظ.'}>
+    <Sheet open={open} onClose={finish} title="القياسات" tall
+      footer={<Button variant="primary" size="lg" full onClick={finish}>تم</Button>}>
+      <ListGroup className="st-area" footer={last ? <Ar>{`آخر تحديث ${fmtDayAr(calendarKey(new Date(last)), { weekday: false })}`}</Ar> : 'بالسنتيمتر. اكتب الرقم وينحفظ.'}>
         {BODY_MEASUREMENTS.map(m => (
           <label key={m.id} className="k-row pf-mrow">
             <span className="k-row-main"><span className="k-row-title">{m.label}</span></span>

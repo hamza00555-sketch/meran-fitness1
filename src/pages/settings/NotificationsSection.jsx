@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { ListGroup, ListRow, Banner, Num } from '../../components/kit/index.jsx'
 import { Bell, Barbell, Flame, Warning, Info } from '../../components/kit/icons.js'
-import { SwitchControl, Ar } from './parts.jsx'
+import { SwitchRow, Ar } from './parts.jsx'
 import { requestNotifPermission, scheduleNotificationsForToday } from '../../utils.js'
 import { NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS } from '../../constants.js'
 import { hourLabel } from './PreferencesSection.jsx'
@@ -43,8 +43,8 @@ export default function NotificationsSection({ profile }) {
   return (
     <>
       <ListGroup footer="بأيام التمرين بس، وما يوصلك شي لو تمرّنت.">
-        <ListRow leading={Bell} title="التذكيرات"
-          trailing={<SwitchControl checked={enabled} onChange={toggle} label="التذكيرات" disabled={status === 'unsupported'} />} />
+        <SwitchRow leading={Bell} title="التذكيرات" checked={enabled} onChange={toggle}
+          disabled={status === 'unsupported'} />
       </ListGroup>
 
       {status === 'denied' && (

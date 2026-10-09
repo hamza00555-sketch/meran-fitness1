@@ -111,13 +111,26 @@ export function Notice({ notice, onClose }) {
   )
 }
 
-/** A switch that can be disabled (the kit one cannot). */
-export function SwitchControl({ checked, onChange, label, disabled }) {
+/**
+ * A list row that is a switch: the whole 52pt row is the target, the
+ * switch at its end only shows the state. Can be disabled (the kit
+ * Switch cannot).
+ */
+export function SwitchRow({ title, subtitle, leading: Lead, checked, onChange, disabled }) {
+  const lead = typeof Lead === 'function' || (Lead && Lead.$$typeof && Lead.render)
+    ? <span className="k-row-icon"><Lead size={22} weight="regular" aria-hidden="true" /></span>
+    : Lead
   return (
-    <button type="button" role="switch" aria-checked={!!checked} aria-label={label} disabled={disabled}
-      className={cx('k-switch', checked && 'k-switch-on', 'st-switch')}
-      onClick={() => onChange(!checked)}>
-      <span className="k-switch-knob" />
+    <button type="button" role="switch" aria-checked={!!checked} disabled={disabled}
+      className="k-row k-row-tap st-switch-row" onClick={() => onChange(!checked)}>
+      {lead}
+      <span className="k-row-main">
+        <span className="k-row-title">{title}</span>
+        {subtitle && <span className="k-row-sub">{subtitle}</span>}
+      </span>
+      <span className={cx('k-switch', checked && 'k-switch-on')} aria-hidden="true">
+        <span className="k-switch-knob" />
+      </span>
     </button>
   )
 }

@@ -3,11 +3,11 @@
 // user reloads the app on purpose: every piece of state is per user and
 // read once at boot.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ListGroup, IconButton, Button, ConfirmSheet } from '../../components/kit/index.jsx'
 import { Plus, Trash, User, Users } from '../../components/kit/icons.js'
 import { CheckRow, TextField, Ar } from './parts.jsx'
-import { uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData } from '../../utils.js'
+import { uid, getUsers, saveUsers, switchUser, getCurrentUserId, deleteUserData, ls } from '../../utils.js'
 
 export default function AccountSection({ profile, update }) {
   const [nameInput, setNameInput] = useState(profile?.name || '')
@@ -18,12 +18,41 @@ export default function AccountSection({ profile, update }) {
   const currentUserId = getCurrentUserId()
 
   const saveName = () => {
+    // Never after a switch: storage now points at the other person.
+    if (getCurrentUserId() !== currentUserId) return
     const n = nameInput.trim()
     if (n && n !== profile?.name) update('name', n)
   }
 
+  // A blur is not enough: on iOS a tap on «‹ الإعدادات» leaves the focus
+  // in the field, and React runs no onBlur for a field that is going
+  // away. So the latest name is also written when this page closes or the
+  // app goes to the background.
+  const saveNameRef = useRef(saveName)
+  saveNameRef.current = saveName
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') saveNameRef.current() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      saveNameRef.current()
+    }
+  }, [])
+
+  // A name typed and not yet saved, written straight to this person's
+  // profile (same key, same shape App writes) before the switch. Going
+  // through App's state here would land after the switch, under the
+  // other person's key; the reload drops App's state anyway.
+  const keepNameBeforeSwitch = () => {
+    const n = nameInput.trim()
+    if (n && n !== profile?.name && getCurrentUserId() === currentUserId) {
+      ls.set('hf_profile', { ...profile, name: n })
+    }
+  }
+
   const handleSwitchUser = (id) => {
     if (id === currentUserId) return
+    keepNameBeforeSwitch()
     switchUser(id)
     window.location.reload()
   }
@@ -33,6 +62,7 @@ export default function AccountSection({ profile, update }) {
     if (!name) return
     const u = { id: uid(), name }
     saveUsers([...users, u])
+    keepNameBeforeSwitch()
     switchUser(u.id)
     window.location.reload()
   }

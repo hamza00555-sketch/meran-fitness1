@@ -30,14 +30,20 @@
 .st-design [data-testid="design-switch"] > div > div:first-child { font-size: var(--t-headline) !important; font-weight: 600 !important; }
 .st-design [data-testid="design-switch"] > div > div:nth-child(2) { font-size: var(--t-label) !important; color: var(--ink-3) !important; line-height: 1.45 !important; }
 
+/* ── Scope ──
+   Kit classes are restyled only inside this area: the Settings page
+   (.st), the Profile page (.pf), and the area's own groups that a Sheet
+   portals out to <body> (.st-area). Every other screen keeps the kit's
+   own footers and trailing values. */
+
 /* ── Rows ── */
-.k-row-trail { text-align: end; }
+:is(.st, .pf, .st-area) .k-row-trail { text-align: end; }
 .st-row-value { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
 .st-check { min-height: 56px; }
 .st-check-mark { flex: none; width: 22px; height: 22px; color: var(--accent); display: grid; place-items: center; }
 .st-check:disabled { cursor: default; }
-.k-row:disabled .k-row-title { color: var(--ink-3); }
-.k-row-sub .k-num, .k-row-trail .k-num { font-weight: 600; }
+:is(.st, .pf, .st-area) .k-row:disabled .k-row-title { color: var(--ink-3); }
+:is(.st, .pf, .st-area) :is(.k-row-sub, .k-row-trail) .k-num { font-weight: 600; }
 .st-danger .k-row-title, .st-danger .k-row-icon { color: var(--danger); }
 .st-accent .k-row-title, .st-accent .k-row-icon { color: var(--accent); }
 
@@ -46,15 +52,15 @@
 .st-split + .st-split::before, .k-row + .st-split::before, .st-split + .k-row::before {
   content: ""; position: absolute; top: 0; inset-inline-start: 16px; inset-inline-end: 0; height: 1px; background: var(--hairline);
 }
-.k-group-body > [role="radiogroup"] + .k-row::before {
+:is(.st, .pf, .st-area) .k-group-body > [role="radiogroup"] + .k-row::before {
   content: ""; position: absolute; top: 0; inset-inline-start: 16px; inset-inline-end: 0; height: 1px; background: var(--hairline);
 }
 .st-split > .k-row { flex: 1; min-width: 0; }
 .st-split > .k-iconbtn { align-self: center; margin-inline-end: 6px; color: var(--ink-3); }
 
 /* ── Group footers carry copy, sometimes a stepper ── */
-.k-group-f { font-size: var(--t-label); line-height: 1.6; }
-.k-group-f p { margin: 0; }
+:is(.st, .pf, .st-area) .k-group-f { font-size: var(--t-label); line-height: 1.6; }
+:is(.st, .pf, .st-area) .k-group-f p { margin: 0; }
 .st-lede { margin: 0 0 var(--space-5); font-size: var(--t-body); line-height: 1.7; color: var(--ink-2); text-wrap: pretty; }
 .st-note { margin: calc(-1 * var(--space-3)) 4px var(--space-6); font-size: var(--t-label); color: var(--ink-3); line-height: 1.6; }
 .st-version { margin: var(--space-2) 0 0; text-align: center; font-size: var(--t-caption); color: var(--ink-3); }
@@ -93,8 +99,13 @@
 .st-inline-add .st-field { flex: 1; }
 .st-inline-add .k-btn { min-height: 48px; }
 
-/* ── Switch: a disabled one reads as unavailable ── */
-.st-switch:disabled { opacity: 0.45; cursor: default; }
+/* ── Switch row: the row is the target; a disabled one reads as
+   unavailable (the title greys, the switch fades — no opacity on text) ── */
+.st-switch-row .k-switch { cursor: inherit; }
+.st-switch-row:disabled { cursor: default; }
+.st-switch-row:disabled:active { background: transparent; }
+.st-switch-row:disabled .k-row-title { color: var(--ink-3); }
+.st-switch-row:disabled .k-switch { opacity: 0.45; }
 
 /* ── Stepper: «12 عدة ← 15 عدة ← ارفع وزنك» ── */
 .st-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 6px; }

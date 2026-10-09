@@ -73,9 +73,15 @@ export default function ProfilePage({
   // From the protein sheet to a field: one sheet at a time.
   const editFromProtein = (field) => { setSheet(null); setTimeout(() => startEdit(field), 260) }
 
-  const cell = ({ field, label, icon: Icon, value, unit, sub, dot }) => (
+  // The weight's state is said in words as well as by the dot.
+  const weightNote = !needsUpdate ? null
+    : !hasValue(profile?.weight) ? 'لم تسجل وزنك بعد'
+    : daysSince !== null ? `آخر تحديث قبل ${countAr(daysSince, 'day')}`
+    : 'حدّث وزنك'
+
+  const cell = ({ field, label, icon: Icon, value, unit, sub, note, dot }) => (
     <button type="button" className="pf-cell" onClick={() => startEdit(field)}
-      aria-label={`${label}: ${hasValue(value) ? `${value} ${unit}` : 'أضف'}`}>
+      aria-label={`${label}: ${hasValue(value) ? `${value} ${unit}` : 'أضف'}${note ? `، ${note}` : ''}`}>
       <span className="pf-cell-label">
         <Icon size={16} weight="regular" aria-hidden="true" />{label}
         {dot && <i className="pf-dot" aria-hidden="true" />}
@@ -119,9 +125,8 @@ export default function ProfilePage({
           {cell({
             field: 'weight', label: 'الوزن', icon: Scales, value: profile?.weight, unit: 'كجم',
             dot: needsUpdate,
-            sub: hasValue(profile?.weight) && needsUpdate
-              ? (daysSince !== null ? <Ar>{`آخر تحديث قبل ${countAr(daysSince, 'day')}`}</Ar> : 'حدّث وزنك')
-              : null,
+            note: weightNote,
+            sub: weightNote && <Ar>{weightNote}</Ar>,
           })}
           {cell({ field: 'height', label: 'الطول', icon: Ruler, value: profile?.height, unit: 'سم' })}
           {cell({ field: 'birthday', label: 'العمر', icon: CalendarBlank, value: age || null, unit: 'سنة' })}
