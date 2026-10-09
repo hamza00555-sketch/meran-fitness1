@@ -13,6 +13,7 @@ import {
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayDiff } from './recovery.js'
 import { streakView, todayStreak, skipCopy, finishToast, spendToast } from './streak.js'
+import { planReminders } from './notify.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
@@ -245,16 +246,6 @@ export default function App() {
   useEffect(() => { ls.set('hf_rep_target',       repTarget)       }, [repTarget])
   useEffect(() => { ls.set('hf_unlocked_at',      unlockedAt)      }, [unlockedAt])
 
-  // ── Schedule daily notifications ─────────────────────────────
-  useEffect(() => {
-    if (ls.get('hf_notif_enabled', false)) {
-      scheduleNotificationsForToday(
-        profile?.workoutTime || 'المساء',
-        NOTIFICATION_MESSAGES,
-        WORKOUT_TIME_HOURS,
-      )
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Initialize / refresh challenge state ──────────────────────
   useEffect(() => {
@@ -663,6 +654,7 @@ export default function App() {
   const [boardVisible, setBoardVisible] = useState(true)
   const onBoardVisible = useCallback((v) => setBoardVisible(v), [])
   const [askSkip, setAskSkip] = useState(false)
+
   const [showStreak, setShowStreak] = useState(false)
 
   // The best streak, kept as a high-water mark. The engine can only
@@ -701,6 +693,19 @@ export default function App() {
 
   // ── Deload ───────────────────────────────────────────────────
   const deload = useMemo(() => deloadState(recoveryCfg, today), [recoveryCfg, today])
+
+  // ── Reminders follow the streak (src/notify.js) ──
+  // Re-planned whenever what today means for the streak changes; saving
+  // a session cancels them. Nothing random, nothing on a counted day.
+  const reminderView = streakView({ recovery, config: recoveryCfg, active, deload, today: streakToday })
+  const reminderKey = `${reminderView.kind}|${reminderView.number}|${reminderView.tickets}|${streakToday}|${profile?.workoutTime}`
+  useEffect(() => {
+    planReminders({
+      view: reminderView,
+      workoutHour: WORKOUT_TIME_HOURS[profile?.workoutTime || 'المساء'] ?? 17,
+      enabled: ls.get('hf_notif_enabled', false),
+    })
+  }, [reminderKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The greeting knows what day it is. Re-drawn when the day turns or
   // the day's state changes, not on every render — otherwise the line

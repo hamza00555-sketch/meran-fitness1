@@ -509,13 +509,13 @@ export const scheduleNotificationsForToday = async (workoutTime, messages, worko
   if (localStorage.getItem('hf_notif_scheduled') === todayStamp) return
   localStorage.setItem('hf_notif_scheduled', todayStamp)
 
+  // Only the workout-hour reminder: the morning, tip, water and 21:00
+  // messages fired whatever the day was, on rest days and after a
+  // workout (critique F63). The streak-aware reminders live in
+  // src/notify.js and are planned by App from the streak's state.
   const workoutHour = workoutTimeHours[workoutTime] ?? 17
   const schedule = [
-    { hour: 8,           min: 0,  type: 'morning'   },
-    { hour: 12,          min: 30, type: 'tip'        },
-    { hour: 15,          min: 30, type: 'hydration'  },
     { hour: workoutHour, min: 0,  type: 'workout'    },
-    { hour: 21,          min: 0,  type: 'evening'    },
   ]
 
   const now = new Date()
