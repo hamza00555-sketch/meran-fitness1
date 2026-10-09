@@ -35,7 +35,6 @@ const NAV = [
 import HomePage        from './pages/HomePage.jsx'
 import WorkoutPage     from './pages/WorkoutPage.jsx'
 import HistoryPage     from './pages/HistoryPage.jsx'
-import ChallengesPage  from './pages/ChallengesPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
 import ProfilePage     from './pages/ProfilePage.jsx'
 import SettingsPage    from './pages/SettingsPage.jsx'
