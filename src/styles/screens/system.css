@@ -1,0 +1,198 @@
+/* ══ System layer — «تحت الأضواء» ═══════════════════════════════════
+   The pieces every screen leans on whether or not it has been rebuilt:
+   the toast, the legacy primitives in components/ui.jsx (Card,
+   SectionTitle, ProgressBar, EmptyState, Badge, Overlay…) and the two
+   sheets of record (What's New, the art-pack offer).
+
+   Rules, from design-system/redesign/critique.json:
+     · a card is surface-1 with a 6% edge and radius 16 — no outer
+       shadow, no coloured arc on top, no bar before a heading (F21);
+     · default card padding is 16, not 6 (F23);
+     · one scrim, one sheet radius, one way in, a real way out (F30);
+     · toasts dock at the bottom above the tab bar and never cover the
+       top of the screen (F33). */
+
+/* ── Card ───────────────────────────────────────────────────── */
+.sys-card {
+  background: var(--surface-1);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+  padding: var(--space-4);
+  color: var(--ink);
+  min-width: 0;
+}
+.sys-card-raised {
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 0 var(--hairline);
+}
+.sys-card-tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* ── Section title: an eyebrow, no bar ─────────────────────── */
+.sys-section {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 24px; margin-bottom: var(--space-2); padding-inline: var(--space-1);
+}
+.sys-section-title {
+  margin: 0; min-width: 0;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-3);
+}
+.sys-section-action { flex: none; display: flex; align-items: center; gap: var(--space-2); color: var(--ink-2); }
+
+/* ── Empty state ───────────────────────────────────────────── */
+.sys-empty {
+  display: grid; justify-items: center; text-align: center; gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+}
+.sys-empty-art { width: 112px; height: 112px; object-fit: contain; margin-bottom: var(--space-2); }
+.sys-empty-icon {
+  width: 72px; height: 72px; border-radius: var(--r-pill); margin-bottom: var(--space-2);
+  display: grid; place-items: center; background: var(--surface-1); color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sys-empty-title { margin: 0; font-size: var(--t-headline); font-weight: 700; line-height: 1.4; color: var(--ink); }
+.sys-empty-body { margin: 0; max-width: 30ch; font-size: var(--t-body); line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
+
+/* ── Badge / rank chip: neutral chips ──────────────────────── */
+.sys-chip { max-width: 100%; }
+.sys-chip > img { width: 18px; height: 18px; object-fit: contain; flex: none; }
+.sys-rank { color: var(--ink); }
+
+/* ── Close button ──────────────────────────────────────────── */
+.sys-close { color: var(--ink-2); }
+
+/* ── Overlay (legacy): portalled, one scrim, one sheet ─────── */
+@keyframes sys-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sys-rise     { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sys-pop      { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+.sys-scrim {
+  position: fixed; inset: 0; z-index: var(--z-cover);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-5);
+  background: var(--scrim);
+  animation: sys-fade-in var(--dur-fast) var(--ease-out);
+}
+.sys-scrim-bottom { align-items: flex-end; padding: 0; }
+.sys-panel { width: 100%; max-width: 540px; animation: sys-pop var(--dur-base) var(--ease-out); }
+.sys-panel-bottom {
+  max-width: 560px; overflow: hidden;
+  background: var(--surface-2);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.55), inset 0 1px 0 var(--hairline);
+  padding-bottom: var(--safe-bottom);
+  animation: sys-rise var(--dur-sheet) var(--ease-sheet);
+}
+/* The card a legacy caller hands in becomes the sheet itself: no second
+   box inside the first. */
+.sys-panel-bottom > .sys-card { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+
+/* ══ Toast ═════════════════════════════════════════════════════
+   One design. Docked at the bottom, above the tab bar (or the live bar
+   when a session is minimised) — measured at runtime, with this calc as
+   the fallback. Surface-2 with its edge and its top light; a Phosphor
+   icon in place of the emoji it was handed; a thin line draining from
+   the start edge; tap or swipe it away. */
+.sys-toast-dock {
+  position: fixed; left: 0; right: 0; margin: 0 auto;
+  bottom: calc(var(--safe-bottom) + 49px + 12px);
+  z-index: var(--z-toast);
+  width: 100%; max-width: 560px;
+  padding-inline: var(--gutter);
+  pointer-events: none;
+}
+.sys-toast-wrap { position: relative; }
+@keyframes sys-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.sys-toast {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 52px; padding: var(--space-3) var(--space-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2); color: var(--ink);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), inset 0 0 0 1px var(--edge), inset 0 1px 0 var(--hairline);
+  pointer-events: auto; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  animation: sys-toast-in var(--dur-base) var(--ease-out);
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out);
+}
+.sys-toast.is-dragging { transition: none; }
+.sys-toast.is-leaving {
+  opacity: 0; transform: translateY(16px);
+  transition: transform var(--dur-fast) var(--ease-exit), opacity var(--dur-fast) var(--ease-exit);
+}
+.sys-toast.is-leaving.to-right { transform: translateX(110%); }
+.sys-toast.is-leaving.to-left  { transform: translateX(-110%); }
+
+.sys-toast-icon { flex: none; display: grid; place-items: center; width: 24px; height: 24px; color: var(--ink-2); }
+.sys-toast-icon .sys-toast-glyph { font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
+.sys-tone-accent .sys-toast-icon { color: var(--accent); }
+.sys-tone-rest   .sys-toast-icon { color: var(--rest); }
+.sys-tone-streak .sys-toast-icon { color: var(--streak); }
+.sys-tone-raise  .sys-toast-icon { color: var(--raise); }
+.sys-tone-danger .sys-toast-icon { color: var(--danger); }
+
+.sys-toast-msg {
+  flex: 1; min-width: 0;
+  font-size: var(--t-body); font-weight: 500; line-height: 1.5; color: var(--ink);
+  text-wrap: pretty;
+}
+.sys-toast-count {
+  flex: none; min-width: 28px; min-height: 24px; padding: 0 8px; border-radius: var(--r-pill);
+  display: grid; place-items: center;
+  background: var(--surface-3); color: var(--ink-2);
+  font-size: var(--t-label); font-weight: 700;
+}
+
+@keyframes sys-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.sys-toast-drain {
+  position: absolute; inset-inline: 0; bottom: 0; height: 2px;
+  background: var(--ink-3);
+  transform-origin: right;   /* RTL: what is left of the time sits at the start edge */
+  animation: sys-drain linear forwards;
+}
+.sys-toast.is-held .sys-toast-drain { animation-play-state: paused; }
+
+/* More waiting behind this one: the edge of the next card peeks below. */
+.sys-toast-stack {
+  position: absolute; z-index: -1; inset-inline: 12px; bottom: -6px; height: 12px;
+  border-radius: 0 0 12px 12px;
+  background: var(--surface-1);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.45), inset 0 0 0 1px var(--edge);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes sys-toast-in { from { opacity: 0; } to { opacity: 1; } }
+  .sys-toast.is-leaving,
+  .sys-toast.is-leaving.to-right,
+  .sys-toast.is-leaving.to-left { transform: none; }
+  @keyframes sys-rise { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sys-pop  { from { opacity: 0; } to { opacity: 1; } }
+}
+
+/* ══ What's New ═══════════════════════════════════════════════ */
+.sys-wn-ver { font-size: var(--t-body); font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.sys-wn-list { list-style: none; margin: 0; padding: 0; }
+.sys-wn-item {
+  display: grid; grid-template-columns: 24px 1fr; column-gap: var(--space-4); align-items: start;
+  padding: var(--space-4) 0;
+}
+.sys-wn-item + .sys-wn-item { border-top: 1px solid var(--hairline); }
+.sys-wn-icon { color: var(--ink-2); margin-top: 2px; }
+.sys-wn-icon.is-streak { color: var(--streak); }
+.sys-wn-icon.is-raise  { color: var(--raise); }
+.sys-wn-icon.is-rest   { color: var(--rest); }
+.sys-wn-title { margin: 0; font-size: var(--t-headline); font-weight: 600; line-height: 1.4; color: var(--ink); }
+.sys-wn-desc  { margin: 2px 0 0; font-size: var(--t-body); font-weight: 500; line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
+
+/* ══ Art-pack offer ═══════════════════════════════════════════ */
+.sys-pack-stage {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  margin: var(--space-1) calc(-1 * var(--gutter)) var(--space-4);
+  padding: var(--space-5) var(--gutter);
+  /* closest-side: the light is fully gone at every edge, so the stage
+     has no visible box — it is light on the sheet, not a panel in it. */
+  background: radial-gradient(closest-side, var(--stage-light), var(--surface-2));
+}
+.sys-pack-stage img { width: 30%; max-width: 132px; aspect-ratio: 1; object-fit: contain; }
+.sys-pack-stage img:nth-child(2) { width: 36%; max-width: 156px; }
+.sys-pack-text { margin: 0; font-size: var(--t-body); line-height: 1.7; color: var(--ink-2); text-wrap: pretty; }
+.sys-pack-meta { margin: var(--space-3) 0 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.sys-pack-actions { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-2); }

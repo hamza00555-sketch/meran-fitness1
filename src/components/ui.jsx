@@ -1,234 +1,181 @@
-// ── Shared UI Primitives ──────────────────────────────────────
-import Art from '../assets/Art.jsx'
+// ── Shared UI primitives (legacy API, «تحت الأضواء» look) ─────
+//
+// Every screen that has not been rebuilt on the kit still draws with
+// these, so they carry the new design without changing a single prop:
+// callers keep passing what they always passed and get a surface-1 card
+// with an edge instead of a box with a coloured arc, an eyebrow instead
+// of a green bar, a 4px track instead of a glowing bar, a neutral chip
+// instead of a tinted pill.
+//
+// New code should use components/kit — these exist so the old code
+// keeps working while it is moved.
 
-// Card
-export function Card({ children, style = {}, topColor, onClick, glass = false }) {
+import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import Art from '../assets/Art.jsx'
+import { Button, IconButton, Gauge, Num } from './kit/index.jsx'
+import { X, Barbell, ClockCounterClockwise, Camera, Trophy, MagnifyingGlass, Notepad } from './kit/icons.js'
+import { resolveGlyph, stripEmoji } from './system/glyphs.jsx'
+import '../styles/screens/system.css'
+
+const cx = (...a) => a.filter(Boolean).join(' ')
+
+/** Drop undefined/null values before they reach React's style writer:
+ *  React writes '' for an undefined longhand, which used to wipe the
+ *  card's border on three sides (critique F21). */
+function clean(style) {
+  if (!style) return undefined
+  const out = {}
+  for (const k in style) if (style[k] !== undefined && style[k] !== null) out[k] = style[k]
+  return out
+}
+
+/** A colour the caller passed → a colour role, or null for "not a state".
+ *  Only role tokens count: muscle-group hexes and the old decorative
+ *  cyan/gold are decoration, and decoration is neutral now. */
+function roleOf(color) {
+  if (typeof color !== 'string') return null
+  if (/--(rest|purple|blue)\b/.test(color)) return 'rest'
+  if (/--(streak|orange)\b/.test(color)) return 'streak'
+  if (/--raise\b/.test(color)) return 'raise'
+  if (/--(danger|red)\b/.test(color)) return 'danger'
+  return null
+}
+
+// ── Card ──────────────────────────────────────────────────────
+// surface-1, a 6% edge, radius 16, padding 16. `topColor` is accepted
+// and ignored: the coloured arc it drew is gone (F21). `glass` is the
+// raised surface, without the blur.
+export function Card({ children, style, onClick, glass = false }) {
   return (
     <div
       onClick={onClick}
-      style={{
-        background: glass
-          ? 'rgba(16,25,40,0.72)'
-          : 'var(--bg2)',
-        backdropFilter: glass ? 'blur(14px)' : undefined,
-        WebkitBackdropFilter: glass ? 'blur(14px)' : undefined,
-        border: topColor
-          ? undefined
-          : glass
-            ? '1px solid rgba(var(--cyan-rgb),0.10)'
-            : '1px solid var(--border)',
-        borderTop: topColor ? `2px solid ${topColor}` : glass ? '1px solid rgba(var(--cyan-rgb),0.14)' : '1px solid var(--border)',
-        borderRight: topColor ? '1px solid var(--border)' : undefined,
-        borderBottom: topColor ? '1px solid var(--border)' : undefined,
-        borderLeft: topColor ? '1px solid var(--border)' : undefined,
-        borderRadius: 'var(--radius)',
-        padding: 6,
-        cursor: onClick ? 'pointer' : 'default',
-        boxShadow: glass ? '0 8px 32px rgba(0,0,0,0.28)' : '0 2px 12px rgba(0,0,0,0.18)',
-        ...style,
-      }}
+      className={cx('sys-card', glass && 'sys-card-raised', onClick && 'sys-card-tap')}
+      style={clean(style)}
     >{children}</div>
   )
 }
 
-// Button variants
-const BTN_VARIANTS = {
-  primary: {
-    background: 'var(--grad-primary)',
-    color: '#fff',
-    border: 'none',
-    boxShadow: '0 4px 18px rgba(var(--cyan-rgb),0.30)',
-  },
-  secondary: {
-    background: 'var(--bg3)',
-    color: 'var(--text)',
-    border: '1px solid var(--border2)',
-    boxShadow: 'none',
-  },
-  ghost: {
-    background: 'transparent',
-    color: 'var(--text2)',
-    border: '1px solid var(--border)',
-    boxShadow: 'none',
-  },
-  danger: {
-    background: 'var(--red-lo)',
-    color: 'var(--red)',
-    border: '1px solid var(--red-md)',
-    boxShadow: 'none',
-  },
-}
+// ── Btn → the kit's Button ────────────────────────────────────
+const BTN_VARIANT = { primary: 'primary', secondary: 'secondary', ghost: 'plain', danger: 'destructive' }
 
-export function Btn({
-  children, onClick, variant = 'primary',
-  disabled = false, style = {}, full = false,
-}) {
-  const v = BTN_VARIANTS[variant] || BTN_VARIANTS.primary
+export function Btn({ children, onClick, variant = 'primary', disabled = false, style, full = false }) {
   return (
-    <button
+    <Button
+      variant={BTN_VARIANT[variant] || 'primary'}
+      size="lg"
+      full={full}
+      disabled={disabled}
       onClick={disabled ? undefined : onClick}
-      style={{
-        ...v,
-        borderRadius: 'var(--radius-sm)',
-        padding: '14px 20px',
-        fontFamily: 'var(--font-ar)',
-        fontWeight: 700,
-        fontSize: 16,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.45 : 1,
-        transition: 'opacity 0.15s, transform 0.12s',
-        outline: 'none',
-        width: full ? '100%' : undefined,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        ...style,
-      }}
-      onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = 'scale(0.97)' }}
-      onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
-    >{children}</button>
+      style={clean(style)}
+    >{children}</Button>
   )
 }
 
-// Badge
-export function Badge({ children, color = 'var(--cyan)' }) {
+// ── Badge → a neutral chip ────────────────────────────────────
+// Neutral unless the colour is a role (rest, streak, raise, danger).
+// Emoji in the label are dropped: the chip says it in words.
+export function Badge({ children, color }) {
+  const role = roleOf(color)
+  const kids = Array.isArray(children) ? children.map(stripEmoji) : stripEmoji(children)
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      background: color + '20', color,
-      border: `1px solid ${color}38`,
-      borderRadius: 20, padding: '3px 11px',
-      fontSize: 13.5, fontFamily: 'var(--font-ar)',
-      fontWeight: 700, whiteSpace: 'nowrap',
-    }}>{children}</span>
+    <span className={cx('k-chip', `k-chip-${role || 'neutral'}`, 'sys-chip')}>{kids}</span>
   )
 }
 
-// Section Title with cyan left bar (RTL = right bar)
+// ── Section title: an eyebrow, no bar ─────────────────────────
 export function SectionTitle({ children, action }) {
   return (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      marginBottom: 12,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{
-          width: 3, height: 18, background: 'var(--cyan)',
-          borderRadius: 2, flexShrink: 0,
-        }} />
-        <span style={{
-          fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 700,
-          color: 'var(--text)',
-        }}>{children}</span>
-      </div>
-      {action && <div>{action}</div>}
+    <div className="sys-section">
+      <h3 className="sys-section-title">{children}</h3>
+      {action && <div className="sys-section-action">{action}</div>}
     </div>
   )
 }
 
-// Empty State
+// ── Empty state ───────────────────────────────────────────────
+// The pack's picture when it is installed; otherwise the caller's image,
+// or a Phosphor icon in a quiet disc — never an empty 52px slot (F45)
+// and never an emoji.
+const ART_ICON = {
+  empty_workout: Barbell,
+  empty_history: ClockCounterClockwise,
+  empty_photos: Camera,
+  empty_achievements: Trophy,
+  empty_search: MagnifyingGlass,
+}
+
 export function EmptyState({ art, icon, img, title, desc }) {
+  // The slot's own icon first (it matches the tab it sits in), then the
+  // caller's emoji translated, then a neutral page.
+  const glyph = resolveGlyph(icon, { fallback: null })
+  const Icon = ART_ICON[art] || glyph?.Icon || Notepad
+  const fallback = img
+    ? <img src={img} alt="" className="sys-empty-art" />
+    : <span className="sys-empty-icon"><Icon size={32} weight="regular" aria-hidden="true" /></span>
   return (
-    <div style={{
-      textAlign: 'center', padding: '50px 20px',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-    }}>
-      <Art
-        id={art}
-        size={140}
-        style={{ filter: 'drop-shadow(0 4px 20px rgba(var(--cyan-rgb),0.2))' }}
-        fallback={img
-          ? <img src={img} alt="" style={{ width: 140, height: 140, objectFit: 'contain', filter: 'drop-shadow(0 4px 20px rgba(var(--cyan-rgb),0.2))' }} />
-          : <div className="icon-glow" style={{ fontSize: 52 }}>{icon}</div>
-        }
-      />
-      <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 700, color: 'var(--text2)' }}>
-        {title}
-      </div>
-      {desc && (
-        <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)', maxWidth: 240 }}>
-          {desc}
-        </div>
-      )}
+    <div className="sys-empty">
+      <Art id={art} className="sys-empty-art" fallback={fallback} />
+      {title && <p className="sys-empty-title">{title}</p>}
+      {desc && <p className="sys-empty-body">{desc}</p>}
     </div>
   )
 }
 
-// Progress Bar
-export function ProgressBar({ value = 0, max = 100, color = 'var(--cyan)', height = 6, gradient = false }) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0
-  return (
-    <div style={{
-      background: 'rgba(255,255,255,0.05)', borderRadius: height, height, overflow: 'hidden',
-      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3)',
-    }}>
-      <div style={{
-        height: '100%', width: `${pct}%`,
-        background: gradient ? `linear-gradient(90deg, ${color}, var(--cyan-hi))` : color,
-        borderRadius: height,
-        transition: 'width 0.6s ease',
-        boxShadow: pct > 0 ? `0 0 8px ${color}60` : 'none',
-      }} />
-    </div>
-  )
+// ── Progress bar → the 4px gauge ──────────────────────────────
+// Accent by default; a role colour (rest, streak, raise) is honoured,
+// anything else (muscle hexes, the old cyan and decorative gold) reads
+// as the accent. `height` and `gradient` are accepted and ignored.
+export function ProgressBar({ value = 0, max = 100, color }) {
+  const role = roleOf(color)
+  const tone = role === 'danger' ? 'accent' : (role || 'accent')
+  return <Gauge value={value} max={max} tone={tone} />
 }
 
-// Rank Badge Chip
+// ── Rank chip ─────────────────────────────────────────────────
 export function RankBadge({ rank }) {
   if (!rank) return null
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      background: rank.bg || rank.color + '20',
-      color: rank.color,
-      border: `1px solid ${rank.color}50`,
-      borderRadius: 20, padding: '3px 10px',
-      fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700,
-    }}>
-      {rank.img && <img src={rank.img} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />}
-      {rank.tier} · {rank.label}
+    <span className="k-chip k-chip-neutral sys-chip sys-rank">
+      {rank.img && <img src={rank.img} alt="" />}
+      <Num>{rank.tier}</Num> · {rank.label}
     </span>
   )
 }
 
-// Modal Overlay
+// ── Overlay (legacy modal) ────────────────────────────────────
+// Portalled to <body>, so it can no longer be trapped under the page's
+// stacking context with the header over its title (F30). One scrim, no
+// blur; align="bottom" is a sheet flush with the bottom edge, top
+// corners 16, the safe area respected. Escape closes.
 export function Overlay({ children, onClose, align = 'center' }) {
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: align === 'bottom' ? 'flex-end' : 'center',
-        justifyContent: 'center',
-        zIndex: 300,
-        padding: align === 'bottom' ? '0 12px 12px' : 20,
-      }}
-    >
-      <div className="modal-enter" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 540 }}>
+  const close = useRef(onClose)
+  close.current = onClose
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') close.current?.() }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  const bottom = align === 'bottom'
+  return createPortal(
+    <div className={cx('sys-scrim', bottom && 'sys-scrim-bottom')} onClick={() => close.current?.()} role="presentation">
+      <div className={cx('sys-panel', bottom && 'sys-panel-bottom')} role="dialog" aria-modal="true"
+        onClick={e => e.stopPropagation()}>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
-// Close Button
+// ── Close button: a 44pt × ────────────────────────────────────
 export function CloseBtn({ onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: 'none', border: 'none',
-        color: 'var(--text3)', fontSize: 22,
-        cursor: 'pointer', lineHeight: 1, padding: 4,
-        transition: 'color 0.15s', flexShrink: 0,
-      }}
-      onMouseOver={e => e.currentTarget.style.color = 'var(--text)'}
-      onMouseOut={e => e.currentTarget.style.color = 'var(--text3)'}
-    >×</button>
-  )
+  return <IconButton icon={X} label="إغلاق" onClick={onClick} className="sys-close" />
 }
