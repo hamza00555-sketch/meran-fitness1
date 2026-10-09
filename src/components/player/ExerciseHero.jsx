@@ -8,6 +8,7 @@ import SessionMedia from './SessionMedia.jsx'
 import ExerciseTags from './ExerciseTags.jsx'
 import { arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
+import { resolveExerciseName } from '../../utils.js'
 
 // ── The exercise, presented like a broadcast name strap ───────
 //
@@ -26,6 +27,16 @@ import { MUSCLE_GROUPS } from '../../constants.js'
 // Everything that isn't set-logging lives behind ⋯: info, video, swap,
 // add/remove a set, move a set, copy the name, remove the exercise —
 // and, in its own group, the session's «إلغاء التمرين».
+//
+// Every name here goes through the user's alias mapping, so a machine he
+// renamed (or a custom alias) still finds its Arabic name and its art.
+
+/** Arabic first, the English after it in the Latin face; English alone when there is no Arabic. */
+function NameAr({ name, mapping }) {
+  const ar = arabicName(name, mapping)
+  if (!ar) return <bdi dir="ltr" className="s-latin">{name}</bdi>
+  return <>{ar}<span className="s-latin-sep" aria-hidden="true">·</span><bdi dir="ltr" className="s-latin">{name}</bdi></>
+}
 
 function useSwipe(onSwipe) {
   const start = useRef(null)
@@ -45,9 +56,9 @@ function useSwipe(onSwipe) {
 }
 
 export default function ExerciseHero({
-  ex, expanded, animate = false, onToggleStage, collapsible = false,
+  ex, mapping = {}, expanded, animate = false, onToggleStage, collapsible = false,
   maxWeight = null, deloadPct = 0, quietBest = false, ytUrl,
-  canSwap, swapTitle, onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
+  canSwap, swapNext = null, swapOrigin = null, onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
   onAddExercise, onDiscard, onSwipe,
 }) {
   const [menu, setMenu] = useState(false)
@@ -55,7 +66,7 @@ export default function ExerciseHero({
   const [copied, setCopied] = useState(false)
   const swipe = useSwipe(onSwipe)
 
-  const ar = arabicName(ex.name)
+  const ar = arabicName(ex.name, mapping)
   const primary = ar || ex.name
   const secondary = ar ? ex.name : null
 
@@ -81,17 +92,17 @@ export default function ExerciseHero({
               onClick={onToggleStage} />
           )}
           <div className="s-stage-media">
-            <SessionMedia key={ex.name} name={ex.name} muscle={ex.muscle} animate={animate} className="s-stage-img" />
+            <SessionMedia key={ex.name} name={ex.name} mapping={mapping} muscle={ex.muscle} animate={animate} className="s-stage-img" />
           </div>
           <div className="s-strap">
             <div className="s-strap-row">{names}{more}</div>
-            <ExerciseTags ex={ex} maxWeight={maxWeight} deloadPct={deloadPct} quietBest={quietBest} />
+            <ExerciseTags ex={ex} mapping={mapping} maxWeight={maxWeight} deloadPct={deloadPct} quietBest={quietBest} />
           </div>
         </section>
       ) : (
         <section className="s-exrow" data-testid="exercise-row" {...swipe}>
           <button type="button" className="s-thumb" onClick={onToggleStage} aria-label="اعرض صورة التمرين">
-            <SessionMedia key={ex.name} name={ex.name} muscle={ex.muscle} className="s-thumb-img" />
+            <SessionMedia key={ex.name} name={ex.name} mapping={mapping} muscle={ex.muscle} className="s-thumb-img" />
           </button>
           {names}
           {more}
@@ -107,7 +118,11 @@ export default function ExerciseHero({
           )}
           {canSwap && (
             <ListRow leading={ArrowsLeftRight} title="استبدال التمرين"
-              subtitle={swapTitle ? <bdi>{swapTitle}</bdi> : 'الجهاز مشغول؟ جرّب البديل'}
+              subtitle={swapNext
+                ? <>التالي: <NameAr name={swapNext} mapping={mapping} /></>
+                : swapOrigin && swapOrigin !== ex.name
+                  ? <>رجوع إلى <NameAr name={swapOrigin} mapping={mapping} /></>
+                  : 'الجهاز مشغول؟ جرّب البديل'}
               onClick={act(onSwap)} />
           )}
           <ListRow leading={Plus} title="إضافة مجموعة" onClick={act(onAddSet)} />
@@ -126,8 +141,8 @@ export default function ExerciseHero({
           <ListGroup header="نقل آخر مجموعة إلى">
             {moveTargets.map(t => (
               <ListRow key={t.id} leading={ArrowBendDownLeft}
-                title={arabicName(t.name) || t.name}
-                subtitle={arabicName(t.name) ? <bdi dir="ltr">{t.name}</bdi> : null}
+                title={arabicName(t.name, mapping) || t.name}
+                subtitle={arabicName(t.name, mapping) ? <bdi dir="ltr" className="s-latin">{t.name}</bdi> : null}
                 onClick={act(() => onMoveSet(t.id))} />
             ))}
           </ListGroup>
@@ -142,19 +157,22 @@ export default function ExerciseHero({
         </ListGroup>
       </Sheet>
 
-      <ExerciseInfoSheet open={info} ex={ex} ytUrl={ytUrl} onClose={() => setInfo(false)} />
+      <ExerciseInfoSheet open={info} ex={ex} mapping={mapping} ytUrl={ytUrl} onClose={() => setInfo(false)} />
     </>
   )
 }
 
 // The exercise's tips and video, as a sheet. (The old info modal is a
 // portal under the session cover, so it opened invisibly here.)
-function ExerciseInfoSheet({ open, ex, ytUrl, onClose }) {
+function ExerciseInfoSheet({ open, ex, mapping = {}, ytUrl, onClose }) {
   const group = MUSCLE_GROUPS[ex.muscle] || {}
+  const canon = resolveExerciseName(ex.name, mapping)
+  const all = Object.values(MUSCLE_GROUPS).flatMap(g => g.exercises || [])
   const def = (group.exercises || []).find(e => e.name === ex.name)
-    || Object.values(MUSCLE_GROUPS).flatMap(g => g.exercises || []).find(e => e.name === ex.name)
+    || all.find(e => e.name === ex.name)
+    || all.find(e => e.name.toLowerCase() === canon)
     || {}
-  const ar = arabicName(ex.name)
+  const ar = arabicName(ex.name, mapping)
   return (
     <Sheet open={open} onClose={onClose} title={ar || ex.name}>
       {ar && <p className="s-info-en" dir="ltr">{ex.name}</p>}

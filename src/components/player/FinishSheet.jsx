@@ -1,5 +1,6 @@
 import { Sheet, Button, Num } from '../kit/index.jsx'
-import { setsPhrase } from './sessionWords.js'
+import { setsPhrase, clock } from './sessionWords.js'
+import { useElapsed } from './SessionBar.jsx'
 
 // ── «إنهاء»: save, throw away, or keep going ──────────────────
 // Finishing used to close the session the instant you touched it, and
@@ -7,14 +8,19 @@ import { setsPhrase } from './sessionWords.js'
 // cost on the destructive answer: «ستُحذف 3 مجموعات». With nothing
 // logged there is nothing to save, so the sheet says so and keeps you
 // training unless you choose to throw it away.
+//
+// The time it quotes is wall-clock since the start, as the bar shows it
+// and as the saved session records it; it only ticks while the sheet is
+// open.
 
 const Phrase = ({ n }) => {
   const p = setsPhrase(n)
   return <>{p.num != null && <><Num>{p.num}</Num> </>}{p.word}</>
 }
 
-export default function FinishSheet({ open, doneSets = 0, elapsed, onSave, onDiscard, onClose }) {
+export default function FinishSheet({ open, doneSets = 0, startedAt, onSave, onDiscard, onClose }) {
   const none = doneSets === 0
+  const elapsed = useElapsed(startedAt, open)
   return (
     <Sheet open={open} onClose={onClose} title="إنهاء الجلسة؟"
       footer={(
@@ -39,7 +45,7 @@ export default function FinishSheet({ open, doneSets = 0, elapsed, onSave, onDis
       <p className="k-confirm-msg">
         {none
           ? 'ما سجّلت أي مجموعة بعد، فما فيه شي ينحفظ.'
-          : <>سجّلت <Phrase n={doneSets} />{elapsed ? <> في <Num>{elapsed}</Num></> : null}. تنحفظ في سجلّك.</>}
+          : <>سجّلت <Phrase n={doneSets} />{startedAt ? <> في <Num>{clock(elapsed)}</Num></> : null}. تنحفظ في سجلّك.</>}
       </p>
     </Sheet>
   )

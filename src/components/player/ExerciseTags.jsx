@@ -1,6 +1,6 @@
 import { Num } from '../kit/index.jsx'
 import { ArrowsLeftRight, Drop } from '../kit/icons.js'
-import { equipLabel } from '../../exerciseMedia.js'
+import { equipLabel, arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
 import { kg } from './sessionWords.js'
 
@@ -16,9 +16,11 @@ import { kg } from './sessionWords.js'
 // The coaching moved into the coach line under the counters; YouTube
 // moved into the ⋯ sheet.
 
-export default function ExerciseTags({ ex, maxWeight = null, deloadPct = 0, quietBest = false }) {
+export default function ExerciseTags({ ex, mapping = {}, maxWeight = null, deloadPct = 0, quietBest = false }) {
   const group = MUSCLE_GROUPS[ex.muscle]
-  const equip = equipLabel(ex.name)
+  const equip = equipLabel(ex.name, mapping)
+  const origin = ex.originalName && ex.originalName !== ex.name ? ex.originalName : null
+  const originAr = origin ? arabicName(origin, mapping) : null
   const parts = [group?.label || null, equip].filter(Boolean)
   return (
     <div className="s-meta">
@@ -35,9 +37,10 @@ export default function ExerciseTags({ ex, maxWeight = null, deloadPct = 0, quie
           <Drop size={14} weight="fill" aria-hidden="true" /> ديلود <Num>−{deloadPct}%</Num>
         </span>
       )}
-      {ex.originalName && ex.originalName !== ex.name && (
+      {origin && (
         <span className="s-meta-part">
-          <ArrowsLeftRight size={14} weight="bold" aria-hidden="true" /> بدل <bdi dir="ltr">{ex.originalName}</bdi>
+          <ArrowsLeftRight size={14} weight="bold" aria-hidden="true" /> بدل {originAr || <bdi dir="ltr" className="s-latin">{origin}</bdi>}
+          {originAr && <><span className="s-latin-sep" aria-hidden="true">—</span><bdi dir="ltr" className="s-latin">{origin}</bdi></>}
         </span>
       )}
     </div>

@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button, ConfirmSheet, EmptyState, Num } from '../components/kit/index.jsx'
 import { Barbell, Plus, ListChecks } from '../components/kit/icons.js'
 import WorkoutPlayer from '../components/player/WorkoutPlayer.jsx'
 import SessionBar from '../components/player/SessionBar.jsx'
 import FinishSheet from '../components/player/FinishSheet.jsx'
-import { clock, dayWord, previousSets, setsPhrase } from '../components/player/sessionWords.js'
+import { dayWord, previousSets, setsPhrase } from '../components/player/sessionWords.js'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, getExerciseStats, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone } from '../utils.js'
+import { buildExercise, blankSet, getExerciseStats, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, resolveExerciseName } from '../utils.js'
 import { deloadWeight } from '../deload.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
@@ -31,30 +31,29 @@ export default function WorkoutPage({
 }) {
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
-  const [elapsed,       setElapsed]       = useState(0)
   const [askFinish,     setAskFinish]     = useState(false)
   const [askDiscard,    setAskDiscard]    = useState(false)
-  const timerRef      = useRef(null)
-  const pausedMsRef   = useRef(0)
-  const pauseStartRef = useRef(null)
 
-  // pause timer when rest opens, resume when it closes
-  useEffect(() => {
-    if (!active) return
-    if (isResting) {
-      clearInterval(timerRef.current)
-      pauseStartRef.current = Date.now()
-    } else {
-      if (pauseStartRef.current) {
-        pausedMsRef.current += Date.now() - pauseStartRef.current
-        pauseStartRef.current = null
-      }
-      const tick = () => setElapsed(Math.floor((Date.now() - active.id - pausedMsRef.current) / 1000))
-      tick()
-      timerRef.current = setInterval(tick, 1000)
+  // The session clock lives in SessionBar (wall-clock since active.id,
+  // the same number finishSession saves), so this page — and the player
+  // under it — no longer re-render once a second.
+
+  // What the engines say about an exercise only changes when the history,
+  // the alias mapping or the rep target does, so it is worked out once
+  // per name instead of on every render of the player.
+  const engine = useMemo(() => {
+    const cache = new Map()
+    const memo = (kind, name, fn) => {
+      const key = `${kind}\u0000${name}`
+      if (!cache.has(key)) cache.set(key, fn())
+      return cache.get(key)
     }
-    return () => clearInterval(timerRef.current)
-  }, [active?.id, isResting])
+    return {
+      progression: (name) => memo('p', name, () => analyzeProgression(sessions, name, exerciseMapping, repTarget)),
+      stats:       (name) => memo('s', name, () => getExerciseStats(sessions, name, exerciseMapping)),
+      previous:    (name) => memo('v', name, () => previousSets(sessions, name, exerciseMapping)),
+    }
+  }, [sessions, exerciseMapping, repTarget])
 
   // Keep the screen on for the length of the session. Feature-detected;
   // re-requested when the app comes back, since the system drops the
@@ -165,14 +164,13 @@ export default function WorkoutPage({
   const getLastW = (name) =>
     suggestedWeightFor(name, { sessions, mapping: exerciseMapping, transform: lighten })
 
-  const getSuggestedReps = (name) =>
-    analyzeProgression(sessions, name, exerciseMapping, repTarget).suggestedReps
+  const getSuggestedReps = (name) => engine.progression(name).suggestedReps
 
   // Progression is frozen for the length of a deload. The weights are
   // deliberately low, so "add weight" would be wrong and "drop the
   // weight" would be advice about a decline that was the plan.
   const progressionFor = (name) => {
-    const p = analyzeProgression(sessions, name, exerciseMapping, repTarget)
+    const p = engine.progression(name)
     return active?.deload ? { ...p, hint: null } : p
   }
 
@@ -213,20 +211,24 @@ export default function WorkoutPage({
   const doneSets  = exercises.flatMap(ex => ex.sets).filter(s => s.done).length
 
   // What the ⋯ menu needs to know about swapping: allowed only while
-  // nothing is logged, exactly as before.
+  // nothing is logged, exactly as before. It names the machine the swap
+  // leads to (null: back to the original); the menu words it, Arabic first.
   const swapMeta = (ex) => {
     const origin = ex.originalName || ex.name
     const alts = EXERCISE_ALTERNATIVES[origin] || []
     const subIdx = exerciseSubs[origin] || 0
     return {
       canSwap: alts.length > 0 && !ex.sets.some(st => st.done),
-      title: subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي',
+      next: subIdx < alts.length ? alts[subIdx] : null,
+      origin,
     }
   }
 
   const ytUrlFor = (name) => {
+    const canon = resolveExerciseName(name, exerciseMapping)
     for (const group of Object.values(MUSCLE_GROUPS)) {
       const def = group.exercises?.find(e => e.name === name)
+        || group.exercises?.find(e => e.name.toLowerCase() === canon)
       if (def?.videoUrl) return def.videoUrl
     }
     return `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' proper form')}`
@@ -245,7 +247,7 @@ export default function WorkoutPage({
     <div className="s-session" data-testid="session" data-own-bar={onMinimize ? '1' : undefined}>
       <SessionBar
         title={dayWord(active)}
-        elapsed={clock(elapsed)}
+        startedAt={active.id}
         onMinimize={onMinimize}
         onFinish={() => setAskFinish(true)}
       />
@@ -277,8 +279,9 @@ export default function WorkoutPage({
           getLastW={getLastW}
           progressionFor={progressionFor}
           ytUrlFor={ytUrlFor}
-          statsFor={(name) => getExerciseStats(sessions, name, exerciseMapping)}
-          previousFor={(name) => previousSets(sessions, name, exerciseMapping)}
+          mapping={exerciseMapping}
+          statsFor={engine.stats}
+          previousFor={engine.previous}
           swapMeta={swapMeta}
           onUpdateSet={handleUpdateSet}
           onStepSet={handleStepSet}
@@ -298,7 +301,7 @@ export default function WorkoutPage({
       <FinishSheet
         open={askFinish}
         doneSets={doneSets}
-        elapsed={clock(elapsed)}
+        startedAt={active.id}
         onSave={() => { setAskFinish(false); onFinish() }}
         onDiscard={discard}
         onClose={() => setAskFinish(false)}

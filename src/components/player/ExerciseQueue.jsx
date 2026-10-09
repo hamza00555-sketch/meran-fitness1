@@ -9,7 +9,7 @@ import { arabicName } from '../../exerciseMedia.js'
 // the exercise head) replaced the carousel, whose clipped neighbour
 // card only ever showed «ck / تفت» at the edge.
 
-export default function ExerciseQueue({ exercises, activeIndex, onJump, onAdd }) {
+export default function ExerciseQueue({ exercises, mapping = {}, activeIndex, onJump, onAdd }) {
   return (
     <section className="s-queue" aria-label="تمارين الجلسة">
       <h3 className="s-queue-h">تمارين الجلسة</h3>
@@ -18,7 +18,7 @@ export default function ExerciseQueue({ exercises, activeIndex, onJump, onAdd })
           const done = ex.sets.filter(s => s.done).length
           const complete = ex.sets.length > 0 && done === ex.sets.length
           const isActive = i === activeIndex
-          const ar = arabicName(ex.name)
+          const ar = arabicName(ex.name, mapping)
           return (
             <button
               key={ex.id}

@@ -7,8 +7,9 @@
 // What only a browser can answer: does the loop actually flow — set,
 // rest, «جاهز», set, done, next exercise — do edits land only on the
 // exercise on screen, does the raise live on the number, do the counters
-// and the docked button fit a 320×568 screen, and does the rest make its
-// sound and keep the screen awake.
+// and the docked button fit a 320×568 screen, does the rest make its
+// sound and keep the screen awake, does a finger scrolling over a
+// stepper leave the weight alone, and does the clock tell wall time.
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
@@ -69,7 +70,7 @@ function instruments() {
 }
 
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
-  sessions = null, reduced = false, lastWeights = null } = {}) {
+  sessions = null, reduced = false, lastWeights = null, mapping = null } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -84,7 +85,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   // Seeded history unlocks achievements on the first paint, each one
   // adds XP, and the level-up screen would cover the session — so a
   // context with history starts with them already unlocked.
-  await page.addInitScript(([active, sessions, version, lastWeights, unlocked]) => {
+  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping]) => {
     if (sessions) localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
@@ -93,7 +94,8 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
     if (active) localStorage.setItem('hf_active', JSON.stringify(active))
     if (sessions) localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     if (lastWeights) localStorage.setItem('hf_last_weights', JSON.stringify(lastWeights))
-  }, [active, sessions, APP_VERSION, lastWeights, ACHIEVEMENTS.map(a => a.id)])
+    if (mapping) localStorage.setItem('hf_exercise_mapping', JSON.stringify(mapping))
+  }, [active, sessions, APP_VERSION, lastWeights, ACHIEVEMENTS.map(a => a.id), mapping])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   // A stored session opens the full-screen cover by itself.
@@ -112,6 +114,32 @@ const endRest = (page, agoMs = 300) => page.evaluate((ago) => {
 }, agoMs)
 const inputs = (page) => page.evaluate(() =>
   [...document.querySelectorAll('input[inputmode="decimal"]')].map(i => i.value))
+// The bar's clock in seconds, and how far it is from wall time since the start.
+const clockSecs = async (page) => {
+  const t = (await page.getByTestId('session-title').innerText()).match(/(\d+:)?\d{2}:\d{2}/)?.[0] || ''
+  return t.split(':').map(Number).reduce((a, n) => a * 60 + n, 0)
+}
+const clockDrift = async (page, startedAt = ACTIVE.id) =>
+  Math.abs((await clockSecs(page)) - Math.floor((Date.now() - startedAt) / 1000))
+// A real finger, through the DevTools protocol: down, an optional drag, up.
+async function finger(page, ctx, { x, y }, { dy = 0, holdMs = 60, steps = 15 } = {}) {
+  const cdp = await ctx.newCDPSession(page)
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+  if (dy) {
+    for (let i = 1; i <= steps; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + (dy * i) / steps }] })
+      await page.waitForTimeout(16)
+    }
+  } else {
+    await page.waitForTimeout(holdMs)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await cdp.detach()
+}
+const centre = async (locator) => {
+  const b = await locator.boundingBox()
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
+}
 
 // ══ 1. The core loop: set → rest → «جاهز» → set → done → next ════
 {
@@ -155,6 +183,12 @@ const inputs = (page) => page.evaluate(() =>
     await page.getByTestId('exercise-stage').count() === 0 && await page.getByTestId('exercise-row').count() === 1)
   ok('rest: the next set stays editable during the rest',
     (await inputs(page)).length === 2 && /المجموعة\s*2/.test(await page.getByTestId('live-block').innerText()))
+
+  ok('clock: the bar tells wall time since the start', (await clockDrift(page)) <= 2, String(await clockSecs(page)))
+  const restClock0 = await clockSecs(page)
+  await page.waitForTimeout(2100)
+  ok('clock: it keeps running through the rest', (await clockSecs(page)) - restClock0 >= 2,
+    `${restClock0} → ${await clockSecs(page)}`)
 
   const tones = await page.evaluate(() => window.__tones)
   const freqs = tones.map(t => t.f).join(',')
@@ -264,6 +298,32 @@ const inputs = (page) => page.evaluate(() =>
   await page.waitForTimeout(400)
   ok('stepper: and stops on release', parseFloat((await inputs(page))[0]) === held)
 
+  // A finger is not a mouse: a scroll that starts on a disc scrolls and
+  // changes nothing; a tap steps once, on release; a still finger repeats.
+  await page.evaluate(() => document.querySelector('.s-scroll').scrollTo(0, 0))
+  await page.waitForTimeout(300)
+  const plus = page.getByRole('button', { name: 'زد الوزن' })
+  const w0 = (await inputs(page))[0]
+  const top0 = await page.evaluate(() => document.querySelector('.s-scroll').scrollTop)
+  await finger(page, ctx, await centre(plus), { dy: -150 })
+  await page.waitForTimeout(500)
+  const top1 = await page.evaluate(() => document.querySelector('.s-scroll').scrollTop)
+  ok('touch: a drag that starts on a disc scrolls the page', top1 - top0 >= 60, `${top0} → ${top1}`)
+  ok('touch: and leaves the weight alone', (await inputs(page))[0] === w0, `${w0} → ${(await inputs(page))[0]}`)
+  ok('touch: the stored set is untouched too', (await activeStored(page)).exercises[0].sets[1].weight === w0)
+  await page.evaluate(() => document.querySelector('.s-scroll').scrollTo(0, 0))
+  await page.waitForTimeout(300)
+  await finger(page, ctx, await centre(plus), { holdMs: 60 })
+  await page.waitForTimeout(200)
+  const tapped = parseFloat((await inputs(page))[0])
+  ok('touch: a tap steps once', tapped - parseFloat(w0) === 2.5, `${w0} → ${tapped}`)
+  await finger(page, ctx, await centre(plus), { holdMs: 1300 })
+  await page.waitForTimeout(150)
+  const fingerHeld = parseFloat((await inputs(page))[0])
+  ok('touch: a still finger repeats', fingerHeld - tapped >= 12.5, `${tapped} → ${fingerHeld}`)
+  await page.waitForTimeout(400)
+  ok('touch: and stops when lifted', parseFloat((await inputs(page))[0]) === fingerHeld)
+
   ok('protection: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
@@ -339,6 +399,64 @@ const inputs = (page) => page.evaluate(() =>
   ok('celebration: the next exercise is ready to log',
     (await inputs(page)).length === 2 && await completeBtn(page).count() === 1)
   ok('celebration: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 4b. A double tap on «جاهز» does not log the next set ═══════
+{
+  const THREE = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press',
+      sets: [0, 1, 2].map(() => ({ weight: '40', reps: '12', done: false })) }],
+  }
+  const { ctx, page, errors } = await open({ active: THREE })
+  await completeBtn(page).click()
+  await page.waitForTimeout(400)
+  await endRest(page)
+  const ready = page.getByTestId('rest-ready')
+  await ready.waitFor({ timeout: 4000 }).catch(() => {})
+  // A point inside both the «جاهز» field and the button that replaces it.
+  const vh = await page.evaluate(() => innerHeight)
+  const x = (await page.evaluate(() => innerWidth)) / 2, y = vh - 40
+  await page.mouse.click(x, y)
+  await page.waitForTimeout(90)
+  await page.mouse.click(x, y)
+  await page.waitForTimeout(300)
+  const st = await activeStored(page)
+  ok('guard: the second tap of a double tap on «جاهز» logs nothing',
+    st.exercises[0].sets.filter(s => s.done).length === 1, JSON.stringify(st.exercises[0].sets.map(s => s.done)))
+  ok('guard: and starts no new rest', await page.getByTestId('rest-bar').count() === 0 && await completeBtn(page).count() === 1)
+  await page.waitForTimeout(300)
+  await completeBtn(page).click({ timeout: 3000 }).catch(() => {})
+  await page.waitForTimeout(300)
+  ok('guard: a moment later the button logs as usual',
+    (await activeStored(page)).exercises[0].sets.filter(s => s.done).length === 2)
+  ok('guard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 4c. Resting on the last of six sets (390×664, Safari's height) ══
+{
+  const six = Array.from({ length: 6 }, (_, i) => ({ weight: '75', reps: '12', done: i < 4 }))
+  const { ctx, page, errors } = await open({ active: { ...ACTIVE, exercises: [{ ...ACTIVE.exercises[0], sets: six }, ACTIVE.exercises[1]] } })
+  await completeBtn(page).click()          // set 5 → the rest, set 6 live
+  await page.waitForTimeout(1200)
+  const m = await page.evaluate(() => {
+    const rest = document.querySelector('[data-testid="rest-bar"]').getBoundingClientRect()
+    const steps = [...document.querySelectorAll('.s-step-btn')].map(e => e.getBoundingClientRect())
+    return {
+      vh: innerHeight, restTop: Math.round(rest.top), restH: Math.round(rest.height),
+      stepsTop: Math.round(Math.min(...steps.map(s => s.top))), stepsBottom: Math.round(Math.max(...steps.map(s => s.bottom))),
+      set: document.querySelector('.s-live-set').innerText.replace(/\s+/g, ' '),
+      time: parseFloat(getComputedStyle(document.querySelector('.s-rest-time')).fontSize),
+    }
+  })
+  ok('rest/664: the live block is set 6 of 6', /المجموعة 6 من 6/.test(m.set), m.set)
+  ok('rest/664: the next set\'s steppers sit clear of the rest panel and its fade',
+    m.stepsTop >= 0 && m.stepsBottom <= m.restTop - 28, JSON.stringify(m))
+  ok('rest/664: the compact panel (~100px) keeps its 56px countdown', m.restH <= 100 && m.time === 56, JSON.stringify(m))
+  await page.screenshot({ path: `${OUT}/rest-664.png` })
+  ok('rest/664: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -506,6 +624,9 @@ const RAISE_SESSIONS = [
   await page.getByRole('button', { name: /^إنهاء$/ }).click()
   await page.waitForTimeout(500)
   const sheet = await page.locator('.k-sheet').last().innerText()
+  const quoted = (sheet.match(/في\s*((\d+:)?\d{2}:\d{2})/)?.[1] || '').split(':').map(Number).reduce((a, n) => a * 60 + n, 0)
+  ok('finish: the sheet quotes wall time, as the session will be saved',
+    Math.abs(quoted - Math.floor((Date.now() - ACTIVE.id) / 1000)) <= 2, sheet)
   ok('finish: «احفظ وأنهِ» first, the cost on the discard', /احفظ وأنهِ/.test(sheet) && /ستُحذف مجموعة واحدة/.test(sheet), sheet)
   const discardColor = await page.locator('.s-discard').evaluate(el => getComputedStyle(el).color)
   ok('finish: only the discard is red', discardColor === DANGER, discardColor)
@@ -561,6 +682,11 @@ const RAISE_SESSIONS = [
   await page.getByRole('button', { name: 'صغّر الجلسة' }).filter({ visible: true }).click()
   await page.waitForTimeout(600)
   ok('chrome: ⌄ docks the session as the live bar', await page.getByTestId('session').count() === 0 && await page.getByTestId('live-bar').count() === 1)
+  await page.waitForTimeout(1500)
+  await page.getByTestId('live-bar').click()
+  await page.locator('[data-testid="session"]').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(300)
+  ok('clock: reopening shows the true elapsed time, no jump', (await clockDrift(page)) <= 2, String(await clockSecs(page)))
   ok('chrome: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
@@ -590,6 +716,36 @@ const RAISE_SESSIONS = [
   await page.waitForTimeout(700)
   ok('routines: picking «دفع» loads its exercises', (await activeStored(page)).exercises.length === 5)
   ok('routines: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 9b. Names: Arabic first, through the user's alias mapping ══
+{
+  const ALIAS = { id: Date.now() - 60000, date: new Date().toISOString(), name: 'Push — اختبار',
+    exercises: [
+      { id: 'm', muscle: 'Chest', name: 'My Hammer Press', sets: [{ weight: '70', reps: '10', done: false }] },
+      { id: 'b', muscle: 'Chest', name: 'Pec Deck', sets: [{ weight: '50', reps: '12', done: false }] },
+    ] }
+  const { ctx, page, errors } = await open({ active: ALIAS, mapping: { 'My Hammer Press': 'Hammer Strength Machine Bench Press' } })
+  ok('mapping: a renamed machine still shows its Arabic name', (await page.getByTestId('exercise-name').textContent()) === 'ضغط صدر جهاز هامر')
+  ok('mapping: with the user\'s own name under it', (await page.locator('.s-name-en').first().textContent()) === 'My Hammer Press')
+  ok('mapping: the equipment comes through the mapping too', /جهاز/.test(await page.locator('.s-stage .s-meta').innerText()))
+  ok('mapping: the session list is Arabic first as well',
+    /ضغط صدر جهاز هامر/.test(await page.locator('.s-qrow').first().innerText()))
+
+  await page.getByRole('button', { name: /Pec Deck/ }).last().click()
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(500)
+  const swapRow = page.locator('.k-sheet').last().getByRole('button', { name: /استبدال التمرين/ })
+  const swapText = (await swapRow.innerText()).replace(/\s+/g, ' ')
+  ok('swap: the next machine is named in Arabic first, English after', /التالي: تفتيح كيبل\s*·\s*Cable Fly/.test(swapText), swapText)
+  await swapRow.click()
+  await page.waitForTimeout(500)
+  ok('swap: the swapped machine is on screen', (await page.getByTestId('exercise-name').textContent()) === 'تفتيح كيبل')
+  const meta = (await page.locator('.s-stage .s-meta').innerText()).replace(/\s+/g, ' ')
+  ok('swap: «بدل» names the original in Arabic, English after', /بدل تفتيح جهاز \(بك دك\)\s*—\s*Pec Deck/.test(meta), meta)
+  ok('names: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

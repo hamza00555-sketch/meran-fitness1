@@ -16,13 +16,14 @@ const reducedMotion = () => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
 }
 
-export default function SessionMedia({ name, muscle, animate = false, className }) {
+export default function SessionMedia({ name, mapping = {}, muscle, animate = false, className }) {
   useSyncExternalStore(subscribe, getVersion, getVersion)
   const [videoBroken, setVideoBroken] = useState(false)
   const [stillBroken, setStillBroken] = useState(false)
 
-  const stillSlot = mediaSlotFor(name)
-  const animSlot = animSlotFor(name)
+  // Through the alias mapping, so a renamed machine keeps its art.
+  const stillSlot = mediaSlotFor(name, mapping)
+  const animSlot = animSlotFor(name, mapping)
   const stillUrl = stillSlot ? (urlFor(stillSlot) || remoteUrlFor(stillSlot)) : undefined
   const animUrl = animate && !videoBroken && animSlot && !reducedMotion() ? urlFor(animSlot) : undefined
 

@@ -22,25 +22,51 @@ import { kg, setLabel } from './sessionWords.js'
 // ring drawn once around it, a chip saying by how much, and «خلّها 75»
 // to put it back in one tap. No other gold on the screen.
 
-// Hold to repeat: one step on press, then after 400ms every 150ms,
-// stepping up to 100ms after 1.5s — never faster. Stops on release,
-// cancel or leaving the button. A keyboard press still steps once.
+// Hold to repeat: after 400ms every 150ms, stepping up to 100ms after
+// 1.5s — never faster. Stops on release, cancel or losing the pointer.
+//
+// A finger is not a mouse. The four discs cover much of the live block,
+// so a scroll often starts on one; a touch that stepped on pointerdown
+// would scroll the page AND change the weight. So for touch and pen
+// nothing happens on the way down: a tap steps once on release, if the
+// finger stayed within 10px and the browser never took the gesture for
+// a scroll (pointercancel); a finger held still for 400ms steps and
+// starts repeating. A mouse has no scroll to confuse, so it steps on
+// press. A keyboard press steps once.
+const TAP_SLOP = 10
+const HOLD_DELAY = 400
+
 function HoldButton({ label, onStep, children }) {
   const timer = useRef(null)
-  const started = useRef(0)
+  const press = useRef(null)          // { id, x, y, touch, repeating, at }
   const step = useRef(onStep)
   step.current = onStep
 
-  const stop = (e) => {
+  const clear = (el) => {
     clearTimeout(timer.current)
     timer.current = null
-    e?.currentTarget?.removeAttribute?.('data-held')
+    press.current = null
+    el?.removeAttribute?.('data-held')
   }
   useEffect(() => () => clearTimeout(timer.current), [])
 
   const loop = () => {
-    const held = performance.now() - started.current
-    timer.current = setTimeout(() => { step.current(); loop() }, held > 1500 ? 100 : 150)
+    const p = press.current
+    if (!p) return
+    const held = performance.now() - p.at
+    timer.current = setTimeout(() => {
+      if (!press.current) return
+      step.current()
+      loop()
+    }, held > 1500 ? 100 : 150)
+  }
+
+  const startRepeat = () => {
+    const p = press.current
+    if (!p) return
+    p.repeating = true
+    step.current()
+    loop()
   }
 
   return (
@@ -49,22 +75,42 @@ function HoldButton({ label, onStep, children }) {
       className="s-step-btn"
       aria-label={label}
       onPointerDown={(e) => {
-        if (e.button != null && e.button !== 0) return
+        if (e.pointerType === 'mouse' && e.button !== 0) return
         primeAudio()
-        e.currentTarget.setAttribute('data-held', '1')
-        try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
-        started.current = performance.now()
-        step.current()
         clearTimeout(timer.current)
-        timer.current = setTimeout(loop, 400)
+        const touch = e.pointerType !== 'mouse'
+        press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, touch, repeating: false, at: performance.now() }
+        e.currentTarget.setAttribute('data-held', '1')
+        if (touch) {
+          // Wait: a tap steps on release; a still finger starts the repeat.
+          timer.current = setTimeout(startRepeat, HOLD_DELAY)
+        } else {
+          try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
+          step.current()
+          press.current.repeating = true
+          timer.current = setTimeout(loop, HOLD_DELAY)
+        }
       }}
-      onPointerUp={stop}
-      onPointerCancel={stop}
-      onLostPointerCapture={stop}
+      onPointerMove={(e) => {
+        const p = press.current
+        if (!p || !p.touch || p.repeating || p.id !== e.pointerId) return
+        if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > TAP_SLOP) clear(e.currentTarget)
+      }}
+      onPointerUp={(e) => {
+        const p = press.current
+        if (!p) { clear(e.currentTarget); return }
+        if (p.id !== e.pointerId) return
+        const tap = p.touch && !p.repeating && Math.hypot(e.clientX - p.x, e.clientY - p.y) <= TAP_SLOP
+        clear(e.currentTarget)
+        if (tap) step.current()
+      }}
+      onPointerCancel={(e) => clear(e.currentTarget)}
+      onLostPointerCapture={(e) => { if (press.current?.id === e.pointerId) clear(e.currentTarget) }}
       onContextMenu={(e) => e.preventDefault()}
       onClick={(e) => {
-        // A pointer press already stepped on pointerdown; only a keyboard
-        // activation (a click with no pointer behind it, detail 0) steps here.
+        // A pointer press already stepped (on press for a mouse, on release
+        // for a finger); only a keyboard activation — a click with no
+        // pointer behind it, detail 0 — steps here.
         if (e.detail > 0) return
         step.current()
       }}

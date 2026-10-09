@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, Num } from '../kit/index.jsx'
 import { Check, CaretLeft, CheckCircle, ArrowUp } from '../kit/icons.js'
 import ExerciseHero from './ExerciseHero.jsx'
@@ -72,8 +72,17 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
   }
 }
 
+// A second tap of the thumb that dismissed «جاهز» must not log a set:
+// the field unmounts under the finger and «تمّت المجموعة» mounts in its
+// place, so the dock ignores taps for this long after a rest closes.
+const REST_CLOSE_GUARD_MS = 400
+
+const reducedMotion = () => {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
+}
+
 export default function WorkoutPlayer({
-  sessionId, exercises,
+  sessionId, exercises, mapping = {},
   deloadPct = 0, isResting,
   getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapMeta,
   onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwap,
@@ -87,6 +96,8 @@ export default function WorkoutPlayer({
   const celebratedRef = useRef(new Set())
   const ringStart = useRef(new Map())
   const scrollRef = useRef(null)
+  const dockRef = useRef(null)
+  const restClosedAt = useRef(0)
 
   const safeIndex = Math.min(index, Math.max(0, exercises.length - 1))
   const ex = exercises[safeIndex]
@@ -133,11 +144,43 @@ export default function WorkoutPlayer({
     return () => clearTimeout(t)
   }, [celebrating?.exId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep the live block in view as sets go by.
-  useEffect(() => {
+  // Keep the live block in view as sets go by — clear of the dock, its
+  // fade, and whatever the dock currently is (the 56pt button, the taller
+  // rest panel, the «جاهز» field). scroll-padding on .s-scroll carries
+  // the dock's real height, measured below.
+  const showLive = (smooth = true) => {
     const el = scrollRef.current?.querySelector('[data-testid="live-block"]')
-    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }, [ex?.id, liveIndex])
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: smooth && !reducedMotion() ? 'smooth' : 'auto' })
+  }
+  useEffect(() => { showLive() }, [ex?.id, liveIndex]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The dock's height is measured, not assumed: it changes when the rest
+  // takes the button's place (and with the phone's height), and the
+  // scroller's bottom padding and scroll-padding follow it. When the dock
+  // grows over the page — a rest starting — the live block is brought
+  // back above it a frame later, so the next set's steppers are never
+  // left under the rest panel or its fade.
+  useLayoutEffect(() => {
+    const dock = dockRef.current, scroller = scrollRef.current
+    if (!dock || !scroller || typeof ResizeObserver === 'undefined') return
+    let last = null
+    let raf = 0
+    const measure = () => {
+      const h = Math.ceil(dock.getBoundingClientRect().height)
+      if (h === last) return
+      const grew = last != null && h > last
+      last = h
+      scroller.style.setProperty('--s-dock-h', `${h}px`)
+      if (grew) {
+        cancelAnimationFrame(raf)
+        raf = requestAnimationFrame(() => showLive())
+      }
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(dock)
+    return () => { ro.disconnect(); cancelAnimationFrame(raf) }
+  }, [!!ex]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── The exercise on screen ──
   const prog = ex ? progressionFor(ex.name) : null
@@ -205,6 +248,16 @@ export default function WorkoutPlayer({
 
   if (!ex) return null
 
+  // Closing the rest (a tap on «جاهز» or «تخطي») starts the guard.
+  const closeRest = () => {
+    restClosedAt.current = performance.now()
+    onCloseRest?.()
+  }
+  const guarded = (fn) => () => {
+    if (performance.now() - restClosedAt.current < REST_CLOSE_GUARD_MS) return
+    fn()
+  }
+
   const complete = () => {
     if (currentSetIndex < 0) return
     primeAudio()
@@ -217,7 +270,7 @@ export default function WorkoutPlayer({
   const expanded = !hasDone || peek === ex.id
   const nextIdx = firstUnfinished(exercises, safeIndex + 1)
   const meta = swapMeta(ex)
-  const ar = arabicName(ex.name)
+  const ar = arabicName(ex.name, mapping)
 
   const live = liveIndex >= 0 ? (
     <WorkingArea
@@ -242,11 +295,11 @@ export default function WorkoutPlayer({
   } else if (isResting) {
     dock = null   // InlineRest below
   } else if (currentSetIndex >= 0) {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={complete} data-testid="complete-set">تمّت المجموعة</Button>
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(complete)} data-testid="complete-set">تمّت المجموعة</Button>
   } else if (nextIdx !== -1) {
-    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={() => jump(nextIdx)}>التمرين التالي</Button>
+    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={guarded(() => jump(nextIdx))}>التمرين التالي</Button>
   } else {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={onRequestFinish}>إنهاء الجلسة</Button>
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(onRequestFinish)}>إنهاء الجلسة</Button>
   }
   const restOnTop = isResting && editing == null
 
@@ -272,6 +325,7 @@ export default function WorkoutPlayer({
       <div className="s-scroll" ref={scrollRef}>
         <ExerciseHero
           ex={ex}
+          mapping={mapping}
           expanded={expanded}
           collapsible={hasDone && peek === ex.id}
           animate
@@ -281,7 +335,8 @@ export default function WorkoutPlayer({
           deloadPct={deloadPct}
           ytUrl={ytUrlFor(ex.name)}
           canSwap={meta.canSwap}
-          swapTitle={meta.title}
+          swapNext={meta.next}
+          swapOrigin={meta.origin}
           onSwap={() => onSwap(ex.id)}
           onRemove={() => onRemoveEx(ex.id)}
           onAddSet={() => onAddSet(ex.id)}
@@ -329,15 +384,16 @@ export default function WorkoutPlayer({
 
         <ExerciseQueue
           exercises={exercises}
+          mapping={mapping}
           activeIndex={safeIndex}
           onJump={jump}
           onAdd={onAddExercise}
         />
       </div>
 
-      <div className="s-dock" data-mode={restOnTop ? 'rest' : 'button'}>
+      <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'}>
         {isResting && (
-          <InlineRest onDone={onCloseRest} onSkip={onCloseRest} hidden={!restOnTop} />
+          <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} />
         )}
         {dock}
       </div>

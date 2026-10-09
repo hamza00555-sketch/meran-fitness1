@@ -12,13 +12,14 @@
   display: flex; flex-direction: column;
   background: var(--ground); color: var(--ink);
   font-family: var(--font);
-  --s-dock-h: 56px;
+  --s-dock-h: 56px;                                /* fallback; WorkoutPlayer measures the real one */
   --s-dock-gap: calc(var(--safe-bottom) + 12px);
+  --s-dock-fade: 28px;                             /* the fade above the dock (.s-dock::before) */
 }
 .s-session > * { width: 100%; max-width: 560px; margin-inline: auto; }
 .s-session[data-dock="rest"],
 .s-session:has(.s-rest:not([hidden])) { --s-dock-h: 124px; }
-.s-session:has(.s-ready:not([hidden])) { --s-dock-h: 76px; --s-dock-gap: var(--safe-bottom); }
+.s-session:has(.s-ready:not([hidden])) { --s-dock-h: calc(76px + var(--safe-bottom)); --s-dock-gap: 0px; }
 
 /* The cover's own ⌄ bar is redundant once the session draws its bar. */
 .f-cover:has(> .s-session[data-own-bar="1"]) > .f-cover-bar { display: none; }
@@ -58,8 +59,10 @@ body:has(.s-session) .xp-float { display: none !important; }
 /* ── The scrolling middle ── */
 .s-scroll {
   flex: 1; min-height: 0; overflow-y: auto; overflow-x: clip; overscroll-behavior: contain;
-  padding: 4px var(--gutter) calc(var(--s-dock-h) + var(--s-dock-gap) + 32px);
-  scroll-padding-bottom: calc(var(--s-dock-h) + var(--s-dock-gap) + 16px);
+  /* Clear of the dock, its gap and its fade, plus 8px of air — both for
+     the end of the page and for scrollIntoView on the live block. */
+  padding: 4px var(--gutter) calc(var(--s-dock-h) + var(--s-dock-gap) + var(--s-dock-fade) + 8px);
+  scroll-padding-bottom: calc(var(--s-dock-h) + var(--s-dock-gap) + var(--s-dock-fade) + 8px);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -110,6 +113,9 @@ body:has(.s-session) .xp-float { display: none !important; }
 .s-meta-part + .s-meta-part::before { content: "·"; margin-inline: 6px; color: var(--ink-3); }
 .s-meta-part[data-best="1"] .k-num { color: var(--raise); }
 .s-meta-deload { color: var(--accent); }
+/* An English name beside an Arabic one: the Latin face, condensed, quieter. */
+.s-latin { font-weight: 600; font-stretch: 87.5%; }
+.s-latin-sep { margin-inline: 6px; }
 
 /* ── The exercise row: after the first set ── */
 .s-exrow {
@@ -295,7 +301,7 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 /* Content fades out under the dock instead of being cut by it. */
 .s-dock::before {
   content: ""; position: absolute; z-index: -1; pointer-events: none;
-  inset: -28px calc(-1 * var(--gutter)) calc(-1 * var(--s-dock-gap));
+  inset: calc(-1 * var(--s-dock-fade)) calc(-1 * var(--gutter)) calc(-1 * var(--s-dock-gap));
   background: linear-gradient(to top, var(--ground) 55%, rgba(3,4,4,0));
 }
 .s-dock > .k-btn { box-shadow: 0 -12px 40px rgba(0,0,0,0.55); }
@@ -374,10 +380,33 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   .s-field { min-height: 56px; }
   .s-field input { font-size: 44px; line-height: 56px; }
   .s-live { gap: 4px; padding-block: 8px 10px; }
+  .s-queue { margin-top: 24px; }
+}
+
+/* ── Phones under 700px of height (an iPhone 13 in Safari is 664): the
+   compact rest panel, ~100px instead of 124, so the next set's counters
+   stay clear of it. Wide enough for one row: the countdown keeps its
+   56px and «تخطي» joins the nudges; «راحة» labels the drain bar. ── */
+@media (max-height: 700px) and (min-width: 370px) {
+  .s-session:has(.s-rest:not([hidden])) { --s-dock-h: 98px; }
+  .s-rest {
+    display: grid; align-items: center;
+    grid-template-columns: auto 1fr auto auto;
+    grid-template-areas: "time . nudges skip" "foot foot foot foot";
+    column-gap: 8px; row-gap: 4px; padding: 6px 12px 10px 16px;
+  }
+  .s-rest-top, .s-rest-main { display: contents; }
+  .s-rest-time { grid-area: time; line-height: 1; }
+  .s-rest-nudges { grid-area: nudges; }
+  .s-rest-skip { grid-area: skip; margin: 0; padding-inline: 8px; }
+  .s-rest-label { grid-area: foot; justify-self: start; line-height: 18px; }
+  .s-rest-bar { grid-area: foot; margin: 0; margin-inline-start: 60px; }
+}
+/* Narrower and short (SE): two rows as usual, the countdown at 40px. */
+@media (max-height: 700px) and (max-width: 369px) {
   .s-session:has(.s-rest:not([hidden])) { --s-dock-h: 100px; }
   .s-rest-time { font-size: 40px; }
   .s-rest { padding-block: 8px 12px; }
-  .s-queue { margin-top: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
