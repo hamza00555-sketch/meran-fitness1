@@ -87,15 +87,6 @@ export function previousSets(sessions, name, mapping = {}) {
   return best || []
 }
 
-/** «75×12», or «75» when the reps were never typed. (Compact; not for display in the player.) */
-export function setLabel(s) {
-  if (!s) return ''
-  const w = kg(s.weight)
-  const r = parseInt(s.reps)
-  if (w && r > 0) return `${w}×${r}`
-  return w || (r > 0 ? `×${r}` : '')
-}
-
 /**
  * A set in words, the one format the player prints a set in — the rows,
  * their «آخر مرة», the coach line and the screen-reader labels:

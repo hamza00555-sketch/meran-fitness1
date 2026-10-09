@@ -549,8 +549,8 @@ const centre = async (locator) => {
     /آخر مرة 70 كجم × 12 عدّة —/.test(coach) && /الهدف 12–15 عدّة/.test(coach), coach)
 
   // The live block's copy action, in plain words, only when it would change something.
-  const asLast = page.getByRole('button', { name: /زي آخر مرة/ })
-  ok('live: «زي آخر مرة» offers last time\'s numbers', await asLast.count() === 1)
+  const asLast = page.getByRole('button', { name: /حط أرقام آخر مرة/ })
+  ok('live: «حط أرقام آخر مرة» offers last time\'s numbers, as a command', await asLast.count() === 1)
   await asLast.click()
   await page.waitForTimeout(250)
   ok('live: one tap puts 70 × 12 back', JSON.stringify((await inputs(page))) === JSON.stringify(['70', '12']), JSON.stringify(await inputs(page)))
@@ -597,7 +597,66 @@ const centre = async (locator) => {
       m.sw <= m.cw + 1 && m.toMinus >= 8 && m.toPlus >= 8, JSON.stringify(m))
     if (width === 390) ok('live/390: and there it keeps the full 56px', m.fs === 56, JSON.stringify(m))
   }
+  // Above 100 the type does not jump on every 2.5 step: 100, 102.5 and
+  // 105 are one size.
+  for (const [width, height] of [[360, 740], [320, 568]]) {
+    await page.setViewportSize({ width, height })
+    const sizes = []
+    for (const v of ['100', '102.5', '105']) {
+      await page.getByTestId('weight-input').fill(v)
+      await page.waitForTimeout(120)
+      sizes.push(await page.getByTestId('weight-input').evaluate(i => parseFloat(getComputedStyle(i).fontSize)))
+    }
+    ok(`live/${width}: 100 → 102.5 → 105 keep one size`, Math.max(...sizes) - Math.min(...sizes) < 0.5, JSON.stringify(sizes))
+  }
   ok('rows: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// Rows with and without a last time in one list (today has more sets
+// than last time), a bodyweight set, and a deload week.
+{
+  const HIST_NAME = ACTIVE.exercises[0].name
+  const HIST = [{ id: 3, date: new Date(2026, 8, 2, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'a', muscle: 'Chest', name: HIST_NAME,
+      sets: [[70, 12]].map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }] }]
+  const MIXED = { ...ACTIVE, exercises: [{ ...ACTIVE.exercises[0],
+    sets: [['75', '12'], ['75', '12'], ['', '10'], ['80', '']].map(([weight, reps]) => ({ weight, reps, done: false })) }, ACTIVE.exercises[1]] }
+  const { ctx, page, errors } = await open({ sessions: HIST, active: MIXED })
+  const rows = await page.locator('.s-trow').evaluateAll(els => els.map(r => {
+    const n = r.querySelector('.s-cell-n').getBoundingClientRect()
+    const kg = r.querySelector('.s-cell-kg').getBoundingClientRect()
+    const reps = r.querySelector('.s-cell-reps').getBoundingClientRect()
+    const line = kg.width ? kg : reps
+    return { text: r.innerText.replace(/\s+/g, ' ').trim(), prev: !!r.querySelector('.s-cell-prev'),
+      off: Math.round((line.top + line.height / 2) - (n.top + n.height / 2)) }
+  }))
+  ok('rows/mixed: a row without a last time is centred on its number, not riding high',
+    rows.filter(r => !r.prev).length >= 2 && rows.filter(r => !r.prev).every(r => Math.abs(r.off) <= 1), JSON.stringify(rows))
+  ok('rows/bodyweight: a set with no weight reads «10 عدّات», not «— كجم × 10 عدّات»',
+    rows.some(r => /10 عدّات/.test(r.text) && !/كجم/.test(r.text) && !/×/.test(r.text)), JSON.stringify(rows))
+  ok('rows/no reps: a set with no reps reads «80 كجم», no dangling ×',
+    rows.some(r => /80 كجم/.test(r.text) && !/×/.test(r.text) && !/عدّ/.test(r.text)), JSON.stringify(rows))
+  ok('rows/mixed: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  const HIST_NAME = ACTIVE.exercises[0].name
+  const HIST = [{ id: 4, date: new Date(2026, 8, 2, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'a', muscle: 'Chest', name: HIST_NAME,
+      sets: [[75, 15], [75, 15]].map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }] }]
+  const DL = { ...ACTIVE, deload: { pct: 40 }, exercises: [{ ...ACTIVE.exercises[0],
+    sets: [['45', '12'], ['45', '12']].map(([weight, reps]) => ({ weight, reps, done: false })) }, ACTIVE.exercises[1]] }
+  const { ctx, page, errors } = await open({ sessions: HIST, active: DL })
+  ok('deload: no «حط أرقام آخر مرة» — last time is the heavy week being undone',
+    await page.getByRole('button', { name: /حط أرقام آخر مرة/ }).count() === 0)
+  ok('live: the reps unit counts in Arabic, matching the rows — «12 عدّة»',
+    (await page.locator('[data-field="reps"] .s-field-unit').innerText()).trim() === 'عدّة')
+  await page.getByTestId('reps-input').fill('8')
+  await page.waitForTimeout(150)
+  ok('live: «8 عدّات» in the stepper too',
+    (await page.locator('[data-field="reps"] .s-field-unit').innerText()).trim() === 'عدّات')
+  ok('deload rows: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

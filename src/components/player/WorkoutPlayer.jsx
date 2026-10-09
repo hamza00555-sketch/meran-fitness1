@@ -287,6 +287,7 @@ export default function WorkoutPlayer({
         raisedW, deloadPct,
       })}
       raise={raiseOn && base != null && editing == null ? { base, raised: raisedW, ringDraw } : null}
+      deloadPct={deloadPct}
       onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
       onStepSet={(si, f, d) => onStepSet(ex.id, si, f, d)}
       onKeepBase={keepBase}

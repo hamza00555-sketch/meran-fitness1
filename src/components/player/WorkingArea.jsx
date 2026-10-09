@@ -3,7 +3,7 @@ import { Chip, Num } from '../kit/index.jsx'
 import { ArrowUp, Minus, Plus, PencilSimple } from '../kit/icons.js'
 import RaiseRing from './RaiseRing.jsx'
 import { primeAudio } from './sessionAudio.js'
-import { kg, setWords } from './sessionWords.js'
+import { kg, setWords, repsWord } from './sessionWords.js'
 
 // ── The live block: the set being worked ──────────────────────
 //
@@ -126,6 +126,12 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, 
   // the input to it and shrinks the type when a long weight («202.5»)
   // would otherwise run into the steppers on a narrow phone.
   const len = Math.max(1, [...String(value ?? '')].reduce((n, c) => n + (c === '.' || c === ',' ? 0.5 : 1), 0))
+  // A weight steps by 2.5, so «.5» comes and goes on every other tap. From
+  // 100 up — where the type starts shrinking — it is sized for the whole
+  // number plus room for «.5», so 100 → 102.5 → 105 keep one size and it
+  // only steps down when a digit is added. (--len still sizes the box.)
+  const whole = String(value ?? '').split(/[.,]/)[0].length
+  const fit = field === 'weight' && whole >= 3 ? Math.max(len, whole + 1.5) : len
   return (
     <div className="s-step" data-field={field}>
       <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)}>
@@ -138,7 +144,7 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, 
           data-testid={inputTestId}
           placeholder="0"
           value={value ?? ''}
-          style={{ '--len': len }}
+          style={{ '--len': len, '--fit': fit }}
           onFocus={e => e.target.select()}
           onChange={e => onInput(e.target.value)}
         />
@@ -156,6 +162,7 @@ export default function WorkingArea({
   ex, setIndex, editing = false,
   prevSet = null, coach = null,
   raise = null,            // { base, raised, ringDraw } when the engine says raise
+  deloadPct = 0,           // a deload week: last time's numbers are the heavy ones
   onUpdateSet, onStepSet, onKeepBase,
 }) {
   const set = ex.sets[setIndex]
@@ -166,7 +173,7 @@ export default function WorkingArea({
   const delta = raised ? Math.round((w - raise.base) * 100) / 100 : 0
   const showKeep = !!raise && raise.base != null && Number.isFinite(w) && w !== raise.base
   const prev = setWords(prevSet)
-  // «زي آخر مرة» only when it would change something.
+  // «حط أرقام آخر مرة» only when it would change something.
   const prevW = kg(prevSet?.weight)
   const prevR = parseInt(prevSet?.reps)
   const asLast = !!prev && (!prevW || kg(set.weight) === prevW) && (!(prevR > 0) || parseInt(set.reps) === prevR)
@@ -189,16 +196,19 @@ export default function WorkingArea({
           <Chip tone="raise" icon={ArrowUp} className="s-raise-chip">
             <Num>+{kg(delta)}</Num> كجم عن آخر مرة
           </Chip>
-        ) : prev && !editing && !asLast ? (
+        ) : prev && !editing && !asLast && !(deloadPct > 0) ? (
           // One tap puts last time's numbers back; the coach line under the
-          // counters already says what they were, so this only says what it does.
+          // counters already says what they were, so this only says what it
+          // does — as a command, like «خلّها 75» (a bare «زي آخر مرة» read as
+          // a status, and a false one: it only shows when they differ). Not in
+          // a deload week, where last time is the heavy week it is undoing.
           <button type="button" className="s-prev"
-            aria-label={`زي آخر مرة: ${prev}`}
+            aria-label={`حط أرقام آخر مرة: ${prev}`}
             onClick={() => {
               if (prevSet.weight !== '' && prevSet.weight != null) onUpdateSet(setIndex, 'weight', kg(prevSet.weight))
               if (parseInt(prevSet.reps) > 0) onUpdateSet(setIndex, 'reps', String(parseInt(prevSet.reps)))
             }}>
-            زي آخر مرة
+            حط أرقام آخر مرة
           </button>
         ) : null}
       </div>
@@ -211,7 +221,7 @@ export default function WorkingArea({
         onStep={dir => onStepSet(setIndex, 'weight', dir * 2.5)}
       />
       <Stepper
-        field="reps" value={set.reps} unit="عدّة" unitLabel="العدّات"
+        field="reps" value={set.reps} unit={repsWord(parseInt(set.reps))} unitLabel="العدّات"
         inputTestId="reps-input"
         onInput={v => onUpdateSet(setIndex, 'reps', v)}
         onStep={dir => onStepSet(setIndex, 'reps', dir)}

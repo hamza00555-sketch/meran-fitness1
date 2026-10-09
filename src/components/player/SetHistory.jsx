@@ -71,12 +71,15 @@ export default function SetHistory({
         const body = (
           <>
             <span className="s-cell-n"><span className="s-sr">المجموعة </span><Num>{i + 1}</Num></span>
+            {/* A missing half is left out, the way setWords says it aloud:
+                a bodyweight set reads «10 عدّات», not «— كجم × 10 عدّات».
+                The cells stay, so the columns still line up. */}
             <span className="s-cell-kg" data-pr={isPR ? '1' : undefined}>
-              {w ? <Num>{w}</Num> : dash}<span className="s-unit">كجم</span>
+              {w ? <><Num>{w}</Num><span className="s-unit">كجم</span></> : !(r > 0) && dash}
             </span>
-            <span className="s-cell-x" aria-hidden="true">×</span>
+            <span className="s-cell-x" aria-hidden="true">{w && r > 0 ? '×' : null}</span>
             <span className="s-cell-reps">
-              {r > 0 ? <Num>{r}</Num> : dash}<span className="s-unit">{repsWord(r)}</span>
+              {r > 0 && <><Num>{r}</Num><span className="s-unit">{repsWord(r)}</span></>}
             </span>
             {prev && (
               <span className="s-cell-prev">
@@ -89,14 +92,14 @@ export default function SetHistory({
         return (
           <div key={i} role="listitem">
             {s.done ? (
-              <button type="button" className="s-trow" data-state={state}
+              <button type="button" className="s-trow" data-state={state} data-prev={prev ? '1' : undefined}
                 data-editing={i === editingIndex ? '1' : undefined}
                 aria-label={`المجموعة ${i + 1}: ${setWords(s) || 'فاضية'}${isPR ? ' — رقم قياسي' : ''}${prev ? ` — آخر مرة ${prev}` : ''} — اضغط للتعديل`}
                 onClick={() => onEdit(i)}>
                 {body}
               </button>
             ) : (
-              <div className="s-trow" data-state={state}>{body}</div>
+              <div className="s-trow" data-state={state} data-prev={prev ? '1' : undefined}>{body}</div>
             )}
           </div>
         )

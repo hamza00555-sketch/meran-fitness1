@@ -170,6 +170,10 @@ body:has(.s-session) .xp-float { display: none !important; }
    English still fit the 72pt row. */
 .s-exrow .s-name-ar { font-size: var(--t-headline); -webkit-line-clamp: 2; line-height: 1.3; }
 .s-exrow .s-name-en { font-size: var(--t-label); }
+/* On a 320–360pt phone the row is thumbnail, name, YouTube and ⋯: the
+   Arabic name gets the room and the English waits for the stage and the
+   ⋯ sheet, which both still show it. */
+@media (max-width: 360px) { .s-exrow .s-name-en { display: none; } }
 .s-thumb {
   flex: none; width: 56px; height: 56px; padding: 4px; border: 0; cursor: pointer;
   border-radius: var(--r-sm); overflow: hidden;
@@ -197,15 +201,21 @@ body:has(.s-session) .xp-float { display: none !important; }
 .s-table { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .s-trow {
   display: grid; align-items: center; column-gap: 6px; row-gap: 2px;
-  grid-template-columns: 20px minmax(68px, max-content) 10px minmax(0, 1fr) 28px;
-  grid-template-areas: "n kg x reps tick" "n prev prev prev tick";
-  min-height: 48px; width: 100%; padding: 6px 14px 6px 8px;
+  grid-template-columns: 20px var(--s-kg-col, 84px) 10px minmax(0, 1fr) 28px;
+  grid-template-areas: "n kg x reps tick";
+  align-content: center;
+  min-height: 48px; width: 100%; padding-block: 6px; padding-inline: 14px 8px;
   border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--ink); font-family: var(--font); text-align: start;
 }
-/* With a last time anywhere in the list, every row gets the two-line
-   height, so a row without one doesn't break the rhythm. */
+/* A row with a last time takes a second line for it. With a last time
+   anywhere in the list, every row gets the two-line height, so a row
+   without one doesn't break the rhythm — and, one-line, it centres in
+   that height instead of riding in the top half of an empty grid row. */
+.s-trow[data-prev="1"] { grid-template-areas: "n kg x reps tick" "n prev prev prev tick"; }
 .s-table[data-history="1"] .s-trow { min-height: 58px; }
+/* «202.5 كجم» at the row's size fits 84px; narrow phones get 76. */
+@media (max-width: 360px) { .s-trow { --s-kg-col: 76px; } }
 button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background var(--dur-press); }
 .s-trow[data-state="done"] { background: rgba(var(--accent-rgb), 0.10); }
 .s-trow[data-state="done"]:active { background: rgba(var(--accent-rgb), 0.18); }
@@ -301,9 +311,15 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   width: calc(var(--len, 2) * 1ch + 6px); min-width: 0; max-width: 100%; flex: 0 1 auto;
   padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink);
   font-family: var(--font); font-weight: 800; line-height: 64px;
-  font-size: min(var(--s-num), calc((100cqi - 40px) / (var(--len, 2) * 0.56)));
+  font-size: var(--s-num);
   font-stretch: 87.5%; font-variant-numeric: tabular-nums lining-nums; text-align: center;
   caret-color: var(--accent);
+}
+/* Behind @supports: a declaration with var() that the browser can't
+   compute is dropped at computed time, not skipped, so without cqi the
+   56px base above has to stay the rule. --fit is --len with room for «.5». */
+@supports (width: 1cqi) {
+  .s-field input { font-size: min(var(--s-num), calc((100cqi - 40px) / (var(--fit, var(--len, 2)) * 0.56))); }
 }
 .s-field input::placeholder { color: var(--ink-3); }
 .s-field-unit { flex: none; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
