@@ -33,6 +33,7 @@ const NAV = [
 // Pages
 import HomePage        from './pages/HomePage.jsx'
 import WorkoutPage     from './pages/WorkoutPage.jsx'
+import HistoryPage     from './pages/HistoryPage.jsx'
 import ChallengesPage  from './pages/ChallengesPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
 import ProfilePage     from './pages/ProfilePage.jsx'
@@ -887,20 +888,13 @@ export default function App() {
         {!page && tab === 'history' && (
           <>
             <LargeTitle title="السجل" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
-            <WorkoutPage
-              active={null}
+            <HistoryPage
               sessions={sessions}
               plan={plan}
               planIndex={planIndex}
-              onUpdateActive={updateActive}
-              onFinish={finishSession}
               onStartPlannedWorkout={startPlannedWorkout}
               onStartWorkout={() => startWorkout()}
-              addXP={addWorkoutXP}
               exerciseMapping={exerciseMapping}
-              repTarget={repTarget}
-              exerciseSubs={exerciseSubs}
-              onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
               onUpdateSession={updateSession}
               onDeleteSession={deleteSession}
             />
