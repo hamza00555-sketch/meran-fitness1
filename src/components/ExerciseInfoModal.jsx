@@ -23,7 +23,8 @@ import '../styles/screens/library.css'
 //     muscle and the equipment as neutral chips
 //   · «نقاط الأداء»: the cues, numbered in a neutral colour
 //   · «سجلك»: last time, the best weight (gold — the one gold here), how
-//     many sessions, and the trend of the estimated one-rep max
+//     many sessions, and the trend of the estimated one-rep max (deload
+//     sessions left out of it: they are light on purpose)
 //   · YouTube as one quiet last row, no red
 //
 // Opened from the library, the player and the old exercise card, with
@@ -100,6 +101,11 @@ export default function ExerciseInfoModal({ exercise, onClose, sessions, mapping
 
   return (
     <Sheet open={open} onClose={close} labelledBy={titleId}>
+      {/* Pinned: a zero-height sticky bar, so the X floats over the media
+          at first and stays in reach while the body scrolls to «سجلك». */}
+      <div className="xi-closebar">
+        <IconButton icon={X} label="إغلاق" variant="filled" weight="bold" className="xi-close" onClick={close} />
+      </div>
       <div className="xi">
         <div className="xi-stagebox">
           {media.kind === 'art'
@@ -111,7 +117,6 @@ export default function ExerciseInfoModal({ exercise, onClose, sessions, mapping
               </Stage>
             )
             : <MediaStage media={media} />}
-          <IconButton icon={X} label="إغلاق" variant="filled" weight="bold" className="xi-close" onClick={close} />
         </div>
 
         {media.kind !== 'art' && nameBlock}
@@ -205,7 +210,13 @@ function Record({ r }) {
         <div className="xi-stat">
           <dt>آخر مرة</dt>
           <dd className="xi-stat-v"><Num>{fmtKg(r.last.maxW)}</Num><span className="xi-unit"> كجم</span></dd>
-          {r.last.reps > 0 && <dd className="xi-stat-c"><Num>{r.last.reps}</Num> تكرار</dd>}
+          {(r.last.reps > 0 || r.lastDeload) && (
+            <dd className="xi-stat-c">
+              {r.last.reps > 0 && <><Num>{r.last.reps}</Num> تكرار</>}
+              {r.last.reps > 0 && r.lastDeload && ' · '}
+              {r.lastDeload && 'ديلود'}
+            </dd>
+          )}
         </div>
         <div className="xi-stat">
           <dt>أعلى وزن</dt>
@@ -227,6 +238,7 @@ function Record({ r }) {
           <p className="xi-cap">
             {tw.n != null ? <>آخر <Num>{tw.n}</Num> {tw.word}</> : <>آخر {tw.word}</>}
             {' · '}تقدير لأقصى وزن تشيله مرة وحدة، والأحدث على اليسار
+            {r.deloads > 0 && r.deloads < r.sessions && '. جلسات الديلود خفيفة بقصد، فما تدخل فيه'}
           </p>
         </div>
       )}

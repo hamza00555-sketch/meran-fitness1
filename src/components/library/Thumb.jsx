@@ -6,8 +6,9 @@ import { mediaSlotFor } from '../../exerciseMedia.js'
 //
 // The exercise's own still when the art pack has it (installed, or
 // streamable from the manifest), otherwise the muscle's art from
-// public/assets cropped onto a small lit tile. Never an emoji, never a
-// raster below 24pt (critique F39).
+// public/assets, greyed and dimmed on an unlit tile so the fallback
+// stays quiet (the tiles above already carry the lit art). Never an
+// emoji, never a raster below 24pt (critique F39).
 
 /** «/assets/muscle_chest.png» → the WebP copy (same folder, ~15× lighter). */
 export const webp = (src) => (src ? src.replace(/\.png$/, '.webp') : src)
@@ -27,7 +28,7 @@ export default function Thumb({ name, art, mapping }) {
     )
   }
   return (
-    <span className="lib-thumb" aria-hidden="true">
+    <span className="lib-thumb lib-thumb-art" aria-hidden="true">
       {art && (
         <img src={artBroken ? art : webp(art)} alt="" loading="lazy" decoding="async"
           onError={() => { if (!artBroken) setArtBroken(true) }} />

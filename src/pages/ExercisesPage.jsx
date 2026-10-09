@@ -30,6 +30,7 @@ import '../styles/screens/library.css'
 //     one, the last weight in the numeric face.
 //   · تقدمي: per lift a 64×24 trend of the estimated one-rep max, the
 //     current estimate, and the best weight — the screen's only gold.
+//     Deload sessions stay out of the estimate (progress.js summarize).
 //   · المعدات: the lifts you have done, grouped by what they use.
 //
 // Any row opens the exercise sheet (components/ExerciseInfoModal.jsx).
@@ -233,7 +234,11 @@ function ProgressRow({ p, mapping, onOpen }) {
         <span className="lib-row-title">{ar || p.name}</span>
         <span className="lib-row-sub lib-row-sub-wrap">
           <span>آخر <Num>{fmtKg(s.last.maxW)}{s.last.reps ? ` × ${s.last.reps}` : ''}</Num></span>
-          <span>{sw.n != null && <><Num>{sw.n}</Num> </>}{sw.word}</span>
+          {/* A deload is why «آخر» sits under the estimate: say so, in place
+              of the session count (which the sheet still shows). */}
+          {s.lastDeload
+            ? <span className="lib-sub-keep">ديلود</span>
+            : <span>{sw.n != null && <><Num>{sw.n}</Num> </>}{sw.word}</span>}
         </span>
       </span>
       <Sparkline values={trend} width={64} height={24}

@@ -110,6 +110,13 @@
 }
 .lib-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; transform: scale(1.18); }
 .lib-thumb-still img { object-fit: contain; object-position: 50% 50%; transform: scale(1.08); }
+/* No still for this lift: the muscle's art stays, but quiet — grey and
+   dimmed on an unlit tile. The tiles and the section titles say which
+   muscle; green in the list is left for a real picture of the lift, so
+   a column of identical bright chests does not become a second lit
+   moment under the tiles. */
+.lib-thumb-art { background: var(--surface-1); }
+.lib-thumb-art img { filter: grayscale(1) brightness(0.7); }
 
 .lib-row-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .lib-row-title {
@@ -121,9 +128,10 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* Two facts on one line; on a 320pt screen the second (the session
-   count, also in the sheet) gives way rather than truncating the first. */
+   count, also in the sheet) gives way rather than truncating the first.
+   A «ديلود» mark stays: it explains why «آخر» is under the estimate. */
 .lib-row-sub-wrap > span + span::before { content: "·"; padding-inline: 6px; }
-@media (max-width: 359px) { .lib-row-sub-wrap > span + span { display: none; } }
+@media (max-width: 359px) { .lib-row-sub-wrap > span + span:not(.lib-sub-keep) { display: none; } }
 .lib-en { font-weight: 600; }
 .lib-row-val { flex: none; display: grid; justify-items: end; gap: 0; line-height: 1.25; }
 .lib-val-label { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); }
@@ -178,8 +186,16 @@
 /* Narrow screens clamp the width; keep the drawn art on the box's
    bottom so the fade below still lands on its cropped edge. */
 .xi .xi-stage-art .k-stage-art { max-width: 58%; object-position: 50% 100%; }
-.xi .xi-close {
-  position: absolute; top: 8px; inset-inline-end: 8px;
+/* The close button never scrolls away: a zero-height sticky bar ahead
+   of the content (a sibling of .xi, not a grid item — a sticky grid item
+   cannot leave its own zero-height row), edge to edge like the media,
+   with the 44pt X floating at its end over the stage. */
+.xi-closebar {
+  position: sticky; top: 0; z-index: 3; height: 0;
+  margin-inline: calc(-1 * var(--gutter));
+}
+.xi-closebar .xi-close {
+  position: absolute; top: 0; inset-inline-end: 8px;
   background: rgba(20, 23, 27, 0.72); color: var(--ink);
 }
 .xi-name { display: grid; gap: 4px; padding-top: var(--space-4); }

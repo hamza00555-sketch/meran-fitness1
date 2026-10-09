@@ -11,8 +11,12 @@
 //   e1rm   the day's best estimated one-rep max (Epley, utils.calc1RM),
 //          the number that moves while double progression keeps the
 //          weight flat for weeks (critique F37)
+//   deload the session was trained under a deload (its own stamp,
+//          deload.isDeloadSession): light on purpose, kept out of the
+//          estimate and its trend by summarize()
 
 import { calc1RM, getWeightsResetAt, resolveExerciseName } from '../../utils.js'
+import { isDeloadSession } from '../../deload.js'
 
 /** Sessions → `[{ name, muscle, aliases, entries }]`, keyed by the canonical name. */
 export function buildProgress(sessions, mapping = {}) {
@@ -35,7 +39,7 @@ export function buildProgress(sessions, mapping = {}) {
       if (!map[key]) map[key] = { name: key, muscle: ex.muscle, aliases: new Set(), entries: [] }
       map[key].aliases.add(ex.name)
       map[key].entries.push({
-        sessionId: session.id, date: session.date, deload: !!session.deload,
+        sessionId: session.id, date: session.date, deload: isDeloadSession(session),
         maxW, reps, e1rm, sets: validSets.length, totalReps,
       })
     }
@@ -43,18 +47,31 @@ export function buildProgress(sessions, mapping = {}) {
   return Object.values(map).map(ex => ({ ...ex, aliases: [...ex.aliases] }))
 }
 
-/** The summary a row or the sheet shows. Null when there is no history. */
+/**
+ * The summary a row or the sheet shows. Null when there is no history.
+ *
+ * Deload sessions are light on purpose, so they stay out of the
+ * estimate and its trend: right after a planned deload the screen must
+ * not say he lost 40% of his strength (the report's volume trend leaves
+ * them out the same way). `last` is still the real last session, for
+ * «آخر», and `lastDeload` says when that session was a deload. If every
+ * session so far was a deload, they are all there is to go on.
+ */
 export function summarize(ex) {
   if (!ex || !ex.entries?.length) return null
   const entries = ex.entries
   const last = entries[entries.length - 1]
   const best = Math.max(...entries.map(e => e.maxW))
+  const normal = entries.filter(e => !e.deload)
+  const basis = normal.length ? normal : entries
   return {
     last,
     best,
     sessions: entries.length,
-    e1rm: Math.round(last.e1rm),
-    trend: entries.map(e => e.e1rm),
+    e1rm: Math.round(basis[basis.length - 1].e1rm),
+    trend: basis.map(e => e.e1rm),
+    lastDeload: !!last.deload,
+    deloads: entries.length - normal.length,
   }
 }
 
