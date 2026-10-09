@@ -1,258 +1,184 @@
-// ── Section 3: whether you showed up ──────────────────────────
-// The month as a grid of days, filling in as a wave sweeps across it.
-// Every cell is classified by the recovery engine, not by this file, so
-// what it shows here is exactly what the streak was judged on.
+// ── Chapter 03: whether you showed up ─────────────────────────
+// One number and what it is made of: the share of the month's days that
+// went as the plan said (a session on a training day, or a planned
+// rest), then the streak — in the same unit and colour as the flame on
+// Home — then the month on a calendar drawn with Home's own glyphs.
+// Every day is classified by the recovery engine, not by this file.
+//
+// The session-only run the report used to call «أطول سلسلة» is still
+// here, renamed «أطول تتابع جلسات» and kept grey: it counts something
+// else, and giving it the flame's name and colour is how the same month
+// came to read 31 on Home and 16 here.
 
-import { useReveal } from '../../../hooks/useMotion.js'
-import { Heading, Tile, AR } from '../parts.jsx'
-import Ring from '../Ring.jsx'
+import { useState } from 'react'
+import { Gauge, Num } from '../../kit/index.jsx'
+import { Flame, Moon, Ticket, Cross } from '../../streak/StreakIcons.jsx'
+import { unitAr, fmtDayAr } from '../../../streak.js'
+import { monthLabel } from '../../../monthReport.js'
+import { Chapter, Figure, monthOver } from '../parts.jsx'
+import { DELOAD_INK } from '../TrendChart.jsx'
 
 const KIND = {
-  trained: { color: 'var(--cyan)',   label: 'تمرّنت' },
-  rest:    { color: 'var(--purple)', label: 'راحة مجدولة' },
-  paid:    { color: 'var(--gold)',   label: 'راحة اختيارية' },
-  miss:    { color: '#3A2030',       label: 'غياب' },
+  trained: 'تمرّنت',
+  rest:    'راحة مجدولة',
+  paid:    'راحة بتذكرة',
+  miss:    'غياب',
 }
 
-// A deload is a modifier on a day, not a kind of day: it rims the cell
-// and leaves the fill saying what the day actually was. A missed day
-// inside a deload is still a missed day. The colour is a literal
-// because the report is usually read after the period ended, when the
-// app's accent is green again.
-const DELOAD_INK = '#5CC9EE'
+const WEEK = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] // Sunday first
 
-const WEEK = ['أحد', 'إثن', 'ثلا', 'أرب', 'خمي', 'جمع', 'سبت']
-
-const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
-                'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']
-
-// "2026-08-25" → "25 أغسطس". Parsed by hand rather than through Date,
-// which would read a bare ISO date as UTC and slide it a day back for
-// anyone east of Greenwich.
-const dayLabel = (iso) => {
-  const [, m, d] = String(iso).split('-')
-  return `${AR(Number(d))} ${MONTHS[Number(m) - 1] || ''}`.trim()
+function Glyph({ kind }) {
+  if (kind === 'trained') return <i className="rp-dot" />
+  if (kind === 'rest') return <span className="is-rest"><Moon size={14} /></span>
+  if (kind === 'paid') return <span className="is-rest"><Ticket size={14} /></span>
+  return <span className="is-miss"><Cross size={11} /></span>
 }
 
-// ── How long you kept it up, in three answers ─────────────────
-//
-// One number could not say whether this month beat the last one, or
-// whether either came near your own record — so it said none of it.
-// Runs are measured across the whole ledger, so a streak that began
-// before the 1st is reported at its true length rather than at the
-// slice of it that happens to fall inside this month.
-function Streaks({ streaks, run }) {
+// «3 جلسات», «12 جلسة» — the plural only for 3–10, like countAr.
+const sessionsWord = (n) => { const r = n % 100; return n === 0 || (r >= 3 && r <= 10) ? 'جلسات' : 'جلسة' }
+
+const span = (s) =>`${fmtDayAr(s.start, { weekday: false })} — ${fmtDayAr(s.end, { weekday: false })}`
+
+function Runs({ streaks }) {
   if (!streaks?.month && !streaks?.prevMonth && !streaks?.allTime) return null
   const rows = [
-    { key: 'month',     label: 'هذا الشهر',        s: streaks.month,     color: 'var(--cyan)' },
-    { key: 'prevMonth', label: 'الشهر الماضي',     s: streaks.prevMonth, color: 'var(--text2)' },
-    { key: 'allTime',   label: 'الأطول على الإطلاق', s: streaks.allTime,   color: 'var(--gold)' },
+    ['هذا الشهر', streaks.month],
+    ['الشهر الماضي', streaks.prevMonth],
+    ['الأطول لك', streaks.allTime],
   ]
   const isRecord = streaks.month && streaks.allTime && streaks.month.days === streaks.allTime.days
-
   return (
-    <div
-      className={run ? 'mr-rise' : undefined}
-      style={{
-        '--i': 4, marginBottom: 14, opacity: run ? undefined : 0,
-        background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: 14, padding: '12px 14px',
-      }}
-    >
-      <div style={{
-        fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 800,
-        color: 'var(--text2)', marginBottom: 2,
-      }}>أطول سلسلة</div>
-      {/* The unit, stated once. The number counts sessions — the same
-          thing the flame on the home screen counts — so it matches the
-          one you carry in your head. */}
-      <div style={{
-        fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)',
-        lineHeight: 1.7, marginBottom: 8,
-      }}>
-        عدد أيام التمرين المتتالية · يوم الراحة لا يكسر السلسلة ولا يُحسب منها
-      </div>
-
-      {rows.map(({ key, label, s, color }) => (
-        <div key={key} style={{
-          display: 'flex', alignItems: 'baseline', gap: 8, padding: '4px 0',
-        }}>
-          <span style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)' }}>
-            {label}
-          </span>
-          {s ? (
-            <>
-              <span style={{ fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)' }}>
-                {dayLabel(s.start)} — {dayLabel(s.end)}
-                {/* Still running when the month closed. Without this the
-                    row claims a finished streak that is still growing. */}
-                {s.ongoing && <span style={{ color: 'var(--cyan)' }}> · مستمرة</span>}
-              </span>
-              <b style={{
-                fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 800, color,
-                fontVariantNumeric: 'tabular-nums',
-              }}>{AR(s.days)}</b>
-            </>
-          ) : (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--text3)' }}>—</span>
-          )}
-        </div>
-      ))}
-
-      {isRecord && (
-        <div style={{
-          marginTop: 6, fontFamily: 'var(--font-ar)', fontSize: 11,
-          color: 'var(--gold)', fontWeight: 700,
-        }}>🏆 رقمك القياسي — ما وصلت له من قبل</div>
-      )}
-
-      {/* One run on both sides of the 1st. Without saying so, the same
-          number appearing twice reads as two separate achievements. */}
+    <div className="rp-block rp-in" style={{ '--i': 5 }}>
+      <span className="rp-eyebrow">أطول تتابع جلسات</span>
+      <ul className="rp-rows">
+        {rows.map(([label, s]) => (
+          <li key={label} className="rp-row">
+            <span className="rp-row-main">
+              <span className="rp-row-t">{label}</span>
+              {s && (
+                <span className="rp-row-s">
+                  {span(s)}{s.ongoing ? ' · مستمر' : ''}
+                </span>
+              )}
+            </span>
+            <span className="rp-row-v">
+              {s ? <><b><Num>{s.days}</Num></b> {sessionsWord(s.days)}</> : <span className="rp-muted">—</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="rp-caption">
+        جلسات ورا بعض بدون غياب — يوم الراحة ما يقطعها وما ينحسب منها.
+        {isRecord && ' وهذا الشهر وصلت أطول تتابع لك.'}
+      </p>
       {streaks.carried && (
-        <div style={{
-          marginTop: 6, fontFamily: 'var(--font-ar)', fontSize: 11,
-          color: 'var(--text2)', lineHeight: 1.7,
-        }}>
-          🔗 هذه السلسلة بدأت الشهر الماضي في {dayLabel(streaks.carried.start)}
-          {' '}واستمرت {AR(streaks.carried.span)} يوماً على التقويم
-        </div>
+        <p className="rp-caption">
+          بدأ هالتتابع الشهر اللي قبله في {fmtDayAr(streaks.carried.start, { weekday: false })} واستمر <Num>{streaks.carried.span}</Num> يوم على التقويم.
+        </p>
       )}
     </div>
   )
 }
 
-export default function Consistency({ report }) {
-  const [ref, run, active] = useReveal()
+export default function Consistency({ report, n = 3, id = 'rp-consistency', liveStreak = null, today }) {
   const c = report.consistency
-  const totalDays = c.calendar.length || 1
+  const total = c.calendar.length || 1
+  const onPlan = c.trainedDays + c.scheduledRests
+  const pct = Math.round((onPlan / total) * 100)
+  const [picked, setPicked] = useState(null)
+
+  // The streak at the end of the month, or — while the month is still
+  // running — the live number, if the app passed it in. Never a guess.
+  const over = monthOver(report.month, today)
+  const streak = over ? c.endStreak : liveStreak
+  const monthName = monthLabel(report.month).split(' ')[0]
 
   // The first of the month may not be a Sunday; pad so the columns line
   // up with their weekday headings.
   const firstDay = c.calendar.length
-    ? new Date(...c.calendar[0].date.split('-').map((v, i) => (i === 1 ? Number(v) - 1 : Number(v)))).getDay()
+    ? (() => { const [y, m, d] = c.calendar[0].date.split('-').map(Number); return new Date(y, m - 1, d).getDay() })()
     : 0
+  const pickedDay = picked && c.calendar.find(d => d.date === picked)
 
   return (
-    <section ref={ref} className={`mr-section${active ? '' : ' mr-idle'}`} style={{ marginBottom: 34 }}>
-      <Heading run={run} note="كل يوم مصنّف كما صنّفه محرّك الالتزام نفسه">
-        الالتزام
-      </Heading>
-
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 16,
-        marginBottom: 16, flexWrap: 'wrap', justifyContent: 'center',
-      }}>
-        <Ring
-          value={c.trainedDays + c.scheduledRests}
-          max={totalDays}
-          run={run}
-          label={AR(c.bestStreak)}
-          sub="أطول سلسلة"
-          color="var(--cyan)"
-        />
-        <div style={{ flex: 1, minWidth: 150, display: 'grid', gap: 8 }}>
-          <Tile value={c.trainedDays} label="يوم تمرين" run={run} i={1} color="var(--cyan)" />
-          <Tile value={c.paidRests} label="راحة اختيارية" run={run} i={2} color="var(--gold)" />
-          <Tile value={c.missedDays.length} label="يوم غياب" run={run} i={3}
-                color={c.missedDays.length ? '#EF4444' : 'var(--text)'} />
+    <Chapter id={id} n={n} title="الالتزام" note="كل يوم مصنّف بنفس المحرك اللي يحسب الستريك.">
+      <div className="rp-commit rp-in" style={{ '--i': 1 }}>
+        <div className="rp-commit-n">
+          <b><Num>{pct}%</Num></b>
+          <span>من أيام الخطة</span>
         </div>
+        <Gauge value={onPlan} max={total} tone="accent" label={`${pct}% من أيام الخطة`} />
+        <p className="rp-caption">
+          <Num>{onPlan}</Num> من <Num>{total}</Num> يوم مشت مثل ما تقول الخطة: تمرين في يومه، أو راحة مجدولة.
+        </p>
       </div>
 
-      <Streaks streaks={c.streaks} run={run} />
+      <div className="rp-figs is-four">
+        <Figure value={c.trainedDays} label="يوم تمرين" i={2} />
+        <Figure value={c.scheduledRests} label="راحة مجدولة" i={2} />
+        <Figure value={c.paidRests} label="راحة بتذكرة" tone={c.paidRests ? 'rest' : undefined} i={2} />
+        <Figure value={c.missedDays.length} label="يوم غياب" i={2} />
+      </div>
 
-      {/* ── The month ── */}
-      <div
-        className={run ? 'mr-rise mr-shine' : undefined}
-        style={{
-          '--i': 4, position: 'relative', overflow: 'hidden',
-          background: 'var(--bg2)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: 14, opacity: run ? undefined : 0,
-        }}
-      >
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: 5, marginBottom: 6,
-        }}>
-          {WEEK.map(d => (
-            <div key={d} style={{
-              fontSize: 9, color: 'var(--text3)', textAlign: 'center',
-              fontFamily: 'var(--font-ar)',
-            }}>{d}</div>
-          ))}
+      {Number.isFinite(streak) && (
+        <div className="rp-block rp-in" style={{ '--i': 3 }}>
+          <span className="rp-eyebrow">الستريك {over ? `آخر ${monthName}` : 'لين اليوم'}</span>
+          <div className="rp-streak">
+            <span className="rp-streak-flame"><Flame size={30} filled={streak > 0} /></span>
+            <b className={streak === 0 ? 'zero' : undefined}><Num>{streak}</Num></b>
+            <span className="rp-streak-unit">{unitAr(streak, 'day')}</span>
+          </div>
+          <p className="rp-caption">أيام التزامك بالخطة — تمرين أو راحة مجدولة. التذكرة توقفه وما تزيده.</p>
         </div>
+      )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
-          {Array.from({ length: firstDay }, (_, i) => <div key={`pad${i}`} />)}
-          {c.calendar.map((day, i) => {
-            const k = KIND[day.kind] || KIND.miss
+      <div className="rp-block rp-in" style={{ '--i': 4 }}>
+        <span className="rp-eyebrow">الشهر يوم بيوم</span>
+        <div className="rp-cal" role="grid" aria-label={`أيام ${monthLabel(report.month)}`}>
+          {WEEK.map(w => <span key={w} className="rp-cal-wd" aria-hidden="true">{w}</span>)}
+          {Array.from({ length: firstDay }, (_, i) => <span key={`pad${i}`} aria-hidden="true" />)}
+          {c.calendar.map(day => {
+            const label = `${day.date} — ${KIND[day.kind] || KIND.miss}${day.deload ? ' · ديلود' : ''}`
             return (
-              <div
+              <button
                 key={day.date}
-                className={run ? 'mr-cell' : undefined}
-                title={`${day.date} — ${k.label}${day.deload ? ' · ديلود' : ''}`}
-                style={{
-                  '--i': i,
-                  aspectRatio: '1', borderRadius: 6,
-                  background: day.kind === 'miss' ? k.color : `${k.color}33`,
-                  border: `1px solid ${day.deload ? DELOAD_INK : day.kind === 'miss' ? '#4A2838' : k.color}`,
-                  boxShadow: day.deload
-                    ? `inset 0 0 0 2px ${DELOAD_INK}22`
-                    : day.kind === 'trained' ? `0 0 6px ${k.color}66` : 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, color: day.kind === 'miss' ? '#8A5A70' : k.color,
-                  fontWeight: 700, opacity: run ? undefined : 0,
-                }}
+                type="button"
+                title={label}
+                aria-label={`${fmtDayAr(day.date)} — ${KIND[day.kind] || KIND.miss}${day.deload ? ' · ديلود' : ''}`}
+                aria-pressed={picked === day.date}
+                className={`rp-cal-cell k-${day.kind}${day.deload ? ' is-deload' : ''}${picked === day.date ? ' picked' : ''}`}
+                onClick={() => setPicked(p => (p === day.date ? null : day.date))}
               >
-                {Number(day.date.slice(8))}
-              </div>
+                <span className="rp-cal-n"><Num>{Number(day.date.slice(8))}</Num></span>
+                <span className="rp-cal-g"><Glyph kind={day.kind} /></span>
+              </button>
             )
           })}
         </div>
-
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: 10,
-          marginTop: 12, justifyContent: 'center',
-        }}>
-          {report.volume?.deloadDays > 0 && (
-            <span style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-ar)',
-            }}>
-              <span style={{
-                width: 9, height: 9, borderRadius: 2,
-                border: `1.5px solid ${DELOAD_INK}`,
-              }} />
-              ديلود
-            </span>
+        <p className="rp-cal-picked" aria-live="polite">
+          {pickedDay
+            ? <>{fmtDayAr(pickedDay.date)} — {KIND[pickedDay.kind] || KIND.miss}{pickedDay.deload ? ' · أسبوع ديلود' : ''}</>
+            : 'اضغط على يوم تشوف وش صار فيه.'}
+        </p>
+        <p className="rp-key">
+          <span><i className="rp-dot" /> تمرين</span>
+          <span><span className="is-rest"><Moon size={12} /></span> راحة مجدولة</span>
+          <span><span className="is-rest"><Ticket size={12} /></span> تذكرة</span>
+          <span><span className="is-miss"><Cross size={10} /></span> غياب</span>
+          {c.calendar.some(d => d.deload) && (
+            <span><i className="rp-key-deload" style={{ borderColor: DELOAD_INK }} /> ديلود</span>
           )}
-          {Object.entries(KIND).map(([key, k]) => (
-            <span key={key} style={{
-              display: 'flex', alignItems: 'center', gap: 5,
-              fontSize: 10, color: 'var(--text3)', fontFamily: 'var(--font-ar)',
-            }}>
-              <span style={{
-                width: 9, height: 9, borderRadius: 3,
-                background: key === 'miss' ? k.color : `${k.color}55`,
-                border: `1px solid ${key === 'miss' ? '#4A2838' : k.color}`,
-              }} />
-              {k.label}
-            </span>
-          ))}
-        </div>
+        </p>
       </div>
 
+      <Runs streaks={c.streaks} />
+
       {c.restCredits > 0 && (
-        <div
-          className={run ? 'mr-rise' : undefined}
-          style={{
-            '--i': 5, marginTop: 10, textAlign: 'center',
-            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--rest)',
-            opacity: run ? undefined : 0,
-          }}
-        >
-          🎟️ تذاكر الراحة في نهاية الشهر: {AR(c.restCredits)}
-        </div>
+        <p className="rp-tickets rp-in" style={{ '--i': 6 }}>
+          <Ticket size={18} />
+          <span>{over ? 'رصيدك آخر الشهر' : 'رصيدك الحين'}: <b><Num>{c.restCredits}</Num> {unitAr(c.restCredits, 'ticket')}</b></span>
+        </p>
       )}
-    </section>
+    </Chapter>
   )
 }

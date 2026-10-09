@@ -1,110 +1,90 @@
-// ── Section 4: where the work went ────────────────────────────
-// Volume split by muscle group, and the push/pull ratio that says
-// whether the split is balanced. Colours come from MUSCLE_GROUPS, so a
-// muscle is the same colour here as everywhere else in the app.
+// ── Chapter 04: where the work went ───────────────────────────
+// Each muscle's share of the month, drawn as exactly that: a bar whose
+// length IS the percentage beside it, on one track that stands for the
+// whole month. (The old bars were scaled to the top muscle, so the
+// leader always filled its track while its label said 45%.) Neutral
+// ink — orange belongs to the streak and green to the next action.
+//
+// Then push against pull as a balance, not a progress ring: a scale on
+// log2 from «pull ×2» to «push ×2», the balanced band shaded, a marker
+// where the month landed. The band is the tips engine's own, so the
+// two can never disagree about whether a split is lopsided.
 
-import { useReveal } from '../../../hooks/useMotion.js'
+import { Num } from '../../kit/index.jsx'
 import { formatRatio, describeRatio, PUSH_PULL_BAND } from '../../../monthReport.js'
-import { Heading, Bar, AR } from '../parts.jsx'
-import Ring from '../Ring.jsx'
+import { Chapter, AR } from '../parts.jsx'
 
-export default function Muscles({ report }) {
-  const [ref, run, active] = useReveal()
+// 0.5 … 2 on log2, mapped to 0 … 1 from the LEFT edge, so push-heavy
+// (a ratio above 1) moves toward «دفع» on the right.
+const pos = (r) => {
+  const c = Math.min(2, Math.max(0.5, r))
+  return 0.5 + Math.log2(c) / 2
+}
+
+function Balance({ ratio }) {
+  const balanced = ratio >= PUSH_PULL_BAND[0] && ratio <= PUSH_PULL_BAND[1]
+  const at = pos(ratio)
+  const lo = pos(PUSH_PULL_BAND[0])
+  const hi = pos(PUSH_PULL_BAND[1])
+  const label = formatRatio(ratio)
+  const extreme = label.startsWith('×')
+  return (
+    <div className="rp-block rp-in" style={{ '--i': 3 }}>
+      <div className="rp-block-h">
+        <span className="rp-eyebrow">الدفع والسحب</span>
+        <span className={`rp-verdict${balanced ? '' : ' is-warn'}`}>
+          <Num>{extreme ? label : `${label} : 1`}</Num> · {balanced ? 'متوازن' : 'مايل'}
+        </span>
+      </div>
+      <div className="rp-scale" role="img"
+           aria-label={`${describeRatio(ratio)} — ${balanced ? 'متوازن' : 'مايل'}`}>
+        <div className="rp-scale-track">
+          <i className="rp-scale-band" style={{ left: `${lo * 100}%`, width: `${(hi - lo) * 100}%` }} />
+          <i className="rp-scale-mid" />
+          <i className="rp-scale-mark" style={{ left: `${at * 100}%` }} />
+        </div>
+        <div className="rp-scale-ends" aria-hidden="true">
+          <span>دفع</span>
+          <span>سحب</span>
+        </div>
+      </div>
+      <p className="rp-caption">
+        {balanced
+          ? 'حجم الدفع والسحب متقارب — هذا اللي يحمي الأكتاف على المدى الطويل.'
+          : ratio > 1
+            ? 'الدفع (صدر · أكتاف · ترايسبس) غالب على السحب (ظهر · بايسبس) — زِد تمرين ظهر.'
+            : 'السحب غالب على الدفع — أضف تمرين صدر أو أكتاف لين يتقاربون.'}
+      </p>
+    </div>
+  )
+}
+
+export default function Muscles({ report, n = 4, id = 'rp-muscles' }) {
   const { muscles, balance } = report
   if (!muscles.length) return null
-
-  const top = muscles[0].volume || 1
   const ratio = balance.pushPull
-  // The ring is coloured on the same band the tips engine judges by, so
-  // the two can never disagree about whether a split is lopsided.
-  const balanced = ratio === null || (ratio >= PUSH_PULL_BAND[0] && ratio <= PUSH_PULL_BAND[1])
 
   return (
-    <section ref={ref} className={`mr-section${active ? '' : ' mr-idle'}`} style={{ marginBottom: 34 }}>
-      <Heading run={run} note="حصة كل مجموعة عضلية من حجم الشهر">
-        العضلات والتوازن
-      </Heading>
-
-      <div
-        className={run ? 'mr-rise mr-shine' : undefined}
-        style={{
-          '--i': 1, position: 'relative', overflow: 'hidden',
-          background: 'var(--bg2)', border: '1px solid var(--border)',
-          borderRadius: 14, padding: 14, marginBottom: 12,
-          opacity: run ? undefined : 0,
-        }}
-      >
+    <Chapter id={id} n={n} title="العضلات" note="حصة كل عضلة من حجم الشهر.">
+      <ul className="rp-share rp-in" style={{ '--i': 1 }}>
         {muscles.map((m, i) => (
-          <div key={m.key} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            marginBottom: i === muscles.length - 1 ? 0 : 10,
-          }}>
-            <span style={{
-              width: 62, flexShrink: 0, fontSize: 12, fontWeight: 700,
-              color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-            }}>{m.label}</span>
-            <Bar pct={(m.volume / top) * 100} color={m.color} run={run} i={i} />
-            <span style={{
-              width: 42, flexShrink: 0, textAlign: 'left',
-              fontSize: 11, fontWeight: 700, color: m.color,
-              fontVariantNumeric: 'tabular-nums',
-            }}>٪{m.pct}</span>
-          </div>
+          <li key={m.key} className="rp-share-row">
+            <span className="rp-share-l">{m.label}</span>
+            <span className="rp-share-track" aria-hidden="true">
+              <i className="rp-share-fill" style={{ width: `${Math.max(1.5, Math.min(100, m.pct))}%`, '--i': i }} />
+            </span>
+            <span className="rp-share-v"><Num>{m.pct}%</Num></span>
+          </li>
         ))}
-      </div>
-
-      {ratio !== null && (
-        <div
-          className={run ? 'mr-rise' : undefined}
-          style={{
-            '--i': 2, display: 'flex', alignItems: 'center', gap: 14,
-            background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderRadius: 14, padding: 14, opacity: run ? undefined : 0,
-          }}
-        >
-          <Ring
-            value={Math.min(ratio, 2)}
-            max={2}
-            run={run}
-            size={92}
-            stroke={8}
-            label={formatRatio(ratio)}
-            sub="دفع/سحب"
-            color={balanced ? 'var(--cyan)' : 'var(--gold)'}
-          />
-          <div style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-ar)' }}>
-            <div style={{
-              fontWeight: 800, fontSize: 14,
-              color: balanced ? 'var(--cyan)' : 'var(--gold)', marginBottom: 4,
-            }}>
-              {balanced ? 'توازنك جيد' : 'التوازن مائل'}
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.55 }}>
-              {balanced
-                ? 'حجم الدفع والسحب متقارب — هذا ما يحمي الأكتاف على المدى الطويل.'
-                : `${describeRatio(ratio)}. ${ratio > 1
-                    ? 'الدفع (صدر · أكتاف · ترايسبس) يغلب على السحب (ظهر · بايسبس) — زد صفّاً من تمارين الظهر.'
-                    : 'السحب يغلب على الدفع — أضف تمريناً للصدر أو الأكتاف حتى يتقارب الطرفان.'}`}
-            </p>
-          </div>
-        </div>
-      )}
+      </ul>
 
       {balance.neglected && balance.dominant && balance.neglected.key !== balance.dominant.key && (
-        <div
-          className={run ? 'mr-rise' : undefined}
-          style={{
-            '--i': 3, marginTop: 10, fontSize: 12, textAlign: 'center',
-            color: 'var(--text3)', fontFamily: 'var(--font-ar)',
-            opacity: run ? undefined : 0,
-          }}
-        >
-          أكثر مجموعة: <b style={{ color: balance.dominant.color }}>{balance.dominant.label}</b>
-          {' '}({AR(balance.dominant.volume)} كجم) · أقلّها:{' '}
-          <b style={{ color: balance.neglected.color }}>{balance.neglected.label}</b>
-          {' '}({AR(balance.neglected.volume)} كجم)
-        </div>
+        <p className="rp-caption rp-in" style={{ '--i': 2 }}>
+          الأكثر: <b>{balance.dominant.label}</b> (<Num>{AR(balance.dominant.volume)}</Num> كجم) · الأقل: <b>{balance.neglected.label}</b> (<Num>{AR(balance.neglected.volume)}</Num> كجم)
+        </p>
       )}
-    </section>
+
+      {ratio !== null && <Balance ratio={ratio} />}
+    </Chapter>
   )
 }

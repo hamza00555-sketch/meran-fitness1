@@ -1,7 +1,7 @@
 // ── The shareable poster ──────────────────────────────────────
-// The report itself is a moving thing; a shared image cannot be. This
-// draws the month's highlights onto a 1080×1920 story canvas and hands
-// it to the share sheet.
+// The report is a page; a shared image cannot be. This draws the
+// month's highlights onto a 1080×1920 story canvas and hands it to the
+// share sheet.
 //
 // Drawn with the 2D context directly rather than by rasterising the
 // DOM. html2canvas is a heavy dependency that mishandles @font-face,
@@ -9,28 +9,57 @@
 // silently when one is missed. A canvas is more code here and no
 // surprises anywhere else.
 //
-// Canvas cannot read CSS custom properties, so the palette is repeated
-// as literals. These are the values in index.css :root.
+// The layout is «تحت الأضواء»: near-black ground, one neutral stage
+// light, the month's total as a broadcast number, figures on hairlines
+// instead of tiles, gold only on the weight that went up, orange only
+// on the streak, and the real wordmark — never a typed «مران». Every
+// piece of content sits between y≈250 and y≈1600, clear of the Stories
+// header above and the reply bar below.
+//
+// Canvas cannot read CSS custom properties, and the poster must look
+// the same whichever mode the app is in, so the palette is repeated
+// here as literals: the NORMAL values from src/styles/tokens.css, never
+// the deload ones.
 
 import { urlFor } from './assets/registry.js'
+import { arabicName } from './exerciseMedia.js'
+import { todayKey } from './day.js'
 
 export const POSTER_W = 1080
 export const POSTER_H = 1920
 
 const C = {
-  bg: '#080B14', bg2: '#101928', border: '#1E2D40',
-  cyan: '#5EC32A', gold: '#F59E0B', purple: '#3B9DE8',
-  text: '#EEF4FF', text2: '#B8D0E8', text3: '#607888',
+  ground: '#030404', stage: '#2A3038',
+  hairline: 'rgba(255,255,255,0.10)',
+  ink: '#F4F6F8', ink2: '#B0B9C3', ink3: '#8A95A1',
+  raise: '#FBBF24', streak: '#F97316',
 }
+
+// The content column: a 96px margin each side, text set from the right
+// (the start edge in Arabic).
+const L = 96
+const R = POSTER_W - 96
+const COL = R - L
+
+// The poster's top and bottom limits for content (Stories safe area).
+export const POSTER_SAFE = { top: 250, bottom: 1600 }
 
 const AR = (n) => Number(n || 0).toLocaleString('en-US')
 
-// Changa is the app's Arabic face and comes from Google Fonts;
-// Zanjabeel is bundled locally and precached by the service worker.
-// Naming both means an offline poster still renders Arabic properly,
-// just in the fallback face.
-const FAMILY = "'Changa','Zanjabeel',sans-serif"
-const font = (weight, size) => `${weight} ${size}px ${FAMILY}`
+// The app's own self-hosted faces: Archivo for every digit and Latin
+// letter, Changa for Arabic. unicode-range splits them per glyph, in a
+// canvas exactly as on the page.
+const FAMILY = "'Meran Latin','Meran Arabic',-apple-system,system-ui,sans-serif"
+const STRETCH = { 62: 'extra-condensed', 75: 'condensed', 85: 'semi-condensed', 100: 'normal' }
+
+function setFont(ctx, weight, size, stretch = 100) {
+  const kw = STRETCH[stretch] || 'normal'
+  ctx.font = `${weight} ${kw === 'normal' ? '' : kw + ' '}${size}px ${FAMILY}`
+  // Some engines only honour the width through the dedicated property.
+  if ('fontStretch' in ctx) {
+    try { ctx.fontStretch = kw } catch { /* not supported: the auto-fit still holds */ }
+  }
+}
 
 /**
  * Wait for the faces actually used here. Without this the first draw
@@ -38,24 +67,26 @@ const font = (weight, size) => `${weight} ${size}px ${FAMILY}`
  * baked into the PNG with no second chance.
  */
 async function ensureFonts() {
-  if (!document.fonts?.load) return
-  const wanted = [font(900, 128), font(900, 64), font(800, 46), font(700, 34), font(400, 28)]
+  if (typeof document === 'undefined' || !document.fonts?.load) return
   try {
-    await Promise.all(wanted.map(f => document.fonts.load(f, 'مران 0123456789')))
+    await Promise.all([
+      document.fonts.load("800 240px 'Meran Latin'", '0123456789,.%+'),
+      document.fonts.load("600 40px 'Meran Latin'", 'Bench Press XP'),
+      document.fonts.load("700 44px 'Meran Arabic'", 'تقرير الشهر كجم رفعتها'),
+    ])
     await document.fonts.ready
   } catch {
     // A font that will not load is not a reason to refuse the poster.
   }
 }
 
-/** The cover, or null when the art pack is not installed. */
-async function loadCover(slot) {
-  const url = urlFor(slot)
-  if (!url) return null
+async function loadImage(src) {
+  if (!src) return null
   try {
     const img = new Image()
-    // A blob: URL is same-origin, so this never taints the canvas.
-    img.src = url
+    // Same-origin (a blob: URL or the app's own /assets), so the canvas
+    // is never tainted.
+    img.src = src
     await (img.decode ? img.decode() : new Promise((res, rej) => { img.onload = res; img.onerror = rej }))
     return img
   } catch {
@@ -65,169 +96,180 @@ async function loadCover(slot) {
 
 // ── Drawing helpers ───────────────────────────────────────────
 
-const roundRect = (ctx, x, y, w, h, r) => {
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.arcTo(x + w, y, x + w, y + h, r)
-  ctx.arcTo(x + w, y + h, x, y + h, r)
-  ctx.arcTo(x, y + h, x, y, r)
-  ctx.arcTo(x, y, x + w, y, r)
-  ctx.closePath()
-}
-
-/** Centred text with an optional glow, the poster's only text idiom. */
-function centred(ctx, text, y, { size, weight = 700, color = C.text, glow, maxWidth }) {
-  ctx.font = font(weight, size)
-  ctx.textAlign = 'center'
+function text(ctx, s, x, y, { size, weight = 600, color = C.ink, align = 'right', stretch = 100, maxWidth, dir = 'rtl' }) {
+  ctx.direction = dir
+  setFont(ctx, weight, size, stretch)
+  ctx.textAlign = align
   ctx.textBaseline = 'alphabetic'
   ctx.fillStyle = color
-  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = size * 0.5 }
-  ctx.fillText(text, POSTER_W / 2, y, maxWidth)
-  ctx.shadowBlur = 0
-  ctx.shadowColor = 'transparent'
+  if (maxWidth) ctx.fillText(String(s), x, y, maxWidth)
+  else ctx.fillText(String(s), x, y)
 }
 
-function tile(ctx, x, y, w, h, value, label, color) {
-  ctx.fillStyle = C.bg2
-  roundRect(ctx, x, y, w, h, 26)
-  ctx.fill()
-  ctx.strokeStyle = C.border
-  ctx.lineWidth = 2
-  ctx.stroke()
+function width(ctx, s, { size, weight = 600, stretch = 100, dir = 'rtl' }) {
+  ctx.direction = dir
+  setFont(ctx, weight, size, stretch)
+  return ctx.measureText(String(s)).width
+}
 
-  ctx.textAlign = 'center'
+function hairline(ctx, y) {
+  ctx.fillStyle = C.hairline
+  ctx.fillRect(L, y, COL, 2)
+}
+
+// The flame from components/streak/StreakIcons.jsx, on its 24 grid.
+const FLAME = 'M12.3 2.8c.6 3.6 5 5.3 5 10a5.3 5.3 0 0 1-10.6 0c0-2.8 1.5-3.9 2.1-5.4.9 1.4 1.9 1.9 1.9 1.9s-.6-4 1.6-6.5z'
+function flame(ctx, x, y, size, color) {
+  if (typeof Path2D !== 'function') return
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.scale(size / 24, size / 24)
   ctx.fillStyle = color
-  ctx.font = font(900, 56)
-  ctx.fillText(value, x + w / 2, y + h * 0.52, w - 20)
+  ctx.fill(new Path2D(FLAME))
+  ctx.restore()
+}
 
-  ctx.fillStyle = C.text3
-  ctx.font = font(600, 26)
-  ctx.fillText(label, x + w / 2, y + h * 0.78, w - 16)
+// The wordmark: the bundled light mark, cropped to its ink box (the PNG
+// is a 192×192 canvas whose letters fill 172×67 at 10,62).
+const MARK = { src: '/assets/app_logo_full_light.png', x: 10, y: 62, w: 172, h: 67 }
+
+const monthName = (label) => String(label || '').split(' ')[0]
+const isMonthOver = (month, today = todayKey()) => String(today).slice(0, 7) > month
+
+/** What the poster says, decided apart from where it is drawn. */
+export function posterFigures(report, { liveStreak = null, today } = {}) {
+  const c = report.consistency || {}
+  const over = isMonthOver(report.month, today)
+  const streak = over ? c.endStreak : liveStreak
+  const total = (c.calendar || []).length || 1
+  const pct = Math.round((((c.trainedDays || 0) + (c.scheduledRests || 0)) / total) * 100)
+
+  const figs = [
+    { v: AR(report.sessionCount), l: 'جلسة' },
+    { v: AR(report.sets?.completed), l: 'مجموعة مكتملة' },
+  ]
+  if (report.prs?.length) figs.push({ v: AR(report.prs.length), l: 'أعلى وزن', color: C.raise })
+  if (Number.isFinite(streak) && streak > 0) {
+    figs.push({ v: AR(streak), l: over ? `ستريك آخر ${monthName(report.monthLabel)}` : 'ستريك لين اليوم', color: C.streak, flame: true })
+  }
+  if (figs.length < 4) figs.push({ v: `${pct}%`, l: 'من أيام الخطة' })
+  if (figs.length < 4) figs.push({ v: AR(report.reps?.total), l: 'تكرار' })
+  return { figs: figs.slice(0, 4), pct }
 }
 
 // ── The poster ────────────────────────────────────────────────
 
-export async function drawPoster(canvas, { report, profile = {} } = {}) {
+export async function drawPoster(canvas, { report, profile = {}, mapping = {}, liveStreak = null, today } = {}) {
   canvas.width = POSTER_W
   canvas.height = POSTER_H
   const ctx = canvas.getContext('2d')
 
-  // Arabic shapes and orders itself in the engine, but only when the
-  // context is told the text is right-to-left.
-  ctx.direction = 'rtl'
-
   await ensureFonts()
+  const [cover, mark] = await Promise.all([loadImage(urlFor(report.cover)), loadImage(MARK.src)])
 
-  // ── Background ──
-  ctx.fillStyle = C.bg
+  // ── Ground and light ──
+  ctx.fillStyle = C.ground
   ctx.fillRect(0, 0, POSTER_W, POSTER_H)
 
-  // ── Cover band ──
-  const BAND = 640
-  const cover = await loadCover(report.cover)
   if (cover) {
-    // Fill the band and crop the overflow rather than squashing it.
+    // The month's art as the stage, cropped to fill the top, then sunk
+    // into the ground so the number reads over it.
+    const BAND = 900
     const scale = Math.max(POSTER_W / cover.width, BAND / cover.height)
     const w = cover.width * scale
     const h = cover.height * scale
     ctx.drawImage(cover, (POSTER_W - w) / 2, (BAND - h) / 2, w, h)
+    const sink = ctx.createLinearGradient(0, 0, 0, BAND)
+    sink.addColorStop(0, 'rgba(3,4,4,0.30)')
+    sink.addColorStop(0.45, 'rgba(3,4,4,0.70)')
+    sink.addColorStop(0.8, 'rgba(3,4,4,0.95)')
+    sink.addColorStop(1, C.ground)
+    ctx.fillStyle = sink
+    ctx.fillRect(0, 0, POSTER_W, BAND + 2)
   } else {
-    // No pack installed. A flat wash reads as a picture that failed to
-    // load, so the fallback is built up until the band looks intended:
-    // the app's own palette, then two soft lights over it.
-    const g = ctx.createLinearGradient(0, 0, POSTER_W, BAND)
-    g.addColorStop(0, '#0E1A24')
-    g.addColorStop(0.55, '#17331E')
-    g.addColorStop(1, '#3A2A0C')
-    ctx.fillStyle = g
-    ctx.fillRect(0, 0, POSTER_W, BAND)
+    // One neutral stage light — light, not glow.
+    const light = ctx.createRadialGradient(POSTER_W * 0.62, 470, 0, POSTER_W * 0.62, 470, 900)
+    light.addColorStop(0, C.stage)
+    light.addColorStop(0.72, C.ground)
+    light.addColorStop(1, C.ground)
+    ctx.fillStyle = light
+    ctx.fillRect(0, 0, POSTER_W, POSTER_H)
+  }
 
-    for (const [x, yy, r, color] of [
-      [POSTER_W * 0.24, BAND * 0.34, 380, 'rgba(94,195,42,0.34)'],
-      [POSTER_W * 0.82, BAND * 0.22, 300, 'rgba(245,158,11,0.28)'],
-    ]) {
-      const glow = ctx.createRadialGradient(x, yy, 0, x, yy, r)
-      glow.addColorStop(0, color)
-      glow.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = glow
-      ctx.fillRect(0, 0, POSTER_W, BAND)
+  // ── The month ──
+  text(ctx, `تقرير الشهر · ${report.monthLabel}`, R, 300, { size: 38, weight: 600, color: C.ink3, maxWidth: COL })
+
+  // ── The headline number: 96pt × 2.4, condensed, shrunk to fit ──
+  const total = AR(report.volume.total)
+  let size = total.replace(/\D/g, '').length >= 7 ? 200 : 240
+  while (size > 140 && width(ctx, total, { size, weight: 800, stretch: 62, dir: 'ltr' }) > COL) size -= 8
+  text(ctx, total, R, 300 + 24 + size * 0.86, { size, weight: 800, stretch: 62, dir: 'ltr', maxWidth: COL })
+  const heroBase = 300 + 24 + size * 0.86
+  text(ctx, 'كجم رفعتها', R, heroBase + 76, { size: 44, weight: 600, color: C.ink2 })
+
+  // ── Four figures on hairlines, two by two ──
+  const { figs, pct } = posterFigures(report, { liveStreak, today })
+  const gridTop = heroBase + 140
+  const ROW = 212
+  const CELL = COL / 2
+  hairline(ctx, gridTop)
+  figs.forEach((f, i) => {
+    const row = Math.floor(i / 2)
+    const right = R - (i % 2) * CELL
+    const base = gridTop + 40 + row * ROW + 104
+    let x = right
+    if (f.flame) {
+      flame(ctx, right - 64, base - 76, 64, C.streak)
+      x = right - 80
     }
-  }
-
-  // Dissolve the band into the page so the title has somewhere to sit.
-  const fade = ctx.createLinearGradient(0, BAND * 0.35, 0, BAND)
-  fade.addColorStop(0, 'rgba(8,11,20,0)')
-  fade.addColorStop(1, C.bg)
-  ctx.fillStyle = fade
-  ctx.fillRect(0, BAND * 0.35, POSTER_W, BAND * 0.65 + 2)
-
-  // ── Title ──
-  centred(ctx, 'تقرير الشهر', 606, { size: 30, weight: 600, color: C.text3 })
-  centred(ctx, report.monthLabel, 706, { size: 72, weight: 900, color: C.text, maxWidth: POSTER_W - 120 })
-
-  // ── The headline number ──
-  const heroY = 900
-  const halo = ctx.createRadialGradient(POSTER_W / 2, heroY - 40, 0, POSTER_W / 2, heroY - 40, 320)
-  halo.addColorStop(0, 'rgba(94,195,42,0.30)')
-  halo.addColorStop(1, 'rgba(94,195,42,0)')
-  ctx.fillStyle = halo
-  ctx.fillRect(0, heroY - 360, POSTER_W, 720)
-
-  centred(ctx, AR(report.volume.total), heroY, {
-    size: 132, weight: 900, color: C.text, glow: 'rgba(94,195,42,0.55)', maxWidth: POSTER_W - 100,
+    text(ctx, f.v, x, base, { size: 112, weight: 800, stretch: 85, color: f.color || C.ink, dir: 'ltr', maxWidth: CELL - 40 - (f.flame ? 80 : 0) })
+    text(ctx, f.l, right, base + 56, { size: 34, weight: 600, color: C.ink3, maxWidth: CELL - 40 })
   })
-  centred(ctx, 'كيلوغراماً رفعتها', heroY + 74, { size: 38, weight: 700, color: C.cyan })
+  if (figs.length > 2) hairline(ctx, gridTop + ROW + 8)
+  const gridBottom = gridTop + Math.ceil(figs.length / 2) * ROW + 16
+  hairline(ctx, gridBottom)
 
-  // ── Four figures ──
-  const pad = 60
-  const gap = 22
-  const tw = (POSTER_W - pad * 2 - gap) / 2
-  const th = 168
-  const ty = 1055
-
-  tile(ctx, pad, ty, tw, th, AR(report.sessionCount), 'جلسة', C.cyan)
-  tile(ctx, pad + tw + gap, ty, tw, th, AR(report.sets.completed), 'مجموعة مكتملة', C.text)
-  tile(ctx, pad, ty + th + gap, tw, th, AR(report.consistency.bestStreak), 'أطول سلسلة', C.purple)
-  tile(ctx, pad + tw + gap, ty + th + gap, tw, th, AR(report.prs.length), 'رقم قياسي', C.gold)
-
-  // ── The month's best lift ──
-  // The footer is anchored to the bottom edge, so the content above it
-  // has a fixed budget rather than pushing into it. Stacking the two
-  // ran the name straight through the wordmark.
-  let y = ty + (th + gap) * 2 + 24
-  const best = report.prs[0]
+  // ── The month's best lift — the one gold weight — or, without one,
+  //    how much of the month went as planned. ──
+  const best = report.prs?.[0]
+  const blockTop = gridBottom + 72
   if (best) {
-    const h = 168
-    ctx.fillStyle = 'rgba(245,158,11,0.10)'
-    roundRect(ctx, pad, y, POSTER_W - pad * 2, h, 28)
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(245,158,11,0.45)'
-    ctx.lineWidth = 2
-    ctx.stroke()
-
-    centred(ctx, '🏆 أقوى رقم قياسي', y + 50, { size: 28, weight: 700, color: C.gold })
-    centred(ctx, best.exercise, y + 96, { size: 38, weight: 800, color: C.text, maxWidth: POSTER_W - pad * 2 - 60 })
-    centred(ctx, `${AR(best.weight)} كجم · من ${AR(best.prevBest)}`, y + 140, {
-      size: 28, weight: 600, color: C.text2,
-    })
+    const ar = arabicName(best.exercise, mapping)
+    const kg = AR(Math.round(best.weight * 10) / 10)
+    text(ctx, 'أقوى رقم', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
+    // The weight on the left, in gold; the name on the right.
+    const wW = width(ctx, kg, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
+    const unitW = width(ctx, 'كجم', { size: 38, weight: 600 })
+    text(ctx, kg, L + unitW + 14, blockTop + 152, { size: 132, weight: 800, stretch: 85, color: C.raise, dir: 'ltr', align: 'left' })
+    text(ctx, 'كجم', L, blockTop + 152, { size: 38, weight: 600, color: C.ink3, align: 'left' })
+    const nameW = COL - wW - unitW - 64
+    text(ctx, ar || best.exercise, R, blockTop + 76, { size: 54, weight: 700, color: C.ink, maxWidth: nameW, dir: ar ? 'rtl' : 'ltr' })
+    if (ar) text(ctx, best.exercise, R, blockTop + 124, { size: 34, weight: 600, stretch: 85, color: C.ink3, maxWidth: nameW, dir: 'ltr' })
+    const gain = Math.round((best.weight - best.prevBest) * 10) / 10
+    text(ctx, `كان ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
+  } else if (!figs.some(f => f.l === 'من أيام الخطة')) {
+    text(ctx, 'الالتزام', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
+    text(ctx, `${pct}%`, R, blockTop + 140, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
+    text(ctx, 'من أيام الخطة', R, blockTop + 196, { size: 34, weight: 600, color: C.ink3 })
   }
 
-  // ── Who this is ──
-  const rank = report.progress.rank
+  // ── Who this is, and the mark ──
+  const FOOT = 1452
+  hairline(ctx, FOOT)
   const name = (profile.name || '').trim()
-  const line = [name, rank?.label, `المستوى ${AR(report.progress.level)}`].filter(Boolean).join('  ·  ')
-  centred(ctx, line, POSTER_H - 215, { size: 36, weight: 700, color: C.text2, maxWidth: POSTER_W - 120 })
-
-  // ── Signature ──
-  ctx.strokeStyle = C.border
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(POSTER_W / 2 - 90, POSTER_H - 170)
-  ctx.lineTo(POSTER_W / 2 + 90, POSTER_H - 170)
-  ctx.stroke()
-
-  centred(ctx, 'مران', POSTER_H - 112, { size: 50, weight: 900, color: C.cyan, glow: 'rgba(94,195,42,0.4)' })
-  centred(ctx, 'MERAN', POSTER_H - 68, { size: 22, weight: 600, color: C.text3 })
+  const rank = report.progress?.rank?.label
+  const level = `المستوى ${AR(report.progress?.level)}${rank ? ` · ${rank}` : ''}`
+  if (name) {
+    text(ctx, name, R, FOOT + 76, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
+    text(ctx, level, R, FOOT + 128, { size: 34, weight: 600, color: C.ink3, maxWidth: COL - 260 })
+  } else {
+    text(ctx, level, R, FOOT + 98, { size: 38, weight: 600, color: C.ink2, maxWidth: COL - 260 })
+  }
+  if (mark) {
+    const h = 80
+    const w = MARK.w * (h / MARK.h)
+    ctx.drawImage(mark, MARK.x, MARK.y, MARK.w, MARK.h, L, FOOT + 88 - h / 2, w, h)
+  }
 
   return canvas
 }
@@ -267,8 +309,8 @@ export function canShareFiles(file, nav = typeof navigator !== 'undefined' ? nav
   }
 }
 
-export async function sharePoster({ report, profile, onInline } = {}) {
-  const blob = await buildPosterBlob({ report, profile })
+export async function sharePoster({ report, profile, mapping, liveStreak, today, onInline } = {}) {
+  const blob = await buildPosterBlob({ report, profile, mapping, liveStreak, today })
   const filename = `meran-${report.month}.png`
   const file = typeof File === 'function'
     ? new File([blob], filename, { type: 'image/png' })

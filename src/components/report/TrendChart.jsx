@@ -1,218 +1,182 @@
-// ── The month's shape ─────────────────────────────────────────
-// Volume per training day, drawn as a line that traces itself out
-// left to right, with the area beneath it filling in behind.
+// ── The month, day by day ─────────────────────────────────────
+// One slot for every day of the month on a real calendar axis, day 1
+// at the right (the start edge, like every progress bar in the app),
+// a bar on each day that has a session and a small tick on each day
+// that has none — so rest stretches and gaps are visible instead of
+// being squeezed out by spacing sessions evenly.
 //
-// The line is coloured by the direction of the month rather than by
-// each step: a session lighter than the one before it is not a
-// setback, and colouring it red would say it was. What the colour
-// answers is the only question the chart is for — over the month, did
-// this go up or down.
+// The scale always starts at zero: a flat month must look flat, not be
+// magnified into a slope. Gridlines at 0, the middle and a rounded top
+// give it a size. The day the month peaked is the one bar drawn in full
+// ink; deload days are drawn in the deload blue under one shaded band.
 //
-// The drawing effect is the stroke's own dash offset, which animates
-// on the compositor and costs no layout. The dashed trend line and the
-// end marker follow once the path has finished, so the eye reads the
-// shape before it reads the verdict.
+// Drawn in real pixels (the width is measured) so the 12px labels are
+// 12px on every phone rather than scaled with a viewBox.
 
-import { useReveal, useReducedMotion } from '../../hooks/useMotion.js'
+import { useEffect, useRef, useState } from 'react'
+import { useReveal } from '../../hooks/useMotion.js'
+import { AR } from './parts.jsx'
 
-const W = 320
-const H = 132
-const PAD = { top: 14, right: 8, bottom: 20, left: 8 }
+// The deload colour as a literal: the report is usually read after the
+// period ended, when the app's accent is green again, and this band has
+// to mean «deload» wherever it is seen.
+export const DELOAD_INK = '#5CC9EE'
 
-export default function TrendChart({ series = [], direction = 'flat', color }) {
-  const [ref, run, active] = useReveal()
-  const reduced = useReducedMotion()
+const H = 172
+const TOP = 10
+const AXIS = 24      // room under the baseline for the day labels
+const GUTTER = 46    // the value labels, on the end (left) side
+const EDGE = 2
+const TICKS = [1, 8, 15, 22, 29]
 
-  // Two points is a line, not a trend — below that there is nothing
-  // worth drawing and a chart of one dot would only mislead.
-  if (series.length < 3) return null
+const daysIn = (month) => {
+  const [y, m] = String(month).split('-').map(Number)
+  return new Date(y, m, 0).getDate() || 31
+}
 
+// A top that reads as a round number: 6,833 → 7,000; 1,070 → 1,500.
+const niceTop = (max) => {
+  if (!(max > 0)) return 1
+  const mag = 10 ** Math.floor(Math.log10(max))
+  const step = mag / 2
+  return Math.ceil(max / step) * step
+}
+
+/**
+ * Which way the month moved, judged on the axis the chart is drawn on.
+ * A least-squares line through the ordinary days (deload days are light
+ * on purpose and left out), and its change across the month as a share
+ * of the average day. Inside ±5% the month was steady — a slope of a few
+ * kilos is noise, and calling it «up» over a flat row of bars was the
+ * thing that made the old chart unbelievable.
+ */
+export function monthVerdict(series = []) {
+  const pts = series
+    .filter(p => !p.deload)
+    .map(p => ({ x: Number(String(p.date).slice(8, 10)), y: p.value }))
+  if (pts.length < 3) return null
+  const n = pts.length
+  const mx = pts.reduce((a, p) => a + p.x, 0) / n
+  const my = pts.reduce((a, p) => a + p.y, 0) / n
+  let num = 0, den = 0
+  for (const p of pts) { num += (p.x - mx) * (p.y - my); den += (p.x - mx) ** 2 }
+  if (!den || !my) return { dir: 'flat', pct: 0 }
+  const span = pts[n - 1].x - pts[0].x
+  const pct = Math.round(((num / den) * span / my) * 1000) / 10
+  return { dir: pct >= 5 ? 'up' : pct <= -5 ? 'down' : 'flat', pct }
+}
+
+export const VERDICT_WORD = { up: 'صاعد', down: 'نازل', flat: 'ثابت' }
+
+function useWidth(ref, initial = 320) {
+  const [w, setW] = useState(initial)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const read = () => setW(Math.max(200, Math.round(el.clientWidth)))
+    read()
+    if (typeof ResizeObserver !== 'function') return
+    const ro = new ResizeObserver(read)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+  return w
+}
+
+// A bar with its top corners rounded and its foot square on the baseline.
+const barPath = (x, y, w, base, r) => {
+  const rr = Math.min(r, w / 2, Math.max(0, base - y))
+  return `M${x},${base}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${base}Z`
+}
+
+export default function TrendChart({ series = [], month, verdict }) {
+  const box = useRef(null)
+  const width = useWidth(box)
+  const [ref, run] = useReveal({ threshold: 0.2 })
+  if (!series.length) return null
+
+  const days = daysIn(month || String(series[0].date).slice(0, 7))
+  const byDay = new Map(series.map(p => [Number(String(p.date).slice(8, 10)), p]))
   const values = series.map(p => p.value)
   const max = Math.max(...values)
-  const min = Math.min(...values)
-  // A flat month should read as flat, not as noise amplified to fill
-  // the box, so the scale always includes zero at the bottom.
-  const top = max * 1.08 || 1
-  const plotW = W - PAD.left - PAD.right
-  const plotH = H - PAD.top - PAD.bottom
+  const top = niceTop(max)
 
-  const x = (i) => PAD.left + (series.length === 1 ? plotW / 2 : (i / (series.length - 1)) * plotW)
-  const y = (v) => PAD.top + plotH - (v / top) * plotH
+  const plotW = width - GUTTER - EDGE
+  const plotH = H - TOP - AXIS
+  const base = TOP + plotH
+  const pitch = plotW / days
+  const barW = Math.max(3, Math.min(10, pitch * 0.62))
+  // Day d's slot centre, counting from the right edge.
+  const cxOf = (d) => width - EDGE - (d - 0.5) * pitch
+  const yOf = (v) => base - (v / top) * plotH
 
-  const line = series.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ')
-  const area = `${line} L${x(series.length - 1).toFixed(1)},${PAD.top + plotH} L${x(0).toFixed(1)},${PAD.top + plotH} Z`
-
-  const stroke = color || (direction === 'down' ? '#EF4444' : direction === 'up' ? 'var(--cyan)' : 'var(--purple)')
-  const gid = `mr-trend-${direction}`
-
-  // Path length drives the dash animation. An over-estimate is safe —
-  // it only means the line starts further off-screen — so the diagonal
-  // bound avoids measuring the DOM.
-  const len = Math.round(plotW + plotH * series.length)
-
-  // Contiguous runs of deload days, so the chart can shade the stretch
-  // rather than mark each point. The dip inside that band is planned,
-  // and a reader who cannot see which days were deliberately light will
-  // read the same shape as a slump.
+  // Contiguous stretches of deload sessions become one shaded band each.
   const bands = []
   for (let i = 0; i < series.length; i++) {
     if (!series[i].deload) continue
     const from = i
     while (i + 1 < series.length && series[i + 1].deload) i++
-    bands.push([from, i])
+    bands.push([Number(String(series[from].date).slice(8, 10)), Number(String(series[i].date).slice(8, 10))])
   }
 
-  const last = series[series.length - 1]
-  const first = series[0]
-  const lo = series.reduce((a, p) => (p.value < a.value ? p : a), series[0])
-  const hi = series.reduce((a, p) => (p.value > a.value ? p : a), series[0])
+  const peak = series.reduce((a, p) => (p.value > a.value ? p : a), series[0])
+  const word = VERDICT_WORD[verdict?.dir || 'flat']
 
-  // The average, drawn. Without a reference the line is a shape with
-  // no size: you cannot tell whether the swing between the lowest and
-  // highest day is a real difference or the scale magnifying noise.
-  // Every point can now be read as above or below a typical day.
-  const avg = Math.round(values.reduce((a, v) => a + v, 0) / values.length)
-  const avgY = y(avg)
-
+  let order = 0
   return (
-    <div
-      ref={ref}
-      className={active ? undefined : 'mr-idle'}
-      style={{ position: 'relative' }}
-    >
+    <div ref={box} className="rp-chart">
       <svg
-        viewBox={`0 0 ${W} ${H}`}
-        style={{ width: '100%', display: 'block', overflow: 'visible' }}
+        ref={ref}
+        width="100%"
+        height={H}
+        viewBox={`0 0 ${width} ${H}`}
+        preserveAspectRatio="none"
+        className={run ? 'rp-chart-svg rp-on' : 'rp-chart-svg rp-off'}
         role="img"
-        aria-label={`حجم التمرين لكل يوم خلال الشهر، الاتجاه ${direction === 'up' ? 'صاعد' : direction === 'down' ? 'نازل' : 'ثابت'}`}
+        aria-label={`حجم التمرين لكل يوم خلال الشهر، الاتجاه ${word}`}
       >
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={stroke} stopOpacity="0.34" />
-            <stop offset="100%" stopColor={stroke} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-
-        {/* Deload stretches, shaded behind everything. Glacier blue by
-            literal rather than by token: the report is usually read
-            after the period has ended, when the accent is green again,
-            and this band has to mean deload wherever it is seen. */}
-        {bands.map(([a, b], n) => {
-          // A single-day band would be a zero-width rect, so it gets
-          // half a step of padding either side to stay visible.
-          const pad = series.length > 1 ? (plotW / (series.length - 1)) * 0.5 : plotW / 2
-          const x0 = Math.max(PAD.left, x(a) - pad)
-          const x1 = Math.min(W - PAD.right, x(b) + pad)
+        {/* Deload stretches, behind everything. */}
+        {bands.map(([a, b]) => {
+          const x0 = cxOf(b) - pitch / 2
+          const x1 = cxOf(a) + pitch / 2
           return (
-            <g key={n} style={{ opacity: run ? 1 : 0, transition: reduced ? 'none' : 'opacity .5s ease .3s' }}>
-              <rect
-                x={x0} y={PAD.top} width={Math.max(2, x1 - x0)} height={plotH}
-                fill="#5CC9EE" fillOpacity="0.10"
-              />
-              <line
-                x1={x0} y1={PAD.top} x2={x1} y2={PAD.top}
-                stroke="#5CC9EE" strokeWidth="1.5" strokeOpacity="0.5" strokeDasharray="3 3"
-              />
-            </g>
+            <rect key={`band-${a}`} x={x0} y={TOP} width={Math.max(2, x1 - x0)} height={plotH}
+                  fill="#5CC9EE" fillOpacity="0.10" />
           )
         })}
 
-        {/* The average day, as a quiet rule across the plot. */}
-        <g style={{ opacity: run ? 1 : 0, transition: reduced ? 'none' : 'opacity .5s ease .55s' }}>
-          <line
-            x1={PAD.left} y1={avgY} x2={W - PAD.right} y2={avgY}
-            stroke="var(--text3)" strokeWidth="1" strokeOpacity="0.55" strokeDasharray="2 4"
-          />
-          {/* Anchored at the start edge: at the end it collided with
-              the last point's marker and ran past the card's padding.
-              direction:ltr keeps the thousands separator in place —
-              the surrounding paragraph is RTL. */}
-          <text
-            x={PAD.left + 2} y={avgY - 4} textAnchor="start"
-            fill="var(--text3)" fontSize="9" fontFamily="var(--font-mono)"
-            style={{ direction: 'ltr' }}
-          >{avg.toLocaleString('en-US')}</text>
-        </g>
+        {/* Gridlines: zero, the middle, the rounded top. */}
+        {[0, top / 2, top].map((v, i) => (
+          <g key={v}>
+            <line x1={GUTTER} x2={width - EDGE} y1={yOf(v)} y2={yOf(v)}
+                  className={i === 0 ? 'rp-chart-base' : 'rp-chart-grid'} />
+            <text x={GUTTER - 6} y={yOf(v) + 4} textAnchor="end" className="rp-chart-label">
+              {AR(v)}
+            </text>
+          </g>
+        ))}
 
-        {/* Baseline, so a line near the floor still has a floor. */}
-        <line
-          x1={PAD.left} y1={PAD.top + plotH} x2={W - PAD.right} y2={PAD.top + plotH}
-          stroke="var(--border)" strokeWidth="1"
-        />
-
-        {/* The area fades in under the line rather than wiping with it:
-            two things sweeping at once reads as a glitch. */}
-        <path
-          d={area}
-          fill={`url(#${gid})`}
-          style={{
-            opacity: run ? 1 : 0,
-            transition: reduced ? 'none' : 'opacity .5s ease .55s',
-          }}
-        />
-
-        <path
-          d={line}
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={run && !reduced ? 'mr-draw' : undefined}
-          style={{
-            '--dash': len,
-            '--offset': 0,
-            strokeDasharray: len,
-            strokeDashoffset: run && !reduced ? 0 : (run ? 0 : len),
-            filter: `drop-shadow(0 0 5px ${stroke})`,
-          }}
-        />
-
-        {/* Highest and lowest day, so the shape has two anchors that can
-            be checked against the numbers rather than only admired. */}
-        {[hi, lo].map((p, n) => {
-          const i = series.indexOf(p)
+        {/* Every day of the month: a bar where there was a session, a
+            tick on the baseline where there was not. */}
+        {Array.from({ length: days }, (_, k) => {
+          const d = k + 1
+          const p = byDay.get(d)
+          const x = cxOf(d) - barW / 2
+          if (!p) {
+            return <rect key={d} x={x} y={base - 2} width={barW} height={2} rx={1} className="rp-chart-empty" />
+          }
+          const cls = p.deload ? 'rp-chart-bar is-deload' : p === peak ? 'rp-chart-bar is-peak' : 'rp-chart-bar'
           return (
-            <circle
-              key={n}
-              cx={x(i)} cy={y(p.value)} r="3"
-              fill="var(--bg)" stroke={stroke} strokeWidth="2"
-              style={{
-                opacity: run ? 1 : 0,
-                transition: reduced ? 'none' : `opacity .3s ease ${0.9 + n * 0.1}s`,
-              }}
-            />
+            <path key={d} d={barPath(x, yOf(p.value), barW, base, 2)} className={cls}
+                  style={{ '--i': order++ }} />
           )
         })}
 
-        {/* Where the month ended. */}
-        <circle
-          cx={x(series.length - 1)} cy={y(last.value)} r="4.5"
-          fill={stroke}
-          style={{
-            opacity: run ? 1 : 0,
-            transition: reduced ? 'none' : 'opacity .3s ease 1.1s',
-            filter: `drop-shadow(0 0 6px ${stroke})`,
-          }}
-        />
-
-        <text
-          x={PAD.left} y={H - 5}
-          fill="var(--text3)" style={{ fontSize: 9, fontFamily: 'var(--font-mono)' }}
-        >{first.date.slice(8)}</text>
-        <text
-          x={W - PAD.right} y={H - 5} textAnchor="end"
-          fill="var(--text3)" style={{ fontSize: 9, fontFamily: 'var(--font-mono)' }}
-        >{last.date.slice(8)}</text>
+        {/* Day ticks, under their own slots. */}
+        {TICKS.filter(d => d <= days).map(d => (
+          <text key={d} x={cxOf(d)} y={H - 6} textAnchor="middle" className="rp-chart-label">{d}</text>
+        ))}
       </svg>
-
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        marginTop: 4, fontFamily: 'var(--font-ar)', fontSize: 11, color: 'var(--text3)',
-      }}>
-        <span>أدنى يوم {Number(min).toLocaleString('en-US')} كجم</span>
-        <span>أعلى يوم {Number(max).toLocaleString('en-US')} كجم</span>
-      </div>
     </div>
   )
 }

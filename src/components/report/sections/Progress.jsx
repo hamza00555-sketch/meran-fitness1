@@ -1,121 +1,75 @@
-// ── Section 5: where it left you ──────────────────────────────
-// Rank, level, and the achievements that actually unlocked inside this
-// month — read from unlockedAt, so it is the month they were earned in
-// and not merely the ones held.
+// ── Chapter 05: where it left you ─────────────────────────────
+// The level and rank at the end of the month, and the achievements that
+// actually unlocked inside it — read from unlockedAt, so it is the month
+// they were earned in and not merely the ones held. No rank colours and
+// no rarity colours: those hues mean nothing in a system where colour
+// is state. A medal without the pack's artwork shows its category's
+// bundled art, never an emoji.
 
 import Art from '../../../assets/Art.jsx'
 import { achSlot } from '../../../assets/slots.js'
-import { RARITY_COLORS } from '../../../constants.js'
-import { useReveal } from '../../../hooks/useMotion.js'
-import { Heading, AR } from '../parts.jsx'
+import { ACHIEVEMENTS } from '../../../constants.js'
+import { Num } from '../../kit/index.jsx'
+import { Chapter, Bidi } from '../parts.jsx'
 
-export default function Progress({ report }) {
-  const [ref, run, active] = useReveal()
+const MAX_SHOWN = 9
+
+const webp = (src) => (src ? src.replace(/\.png$/, '.webp') : null)
+
+// Without the pack, a medal is the bundled art for its category — the
+// same pictures the achievements page uses — never an emoji.
+const CAT_ART = { sessions: 'ach_consistency', streak: 'ach_consistency', strength: 'ach_strength', volume: 'ach_volume' }
+const catArt = (id) => {
+  const a = ACHIEVEMENTS.find(x => x.id === id)
+  const name = a && (a.rarity === 'legendary' || a.rarity === 'epic') ? 'ach_master' : CAT_ART[a?.cat] || 'ach_consistency'
+  return `/assets/${name}.webp`
+}
+
+export default function Progress({ report, n = 5, id = 'rp-progress' }) {
   const { level, rank, achievements } = report.progress
+  const shown = achievements.slice(0, MAX_SHOWN)
 
   return (
-    <section ref={ref} className={`mr-section${active ? '' : ' mr-idle'}`} style={{ marginBottom: 34 }}>
-      <Heading run={run} note="رتبتك ومستواك في نهاية الشهر">
-        التقدم والإنجازات
-      </Heading>
-
-      <div
-        className={run ? 'mr-rise mr-shine' : undefined}
-        style={{
-          '--i': 1, position: 'relative', overflow: 'hidden',
-          display: 'flex', alignItems: 'center', gap: 14,
-          background: `linear-gradient(100deg, ${rank?.color || 'var(--cyan)'}1A, var(--bg2))`,
-          border: `1px solid ${rank?.color || 'var(--border)'}55`,
-          borderRadius: 16, padding: 16, marginBottom: 14,
-          opacity: run ? undefined : 0,
-        }}
-      >
-        <div style={{
-          width: 62, height: 62, borderRadius: '50%', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: `${rank?.color || 'var(--cyan)'}22`,
-          border: `2px solid ${rank?.color || 'var(--cyan)'}`,
-          boxShadow: `0 0 16px ${rank?.color || 'var(--cyan)'}55`,
-          fontSize: 24, fontWeight: 900, color: rank?.color || 'var(--cyan)',
-        }}>
-          {rank?.tier || '★'}
-        </div>
-        <div style={{ flex: 1, minWidth: 0, fontFamily: 'var(--font-ar)' }}>
-          <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--text)' }}>
-            {rank?.label || 'مبتدئ'}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
-            المستوى {AR(level)}
-          </div>
+    <Chapter id={id} n={n} title="التقدم" note="مستواك ورتبتك آخر الشهر.">
+      <div className="rp-rank rp-in" style={{ '--i': 1 }}>
+        {rank?.img && (
+          <img className="rp-rank-art" src={webp(rank.img)} alt="" width="72" height="72"
+               onError={(e) => { if (!e.currentTarget.dataset.png) { e.currentTarget.dataset.png = '1'; e.currentTarget.src = rank.img } }} />
+        )}
+        <div className="rp-rank-text">
+          <strong>المستوى <Num>{level}</Num></strong>
+          <span>الرتبة: {rank?.label || 'مبتدئ'}</span>
         </div>
       </div>
 
       {achievements.length > 0 ? (
-        <>
-          <div
-            className={run ? 'mr-rise' : undefined}
-            style={{
-              '--i': 2, fontFamily: 'var(--font-ar)', fontWeight: 800,
-              fontSize: 14, color: 'var(--text)', marginBottom: 10,
-              opacity: run ? undefined : 0,
-            }}
-          >
+        <div className="rp-block rp-in" style={{ '--i': 2 }}>
+          <span className="rp-eyebrow">
             {achievements.length === 1
-              ? 'إنجاز فتحته هذا الشهر'
-              : `${AR(achievements.length)} إنجازات فتحتها هذا الشهر`}
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
-            gap: 10,
-          }}>
-            {achievements.map((a, i) => {
-              const color = RARITY_COLORS[a.rarity]?.color || 'var(--cyan)'
-              return (
-                <div
-                  key={a.id}
-                  className={run ? 'mr-fly' : undefined}
-                  style={{
-                    '--i': i, '--fy': '30px', '--fr': i % 2 ? '5deg' : '-5deg',
-                    background: 'var(--bg2)',
-                    border: `1px solid ${color}55`,
-                    borderRadius: 14, padding: '12px 8px', textAlign: 'center',
-                    opacity: run ? undefined : 0,
-                  }}
-                >
-                  <Art
-                    id={achSlot(a.id)}
-                    size={44}
-                    alt=""
-                    fallback={<span style={{ fontSize: 32, lineHeight: 1 }}>{a.icon}</span>}
-                  />
-                  <div style={{
-                    fontFamily: 'var(--font-ar)', fontSize: 11, fontWeight: 700,
-                    color: 'var(--text2)', marginTop: 6, lineHeight: 1.3,
-                  }}>{a.title}</div>
-                  <div style={{
-                    fontSize: 10, color, marginTop: 3, fontWeight: 700,
-                  }}>+{AR(a.xp)} XP</div>
-                </div>
-              )
-            })}
-          </div>
-        </>
-      ) : (
-        <div
-          className={run ? 'mr-rise' : undefined}
-          style={{
-            '--i': 2, textAlign: 'center', padding: '18px 12px',
-            background: 'var(--bg2)', border: '1px dashed var(--border2)',
-            borderRadius: 14, fontFamily: 'var(--font-ar)',
-            fontSize: 12, color: 'var(--text3)',
-            opacity: run ? undefined : 0,
-          }}
-        >
-          لم يُفتح إنجاز جديد هذا الشهر — الإنجازات القادمة تحتاج وقتاً أطول قليلاً.
+              ? 'إنجاز فتحته هالشهر'
+              : <><Num>{achievements.length}</Num> {achievements.length <= 10 ? 'إنجازات' : 'إنجاز'} فتحتها هالشهر</>}
+          </span>
+          <ul className="rp-medals">
+            {shown.map(a => (
+              <li key={a.id} className="rp-medal">
+                <span className="rp-medal-art">
+                  <Art id={achSlot(a.id)} size={48} alt=""
+                       fallback={<img src={catArt(a.id)} alt="" width="48" height="48" loading="lazy" />} />
+                </span>
+                <span className="rp-medal-t"><Bidi text={a.title} /></span>
+                <span className="rp-medal-xp"><Num>+{a.xp} XP</Num></span>
+              </li>
+            ))}
+          </ul>
+          {achievements.length > MAX_SHOWN && (
+            <p className="rp-caption">و<Num>{achievements.length - MAX_SHOWN}</Num> غيرها — كلها في صفحة الإنجازات.</p>
+          )}
         </div>
+      ) : (
+        <p className="rp-caption rp-in" style={{ '--i': 2 }}>
+          ما انفتح إنجاز جديد هالشهر — الإنجازات الجاية تبي وقت أطول شوي.
+        </p>
       )}
-    </section>
+    </Chapter>
   )
 }
