@@ -14,7 +14,7 @@ import { kg } from './sessionWords.js'
 // keeps gold, because best weight is gold's job — except while the
 // screen is already saying "raise", when gold belongs to the number.
 // The coaching moved into the coach line under the counters; YouTube
-// moved into the ⋯ sheet.
+// became the monochrome pill in the stage's corner (ExerciseHero).
 
 export default function ExerciseTags({ ex, mapping = {}, maxWeight = null, deloadPct = 0, quietBest = false }) {
   const group = MUSCLE_GROUPS[ex.muscle]

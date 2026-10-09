@@ -3,7 +3,7 @@ import { Chip, Num } from '../kit/index.jsx'
 import { ArrowUp, Minus, Plus, PencilSimple } from '../kit/icons.js'
 import RaiseRing from './RaiseRing.jsx'
 import { primeAudio } from './sessionAudio.js'
-import { kg, setLabel } from './sessionWords.js'
+import { kg, setWords } from './sessionWords.js'
 
 // ── The live block: the set being worked ──────────────────────
 //
@@ -122,7 +122,10 @@ function HoldButton({ label, onStep, children }) {
 
 function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, ringDraw, inputTestId }) {
   const fieldRef = useRef(null)
-  const len = Math.max(1, String(value ?? '').length)
+  // The number's width in digits (a point is half a digit). The CSS sizes
+  // the input to it and shrinks the type when a long weight («202.5»)
+  // would otherwise run into the steppers on a narrow phone.
+  const len = Math.max(1, [...String(value ?? '')].reduce((n, c) => n + (c === '.' || c === ',' ? 0.5 : 1), 0))
   return (
     <div className="s-step" data-field={field}>
       <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)}>
@@ -162,7 +165,11 @@ export default function WorkingArea({
   const raised = !!raise && Number.isFinite(w) && raise.base != null && w > raise.base
   const delta = raised ? Math.round((w - raise.base) * 100) / 100 : 0
   const showKeep = !!raise && raise.base != null && Number.isFinite(w) && w !== raise.base
-  const prev = setLabel(prevSet)
+  const prev = setWords(prevSet)
+  // «زي آخر مرة» only when it would change something.
+  const prevW = kg(prevSet?.weight)
+  const prevR = parseInt(prevSet?.reps)
+  const asLast = !!prev && (!prevW || kg(set.weight) === prevW) && (!(prevR > 0) || parseInt(set.reps) === prevR)
 
   return (
     <div className="s-live" data-testid="live-block" data-editing={editing ? '1' : undefined}>
@@ -182,14 +189,16 @@ export default function WorkingArea({
           <Chip tone="raise" icon={ArrowUp} className="s-raise-chip">
             <Num>+{kg(delta)}</Num> كجم عن آخر مرة
           </Chip>
-        ) : prev && !editing ? (
+        ) : prev && !editing && !asLast ? (
+          // One tap puts last time's numbers back; the coach line under the
+          // counters already says what they were, so this only says what it does.
           <button type="button" className="s-prev"
-            aria-label={`انسخ السابق ${prev}`}
+            aria-label={`زي آخر مرة: ${prev}`}
             onClick={() => {
               if (prevSet.weight !== '' && prevSet.weight != null) onUpdateSet(setIndex, 'weight', kg(prevSet.weight))
               if (parseInt(prevSet.reps) > 0) onUpdateSet(setIndex, 'reps', String(parseInt(prevSet.reps)))
             }}>
-            السابق <Num>{prev}</Num>
+            زي آخر مرة
           </button>
         ) : null}
       </div>

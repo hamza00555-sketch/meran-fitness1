@@ -82,7 +82,40 @@ body:has(.s-session) .xp-float { display: none !important; }
 }
 .s-stage-img { width: 100%; height: 100%; object-fit: contain; }
 .s-stage-media svg.s-stage-img { width: 64px; height: 64px; color: var(--ink-3); }
-.s-stage-fold { position: absolute; top: 4px; inset-inline-start: calc(var(--gutter) - 10px); z-index: 1; }
+
+/* Controls on the art: a 44pt target carrying 6px of air around a 32px
+   piece of frosted glass, so the glass — not the hit area — lines up
+   with the strap's text. The demo video is the broadcast's corner bug in
+   the top start corner (the art's head fills the other); «أخفِ الصورة»,
+   when the stage was reopened, takes the opposite corner, so the pill
+   never moves and the two never share a thumb's width. */
+.s-glass-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px; padding: 6px;
+  border: 0; background: transparent; cursor: pointer; color: var(--ink);
+  font-family: var(--font); -webkit-tap-highlight-color: transparent;
+}
+.s-watch-stage, .s-stage-fold { position: absolute; z-index: 1; top: 4px; }
+.s-watch-stage { inset-inline-start: calc(var(--gutter) - 6px); }
+.s-stage-fold { inset-inline-end: calc(var(--gutter) - 6px); }
+.s-glass {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 var(--edge), var(--glass-shadow);
+  transition: transform var(--dur-press) var(--ease-out), background var(--dur-press);
+}
+.s-glass svg { flex: none; }
+.s-watch-pill {
+  padding-inline: 10px 12px;
+  font-size: var(--t-label); font-weight: 700; line-height: 1; white-space: nowrap;
+}
+.s-disc { width: 32px; padding: 0; }
+.s-glass-btn:active .s-glass { transform: scale(0.94); background: var(--glass-press); }
+.s-glass-btn:focus-visible { outline: none; }
+.s-glass-btn:focus-visible .s-glass { box-shadow: 0 0 0 2px var(--ink); }
 
 /* The name strap over the dark lower third */
 .s-strap {
@@ -96,6 +129,15 @@ body:has(.s-session) .xp-float { display: none !important; }
   margin: 0; font-size: var(--t-title); font-weight: 700; line-height: 1.3; color: var(--ink);
   text-wrap: balance; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+/* An English-only name is its own LTR paragraph (dir="ltr"), so its
+   lines and the clamp's ellipsis run in its order («Incline Close-…»,
+   not «…ncline Close-»). The box hugs the text and sits on the strap's
+   side; inside it the text starts on the left, where a clamped line
+   keeps its ellipsis in view (an end-aligned clamp pushes it off). */
+.s-name-ar[dir="ltr"] {
+  width: fit-content; max-width: 100%; justify-self: start;
+  text-align: start; font-stretch: 87.5%;
 }
 .s-name-en {
   margin: 0; font-size: var(--t-body); font-weight: 600; line-height: 1.4; color: var(--ink-2);
@@ -123,7 +165,10 @@ body:has(.s-session) .xp-float { display: none !important; }
   margin-bottom: 12px; touch-action: pan-y;
   animation: s-fade var(--dur-fast) var(--ease-out);
 }
-.s-exrow .s-name-ar { font-size: var(--t-headline); -webkit-line-clamp: 1; line-height: 1.35; }
+/* Two lines before an ellipsis: with ▶ and ⋯ beside it, a long Arabic
+   name on an SE would otherwise be cut mid-word. Two lines and the
+   English still fit the 72pt row. */
+.s-exrow .s-name-ar { font-size: var(--t-headline); -webkit-line-clamp: 2; line-height: 1.3; }
 .s-exrow .s-name-en { font-size: var(--t-label); }
 .s-thumb {
   flex: none; width: 56px; height: 56px; padding: 4px; border: 0; cursor: pointer;
@@ -137,29 +182,53 @@ body:has(.s-session) .xp-float { display: none !important; }
 .s-thumb:active { transform: scale(0.94); }
 .s-thumb-img { width: 100%; height: 100%; object-fit: contain; }
 .s-thumb svg.s-thumb-img { width: 28px; height: 28px; color: var(--ink-3); }
+/* The demo video, folded with the stage: the pill's mark on the pill's
+   glass, as a disc. The row's 12px gap keeps its 44pt target 12pt clear
+   of ⋯ (swap, remove — used mid-session when a machine is taken). */
+.s-watch-row { flex: none; }
+.s-watch-row .s-glass { box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 var(--edge); }   /* no art under it to lift off */
 
-/* ── The sets table ── */
+/* ── The sets, one self-labelled row each (no header row) ──
+     2   75 كجم × 12 عدّة                 ○
+         آخر مرة 72.5 كجم × 9 عدّات
+   The weight column is fixed, so the reps line up down the list the way
+   a table's would; last time is always its own quiet second line, so
+   every width keeps one rhythm. */
 .s-table { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
-.s-thead, .s-trow {
-  display: grid; align-items: center; column-gap: 4px;
-  grid-template-columns: 60px minmax(0, 1fr) 64px 52px 32px;
-  padding-inline: 8px;
-}
-.s-thead { min-height: 28px; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); line-height: 1.3; }
 .s-trow {
-  min-height: 44px; width: 100%; border: 0; border-radius: var(--r-sm);
+  display: grid; align-items: center; column-gap: 6px; row-gap: 2px;
+  grid-template-columns: 20px minmax(68px, max-content) 10px minmax(0, 1fr) 28px;
+  grid-template-areas: "n kg x reps tick" "n prev prev prev tick";
+  min-height: 48px; width: 100%; padding: 6px 14px 6px 8px;
+  border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--ink); font-family: var(--font); text-align: start;
 }
+/* With a last time anywhere in the list, every row gets the two-line
+   height, so a row without one doesn't break the rhythm. */
+.s-table[data-history="1"] .s-trow { min-height: 58px; }
 button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background var(--dur-press); }
 .s-trow[data-state="done"] { background: rgba(var(--accent-rgb), 0.10); }
 .s-trow[data-state="done"]:active { background: rgba(var(--accent-rgb), 0.18); }
 .s-trow[data-editing="1"] { box-shadow: inset 0 0 0 1px var(--hairline); }
-.s-cell-n { font-size: var(--t-body); font-weight: 700; color: var(--ink-2); }
-.s-cell-prev { font-size: var(--t-body); font-weight: 600; color: var(--ink-3); font-stretch: 87.5%; white-space: nowrap; overflow: hidden; }
+.s-cell-n { grid-area: n; font-size: var(--t-body); font-weight: 700; color: var(--ink-2); }
+.s-cell-kg { grid-area: kg; }
+.s-cell-reps { grid-area: reps; }
 .s-cell-kg, .s-cell-reps {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--t-headline); font-weight: 700; font-stretch: 87.5%;
+  display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; min-width: 0;
+  font-size: var(--t-headline); font-weight: 700; font-stretch: 87.5%; line-height: 1.3;
 }
+.s-cell-x { grid-area: x; justify-self: center; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.s-unit { font-size: var(--t-label); font-weight: 600; font-stretch: 100%; color: var(--ink-3); }
+/* Last time, under the numbers: small, quiet, the same words. A number
+   never cuts — a long pair would wrap at «×», never inside a pair. */
+.s-cell-prev {
+  grid-area: prev; min-width: 0;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.35; color: var(--ink-3);
+}
+.s-prev-label { font-weight: 500; }
+.s-cell-prev .k-num { font-stretch: 87.5%; }
+/* A number and its unit never part: «72.5 كجم», «9 عدّات». */
+.s-pair { white-space: nowrap; }
 .s-trow[data-state="next"] .s-cell-kg,
 .s-trow[data-state="next"] .s-cell-reps,
 .s-trow[data-state="current"] .s-cell-kg,
@@ -167,7 +236,7 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 .s-trow[data-state="next"] .s-cell-n { color: var(--ink-3); }
 .s-cell-kg[data-pr="1"] .k-num, .s-pr-icon { color: var(--raise); }
 .s-dash { color: var(--ink-3); }
-.s-cell-tick { display: grid; place-items: center; }
+.s-cell-tick { grid-area: tick; display: grid; place-items: center; }
 .s-tick {
   width: 22px; height: 22px; border-radius: var(--r-pill); display: grid; place-items: center;
   box-shadow: inset 0 0 0 1.5px var(--ink-4); color: var(--accent);
@@ -189,13 +258,14 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 .s-live-set { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--t-headline); font-weight: 700; white-space: nowrap; }
 .s-live-set svg { align-self: center; color: var(--ink-2); }
 .s-live-of { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+/* «زي آخر مرة»: an action, so it reads like «خلّها 75» — underlined text. */
 .s-prev {
   min-height: 44px; margin-block: -6px; margin-inline-end: -8px; padding: 0 8px;
   border: 0; border-radius: var(--r-sm); background: transparent; cursor: pointer;
-  font-family: var(--font); font-size: var(--t-label); font-weight: 600; color: var(--ink-2); white-space: nowrap;
+  font-family: var(--font); font-size: var(--t-label); font-weight: 700; color: var(--ink-2); white-space: nowrap;
+  text-decoration: underline; text-decoration-color: var(--ink-4); text-underline-offset: 4px;
   -webkit-tap-highlight-color: transparent;
 }
-.s-prev .k-num { color: var(--ink); font-size: var(--t-body); font-stretch: 87.5%; }
 .s-prev:active { background: var(--surface-3); }
 .s-raise-chip { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .s-live-h > * { min-width: 0; }
@@ -215,14 +285,23 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 }
 .s-step-btn:active, .s-step-btn[data-held="1"] { transform: scale(0.94); background: #343A42; }
 
+/* The counter's type is 56px until the number would not fit between the
+   steppers: then it shrinks to fit (a container query on the field), so
+   «202.5» on a 360pt phone keeps clear of − instead of touching it.
+   --len is the number's width in digits (WorkingArea); a digit of the
+   numeric face at 800/87.5% is 0.56em; 40px is the unit, the gap and
+   the input's own slack. */
 .s-field {
   position: relative; display: flex; align-items: baseline; justify-content: center; gap: 6px;
   min-height: 64px; min-width: 0; padding-inline: 6px; border-radius: var(--r-md); cursor: text;
+  container-type: inline-size;
+  --s-num: var(--t-display);
 }
 .s-field input {
   width: calc(var(--len, 2) * 1ch + 6px); min-width: 0; max-width: 100%; flex: 0 1 auto;
   padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink);
-  font-family: var(--font); font-size: var(--t-display); font-weight: 800; line-height: 64px;
+  font-family: var(--font); font-weight: 800; line-height: 64px;
+  font-size: min(var(--s-num), calc((100cqi - 40px) / (var(--len, 2) * 0.56)));
   font-stretch: 87.5%; font-variant-numeric: tabular-nums lining-nums; text-align: center;
   caret-color: var(--accent);
 }
@@ -244,6 +323,8 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 }
 .s-coach .k-num { color: var(--ink); }
 .s-coach-text { flex: 1; min-width: 0; }
+/* The advice after the dash moves to its own line whole, never split. */
+.s-coach-adv { white-space: nowrap; }
 .s-keep {
   flex: none; min-height: 44px; margin-block: -10px; margin-inline-end: -8px; padding: 0 8px;
   border: 0; border-radius: var(--r-sm); background: transparent; cursor: pointer;
@@ -377,8 +458,8 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   .s-stage { height: 152px; min-height: 0; }
   .s-strap { padding-top: 28px; padding-bottom: 10px; gap: 2px; }
   .s-stage .s-meta { display: none; }
-  .s-field { min-height: 56px; }
-  .s-field input { font-size: 44px; line-height: 56px; }
+  .s-field { min-height: 56px; --s-num: 44px; }
+  .s-field input { line-height: 56px; }
   .s-live { gap: 4px; padding-block: 8px 10px; }
   .s-queue { margin-top: 24px; }
 }
@@ -414,4 +495,6 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   .s-ready { animation: s-fade 160ms linear both; }
   .s-tick[data-fresh="1"] path, .s-raise-draw .s-raise-path { animation: none; stroke-dashoffset: 0; }
   .s-seg i { transition: none; }
+  .s-glass { transition: none; }
+  .s-glass-btn:active .s-glass { transform: none; }
 }

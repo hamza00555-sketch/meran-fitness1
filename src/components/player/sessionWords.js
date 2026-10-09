@@ -58,8 +58,17 @@ export function setsPhrase(n) {
 }
 
 /**
+ * The word after a rep count: «8 عدّات», «12 عدّة» — Arabic counting, as
+ * setsPhrase (3–10 take the plural). 1 and 2 keep «عدّة»: beside a digit
+ * it reads as the unit, the way «كجم» does.
+ */
+export function repsWord(n) {
+  return n >= 3 && n <= 10 ? 'عدّات' : 'عدّة'
+}
+
+/**
  * The sets of the last real session that had this exercise, in order —
- * the «السابق» column. Same filters as the stats engines: weights reset
+ * each row's «آخر مرة». Same filters as the stats engines: weights reset
  * and deload weeks are not what the exercise is worked at.
  */
 export function previousSets(sessions, name, mapping = {}) {
@@ -78,11 +87,34 @@ export function previousSets(sessions, name, mapping = {}) {
   return best || []
 }
 
-/** «75×12», or «75» when the reps were never typed. */
+/** «75×12», or «75» when the reps were never typed. (Compact; not for display in the player.) */
 export function setLabel(s) {
   if (!s) return ''
   const w = kg(s.weight)
   const r = parseInt(s.reps)
   if (w && r > 0) return `${w}×${r}`
   return w || (r > 0 ? `×${r}` : '')
+}
+
+/**
+ * A set in words, the one format the player prints a set in — the rows,
+ * their «آخر مرة», the coach line and the screen-reader labels:
+ * «72.5 كجم × 9 عدّات», «75 كجم» with no reps, «12 عدّة» with no weight,
+ * '' with neither. Weight first, units always: «72.5×9» was shorthand to
+ * decode, and in an RTL line it put the reps where the weight is read.
+ */
+export function setWords(s) {
+  const p = setParts(s)
+  if (!p) return ''
+  const w = p.w ? `${p.w} كجم` : ''
+  const r = p.r ? `${p.r} ${repsWord(p.r)}` : ''
+  return w && r ? `${w} × ${r}` : w || r
+}
+
+/** { w: '72.5' | '', r: 9 | 0 } — or null when the set says nothing. */
+export function setParts(s) {
+  if (!s) return null
+  const w = kg(s.weight)
+  const r = parseInt(s.reps) > 0 ? parseInt(s.reps) : 0
+  return w || r ? { w, r } : null
 }

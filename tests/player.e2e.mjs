@@ -123,12 +123,12 @@ const clockSecs = async (page) => {
 const clockDrift = async (page, startedAt = ACTIVE.id) =>
   Math.abs((await clockSecs(page)) - Math.floor((Date.now() - startedAt) / 1000))
 // A real finger, through the DevTools protocol: down, an optional drag, up.
-async function finger(page, ctx, { x, y }, { dy = 0, holdMs = 60, steps = 15 } = {}) {
+async function finger(page, ctx, { x, y }, { dx = 0, dy = 0, holdMs = 60, steps = 15 } = {}) {
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
-  if (dy) {
+  if (dx || dy) {
     for (let i = 1; i <= steps; i++) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + (dy * i) / steps }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + (dx * i) / steps, y: y + (dy * i) / steps }] })
       await page.waitForTimeout(16)
     }
   } else {
@@ -353,6 +353,284 @@ const centre = async (locator) => {
   await ctx.close()
 }
 
+// ══ 2c. The demo video stays in sight, quietly ════════════════
+// Before the first set it is a frosted pill in the stage's top start
+// corner; after it, the same filled mark on the same glass, as a disc
+// beside ⋯ and 12pt clear of it. Monochrome, never YouTube red, never a
+// second green. A swipe that starts on it — mouse or finger — still
+// swipes and opens nothing, and leaves nothing stale for the keyboard.
+// Reopening the stage leaves the pill where it was.
+{
+  const { ctx, page, errors } = await open()
+  await page.evaluate(() => {
+    window.__opened = []
+    window.open = (...a) => { window.__opened.push(a); return null }
+  })
+  const openedCount = () => page.evaluate(() => window.__opened.length)
+  const nameEn = () => page.locator('.s-name-en').first().textContent()
+  const pill = page.locator('[data-testid="exercise-stage"] [data-testid="watch-video"]')
+  ok('video: the stage carries «شوف الطريقة»', await pill.count() === 1 && /شوف الطريقة/.test(await pill.innerText()))
+  const geo = await page.evaluate(() => {
+    const r = (el) => el.getBoundingClientRect()
+    const stage = r(document.querySelector('[data-testid="exercise-stage"]'))
+    const btn = document.querySelector('[data-testid="exercise-stage"] [data-testid="watch-video"]')
+    const b = r(btn), glass = r(btn.querySelector('.s-glass'))
+    const names = r(document.querySelector('.s-stage .s-strap-names'))
+    const more = r(document.querySelector('.s-stage .s-more'))
+    const cs = getComputedStyle(btn.querySelector('.s-glass'))
+    return {
+      top: Math.round(b.top - stage.top), startGap: Math.round(stage.right - glass.right),
+      btnTop: b.top - stage.top, btnStart: stage.right - b.right,
+      w: Math.round(b.width), h: Math.round(b.height),
+      clearOfStrap: b.bottom <= names.top && b.bottom <= more.top,
+      color: getComputedStyle(btn.querySelector('svg')).color, bg: cs.backgroundColor, blur: cs.backdropFilter || cs.webkitBackdropFilter,
+      mark: btn.querySelector('svg').innerHTML, fold: !!document.querySelector('[data-testid="stage-fold"]'),
+    }
+  })
+  ok('video: before the first set there is nothing to fold, so no chevron beside it', !geo.fold)
+  ok('video: the pill sits in the stage\'s top start corner, lined up with the strap',
+    geo.top <= 8 && Math.abs(geo.startGap - 20) <= 2, JSON.stringify(geo))
+  ok('video: its target is at least 44pt', geo.w >= 44 && geo.h >= 44, JSON.stringify(geo))
+  ok('video: it stays clear of the name strap and ⋯', geo.clearOfStrap, JSON.stringify(geo))
+  ok('video: monochrome glass — no YouTube red, no green', /blur/.test(geo.blur)
+    && ![DANGER, ACCENT, 'rgb(255, 0, 0)'].includes(geo.color) && ![DANGER, ACCENT].includes(geo.bg), JSON.stringify(geo))
+  const greens = await page.evaluate((accent) => [...document.querySelectorAll('[data-testid="session"] button')]
+    .filter(b => b.offsetParent && getComputedStyle(b).backgroundColor === accent).length, ACCENT)
+  ok('video: the docked button is still the one green fill', greens === 1, String(greens))
+
+  await pill.click()
+  await page.waitForTimeout(200)
+  let opened = await page.evaluate(() => window.__opened)
+  ok('video: a tap opens YouTube in a new tab, without an opener',
+    opened.length === 1 && /youtube\.com/.test(opened[0][0]) && opened[0][1] === '_blank' && /noopener/.test(opened[0][2] || ''),
+    JSON.stringify(opened))
+  ok('video: and the session stays on screen', await page.getByTestId('session').count() === 1)
+
+  // A swipe that starts on the pill is the head's swipe, and opens nothing
+  // — even when it ends on the pill too. (RTL: dragging right is «next».)
+  const pb = await pill.boundingBox()
+  const sx = pb.x + 14, sy = pb.y + pb.height / 2
+  await page.mouse.move(sx, sy)
+  await page.mouse.down()
+  await page.mouse.move(sx + 50, sy, { steps: 4 })
+  await page.mouse.move(sx + 100, sy, { steps: 4 })
+  await page.mouse.up()
+  await page.waitForTimeout(400)
+  ok('video: a mouse drag inside the pill opens nothing', (await openedCount()) === 1)
+  ok('video: and still moves to the other exercise', (await nameEn()) === 'Pec Deck')
+
+  // A finger, through the DevTools protocol: the same, and back.
+  await finger(page, ctx, await centre(pill), { dx: -140 })
+  await page.waitForTimeout(500)
+  ok('video: a finger swipe from the pill goes back', (await nameEn()) === ACTIVE.exercises[0].name)
+  ok('video: and opens nothing either', (await openedCount()) === 1)
+  await pill.focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(200)
+  ok('video: right after a finger swipe, a keyboard press still opens it', (await openedCount()) === 2)
+
+  // A mouse drag that moves on the pill and then leaves it: the click lands
+  // elsewhere, and nothing stale is left behind for the next activation.
+  const ex0 = pb.x + pb.width - 16
+  await page.mouse.move(ex0, sy)
+  await page.mouse.down()
+  await page.mouse.move(ex0 - 60, sy, { steps: 4 })          // still on the pill
+  await page.mouse.move(ex0 - 200, sy + 60, { steps: 4 })    // off it
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+  ok('video: a drag that leaves the pill opens nothing', (await openedCount()) === 2)
+  await pill.focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(200)
+  ok('video: and the next keyboard press opens it — no stale gesture swallows it', (await openedCount()) === 3)
+  await finger(page, ctx, await centre(pill), { holdMs: 60 })
+  await page.waitForTimeout(300)
+  ok('video: a finger tap on the pill opens it', (await openedCount()) === 4)
+
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(400)
+  ok('video: it no longer hides behind ⋯', !/يوتيوب|شاهد الأداء/.test(await page.locator('.k-sheet').last().innerText()))
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(400)
+
+  // After the first set: the 72pt row; the video is the pill's own mark on
+  // the pill's own glass, as a disc — 12pt clear of ⋯.
+  await completeBtn(page).click()
+  await page.waitForTimeout(500)
+  const disc = page.locator('[data-testid="exercise-row"] [data-testid="watch-video"]')
+  const row = await page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="exercise-row"] [data-testid="watch-video"]')
+    const more = document.querySelector('[data-testid="exercise-row"] .s-more')
+    const glass = btn.querySelector('.s-glass')
+    const b = btn.getBoundingClientRect(), m = more.getBoundingClientRect(), g = glass.getBoundingClientRect()
+    return { w: Math.round(b.width), h: Math.round(b.height), next: btn.nextElementSibling === more,
+      gap: Math.round(b.left - m.right), text: btn.innerText.trim(),
+      disc: [Math.round(g.width), Math.round(g.height)], bg: getComputedStyle(glass).backgroundColor,
+      ink: getComputedStyle(btn.querySelector('svg')).color, mark: btn.querySelector('svg').innerHTML }
+  })
+  ok('video/row: the folded row keeps it — a 44pt target beside ⋯, a disc, no words',
+    await disc.count() === 1 && row.w >= 44 && row.h >= 44 && row.next && row.text === '' && row.disc[0] === row.disc[1], JSON.stringify(row))
+  ok('video/row: its target is 12pt clear of ⋯ (swap, remove)', row.gap >= 12, JSON.stringify(row))
+  ok('video/row: the same filled YouTube mark as the stage pill', row.mark === geo.mark && row.mark.length > 0)
+  ok('video/row: on the same glass, monochrome', row.bg === geo.bg && ![DANGER, ACCENT, 'rgb(255, 0, 0)'].includes(row.ink), JSON.stringify(row))
+  ok('video/row: labelled for a screen reader', /يوتيوب/.test(await disc.getAttribute('aria-label')))
+  await disc.click()
+  await page.waitForTimeout(200)
+  opened = await page.evaluate(() => window.__opened)
+  ok('video/row: a tap opens YouTube too', opened.length === 5 && /youtube\.com/.test(opened[4][0]), JSON.stringify(opened))
+
+  // Peek: the stage reopened from the thumbnail. The pill keeps its exact
+  // place; «أخفِ الصورة» takes the opposite corner, far from it.
+  await page.getByRole('button', { name: 'اعرض صورة التمرين' }).click()
+  await page.waitForTimeout(400)
+  for (const [width, height] of [[390, 664], [320, 568]]) {
+    await page.setViewportSize({ width, height })
+    await page.waitForTimeout(250)
+    const peek = await page.evaluate(() => {
+      const r = (s) => document.querySelector(s).getBoundingClientRect()
+      const stage = r('[data-testid="exercise-stage"]')
+      const pill = r('[data-testid="exercise-stage"] [data-testid="watch-video"]')
+      const fold = r('[data-testid="stage-fold"]')
+      return { pillTop: pill.top - stage.top, pillStart: stage.right - pill.right,
+        foldTop: fold.top - stage.top, foldEnd: fold.left - stage.left, gap: Math.round(pill.left - fold.right),
+        fold: [Math.round(fold.width), Math.round(fold.height)] }
+    })
+    if (width === 390) {
+      ok('peek: the pill stays exactly where it was on first view',
+        Math.abs(peek.pillTop - geo.btnTop) <= 0.5 && Math.abs(peek.pillStart - geo.btnStart) <= 0.5, JSON.stringify({ peek, geo }))
+    }
+    ok(`peek/${width}: «أخفِ الصورة» is a 44pt target in the opposite top corner, far from the pill`,
+      peek.fold[0] >= 44 && peek.fold[1] >= 44 && Math.abs(peek.foldTop - peek.pillTop) <= 0.5
+      && peek.foldEnd <= 20 && peek.gap >= 80, JSON.stringify(peek))
+  }
+  await page.setViewportSize({ width: 390, height: 664 })
+  await page.waitForTimeout(250)
+  await page.getByTestId('stage-fold').click()
+  await page.waitForTimeout(400)
+  ok('peek: a tap on it folds the stage back into the row',
+    await page.getByTestId('exercise-stage').count() === 0 && await page.getByTestId('exercise-row').count() === 1)
+  ok('video: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 2d. No column header: every row says what it is ═══════════
+// One format for a set, everywhere: «102.5 كجم × 8 عدّات», and under it
+// «آخر مرة 72.5 كجم × 9 عدّات». Weight first (on the right), units
+// always, Arabic counting, the same words in the coach line — and the
+// list keeps one rhythm at every width, with nothing cut.
+{
+  const HIST_NAME = ACTIVE.exercises[0].name
+  const HIST = [{ id: 2, date: new Date(2026, 8, 2, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'a', muscle: 'Chest', name: HIST_NAME,
+      sets: [[70, 12], [72.5, 9], [202.5, 8]].map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }] }]
+  const THREE = { ...ACTIVE, exercises: [{ ...ACTIVE.exercises[0],
+    sets: [['75', '12'], ['102.5', '8'], ['202.5', '12']].map(([weight, reps]) => ({ weight, reps, done: false })) }, ACTIVE.exercises[1]] }
+  const { ctx, page, errors } = await open({ sessions: HIST, active: THREE })
+  const session = await page.getByTestId('session').innerText()
+  ok('rows: no header row over the live block', await page.locator('.s-thead, [role="columnheader"]').count() === 0)
+  ok('rows: no «السابق» jargon anywhere in the session', !/السابق/.test(session))
+  ok('rows: no bare «72.5×9» shorthand anywhere in the session', !/\d\s*×\s*\d/.test(session), session)
+  const rows = await page.locator('.s-trow').evaluateAll(els => els.map(e => e.innerText.replace(/\s+/g, ' ').trim()))
+  ok('rows: each row is a set in words — «102.5 كجم × 8 عدّات», «202.5 كجم × 12 عدّة»',
+    rows.length === 2 && /102\.5 كجم × 8 عدّات/.test(rows[0]) && /202\.5 كجم × 12 عدّة/.test(rows[1]), JSON.stringify(rows))
+  ok('rows: last time is labelled, in the same words — «آخر مرة 72.5 كجم × 9 عدّات»',
+    /آخر مرة 72\.5 كجم × 9 عدّات/.test(rows[0]) && /آخر مرة 202\.5 كجم × 8 عدّات/.test(rows[1]), JSON.stringify(rows))
+  const units = await page.evaluate(() => [...document.querySelectorAll('.s-cell-reps .s-unit')].map(e => e.textContent))
+  ok('rows: the reps word counts in Arabic — 8 عدّات, 12 عدّة', JSON.stringify(units) === JSON.stringify(['عدّات', 'عدّة']), JSON.stringify(units))
+  const order = await page.evaluate(() => [...document.querySelectorAll('.s-trow')].map(r => {
+    const kg = r.querySelector('.s-cell-kg').getBoundingClientRect()
+    const reps = r.querySelector('.s-cell-reps').getBoundingClientRect()
+    const pairs = [...r.querySelectorAll('.s-cell-prev .s-pair')].map(p => p.getBoundingClientRect())
+    return { main: kg.left >= reps.right - 1, prev: pairs.length === 2 && pairs[0].left >= pairs[1].right - 1 }
+  }))
+  ok('rows: weight on the right, reps on the left — on both lines', order.every(o => o.main && o.prev), JSON.stringify(order))
+  const coach = (await page.locator('.s-coach-text').innerText()).replace(/\s+/g, ' ')
+  ok('coach: the same words — «آخر مرة 70 كجم × 12 عدّة — الهدف 12–15 عدّة»',
+    /آخر مرة 70 كجم × 12 عدّة —/.test(coach) && /الهدف 12–15 عدّة/.test(coach), coach)
+
+  // The live block's copy action, in plain words, only when it would change something.
+  const asLast = page.getByRole('button', { name: /زي آخر مرة/ })
+  ok('live: «زي آخر مرة» offers last time\'s numbers', await asLast.count() === 1)
+  await asLast.click()
+  await page.waitForTimeout(250)
+  ok('live: one tap puts 70 × 12 back', JSON.stringify((await inputs(page))) === JSON.stringify(['70', '12']), JSON.stringify(await inputs(page)))
+  ok('live: and it steps aside once they match', await asLast.count() === 0)
+
+  // 102.5 and 202.5 never cut, at any width, and the list keeps one
+  // rhythm: every row two lines, all the same height.
+  for (const width of [390, 375, 360, 320]) {
+    await page.setViewportSize({ width, height: 740 })
+    await page.waitForTimeout(250)
+    const fit = await page.evaluate(() => [...document.querySelectorAll('.s-trow')].map(r => {
+      const box = r.getBoundingClientRect()
+      const cells = [...r.querySelectorAll('.s-cell-kg, .s-cell-reps, .s-cell-prev, .s-cell-x')]
+      const kg = r.querySelector('.s-cell-kg').getBoundingClientRect()
+      const prev = r.querySelector('.s-cell-prev').getBoundingClientRect()
+      const lh = parseFloat(getComputedStyle(r.querySelector('.s-cell-prev')).lineHeight)
+      return {
+        cut: cells.some(c => c.scrollWidth > c.clientWidth + 1),
+        out: cells.some(c => { const b = c.getBoundingClientRect(); return b.left < box.left - 0.5 || b.right > box.right + 0.5 }),
+        under: prev.top >= kg.bottom - 1, prevOneLine: prev.height <= lh + 1, h: Math.round(box.height),
+      }
+    }))
+    ok(`rows/${width}: 102.5 and 202.5 — nothing cut, nothing outside its row`, fit.every(f => !f.cut && !f.out), JSON.stringify(fit))
+    const hs = fit.map(f => f.h)
+    ok(`rows/${width}: one rhythm — last time on its own line under the numbers, every row the same height`,
+      fit.every(f => f.under && f.prevOneLine) && Math.max(...hs) - Math.min(...hs) <= 1, JSON.stringify(fit))
+  }
+
+  // A long weight in the live block shrinks to fit between the steppers
+  // instead of running into −; a short one keeps the full 56px.
+  for (const [width, height] of [[390, 740], [360, 740], [320, 568]]) {
+    await page.setViewportSize({ width, height })
+    await page.getByTestId('weight-input').fill('202.5')
+    await page.waitForTimeout(250)
+    const m = await page.evaluate(() => {
+      const i = document.querySelector('[data-testid="weight-input"]')
+      const field = i.closest('.s-field')
+      const [minus, plus] = [...i.closest('.s-step').querySelectorAll('.s-step-btn')].map(b => b.getBoundingClientRect())
+      const ir = i.getBoundingClientRect(), unit = field.querySelector('.s-field-unit').getBoundingClientRect()
+      return { fs: parseFloat(getComputedStyle(i).fontSize), sw: i.scrollWidth, cw: i.clientWidth,
+        toMinus: Math.round(minus.left - ir.right), toPlus: Math.round(unit.left - plus.right) }
+    })
+    ok(`live/${width}: «202.5» is whole and keeps clear of both steppers`,
+      m.sw <= m.cw + 1 && m.toMinus >= 8 && m.toPlus >= 8, JSON.stringify(m))
+    if (width === 390) ok('live/390: and there it keeps the full 56px', m.fs === 56, JSON.stringify(m))
+  }
+  ok('rows: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 2e. An English-only name reads in its own order ═══════════
+// With no Arabic name, the heading is an LTR paragraph: its two lines and
+// its clamp run «Smith Machine / Incline Close-…», not «…ncline Close-»,
+// and the box still sits on the strap's side.
+{
+  const LONG_NAME = 'Smith Machine Incline Close-Grip Bench Press Variation'
+  const LONG = { ...ACTIVE, exercises: [{ id: 'l', muscle: 'Chest', name: LONG_NAME,
+    sets: [0, 1].map(() => ({ weight: '40', reps: '12', done: false })) }, ACTIVE.exercises[1]] }
+  const { ctx, page, errors } = await open({ active: LONG, device: 'iPhone SE', viewport: { width: 320, height: 568 } })
+  const look = () => page.evaluate(() => {
+    const h = document.querySelector('[data-testid="exercise-name"]')
+    const r = h.getBoundingClientRect(), n = h.parentElement.getBoundingClientRect()
+    return { dir: h.getAttribute('dir'), align: getComputedStyle(h).textAlign, hug: Math.abs(r.right - n.right) <= 1,
+      lines: Math.round(r.height / parseFloat(getComputedStyle(h).lineHeight)) }
+  })
+  const stage = await look()
+  ok('names: an English-only name is its own LTR paragraph, on the strap\'s side',
+    stage.dir === 'ltr' && stage.align === 'start' && stage.hug, JSON.stringify(stage))
+  await completeBtn(page).click()
+  await page.waitForTimeout(500)
+  const row = await look()
+  ok('names/row: folded, it clamps to two LTR lines that still hug the strap\'s side',
+    row.dir === 'ltr' && row.lines <= 2 && row.hug, JSON.stringify(row))
+  await page.getByRole('button', { name: /Pec Deck/ }).last().click()
+  await page.waitForTimeout(400)
+  ok('names: an Arabic name stays in the page\'s direction', (await look()).dir === null)
+  ok('names: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 3. A new exercise does not leave you with empty boxes ═════
 {
   const FRESH = {
@@ -533,7 +811,7 @@ const RAISE_SESSIONS = [
   ok('raise: the ring fits the field exactly', fit)
   const live = await page.getByTestId('live-block').innerText()
   ok('raise: a chip says by how much', /\+2\.5\s*كجم عن آخر مرة/.test(live), live)
-  ok('raise: the coach line says what to try', /آخر مرة\s*75×15\s*—\s*جرّب\s*77\.5/.test(live), live)
+  ok('raise: the coach line says what to try, in words', /آخر مرة\s*75\s*كجم\s*×\s*15\s*عدّة\s*—\s*جرّب\s*77\.5\s*كجم/.test(live), live)
   ok('raise: no other gold on screen (the best weight goes quiet)', await page.locator('.s-meta-part[data-best="1"]').count() === 0)
   const anim = await page.locator('.s-raise-path').first().evaluate(el => {
     const cs = getComputedStyle(el)
@@ -581,6 +859,26 @@ const RAISE_SESSIONS = [
   ok('raise/320: everything stays inside the live block', fit.inside && fit.overflow <= 1, JSON.stringify(fit))
   ok('raise/320: the docked button is still on screen', await page.getByTestId('complete-set').evaluate(el => el.getBoundingClientRect().bottom <= innerHeight))
   ok('raise/320: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // A set heavier than anything on record wears gold on its row: the
+  // weight, and a trophy where its check would be.
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(300)
+  await completeBtn(page).click()          // 77.5, over the 75 on record
+  await page.waitForTimeout(500)
+  const pr = await page.evaluate(() => {
+    const row = document.querySelector('.s-trow[data-state="done"]')
+    const icon = row.querySelector('.s-cell-tick .s-pr-icon')
+    return { icon: !!icon, tick: !!row.querySelector('.s-tick'), color: icon && getComputedStyle(icon).color,
+      kg: getComputedStyle(row.querySelector('.s-cell-kg .k-num')).color, label: row.getAttribute('aria-label') }
+  })
+  ok('record: the row shows a gold trophy instead of the check', pr.icon && !pr.tick && pr.color === GOLD, JSON.stringify(pr))
+  ok('record: its weight is gold', pr.kg === GOLD, JSON.stringify(pr))
+  ok('record: and a screen reader hears it, in words', /رقم قياسي/.test(pr.label) && /77\.5 كجم × 12 عدّة/.test(pr.label), pr.label)
+  ok('record: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

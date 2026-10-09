@@ -1,14 +1,29 @@
 import { Num } from '../kit/index.jsx'
 import { Trophy } from '../kit/icons.js'
-import { kg, setLabel } from './sessionWords.js'
+import SetPhrase from './SetPhrase.jsx'
+import { kg, setWords, repsWord } from './sessionWords.js'
 
-// ── The sets table ────────────────────────────────────────────
+// ── The sets, one row each ────────────────────────────────────
 //
-// المجموعة · السابق · كجم · عدّات — one row per set, open on the
-// ground, the way Strong and Hevy lay a session out. The row being
-// worked is not a row at all: it opens into the live block (passed in
-// as `live`), so the numbers you are about to lift sit where the set
-// sits.
+// No column header. A header row labelled the columns of a table whose
+// first row is usually the live block — so it sat over a card and named
+// nothing under it — and «السابق» was gym-app jargon. Instead every row
+// says what it is, in the one format the player prints a set in:
+//
+//   2   75 كجم × 12 عدّة                    ○
+//       آخر مرة 72.5 كجم × 9 عدّات
+//
+// The set's numbers on the first line, and under them, small and quiet,
+// what this set was last time — the coach line's own words, units and
+// all. Always two lines when there is a last time, at every width, so
+// the list keeps one rhythm instead of wrapping row by row on a narrow
+// phone. A row with no history says nothing there rather than «—». The
+// weight column has a fixed width, so the reps still line up down the
+// list the way a table's would.
+//
+// The row being worked is not a row at all: it opens into the live
+// block (passed in as `live`), so the numbers you are about to lift sit
+// where the set sits.
 //
 // Done rows are tinted with the brand green and carry a check that
 // draws itself once (~180ms) the moment the set is ticked — that is the
@@ -18,9 +33,13 @@ import { kg, setLabel } from './sessionWords.js'
 // Rows still to come show their planned numbers, quietly.
 //
 // A set heavier than anything on record wears gold — the one place a
-// personal best is said, on the row that set it.
+// personal best is said, on the row that set it: the weight in gold, and
+// a gold trophy where its check would be.
 
-function Tick({ on, fresh }) {
+function Tick({ on, fresh, pr }) {
+  if (on && pr) {
+    return <Trophy size={20} weight="fill" className="s-pr-icon" role="img" aria-label="رقم قياسي" />
+  }
   return (
     <span className="s-tick" data-on={on ? '1' : undefined} data-fresh={fresh ? '1' : undefined} aria-hidden="true">
       {on && (
@@ -33,47 +52,53 @@ function Tick({ on, fresh }) {
   )
 }
 
+const dash = <span className="s-dash">—</span>
+
 export default function SetHistory({
   ex, liveIndex, currentIndex, editingIndex, prevSets = [], freshIndex = null, prIndex = null,
   onEdit, live,
 }) {
+  const hasHistory = ex.sets.some((_, i) => i !== liveIndex && setWords(prevSets[i]))
   return (
-    <div className="s-table" role="table" aria-label="المجموعات">
-      <div className="s-thead" role="row">
-        <span role="columnheader">المجموعة</span>
-        <span role="columnheader">السابق</span>
-        <span role="columnheader">كجم</span>
-        <span role="columnheader">عدّات</span>
-        <span role="columnheader" className="s-sr">الحالة</span>
-      </div>
+    <div className="s-table" role="list" aria-label="المجموعات" data-history={hasHistory ? '1' : undefined}>
       {ex.sets.map((s, i) => {
-        if (i === liveIndex && live) return <div key={i} role="row" className="s-trow-live">{live}</div>
-        const prev = setLabel(prevSets[i])
+        if (i === liveIndex && live) return <div key={i} role="listitem" className="s-trow-live">{live}</div>
+        const prev = setWords(prevSets[i])
         const isPR = i === prIndex
+        const w = kg(s.weight)
+        const r = parseInt(s.reps)
         const state = s.done ? 'done' : i === currentIndex ? 'current' : 'next'
         const body = (
           <>
-            <span className="s-cell-n" role="cell"><Num>{i + 1}</Num></span>
-            <span className="s-cell-prev" role="cell">{prev ? <Num>{prev}</Num> : <span className="s-dash">—</span>}</span>
-            <span className="s-cell-kg" role="cell" data-pr={isPR ? '1' : undefined}>
-              {kg(s.weight) ? <Num>{kg(s.weight)}</Num> : <span className="s-dash">—</span>}
-              {isPR && <Trophy size={16} weight="fill" className="s-pr-icon" aria-label="رقم قياسي" />}
+            <span className="s-cell-n"><span className="s-sr">المجموعة </span><Num>{i + 1}</Num></span>
+            <span className="s-cell-kg" data-pr={isPR ? '1' : undefined}>
+              {w ? <Num>{w}</Num> : dash}<span className="s-unit">كجم</span>
             </span>
-            <span className="s-cell-reps" role="cell">
-              {parseInt(s.reps) > 0 ? <Num>{parseInt(s.reps)}</Num> : <span className="s-dash">—</span>}
+            <span className="s-cell-x" aria-hidden="true">×</span>
+            <span className="s-cell-reps">
+              {r > 0 ? <Num>{r}</Num> : dash}<span className="s-unit">{repsWord(r)}</span>
             </span>
-            <span className="s-cell-tick" role="cell"><Tick on={s.done} fresh={i === freshIndex} /></span>
+            {prev && (
+              <span className="s-cell-prev">
+                <span className="s-prev-label">آخر مرة</span> <SetPhrase set={prevSets[i]} />
+              </span>
+            )}
+            <span className="s-cell-tick"><Tick on={s.done} fresh={i === freshIndex} pr={isPR} /></span>
           </>
         )
-        return s.done ? (
-          <button key={i} type="button" role="row" className="s-trow" data-state={state}
-            data-editing={i === editingIndex ? '1' : undefined}
-            aria-label={`المجموعة ${i + 1}: ${kg(s.weight) || 0} كجم × ${parseInt(s.reps) || 0} — اضغط للتعديل`}
-            onClick={() => onEdit(i)}>
-            {body}
-          </button>
-        ) : (
-          <div key={i} role="row" className="s-trow" data-state={state}>{body}</div>
+        return (
+          <div key={i} role="listitem">
+            {s.done ? (
+              <button type="button" className="s-trow" data-state={state}
+                data-editing={i === editingIndex ? '1' : undefined}
+                aria-label={`المجموعة ${i + 1}: ${setWords(s) || 'فاضية'}${isPR ? ' — رقم قياسي' : ''}${prev ? ` — آخر مرة ${prev}` : ''} — اضغط للتعديل`}
+                onClick={() => onEdit(i)}>
+                {body}
+              </button>
+            ) : (
+              <div className="s-trow" data-state={state}>{body}</div>
+            )}
+          </div>
         )
       })}
     </div>

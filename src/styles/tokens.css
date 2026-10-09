@@ -44,6 +44,13 @@
   --edge:        rgba(255,255,255,0.06);   /* inset 1px on every surface: survives gym glare */
   --stage-light: #2A3038;   /* the neutral light behind 3D art */
   --scrim:       rgba(0,0,0,0.64);
+  /* Frosted glass: the few controls that sit on art (the player stage's
+     corner pill and discs). surface-1 / surface-3, see-through, blurred. */
+  --glass:        rgba(20,23,27,0.5);
+  --glass-press:  rgba(40,45,51,0.72);
+  --glass-edge:   rgba(255,255,255,0.12);
+  --glass-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  --glass-blur:   blur(16px) saturate(140%);
 
   /* ── Ink ── */
   --ink:   #F4F6F8;
@@ -179,5 +186,7 @@
   --surface-1: #11171E;
   --surface-2: #19212A;
   --surface-3: #232D37;
+  --glass:       rgba(17,23,30,0.5);
+  --glass-press: rgba(35,45,55,0.72);
   --breath: 1.6;
 }

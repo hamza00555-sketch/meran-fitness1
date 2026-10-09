@@ -17,4 +17,5 @@ export {
   Bell, Info, Warning, Target, CalendarBlank, Scales, Ruler, Heartbeat,
   Lightbulb, Notepad, ChartBar, DownloadSimple, UploadSimple, SignOut, Sparkle,
   Stack, Gauge, Users, Palette, Clock, ListChecks, Notebook, Person,
+  YoutubeLogo,
 } from '@phosphor-icons/react'

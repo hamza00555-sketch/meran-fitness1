@@ -7,7 +7,8 @@ import SetHistory from './SetHistory.jsx'
 import ExerciseQueue from './ExerciseQueue.jsx'
 import InlineRest from './InlineRest.jsx'
 import { primeAudio } from './sessionAudio.js'
-import { kg, setLabel, setsPhrase } from './sessionWords.js'
+import SetPhrase from './SetPhrase.jsx'
+import { kg, setParts, setsPhrase, repsWord } from './sessionWords.js'
 import { arabicName } from '../../exerciseMedia.js'
 import { PLATE_STEP, roundToPlate } from '../../utils.js'
 
@@ -51,24 +52,28 @@ const firstUnfinished = (list, from = 0) => {
   return -1
 }
 
+// The coach line under the counters: what this set was last time, in the
+// rows' own words («آخر مرة 72.5 كجم × 10 عدّات»), then what to do about
+// it. The dash stays with the first part, so a narrow phone breaks the
+// line after it and the advice («جرّب 77.5 كجم») starts its line whole.
 function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
   const t = prog?.target
-  const last = setLabel(prevSet)
-  const lead = last ? <>آخر مرة <Num>{last}</Num></>
-    : lastWeight != null ? <>آخر مرة <Num>{kg(lastWeight)}</Num> كجم</>
+  const lead = setParts(prevSet) ? <>آخر مرة <SetPhrase set={prevSet} /></>
+    : lastWeight != null ? <>آخر مرة <span className="s-pair"><Num>{kg(lastWeight)}</Num> كجم</span></>
     : <>أول مرة</>
-  if (deloadPct > 0) return <>{lead} — ديلود، أخف بـ<Num>{deloadPct}%</Num></>
+  const line = (advice) => <>{lead}&nbsp;— <span className="s-coach-adv">{advice}</span></>
+  if (deloadPct > 0) return line(<>ديلود، أخف بـ<Num>{deloadPct}%</Num></>)
   switch (prog?.hint) {
     case 'raise':
-      return raisedW != null ? <>{lead} — جرّب <Num>{kg(raisedW)}</Num></> : lead
+      return raisedW != null ? line(<>جرّب <Num>{kg(raisedW)}</Num> كجم</>) : lead
     case 'lower':
       return prog.suggestedWeight != null
-        ? <>{lead} — خفّف إلى <Num>{kg(prog.suggestedWeight)}</Num></>
-        : <>{lead} — خفّف الوزن شوي</>
+        ? line(<>خفّف إلى <Num>{kg(prog.suggestedWeight)}</Num> كجم</>)
+        : line(<>خفّف الوزن شوي</>)
     case 'push':
-      return t ? <>{lead} — حاول توصل <Num>{t.top}</Num> عدّة</> : lead
+      return t ? line(<>حاول توصل <Num>{t.top}</Num> {repsWord(t.top)}</>) : lead
     default:
-      return t ? <>{lead} — الهدف <Num>{t.base}–{t.top}</Num> عدّة</> : lead
+      return t ? line(<>الهدف <Num>{t.base}–{t.top}</Num> {repsWord(t.top)}</>) : lead
   }
 }
 
