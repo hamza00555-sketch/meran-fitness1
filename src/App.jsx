@@ -52,6 +52,7 @@ import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import StreakChip       from './components/streak/StreakChip.jsx'
 import LiveBar          from './components/frame/LiveBar.jsx'
 import SessionSummary   from './components/frame/SessionSummary.jsx'
+import Onboarding       from './components/frame/Onboarding.jsx'
 import ProgressPage     from './pages/ProgressPage.jsx'
 import { LargeTitle, NavBar, IconButton } from './components/kit/index.jsx'
 import { House, ClockCounterClockwise, ChartLineUp, Books, GearSix, CaretDown } from './components/kit/icons.js'
@@ -201,7 +202,15 @@ export default function App() {
   const [alertQueue, setAlertQueue] = useState([])
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
-  const [showWhatsNew, setShowWhatsNew] = useState(() => ls.get('hf_seen_version') !== APP_VERSION)
+  // A fresh install has nothing to be told is new: no changelog on the
+  // first run (critique F45). It is marked seen silently instead.
+  const firstRun = !ls.get('hf_onboarded', false) && !(ls.get('hf_sessions', []) || []).length && !ls.get('hf_plan', null)
+  const [showWhatsNew, setShowWhatsNew] = useState(() => {
+    if (ls.get('hf_seen_version') === APP_VERSION) return false
+    if (firstRun) { ls.set('hf_seen_version', APP_VERSION); return false }
+    return true
+  })
+  const [onboarding, setOnboarding] = useState(firstRun)
   // Set by the boot reconciliation below, never by a stored flag alone.
   const [packOffer,  setPackOffer]  = useState(false)
   const [showReport, setShowReport] = useState(false)
@@ -272,7 +281,9 @@ export default function App() {
     let alive = true
     initPack().then(rec => {
       if (!alive) return
-      if (!rec.installed && !wasPrompted()) setPackOffer(true)
+      // Not on a fresh install: setup comes first, the art offer waits
+      // for the next launch.
+      if (!rec.installed && !wasPrompted() && !firstRun) setPackOffer(true)
       // An installed pack is only as new as the day it was downloaded.
       // Check the published version in the background so art added
       // after that day actually arrives; silent by design, and a
@@ -1116,6 +1127,20 @@ export default function App() {
       )}
       {showLevelUp && !summary && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
       {summary && <SessionSummary summary={summary} xp={xp} onDone={closeSummary} />}
+      {onboarding && (
+        <Onboarding
+          initialName={profile?.name && profile.name !== DEFAULT_PROFILE.name ? profile.name : ''}
+          onDone={({ name, daysPerWeek, plan: chosen }) => {
+            // Set directly, not through the settings-change paths: a first
+            // setup must not spend the one free change per 30 days.
+            if (name) setProfile(prev => ({ ...prev, name }))
+            setRecoveryCfg(prev => ({ ...prev, daysPerWeek }))
+            if (chosen) { setPlan(chosen); setPlanIndex(0) }
+            ls.set('hf_onboarded', true)
+            setOnboarding(false)
+          }}
+        />
+      )}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
 
       <StreakSheet
@@ -1151,7 +1176,7 @@ export default function App() {
       )}
       {showWhatsNew && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
       {/* Queued behind the version notice so the two never stack. */}
-      {packOffer && !showWhatsNew && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
+      {packOffer && !showWhatsNew && !onboarding && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
       {showReport && monthReport && (
         <MonthReport
           report={monthReport}
