@@ -1,0 +1,705 @@
+// ── Monthly report ────────────────────────────────────────────
+// One month of training, derived in one pass and handed to the UI as
+// plain data. No React, no DOM, no storage — so it runs under
+// `node --test` and the numbers can be checked without a browser.
+//
+// Everything here reuses the engines that already decide these facts
+// elsewhere in the app: sessionVolume for tonnage, computeRecovery for
+// the day-by-day calendar, analyzeProgression for whether a lift is
+// stalling. The report must never disagree with the screen that shows
+// the same number.
+
+import { dayKey } from './day.js'
+import {
+  sessionVolume, setVolume, resolveExerciseName, getWeightsResetAt,
+  xpProgress, getRank,
+} from './utils.js'
+import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
+import { computeRecovery, MAX_REST_CREDITS } from './recovery.js'
+import { isDeloadSession, wasDeloadDay } from './deload.js'
+import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
+
+// ── Calendar arithmetic ───────────────────────────────────────
+
+/** 'YYYY-MM' for anything date-like, on the user's own midnight. */
+export const monthKey = (dateLike) => dayKey(dateLike).slice(0, 7)
+
+export const daysInMonth = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+}
+
+export const prevMonth = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+}
+
+const MONTH_NAMES = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+]
+
+export const monthLabel = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  return `${MONTH_NAMES[m - 1]} ${y}`
+}
+
+/** The cover slot for a month — one piece of art per calendar month. */
+export const coverSlot = (month) => `cover_${month.slice(5, 7)}`
+
+// ── When the button is offered ────────────────────────────────
+// The report is about a month that has finished, so it appears while
+// that is still fresh: the last two days of the month (the result is
+// settled by then) and the first week of the next one.
+//
+// Pure on purpose — the date window is the one piece of this feature
+// that is painful to test through a browser clock.
+export const REPORT_WINDOW_TAIL = 2   // last N days of the month itself
+export const REPORT_WINDOW_HEAD = 7   // first N days of the month after
+
+/** The month a report should cover today, or null when out of window. */
+export function monthReportWindow(today) {
+  const key = dayKey(today)
+  const month = key.slice(0, 7)
+  const day = Number(key.slice(8, 10))
+
+  if (day <= REPORT_WINDOW_HEAD) return prevMonth(month)
+  if (day > daysInMonth(month) - REPORT_WINDOW_TAIL) return month
+  return null
+}
+
+// ── Volume, split the same way sessionVolume splits it ────────
+// Per-muscle volume uses the one shared rule (src/sets.js: a set counts
+// once it is ticked) or the slices would not add up to the total.
+
+const exerciseVolume = (ex) => (ex.sets || []).reduce((n, s) => n + setVolume(s), 0)
+
+// A plan the user imported can carry any muscle string it likes. The
+// home screen drops unknown ones on the floor; a report that quietly
+// loses tonnage is worse than one that says "other".
+const OTHER = { key: 'Other', label: 'أخرى', color: '#6B7280' }
+
+const groupOf = (muscle) => {
+  const g = MUSCLE_GROUPS[muscle]
+  if (!g) return OTHER
+  return { key: muscle, label: g.label, color: g.color }
+}
+
+// ── Personal records inside a date range ──────────────────────
+// getHistoricalMax only knows the all-time best. A record is an event:
+// the moment a weight beat everything before it. That needs a forward
+// walk over the whole history, with the month used only as a filter on
+// which events to report.
+// One entry per exercise, not one per improvement. Adding 2kg every
+// session is the whole point of the programme, and reporting each step
+// as its own record buries the two lifts that actually moved under
+// thirteen rows of the same squat. What a month's records mean is:
+// this lift ended higher than it has ever been, and here is the jump.
+function personalRecordsIn(sessions, month, mapping, resetAt) {
+  const best = new Map()          // resolved name → heaviest before this month
+  const gains = new Map()         // resolved name → the month's own high point
+
+  const chronological = [...(sessions || [])]
+    .filter(s => (s.id || 0) >= resetAt)
+    .sort((a, b) => (a.id || 0) - (b.id || 0))
+
+  for (const session of chronological) {
+    const key = monthKey(session.date)
+    if (key > month) break                   // the future cannot set this month's records
+    const inMonth = key === month
+
+    for (const ex of session.exercises || []) {
+      const name = resolveExerciseName(ex.name, mapping)
+      let top = 0
+      for (const s of ex.sets || []) {
+        if (!isCompleted(s)) continue        // a record has to be lifted, not typed
+        top = Math.max(top, parseFloat(s.weight))
+      }
+      if (!top) continue
+
+      if (!inMonth) {
+        best.set(name, Math.max(best.get(name) || 0, top))
+        continue
+      }
+
+      const bar = best.get(name) || 0
+      // The first weight ever logged is a starting point, not a record.
+      if (bar <= 0) { best.set(name, top); continue }
+
+      const held = gains.get(name)
+      if (top > bar && (!held || top > held.weight)) {
+        gains.set(name, {
+          exercise: ex.name,
+          weight: top,
+          prevBest: bar,
+          date: dayKey(session.date),
+          steps: (held?.steps || 0) + 1,
+        })
+      } else if (top > bar && held) {
+        held.steps += 1
+      }
+    }
+  }
+
+  return [...gains.values()].sort((a, b) => (b.weight - b.prevBest) - (a.weight - a.prevBest))
+}
+
+// ── Streak runs, over the whole ledger ────────────────────────
+//
+// A run is a maximal stretch of days with no miss in it: a scheduled
+// rest and a paid rest both hold it together, and only a day you were
+// meant to train and did not breaks it.
+//
+// What the run is WORTH is its training days, and nothing else. That
+// is the number the flame on the home screen counts, so it is the
+// number in your head — «I never had an 18-day streak» is right when
+// eighteen was the eligible days and fifteen were sessions. Rest days
+// keep a streak alive; they were never part of its length.
+//
+// Read across the FULL history, never within one month. Counting runs
+// inside a month-filtered ledger restarts the counter on the 1st, so a
+// streak that began in the previous month was reported at whatever
+// fraction of it happened to land after the boundary.
+export function streakRuns(ledger = []) {
+  const runs = []
+  let current = null
+  for (const r of ledger) {
+    // Today, before you have trained, is not yet a miss.
+    if (r.pending) continue
+    if (r.kind === 'miss') { current = null; continue }
+    if (!current) {
+      current = { start: r.date, end: r.date, days: 0, span: 0 }
+      runs.push(current)
+    }
+    current.span++
+    // Only a training day lengthens a streak. A rest day inside it is
+    // why the run is still alive, not a day of it — so it moves `end`
+    // no further than the last session did.
+    if (r.completed) { current.days++; current.end = r.date }
+  }
+  return runs.filter(r => r.days > 0)
+}
+
+const monthOf = (date) => String(date).slice(0, 7)
+const longest = (runs) => runs.reduce((best, r) => (!best || r.days > best.days ? r : best), null)
+const shape = (run, month) => run && {
+  days: run.days, span: run.span, start: run.start, end: run.end,
+  // Still going when the month ended — it belongs here, but it has not
+  // finished, and a report that shows it without saying so is claiming
+  // a completed streak that is actually still being written.
+  ongoing: !!month && monthOf(run.end) > month,
+}
+
+// A run belongs to the month it ENDED in — the month you completed it.
+//
+// Attributing it to every month it touched instead made one long
+// streak the answer to all three questions at once: this month 18,
+// last month 18, all time 18, which tells you nothing and reads as a
+// bug. A streak has one home.
+
+const prevMonthOf = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+}
+
+// ── Consistency, read off the recovery ledger ─────────────────
+// computeRecovery already classifies every day as eligible / paid /
+// miss and we trust that classification everywhere else, so the report
+// filters it rather than re-deriving it.
+function consistencyIn(sessions, config, month) {
+  const lastDay = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`
+  const recovery = computeRecovery(sessions, config, lastDay)
+  const rows = (recovery.ledger || []).filter(r => r.date.startsWith(month))
+
+  // Streaks are read from a ledger that runs to TODAY, not to the end
+  // of the month being reported.
+  //
+  // The month's own figures — days trained, missed, the calendar —
+  // belong to the month and stop at its last day. A streak does not:
+  // a run that began in late August and continued into September is
+  // fifteen sessions long whichever month's report you happen to be
+  // reading, and «الأطول على الإطلاق» has to mean all time or it means
+  // nothing. Reading it off the month-bounded ledger cut every streak
+  // that was still going when the month ended.
+  const all = computeRecovery(sessions, config).ledger || []
+
+  let trainedDays = 0, scheduledRests = 0, paidRests = 0
+  const missedDays = []
+
+  for (const r of rows) {
+    if (r.kind === 'miss') { missedDays.push(r.date); continue }
+    if (r.kind === 'paid') { paidRests++; continue }          // holds the run, adds nothing
+    if (r.completed) trainedDays++
+    else scheduledRests++
+  }
+
+  // Three answers to "how long did I keep it up", because one number
+  // cannot say whether this month beat the last one or your own record.
+  const runs      = streakRuns(all)
+  const prev      = prevMonthOf(month)
+  const endedIn = (m) => longest(runs.filter(r => monthOf(r.end) === m))
+  // The month's own row falls back to a run that was still going when
+  // the month closed, so a report is never blank about a month you
+  // plainly trained through. The fallback cannot collide with the
+  // previous month's row, which stays strictly "ended here": a run
+  // that outlives this month ended after it, not in the one before.
+  const overlapping = (m) =>
+    longest(runs.filter(r => monthOf(r.start) <= m && monthOf(r.end) >= m))
+  const thisMonth = endedIn(month) || overlapping(month)
+  const lastMonth = endedIn(prev)
+  const allTime   = longest(runs)
+  // This month's streak began before the 1st: the one you carried in.
+  const carried   = thisMonth && monthOf(thisMonth.start) < month ? thisMonth : null
+
+  return {
+    trainedDays, scheduledRests, paidRests,
+    missedDays,
+    // The month's longest run, at its true length. Kept under the old
+    // name so every existing reader — the ring, the poster — is
+    // corrected rather than left showing the truncated figure.
+    bestStreak: thisMonth?.days ?? 0,
+    streaks: {
+      month:     shape(thisMonth, month),
+      prevMonth: shape(lastMonth, prev),
+      allTime:   shape(allTime),
+      carried:   shape(carried, month),
+    },
+    endStreak: recovery.consistencyStreak,
+    restCredits: recovery.restCredits,
+    // A deload day keeps its own kind — trained, rest, missed — and
+    // carries the flag alongside. It is a modifier on the day, not a
+    // fourth kind of day: a missed day inside a deload is still a
+    // missed day, because a deload lightens the load and changes
+    // nothing about showing up.
+    calendar: rows.map(r => ({
+      date: r.date,
+      kind: r.completed ? 'trained' : r.kind === 'paid' ? 'paid' : r.kind === 'miss' ? 'miss' : 'rest',
+      deload: wasDeloadDay(config, r.date),
+    })),
+    // Which weekday gets skipped most — 0 is Sunday, matching Date.getDay.
+    weakestWeekday: (() => {
+      if (missedDays.length < 2) return null
+      const tally = new Array(7).fill(0)
+      for (const d of missedDays) {
+        const [y, m, dd] = d.split('-').map(Number)
+        tally[new Date(y, m - 1, dd).getDay()]++
+      }
+      const top = Math.max(...tally)
+      return top >= 2 ? { day: tally.indexOf(top), count: top } : null
+    })(),
+  }
+}
+
+// ── The report ────────────────────────────────────────────────
+
+export function buildMonthReport({
+  sessions = [],
+  config = {},
+  unlockedAt = {},
+  xp = 0,
+  mapping = {},
+  repTarget = DEFAULT_REP_TARGET,
+  month,
+} = {}) {
+  const resetAt = getWeightsResetAt()
+  const inMonth = sessions.filter(s => monthKey(s.date) === month)
+  const label = monthLabel(month)
+
+  if (!inMonth.length) {
+    return { month, monthLabel: label, cover: coverSlot(month), hasData: false, sessionCount: 0 }
+  }
+
+  // ── Volume, sets, reps, time ──
+  const total = inMonth.reduce((n, s) => n + sessionVolume(s), 0)
+  const prev = sessions.filter(s => monthKey(s.date) === prevMonth(month))
+  const prevTotal = prev.reduce((n, s) => n + sessionVolume(s), 0)
+
+  // The same comparison with the deload weeks taken out of both sides.
+  //
+  // `total` itself stays untouched — it is a statement of how much was
+  // lifted, and that does not change because some of it was deliberate
+  // taper.
+  //
+  // Sums are the wrong thing to compare here. A deload week does not
+  // add light days on top of a normal month, it *replaces* heavy ones:
+  // eight heavy days plus four light ones against twelve heavy ones
+  // still totals less, even though nothing got weaker. So the fair
+  // question is per-day — setting the taper aside, was the ordinary
+  // work lighter than last month's? — and that is what this answers.
+  const exDeloadAvg = (list) => {
+    const kept = list.filter(s => !isDeloadSession(s))
+    if (!kept.length) return null
+    const days = new Set(kept.map(s => dayKey(s.date)))
+    return kept.reduce((n, s) => n + sessionVolume(s), 0) / days.size
+  }
+  const perDayExDeload     = exDeloadAvg(inMonth)
+  const prevPerDayExDeload = exDeloadAvg(prev)
+  const deloadSessions     = inMonth.filter(isDeloadSession).length
+
+  let setsTotal = 0, setsCompleted = 0, repsTotal = 0
+  for (const s of inMonth) {
+    for (const ex of s.exercises || []) {
+      for (const set of ex.sets || []) {
+        const counted = set.done || parseFloat(set.weight) > 0
+        if (!counted) continue
+        setsTotal++
+        if (isCompleted(set)) { setsCompleted++; repsTotal += parseInt(set.reps) || 0 }
+      }
+    }
+  }
+
+  const timed = inMonth.filter(s => s.duration > 0)
+  const totalMinutes = timed.reduce((n, s) => n + s.duration, 0)
+
+  // ── The month's shape ──
+  // One point per training day, oldest first, so the chart traces the
+  // month as it was actually lived. Days are merged rather than
+  // sessions listed: two sessions on one day is one day's work, and
+  // plotting them as two points would draw a spike that never
+  // happened.
+  const byDay = new Map()
+  for (const s of inMonth) {
+    const key = dayKey(s.date)
+    const row = byDay.get(key) || { value: 0, deload: false }
+    row.value += sessionVolume(s)
+    // Read off the session's own stamp, not off today's config: a day
+    // is a deload day if the work done on it was, which is decided when
+    // the session starts and never revisited.
+    if (isDeloadSession(s)) row.deload = true
+    byDay.set(key, row)
+  }
+  const series = [...byDay.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([date, r]) => ({ date, value: Math.round(r.value), deload: r.deload }))
+
+  // The direction the month moved, as the slope of a least-squares fit
+  // through those points. A first-to-last comparison would call a month
+  // that dipped once at the end a decline; the fit answers for every
+  // session, which is what "trending up or down" actually means.
+  //
+  // Deload days are dropped from the fit. They are light on purpose, so
+  // leaving them in makes the engine report a planned taper as a slide
+  // — arithmetically correct and completely misleading. They stay in
+  // `series` and stay drawn; only the fit skips them.
+  const fitPoints = series.filter(p => !p.deload)
+  const slope = (() => {
+    const n = fitPoints.length
+    if (n < 3) return 0
+    const meanX = (n - 1) / 2
+    const meanY = fitPoints.reduce((a, p) => a + p.value, 0) / n
+    let num = 0, den = 0
+    for (let i = 0; i < n; i++) {
+      num += (i - meanX) * (fitPoints[i].value - meanY)
+      den += (i - meanX) ** 2
+    }
+    return den ? num / den : 0
+  })()
+
+  // ── Muscles ──
+  const byMuscle = new Map()
+  for (const s of inMonth) {
+    for (const ex of s.exercises || []) {
+      const v = exerciseVolume(ex)
+      if (!v) continue
+      const g = groupOf(ex.muscle)
+      const row = byMuscle.get(g.key) || { ...g, volume: 0, sessions: 0 }
+      row.volume += v
+      byMuscle.set(g.key, row)
+    }
+  }
+  const muscles = [...byMuscle.values()]
+    .map(m => ({ ...m, pct: total ? Math.round((m.volume / total) * 100) : 0 }))
+    .sort((a, b) => b.volume - a.volume)
+
+  const volumeOf = (...keys) => keys.reduce((n, k) => n + (byMuscle.get(k)?.volume || 0), 0)
+  const push = volumeOf('Chest', 'Shoulders', 'Triceps')
+  const pull = volumeOf('Back', 'Biceps')
+
+  // ── Progress ──
+  const { level } = xpProgress(xp)
+  const achievements = Object.entries(unlockedAt)
+    .filter(([, at]) => monthKey(new Date(at)) === month)
+    .map(([id]) => ACHIEVEMENTS.find(a => a.id === id))
+    .filter(Boolean)
+    .map(a => ({ id: a.id, title: a.title, rarity: a.rarity, icon: a.icon, xp: a.xp }))
+
+  const report = {
+    month,
+    monthLabel: label,
+    cover: coverSlot(month),
+    hasData: true,
+    sessionCount: inMonth.length,
+
+    volume: {
+      total: Math.round(total),
+      perSession: Math.round(total / inMonth.length),
+      prevTotal: Math.round(prevTotal),
+      // No previous month to compare against is not a 0% change.
+      trendPct: prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null,
+      // The month day by day, and which way it leaned overall.
+      series,
+      slope: Math.round(slope),
+      direction: slope > 0 ? 'up' : slope < 0 ? 'down' : 'flat',
+
+      // ── Deload ──
+      // How much of this month was deliberately light, and the same
+      // comparison with that removed from both months. Null when
+      // neither month had a deload, so a reader can tell "no deload"
+      // from "no difference".
+      deloadSessions,
+      deloadDays: series.filter(p => p.deload).length,
+      slopeExcludesDeload: deloadSessions > 0,
+      // Per training day, deload days excluded from both months. Null
+      // when either month has no ordinary day left to average, so a
+      // reader can tell "no answer" from "no change".
+      trendPctExDeload:
+        perDayExDeload !== null && prevPerDayExDeload > 0
+          ? Math.round(((perDayExDeload - prevPerDayExDeload) / prevPerDayExDeload) * 100)
+          : null,
+    },
+    sets: {
+      total: setsTotal,
+      completed: setsCompleted,
+      untrackedPct: setsTotal ? Math.round(((setsTotal - setsCompleted) / setsTotal) * 100) : 0,
+    },
+    reps: { total: repsTotal },
+    time: {
+      // duration is absent on imported and in-progress sessions, so the
+      // averages are only offered when at least two thirds of the month
+      // has it. Compared as integers: ceil(3 * 0.67) is 3, which would
+      // have failed two-timed-out-of-three.
+      known: timed.length * 3 >= inMonth.length * 2,
+      totalMinutes,
+      avgMinutes: timed.length ? Math.round(totalMinutes / timed.length) : 0,
+      sessionsTimed: timed.length,
+    },
+    prs: personalRecordsIn(sessions, month, mapping, resetAt),
+    muscles,
+    balance: {
+      pushPull: pull > 0 ? Math.round((push / pull) * 100) / 100 : null,
+      dominant: muscles[0] || null,
+      neglected: muscles.length > 1 ? muscles[muscles.length - 1] : null,
+    },
+    consistency: consistencyIn(sessions, config, month),
+    progress: {
+      level,
+      rank: getRank(level),
+      achievements,
+    },
+  }
+
+  report.tips = buildTips(report, { sessions, mapping, repTarget, month })
+  return report
+}
+
+// ── Tips ──────────────────────────────────────────────────────
+// Rule-based and computed from the month that just happened, so the
+// report works offline and every line can point at the number that
+// produced it. `evidence` is that number: advice without it is just
+// an opinion.
+//
+// Severity orders the list; only the strongest few are shown, because
+// a report that lists eleven faults is a scolding, not a report.
+const SEV = { alert: 3, nudge: 2, praise: 1, info: 0 }
+
+// ── Talking about a ratio without sounding absurd ─────────────
+// A month with one back session and twelve chest sessions produces a
+// push/pull figure like 79.63, which is arithmetically correct and
+// completely useless to read. Past a few times over, the ratio stops
+// being a ratio and becomes "one of these barely happened".
+export const PUSH_PULL_BAND = [0.7, 1.4]
+
+export const formatRatio = (r) =>
+  r >= 10 || r <= 0.1 ? `×${Math.round(r >= 1 ? r : 1 / r)}` : String(Math.round(r * 100) / 100)
+
+export function describeRatio(r) {
+  if (r >= 10) return `حجم الدفع يقارب ${Math.round(r)} أضعاف السحب`
+  if (r <= 0.1) return `حجم السحب يقارب ${Math.round(1 / r)} أضعاف الدفع`
+  if (r > 1) return `نسبة الدفع إلى السحب ${Math.round(r * 100) / 100}`
+  return `نسبة السحب إلى الدفع ${Math.round((1 / r) * 100) / 100}`
+}
+
+// A split that lopsided is no longer a nudge — one side is missing.
+const pushPullSeverity = (r) => (r >= 4 || r <= 0.25 ? 'alert' : 'nudge')
+
+const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+
+export const MAX_TIPS = 4
+
+export function buildTips(report, { sessions = [], mapping = {}, repTarget, month } = {}) {
+  const tips = []
+  const add = (id, severity, title, body, evidence) =>
+    tips.push({ id, severity, weight: SEV[severity] ?? 0, title, body, evidence })
+
+  const { muscles, balance, sets, volume, consistency, prs, time } = report
+
+  // Neglected muscle — only when the split is genuinely lopsided.
+  if (muscles.length >= 3 && balance.neglected && balance.dominant) {
+    const lo = balance.neglected, hi = balance.dominant
+    if (lo.pct <= 8 && hi.pct >= 30) {
+      add('neglected', 'alert',
+        `${lo.label} شبه غائب`,
+        `${lo.label} أخذ ٪${lo.pct} من حجمك هذا الشهر مقابل ٪${hi.pct} لـ${hi.label}. أضف له تمريناً أو صفّاً إضافياً.`,
+        `٪${lo.pct} / ٪${hi.pct}`)
+    }
+  }
+
+  // Push/pull balance. Anything outside this band pulls the shoulders forward.
+  if (balance.pushPull !== null && (balance.pushPull < 0.7 || balance.pushPull > 1.4)) {
+    const pushHeavy = balance.pushPull > 1.4
+    const heavy = pushHeavy ? 'الدفع' : 'السحب'
+    const light = pushHeavy ? 'السحب' : 'الدفع'
+    add('pushpull', pushPullSeverity(balance.pushPull),
+      'توازن الدفع والسحب مائل',
+      `${describeRatio(balance.pushPull)} — ${heavy} يغلب على ${light}. وازنها حتى لا تتقدّم الأكتاف.`,
+      formatRatio(balance.pushPull))
+  }
+
+  // Untracked sets: the engine cannot progress a set that was never ticked.
+  if (sets.untrackedPct >= 15) {
+    add('untracked', 'alert',
+      'مجموعات لم تؤكّدها',
+      `٪${sets.untrackedPct} من مجموعاتك هذا الشهر بلا علامة إكمال. نظام التقدم يحتسب المؤكَّد فقط، فهذه المجموعات لا ترفع أوزانك.`,
+      `${sets.total - sets.completed}/${sets.total}`)
+  }
+
+  // Stalled and ready-to-raise lifts, straight from the progression engine.
+  const trained = new Set()
+  for (const s of sessions) {
+    if (monthKey(s.date) !== month) continue
+    for (const ex of s.exercises || []) trained.add(ex.name)
+  }
+  const stalled = [], ready = []
+  for (const name of trained) {
+    const a = analyzeProgression(sessions, name, mapping, repTarget)
+    if (a.hint === 'raise') ready.push(name)
+    else if (a.hint === 'lower' || a.failedAtWeight >= 2) stalled.push(name)
+  }
+  if (ready.length) {
+    add('ready', 'praise',
+      `${ready.length === 1 ? 'تمرين جاهز' : `${ready.length} تمارين جاهزة`} لزيادة الوزن`,
+      `${ready.slice(0, 3).join(' · ')} — أتممت شرط الزيادة عليها. ارفع الوزن في الجلسة القادمة.`,
+      ready.join(', '))
+  }
+  if (stalled.length) {
+    add('stalled', 'nudge',
+      `${stalled.length === 1 ? 'تمرين متعثّر' : `${stalled.length} تمارين متعثّرة`}`,
+      `${stalled.slice(0, 3).join(' · ')} — لم تصل العدد المطلوب مرتين متتاليتين. خفّف الوزن قليلاً وابنِ منه.`,
+      stalled.join(', '))
+  }
+
+  // Volume trend, but only against a month that actually had data.
+  //
+  // A month containing a deload will read as a drop, and the honest
+  // answer is neither to report that as a decline nor to go quiet about
+  // it. The comparison is re-asked with the deload weeks removed from
+  // both months, and whatever that says is what gets said — including
+  // "still down", which is a real finding and the one worth hearing.
+  // Silencing it because a deload happened would hide exactly the case
+  // the user needs to know about.
+  const hasDeload = volume.deloadSessions > 0
+  const trend = hasDeload && volume.trendPctExDeload !== null
+    ? volume.trendPctExDeload
+    : volume.trendPct
+
+  if (trend !== null && Math.abs(trend) >= 15) {
+    const up = trend > 0
+    const note = hasDeload && volume.trendPctExDeload !== null
+      ? ' الحساب قارن متوسط اليوم الواحد بعد استثناء أيام الديلود من الشهرين.'
+      : ''
+    add('trend', up ? 'praise' : 'nudge',
+      up ? `حجمك ارتفع ٪${trend}` : `حجمك نزل ٪${Math.abs(trend)}`,
+      up
+        ? `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق.${note} حافظ على الوتيرة.`
+        : `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق.${note} راجع عدد الجلسات قبل الأوزان.`,
+      `٪${trend}`)
+  } else if (hasDeload && volume.trendPct !== null && volume.trendPct <= -15) {
+    // The drop was the deload and nothing else. Worth a line, because
+    // the big number at the top of the report is still down and the
+    // reader deserves to know why rather than wonder.
+    add('deload', 'info',
+      'النزول كان ديلوداً مخططاً',
+      `${volume.deloadDays} ${volume.deloadDays === 1 ? 'يوم' : 'أيام'} بأوزان مخفّضة عمداً هذا الشهر. باستثنائها، متوسط يومك ثابت — الانخفاض في الرقم الكلي متوقع ولا يحتاج تصحيحاً.`,
+      `${volume.deloadDays} يوم`)
+  }
+
+  // The weekday that keeps getting skipped.
+  if (consistency.weakestWeekday) {
+    const { day, count } = consistency.weakestWeekday
+    add('weekday', 'nudge',
+      `${WEEKDAYS[day]} هو يومك الضعيف`,
+      `غبت ${count} مرات في ${WEEKDAYS[day]} هذا الشهر. إما تنقل تمرينه ليوم آخر، أو تجعله يوم راحة مجدولاً.`,
+      `${count}× ${WEEKDAYS[day]}`)
+  }
+
+  // Rest credits earned and never spent.
+  if (consistency.restCredits >= 3) {
+    add('credits', 'info',
+      `${consistency.restCredits} أيام راحة في رصيدك`,
+      consistency.restCredits >= MAX_REST_CREDITS
+        ? 'رصيدك ممتلئ ولا يزيد أكثر. استعمل يوماً منه بدل أن يضيع.'
+        : 'كسبتها بالتزامك. استعملها في يوم تحتاجه فعلاً — تحفظ الستريك بلا كسر.',
+      String(consistency.restCredits))
+  }
+
+  // No new record all month.
+  if (!prs.length && report.sessionCount >= 6) {
+    add('prdrought', 'nudge',
+      'لا رقم قياسي هذا الشهر',
+      `${report.sessionCount} جلسة بلا وزن جديد. جرّب زيادة صغيرة على تمرين واحد تشعر أنك تسيطر عليه.`,
+      '0 PR')
+  } else if (prs.length) {
+    add('prs', 'praise',
+      `${prs.length} ${prs.length === 1 ? 'رقم قياسي' : 'أرقام قياسية'} جديدة`,
+      `أثقلها ${prs[0].exercise} على ${prs[0].weight} كجم، بعد ${prs[0].prevBest} كجم.`,
+      `${prs.length} PR`)
+  }
+
+  // Session length drift — the weakest signal here, and it is skipped
+  // outright when duration is missing from too much of the month.
+  if (time.known && time.avgMinutes > 0) {
+    if (time.avgMinutes < 25) {
+      add('short', 'info',
+        'جلساتك قصيرة',
+        `متوسط جلستك ${time.avgMinutes} دقيقة. إن كان هذا مقصوداً فلا مشكلة، وإلا فقد تكون تتخطى مجموعات.`,
+        `${time.avgMinutes} د`)
+    } else if (time.avgMinutes > 100) {
+      add('long', 'info',
+        'جلساتك طويلة',
+        `متوسط جلستك ${time.avgMinutes} دقيقة. راحات أقصر بين المجموعات ترفع الكثافة وتقصّر الوقت.`,
+        `${time.avgMinutes} د`)
+    }
+  }
+
+  // A curated form tip for the exercise he trained most — real content
+  // from constants.js, not invented advice.
+  const formTip = pickFormTip(sessions, month, muscles)
+  if (formTip) add('form', 'info', `نصيحة أداء — ${formTip.exercise}`, formTip.tip, formTip.exercise)
+
+  return tips
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, MAX_TIPS)
+    .map(({ weight, ...t }) => t)
+}
+
+// The most-trained exercise this month, paired with one of its own
+// coaching notes. Seeded by the month so it is stable on re-render but
+// differs month to month.
+function pickFormTip(sessions, month, muscles) {
+  const count = new Map()
+  for (const s of sessions) {
+    if (monthKey(s.date) !== month) continue
+    for (const ex of s.exercises || []) count.set(ex.name, (count.get(ex.name) || 0) + 1)
+  }
+  if (!count.size) return null
+  const [top] = [...count.entries()].sort((a, b) => b[1] - a[1])[0]
+
+  for (const g of Object.values(MUSCLE_GROUPS)) {
+    const found = (g.exercises || []).find(e => e.name === top)
+    if (found?.tips?.length) {
+      const seed = Number(month.slice(5, 7))
+      return { exercise: top, tip: found.tips[seed % found.tips.length] }
+    }
+  }
+  return null
+}

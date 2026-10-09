@@ -1,0 +1,1520 @@
+import { dayKey, todayKey } from './day.js'
+import { setCounts, setVolume } from './sets.js'
+
+// ── App version — bump this string after each update to trigger WhatsNew ──
+export const APP_VERSION = '2.2'
+
+// ── Greetings (45 Arabic motivational phrases — use {name} as placeholder) ──
+// ── Greetings ─────────────────────────────────────────────────
+//
+// Pools, not one list. The line under the logo used to be drawn from a
+// single flat array at load time, so a scheduled rest day, a deload
+// week and the first session back after a fortnight away all had the
+// same odds of «اليوم بنكسر الجيم!». pickGreeting() in utils.js reads
+// the day's state and draws from the pool that fits; `general` is the
+// training-day voice and the fallback.
+//
+// House voice for every line: Saudi colloquial, one emoji, {name}
+// somewhere, ten words or fewer — the line has 230px at 13px and a
+// third row reads as a paragraph. The borrowed classics are carried
+// over by meaning, not word for word.
+export const GREETINGS = {
+  general: [
+    'يلا {name} 💪 اليوم بنكسر الجيم!',
+    'مرحبا {name} 🔥 جاهز تتفوق على أمس؟',
+    '{name}! الألم مؤقت، القوة دايمة 🏆',
+    'صباح العضلات يا {name} ⚡ بنشتغل اليوم؟',
+    '{name} في البيت 🔥 الجيم يستاهل جهدك',
+    'هيا {name}، الـ PRs ما تجي بدون عرق 🎯',
+    '{name} 🦾 كل سيت بيقربك من نسختك الأفضل',
+    'يا {name}، العظماء ما يستسلمون 👑',
+    '{name}! اليوم تكتب تاريخك في الجيم 📖',
+    'استيقظ يا {name}، الأوزان تنتظرك ⚔️',
+    '{name}، كل تمرين هو خطوة نحو الأسطورة 🌟',
+    'بسم الله يا {name}، اليوم نكسر أرقامنا 💥',
+    '{name} قيم لا يُكسر 🛡️ اليوم للجيم!',
+    'لا عذر اليوم يا {name}، الجيم أولاً 🥇',
+    '{name} البطل، الجيم ينتظر حضورك 🏟️',
+    'صح النوم يا {name} ⚡ وقت الشغل جاء!',
+    '{name}، من جد وجد، ومن زرع حصد 🌱',
+    'اليوم بنعمل شغلة يا {name} 💣',
+    '{name} 🔱 الإرادة أقوى من أي عقبة',
+    'يلا نشتغل يا {name}، التحدي يبدأ الآن ⚡',
+    '{name}، جسمك يشكرك على كل تمرين 💚',
+    'اليوم بنثبت إننا الأفضل يا {name} 👊',
+    '{name} 🦁 الأسد لا يتوقف، يواصل!',
+    'كل يوم تمرين هو استثمار يا {name} 📈',
+    '{name}، العقل يستسلم قبل الجسم بكثير 🧠',
+    '{name} 🎯 ركز على الهدف، النتائج بتجي!',
+    'اليوم جلسة نار يا {name} 🔥 لا رجعة!',
+    'قم يا {name}، المنافس ما ينام 👊',
+    '{name}، الانضباط يوصل للأحلام 🏆',
+    'اشحن طاقتك يا {name} ⚡ الجيم يستاهل أقصاك',
+    '{name} 💥 اليوم نكتب فصل جديد من القوة',
+    'الجيم عبادة يا {name}، وأنت أهل لها 🙏',
+    '{name} 🔱 حدودك في ذهنك، كسّرها اليوم',
+    'يوم جديد يا {name}، فرصة جديدة للتفوق ⭐',
+    '{name}، جسمك أقوى مما تتخيل 💪 ثق به',
+    '{name} 🥇 البطل لا ينتظر الوحي، يتحرك!',
+    'كل جلسة رصيد في حسابك يا {name} 📈',
+    '{name}، العظمة تبدأ بقرار واحد: اليوم أبدأ 🌟',
+    'لا تنتظر الدافع يا {name}، تحرك وسيجي 🔥',
+    '{name} 💪 الجيم مو رفاهية، هو أسلوب حياة',
+    'ما في وقت أفضل من الآن يا {name} ⏱️',
+    '{name}، كل عضلة بنيتها بدأت بخطوة شجاعة 🦾',
+    'روح اثبت لنفسك يا {name} 🏆 ما عليك أحد',
+    '{name} 🌙 حتى في أصعب الأيام، سيت واحد يكفي',
+    '{name}، التعب اللي تحس فيه اليوم هو القوة اللي تحسها بكرة 💚',
+    'يلا {name}، الحديد ما يرفع نفسه 🏋️',
+    '{name}، أسوأ تمرين هو اللي ما صار 💪',
+    '{name} 🎯 لا تنقّص الهدف، زوّد الجهد',
+    'السرّ يا {name}؟ إنك تبدأ 🚀',
+    '{name}، الحركة تجيب الحماس، مو العكس ⚡',
+    'خطوة صغيرة كل يوم يا {name} 🪜',
+    '{name} 🧱 كل سيت طوبة في الجدار',
+    'يا {name}، الانضباط يشتغل لما الحماس يغيب 🛡️',
+    '{name}، سنة من الحين بتتمنى إنك بديت اليوم 📅',
+    'بطيء؟ عادي يا {name}، أنت قدام كل اللي ما بدأ 🐢',
+    '{name} ⚖️ تختار: ألم الانضباط أو ألم الندم',
+    'الأعذار ما تحرق سعرات يا {name} 😄',
+    'ما أحد يشوفك يا {name}، وهذا وقت الشغل الحقيقي 👁️',
+    '{name} 📈 أحسن من أمس، وبس',
+    'مواعيدك مع الجيم مواعيد مع نفسك يا {name} 📆',
+    '{name}، جسمك عليك حق — أعطه إياه اليوم 🤲',
+    '{name} 🥊 الجولة اللي تخسرها هي اللي ما تدخلها',
+    'يوم ثقيل يا {name}؟ السيت الأول بس، والباقي يجي 🌊',
+    '{name} 🔁 العادة تكمّل اللي الحماس بدأه',
+    'مرّن اليوم يا {name}، وخلّ الأرقام تتكلم بكرة 📊',
+    '{name}، ما في راحة في المنطقة المريحة 🚪',
+    'لا تحلم بالفوز يا {name}، تمرّن له 🏆',
+    '{name} ⏳ الوقت يمشي — تصير اللي تبي؟',
+    'التحسّن المستمر يغلب الكمال المؤجّل يا {name} 🔧',
+    '{name}، لو ما تحدّاك، ما غيّرك 🔥',
+  ],
+  // Scheduled recovery. The old list had nothing for this day, so it
+  // told a resting man to go break the gym.
+  rest: [
+    '{name}، اليوم العضلة تنمو وأنت مرتاح 🌱',
+    'راحة اليوم يا {name} — بكرة أثقل 🌙',
+    '{name} 😴 النوم سيت زيادة، مو كسل',
+    'الراحة جزء من الخطة يا {name}، مو هروب منها 🛌',
+    '{name}، اللي يعرف متى يوقف يعرف متى يرفع 🧠',
+    '{name}، يوم الراحة جزء من البرنامج، مو استراحة منه 📋',
+    'العضلة تُبنى الليلة يا {name}، مو في الجيم 🌜',
+    '{name} 💧 اليوم ماي ونوم وأكل نظيف — هذا تمرينك',
+    'راحة مجدولة يا {name} — خطتك ماشية صح ✅',
+    '{name}، ريّح اليوم عشان ترفع أثقل بكرة 📈',
+    'لا تحس بالذنب يا {name}، الراحة مكتوبة في الخطة 📝',
+    '{name} 🛁 جسمك يصلّح نفسه اليوم، خلّه يشتغل',
+    'يوم خفيف يا {name}: مشي بسيط وتمدد وبس 🚶',
+    '{name}، أقوى سيت اليوم هو ساعات النوم 🛏️',
+    'الجيم يرتاح منك اليوم يا {name} 😄',
+  ],
+  // A deload week: lighter on purpose. «Lighter, not weaker».
+  deload: [
+    'أسبوع أخف يا {name}، مو أضعف 🧊',
+    '{name}، خطوة للوراء عشان رمية أبعد 🏹',
+    'خفّف اليوم يا {name}، الجسم يجمع القوة بصمت ❄️',
+    '{name} 🧊 هالأسبوع نخفف عشان نطير بعده',
+    'أوزان خفيفة هالأسبوع يا {name} — وهي جزء من الخطة 📉',
+    '{name}، الجسم يتعافى هالأسبوع، لا تستعجله 🕊️',
+    'خفيف ونظيف يا {name} — ركّز على الأداء الصحيح 🎯',
+    '{name}، أسبوع شحن — الرجعة بتكون أقوى 🔋',
+  ],
+  // A consistency streak of a week or more. Carries {streak}.
+  streak: [
+    '{name} 🔥 {streak} يوم على التوالي — ما أحد يوقفك',
+    '{streak} يوم يا {name} — الستريك صار شخصية، مو رقم 👑',
+    '{name}، {streak} يوم تقول عنك أكثر من أي كلام 📖',
+    '{streak} يوم ورا بعض يا {name} — كمّل السلسلة 🔗',
+    'السلسلة {streak} يوم يا {name}، لا تكسرها اليوم ⛓️',
+    '{name} 📈 {streak} يوم من الالتزام — هذا مو حظ',
+    '{streak} يوم يا {name}؟ العادة صارت أقوى منك 💪',
+    '{name}، {streak} يوم بنيتها بيدك — احمِها 🛡️',
+    'كل يوم من الـ{streak} كان قرار يا {name} 🎯',
+    '{name} 🚀 {streak} يوم — والرقم الجاي أحلى',
+    '{streak} يوم متواصلة يا {name}، الجسم صار يعرف الطريق 🧭',
+    '{name}، ناس كثير وقفوا قبل {streak} يوم — أنت لا 🏃',
+    'يا {name}، {streak} يوم من الصدق مع نفسك 🤝',
+    '{name} ⚡ {streak} يوم والمحرك لسا شغّال',
+    '{streak} يوم يا {name} — خلّ الأرقام تحكي عنك 📊',
+    '{name}، {streak} يوم ما جات بالصدفة 🧱',
+  ],
+  // First open after five or more days without a session.
+  comeback: [
+    'رجعت يا {name}؟ هذا أهم سيت في السنة 🚪',
+    '{name}، الغياب انتهى لحظة ما فتحت التطبيق 💪',
+    'ولا يهمك يا {name}، البطل اللي يرجع مو اللي ما يغيب 🔁',
+    '{name}، المهم إنك رجعت — ابدأ خفيف اليوم 🌱',
+    'نورت يا {name} 👋 خلّنا نرجع الإيقاع',
+    '{name}، اليوم الأول بعد الغياب أهم من أي رقم 🥇',
+    'رجعتك أهم من غيابك يا {name} — يلا 🚀',
+    '{name} 🔄 صفحة جديدة، نفس البطل',
+  ],
+  // A rest credit was spent on yesterday's missed day.
+  creditSpent: [
+    '{name}، رصيدك حماك أمس — اليوم ردّ الجميل 🎟️',
+    'أمس استراحة من رصيدك يا {name}، اليوم شغل 💪',
+    '{name}، الستريك نجا أمس — لا تخلّيه يحتاج رصيد ثاني 🛟',
+    'رصيد الراحة سوّى شغله يا {name}، الحين دورك 🔄',
+    '{name}، استرحت أمس على حسابك — اليوم سدّد بسيت قوي 🏋️',
+    'يوم الراحة المدفوع خلص يا {name}، يلا نرجع 🚀',
+    '{name} 🧾 أمس دفعت يوم، اليوم اكسب غيره',
+    '{name}، أخذت نفس أمس — اليوم ارفع الإيقاع 🥁',
+    'أمس راحة، اليوم عودة يا {name} — الستريك ينتظرك 🔥',
+    'رصيدك غطّاك أمس يا {name}، اليوم أنت تغطّي نفسك ⚡',
+  ],
+  // A rest day the person chose today, paid from the balance. Until now
+  // this day fell through to the streak or training-day lines — telling
+  // someone resting on purpose to go and train.
+  restTaken: [
+    '{name}، راحة اختيارية اليوم — استمتع فيها بلا ذنب 🛋️',
+    'خذ نفس يا {name}، الرصيد موجود لهالسبب 🎟️',
+    '{name} 😌 اليوم راحة من اختيارك، بكرة نرجع أقوى',
+    'الراحة اللي تختارها بنفسك ذكاء يا {name} 🧠',
+    '{name}، الستريك محفوظ — ريّح جسمك اليوم 🔐',
+    'يوم هادي يا {name}، اشرب ماي ونم بدري 🚰',
+    '{name} 🌿 الجسم يقول شكراً على هالراحة',
+    'استرح اليوم يا {name}، والحديد بيكون موجود بكرة 🏗️',
+    '{name}، حتى الأبطال يحتاجون يوم فاضي 🌙',
+    'ريّح يا {name} — المهم ترجع، مو إنك ما توقف 🔃',
+  ],
+  // Already trained today. The line should close the day, not open it.
+  done: [
+    '{name}، تمرين اليوم في الجيب ✅ ريّح الحين',
+    'شغلك اليوم انكتب يا {name} — نم زين 🌃',
+    '{name} 🦾 خلصت اليوم، والجسم يبني الحين',
+    'تم يا {name}! يوم ثاني في السجل 📗',
+    '{name}، أحسنت اليوم — اشرب ماي وكل بروتين 🥩',
+    'يوم مكتمل يا {name} — بكرة نكمّل 🔜',
+    '{name} 🏁 الهدف اليوم تحقق، استمتع بالإحساس',
+    'التعب اللي تحسه الحين هو التقدّم يا {name} 🌾',
+    '{name}، سجّلتها اليوم — الأرقام تشكرك 🧮',
+    'خلصت يا {name} 👏 وهذا اللي يفرق',
+  ],
+  // The streak lands on a round number. Said on that day only.
+  milestone: [
+    '{name} 🏅 {streak} يوم! محطة جديدة في رحلتك',
+    'مبروك يا {name} — {streak} يوم كاملة بلا انقطاع 🎉',
+    '{name}، وصلت {streak} يوم — وقفة فخر وكمّل 🏆',
+    '{streak} يوم يا {name}! هذي ما يوصلها إلا القليل 💎',
+    '{name} 🎖️ رقم {streak} — سجّله في ذاكرتك',
+    'يوم {streak} يا {name} — هذا اللي كنت تبني له 🏔️',
+  ],
+}
+
+// ── Ranks ─────────────────────────────────────────────────────
+export const RANKS = [
+  { label: 'مبتدئ',   tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20', img: '/assets/rank_e.png' },
+  { label: 'متوسط',   tier: 'D',  minLevel: 5,  color: '#5EC32A', bg: '#5EC32A20', img: '/assets/rank_d.png' },
+  { label: 'متقدم',   tier: 'C',  minLevel: 10, color: '#3B9DE8', bg: '#3B9DE820', img: '/assets/rank_c.png' },
+  { label: 'محترف',   tier: 'B',  minLevel: 20, color: '#A855F7', bg: '#A855F720', img: '/assets/rank_b.png' },
+  { label: 'بطل',     tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620', img: '/assets/rank_a.png' },
+  { label: 'أسطورة',  tier: 'S',  minLevel: 50, color: '#F59E0B', bg: '#F59E0B20', img: '/assets/rank_s.png' },
+  { label: 'خارق',    tier: 'S+', minLevel: 75, color: '#EC4899', bg: '#EC489920', img: '/assets/rank_s_plus.png' },
+]
+
+// ── Commitment Levels (0-5 flames based on streak) ───────────
+export const COMMITMENT_LEVELS = [
+  { min: 0,  label: 'غير نشط',      flames: 0, color: '#4B5563', desc: 'ابدأ رحلتك اليوم!' },
+  { min: 1,  label: 'مبتدئ',        flames: 1, color: '#F97316', desc: 'خطوة رائعة، استمر!' },
+  { min: 3,  label: 'منتظم',        flames: 2, color: '#EAB308', desc: 'الانتظام هو المفتاح!' },
+  { min: 7,  label: 'ملتزم',        flames: 3, color: '#22C55E', desc: 'أسبوع كامل، ممتاز!' },
+  { min: 14, label: 'مخضرم',        flames: 4, color: '#3B9DE8', desc: 'أسبوعان متواصلان!' },
+  { min: 30, label: 'أسطورة الجيم', flames: 5, color: '#5EC32A', desc: 'شهر كامل، أنت أسطورة!' },
+]
+
+// ── Goals ─────────────────────────────────────────────────────
+export const GOALS = [
+  { id: 'muscle',   label: 'بناء العضلات',    icon: '💪', desc: 'زيادة الكتلة العضلية والقوة',          img: '/assets/goalc_muscle.png' },
+  { id: 'fat_loss', label: 'حرق الدهون',      icon: '🔥', desc: 'تقليل نسبة الدهون وتحسين الجسم',      img: '/assets/goalc_fatloss.png' },
+  { id: 'strength', label: 'زيادة القوة',     icon: '⚔️', desc: 'رفع أوزان أثقل وتحسين الأداء',        img: '/assets/goalc_strength.png' },
+  { id: 'endurance',label: 'التحمل واللياقة', icon: '🏃', desc: 'تحسين اللياقة والقدرة على التحمل',    img: '/assets/goalc_endurance.png' },
+  { id: 'recomp',   label: 'إعادة التشكيل',   icon: '⚡', desc: 'بناء العضل وحرق الدهون معاً',         img: '/assets/goalc_recomp.png' },
+  { id: 'maintain', label: 'المحافظة',         icon: '🛡️', desc: 'الحفاظ على مستوى اللياقة الحالي',    img: '/assets/goalc_muscle.png' },
+]
+
+// ── Gym Types ─────────────────────────────────────────────────
+export const GYM_TYPES = [
+  { id: 'commercial', label: 'جيم تجاري',  icon: '🏋️' },
+  { id: 'home',       label: 'جيم منزلي',  icon: '🏠' },
+  { id: 'outdoor',    label: 'في الهواء',  icon: '🌳' },
+  { id: 'crossfit',   label: 'كروسفيت',    icon: '⚡' },
+]
+
+// ── Training Systems ──────────────────────────────────────────
+export const TRAINING_SYSTEMS = [
+  { id: 'ppl',        label: 'Push/Pull/Legs' },
+  { id: 'upper_lower', label: 'Upper/Lower' },
+  { id: 'fullbody',   label: 'Full Body' },
+  { id: 'bro_split',  label: 'Bro Split' },
+  { id: 'custom',     label: 'مخصص' },
+]
+
+// ── Week Days ─────────────────────────────────────────────────
+export const WEEK_DAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+export const WEEK_DAYS_SHORT = ['ح', 'ن', 'ث', 'أ', 'خ', 'ج', 'س']
+
+// ── Muscle Groups ─────────────────────────────────────────────
+export const MUSCLE_GROUPS = {
+  Chest: {
+    label: 'الصدر', emoji: '🫁', color: '#FF6B35', img: '/assets/muscle_chest.png',
+    exercises: [
+      { name: 'Bench Press',         videoUrl: 'https://www.youtube.com/results?search_query=Bench+Press+proper+form+shorts', tips: ['اثبت الكتفين على المقعد طوال الحركة', 'المسكة أعرض من الكتفين قليلاً', 'نزّل البار لمنتصف الصدر وليس الحلق'] },
+      { name: 'Incline Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Incline+Bench+Press+proper+form+shorts', tips: ['زاوية 30-45 درجة للاستهداف الأمثل', 'الجزء العلوي من الصدر هو المحرك', 'لا ترفع الأرداف عن المقعد'] },
+      { name: 'Decline Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Decline+Bench+Press+proper+form+shorts', tips: ['يستهدف الجزء السفلي من الصدر', 'المسكة أوسع قليلاً من Bench عادي', 'لف المعصمين للأمام لحماية المفصل'] },
+      { name: 'Cable Fly',           videoUrl: 'https://www.youtube.com/results?search_query=Cable+Fly+proper+form+shorts', tips: ['أبقِ المرفقين مثنيين قليلاً طوال الحركة', 'الحركة في قوس واسع كأنك تعانق شجرة', 'التوتر مستمر على الصدر في كل المدى'] },
+      { name: 'Dumbbell Fly',        videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Fly+proper+form+shorts', tips: ['لا تفرد المرفقين كلياً لحماية المفصل', 'ارجع الدمبل بتحكم وببطء', 'أعلى نقطة: الدمبلان فوق الصدر مباشرة'] },
+      { name: 'Push-Up',             videoUrl: 'https://www.youtube.com/results?search_query=Push-Up+proper+form+shorts', tips: ['الجسم خط مستقيم من الرأس للقدمين', 'المرفقان بزاوية 45 درجة عن الجذع', 'اضغط الصدر للأسفل حتى يلامس الأرض'] },
+      { name: 'Chest Dip',           videoUrl: 'https://www.youtube.com/results?search_query=Chest+Dip+proper+form+shorts', tips: ['أمِل الجسم للأمام لاستهداف الصدر', 'المرفقان للخارج قليلاً', 'لا تنزل تحت 90 درجة في البداية'] },
+      { name: 'Pec Deck',            videoUrl: 'https://www.youtube.com/results?search_query=Pec+Deck+proper+form+shorts', tips: ['اسند الظهر كاملاً على المسند', 'الحركة فقط من الصدر لا من الكوعين', 'لا تعود للخلف أكثر مما يسمح المفصل'] },
+      { name: 'Landmine Press',      videoUrl: 'https://www.youtube.com/results?search_query=Landmine+Press+proper+form+shorts', tips: ['القدم المقابلة للأمام لثبات أفضل', 'اضغط للأعلى وللأمام بشكل مائل', 'يستهدف الصدر العلوي والكتف الأمامي'] },
+      { name: 'Hammer Strength Machine Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Hammer+Strength+Chest+Press+proper+form+shorts', tips: ['اسند الظهر كاملاً على المسند', 'الحركة متماثلة تعمل كل جانب باستقلالية', 'ممتاز للمبتدئين لثباته وأمانه'] },
+      { name: 'Machine Incline Press',               videoUrl: 'https://www.youtube.com/results?search_query=Machine+Incline+Press+proper+form+shorts', tips: ['اضبط المقعد بحيث المقبض عند مستوى الصدر العلوي', 'اسند الظهر كاملاً طوال الحركة', 'يستهدف الصدر العلوي بفعالية'] },
+      { name: 'Incline Dumbbell Press', videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Incline+Bench+Press+proper+form+shorts', tips: ['زاوية 30-45 درجة للاستهداف الأمثل', 'الدمبلات تلتقي في الأعلى', 'لا ترفع الأرداف عن المقعد'] },
+    ],
+  },
+  Back: {
+    label: 'الظهر', emoji: '🗂️', color: '#3B82F6', img: '/assets/muscle_back.png',
+    exercises: [
+      { name: 'Deadlift',             videoUrl: 'https://www.youtube.com/results?search_query=Deadlift+proper+form+shorts', tips: ['الظهر مستقيم طوال الحركة — لا قوس', 'البار يلصق بالجسم من البداية للنهاية', 'ابدأ بدفع الأرض بالأرجل وليس سحب الظهر'] },
+      { name: 'Pull-Up',              videoUrl: 'https://www.youtube.com/results?search_query=Pull-Up+proper+form+shorts', tips: ['اسحب بالظهر لا بالذراعين', 'الكتفان للأسفل والخلف قبل بدء السحب', 'انزل بالتحكم البطيء للمدى الكامل'] },
+      { name: 'Barbell Row',          videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Row+proper+form+shorts', tips: ['الظهر موازٍ للأرض أو قريب منه', 'اسحب نحو السرة لا الصدر', 'اضغط لوحَي الكتف معاً في نهاية الحركة'] },
+      { name: 'Seated Cable Row',            videoUrl: 'https://www.youtube.com/results?search_query=Cable+Row+proper+form+shorts', tips: ['الظهر مستقيم لا تميل للخلف', 'اسحب للسرة مع الضغط على الظهر', 'المرفقان للخلف وليس للجانبين'] },
+      { name: 'Lat Pulldown',         videoUrl: 'https://www.youtube.com/results?search_query=Lat+Pulldown+proper+form+shorts', tips: ['اسحب للأسفل حتى ذقنك أو الصدر العلوي', 'الظهر مائل للخلف قليلاً', 'افتح الصدر وارفع الذقن في نهاية الحركة'] },
+      { name: 'T-Bar Row',            videoUrl: 'https://www.youtube.com/results?search_query=T-Bar+Row+proper+form+shorts', tips: ['الصدر على المسند لمنع الغش', 'اسحب للأعلى مع الضغط على لوحَي الكتف', 'الظهر ثابت ومستقيم'] },
+      { name: 'Face Pull',            videoUrl: 'https://www.youtube.com/results?search_query=Face+Pull+proper+form+shorts', tips: ['البكرة على مستوى الوجه أو أعلى قليلاً', 'اسحب نحو الوجه مع إبعاد المرفقين للأعلى', 'مهم جداً لصحة مفصل الكتف'] },
+      { name: 'Single Arm Row',       videoUrl: 'https://www.youtube.com/results?search_query=Single+Arm+Dumbbell+Row+proper+form+shorts', tips: ['الظهر موازٍ للأرض والجذع ثابت', 'اسحب الكوع للأعلى والخلف', 'لا تدور بالجذع أثناء السحب'] },
+      { name: 'Chest-Supported Row',       videoUrl: 'https://www.youtube.com/results?search_query=Chest+Supported+Row+proper+form+shorts', tips: ['الصدر ملاصق للمسند طوال الحركة', 'يمنع الغش ويعزل الظهر تماماً', 'ركز على السحب بالمرفقين للخلف'] },
+      { name: 'Dumbbell Row',    videoUrl: 'https://www.youtube.com/results?search_query=Unilateral+Dumbbell+Row+proper+form+shorts', tips: ['الظهر موازٍ للأرض والجذع ثابت', 'اسحب الكوع للأعلى والخلف', 'لا تدور بالجذع أثناء السحب'] },
+      { name: 'Dumbbell Farmers Carry',     videoUrl: 'https://www.youtube.com/results?search_query=Farmers+Carry+proper+form+shorts', tips: ['الظهر مستقيم والكتفان للخلف', 'الخطوات منضبطة ومتساوية', 'يقوّي القبضة والمصيدة والكور والظهر'] },
+      { name: 'Straight Arm Pulldown',videoUrl: 'https://www.youtube.com/results?search_query=Straight+Arm+Pulldown+proper+form+shorts', tips: ['الذراعان مفرودتان طوال الحركة', 'الحركة من الكتف لا من الكوع', 'يعزل العضلة العريضة بشكل رائع'] },
+      { name: 'Dumbbell Shrug',             videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Shrug+proper+form+shorts', tips: ['ارفع الكتفين للأذنين بشكل عمودي', 'لا تدور الكتفين — الحركة عمودية فقط', 'توقف ثانية في الأعلى للضغط على المصيدة'] },
+      { name: 'Machine Pullover',           videoUrl: 'https://www.youtube.com/results?search_query=Machine+Pullover+proper+form+shorts', tips: ['أمسك المقبض فوق الرأس وابدأ الحركة من الكتف', 'يعزل العضلة العريضة بفعالية عالية', 'اسند الظهر والرأس على المسند طوال الحركة'] },
+    ],
+  },
+  Shoulders: {
+    label: 'الأكتاف', emoji: '🦾', color: '#A855F7', img: '/assets/muscle_shoulders.png',
+    exercises: [
+      { name: 'Overhead Press',        videoUrl: 'https://www.youtube.com/results?search_query=Overhead+Press+proper+form+shorts', tips: ['الظهر مستقيم لا تقوس أسفل الظهر', 'ارفع البار عمودياً فوق الرأس', 'اشد البطن لحماية أسفل الظهر'] },
+      { name: 'Dumbbell OHP',          videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Overhead+Press+proper+form+shorts', tips: ['ابدأ بالمرفقين على زاوية 90 درجة', 'ارفع للأعلى مبتعداً عن الأذنين', 'الدمبلان يلتقيان في الأعلى دون تصادم'] },
+      { name: 'Lateral Raise',         videoUrl: 'https://www.youtube.com/results?search_query=Lateral+Raise+proper+form+shorts', tips: ['لا ترفع الأكتاف أثناء الرفع — أبقِها منخفضة', 'ارفع حتى مستوى الكتف فقط', 'المرفقان مثنيان قليلاً لحماية المفصل'] },
+      { name: 'Front Raise',           videoUrl: 'https://www.youtube.com/results?search_query=Front+Raise+proper+form+shorts', tips: ['المرفقان مفرودان قليلاً لا مثنيان', 'ارفع حتى مستوى الكتف أو أعلى قليلاً', 'الإرجاع بالتحكم لا تهوي الذراع'] },
+      { name: 'Rear Delt Fly',         videoUrl: 'https://www.youtube.com/results?search_query=Rear+Delt+Fly+proper+form+shorts', tips: ['أمِل للأمام من الوسط 45 درجة', 'ارفع الذراعين للجانبين محافظاً على الخم', 'ركز على الشعور بالضغط خلف الكتف'] },
+      { name: 'Arnold Press',          videoUrl: 'https://www.youtube.com/results?search_query=Arnold+Press+proper+form+shorts', tips: ['يجمع بين الدوران والرفع في حركة واحدة', 'يستهدف ثلاثة رؤوس الكتف', 'الدوران في البداية مهم لتفعيل الأمامي'] },
+      { name: 'Upright Row',           videoUrl: 'https://www.youtube.com/results?search_query=Upright+Row+proper+form+shorts', tips: ['الأيدي أقرب من عرض الكتفين', 'المرفقان للأعلى دائماً', 'احذر: قد يسبب ضغطاً على الكتف إذا أُسيء استخدامه'] },
+      { name: 'Cable Lateral Raise',   videoUrl: 'https://www.youtube.com/results?search_query=Cable+Lateral+Raise+proper+form+shorts', tips: ['البكرة من الأسفل لتوتر مستمر', 'الجسم مائل قليلاً للجانب الآخر', 'أفضل من الدمبل للشعور بالضغط المستمر'] },
+      { name: 'Machine Shoulder Press',        videoUrl: 'https://www.youtube.com/results?search_query=Machine+Shoulder+Press+proper+form+shorts', tips: ['اضبط ارتفاع المقعد بحيث المقبض عند الكتف', 'اسند الظهر كاملاً على المسند', 'مناسب للمبتدئين وللتضخيم'] },
+      { name: 'Machine Lateral Raise',         videoUrl: 'https://www.youtube.com/results?search_query=Machine+Lateral+Raise+proper+form+shorts', tips: ['اضبط المقعد بحيث المرفقان عند مستوى الكتف', 'الحركة بطيئة ومتحكمة في الاتجاهين', 'يعزل الدالية الجانبية أكثر من الدمبل'] },
+      { name: 'Dumbbell Shoulder Press', videoUrl: 'https://www.youtube.com/results?search_query=Seated+Dumbbell+Overhead+Press+form+shorts', tips: ['اسند الظهر على المقعد المنتصب', 'ابدأ بالمرفقين على 90 درجة', 'ارفع للأعلى دون تصادم الدمبلات'] },
+      { name: 'Machine Reverse Fly',            videoUrl: 'https://www.youtube.com/results?search_query=Machine+Reverse+Fly+proper+form+shorts', tips: ['اضبط المقعد حتى المقبضان أمام الصدر', 'ابسط الذراعين للجانبين مع الضغط خلف الكتف', 'لا تستخدم الزخم — الحركة بطيئة ومتحكمة'] },
+      { name: 'Reverse Fly',           videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Reverse+Fly+proper+form+shorts', tips: ['أمِل للأمام من الوسط 45 درجة', 'ارفع الذراعين للجانبين محافظاً على الخم', 'ركز على الضغط خلف الكتف'] },
+    ],
+  },
+  Legs: {
+    label: 'الأرجل', emoji: '🦵', color: '#22C55E', img: '/assets/muscle_legs.png',
+    exercises: [
+      { name: 'Barbell Squat',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Squat+proper+form+shorts', tips: ['الظهر مستقيم طوال الحركة', 'الركبتان تتجهان نحو أصابع القدم', 'انزل حتى الفخذ موازٍ للأرض على الأقل'] },
+      { name: 'Leg Press',             videoUrl: 'https://www.youtube.com/results?search_query=Leg+Press+proper+form+shorts', tips: ['القدمان بعرض الكتفين على اللوحة', 'لا تقفل الركبتين كلياً في الأعلى', 'الظهر ملاصق للمسند طوال الحركة'] },
+      { name: 'Romanian Deadlift',     videoUrl: 'https://www.youtube.com/results?search_query=Romanian+Deadlift+proper+form+shorts', tips: ['الظهر مستقيم — الحركة من الوركين لا الظهر', 'انزل الوركين للخلف وليس للأسفل', 'ممتاز لتمديد وتضخيم أوتار الركبة'] },
+      { name: 'Leg Extension',         videoUrl: 'https://www.youtube.com/results?search_query=Leg+Extension+proper+form+shorts', tips: ['لا تضرب الوزن ولا تستخدم الزخم', 'ارفع حتى الامتداد الكامل وحافظ ثانية', 'الإرجاع بالتحكم لا تهوي السقوط'] },
+      { name: 'Leg Curl',              videoUrl: 'https://www.youtube.com/results?search_query=Leg+Curl+proper+form+shorts', tips: ['الوركان ثابتان على المقعد', 'اثنِ حتى 90 درجة أو أكثر', 'الإرجاع البطيء يضاعف التأثير'] },
+      { name: 'Lunge',                 videoUrl: 'https://www.youtube.com/results?search_query=Lunge+proper+form+shorts', tips: ['الركبة الأمامية لا تتعدى القدم', 'الظهر مستقيم والصدر مرفوع', 'الخطوة الطويلة تستهدف الأرداف أكثر'] },
+      { name: 'Hip Thrust',            videoUrl: 'https://www.youtube.com/results?search_query=Hip+Thrust+proper+form+shorts', tips: ['الكتفان على المقعد والقدمان ثابتتان', 'ارفع الوركين حتى الامتداد الكامل', 'اضغط الأرداف بقوة في أعلى نقطة'] },
+      { name: 'Standing Calf Raise',            videoUrl: 'https://www.youtube.com/results?search_query=Calf+Raise+proper+form+shorts', tips: ['اسحب على أصابع القدم بالكامل', 'الإرجاع البطيء للأسفل لمدى كامل', 'الساق مفردة أصعب وأكثر تأثيراً'] },
+      { name: 'Hack Squat',            videoUrl: 'https://www.youtube.com/results?search_query=Hack+Squat+proper+form+shorts', tips: ['الظهر ملاصق للمسند', 'القدمان أمام الجسم لحماية الركبة', 'انزل بالتحكم ولا تقفز'] },
+      { name: 'Bulgarian Split Squat', videoUrl: 'https://www.youtube.com/results?search_query=Bulgarian+Split+Squat+proper+form+shorts', tips: ['القدم الخلفية على مسند بارتفاع الركبة', 'الركبة الأمامية تتجه نحو الأصابع', 'حافظ على توازنك وابدأ ببطء'] },
+      { name: 'Dumbbell Romanian Deadlift',videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Romanian+Deadlift+proper+form+shorts', tips: ['الظهر مستقيم — الحركة من الوركين', 'الدمبلات تنزل على طول الساقين', 'ممتاز لتمديد أوتار الركبة'] },
+      { name: 'Dumbbell Lunge',            videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Lunge+proper+form+shorts', tips: ['الركبة الأمامية لا تتعدى القدم', 'الظهر مستقيم والصدر مرفوع', 'الدمبلان بجانبي الجسم للتوازن'] },
+      { name: 'Seated Leg Curl',           videoUrl: 'https://www.youtube.com/results?search_query=Seated+Leg+Curl+proper+form+shorts', tips: ['اثنِ الركبة بالكامل في كل تكرار', 'الإرجاع البطيء يضاعف التأثير', 'لا تستخدم الزخم أو تتأرجح'] },
+      { name: 'Smith Machine Calf Raise',  videoUrl: 'https://www.youtube.com/results?search_query=Smith+Machine+Calf+Raise+proper+form+shorts', tips: ['الكعب يتدلى للأسفل لمدى كامل', 'ارفع على أصابع القدم بالكامل', 'توقف ثانية في الأعلى للضغط على الساق'] },
+      { name: 'Machine Hip Abduction',     videoUrl: 'https://www.youtube.com/results?search_query=Hip+Abduction+Machine+proper+form+shorts', tips: ['تحرك الحركة من الوركين لا من الركبتين', 'الإرجاع بالتحكم لا تترك الوزن يسقط', 'يقوّي عضلات الوركين الخارجية والأرداف'] },
+      { name: 'Lying Leg Curl',            videoUrl: 'https://www.youtube.com/results?search_query=Lying+Leg+Curl+proper+form+shorts', tips: ['الوركان ملاصقان للمسند طوال الحركة', 'اثنِ حتى 90 درجة أو أكثر', 'الإرجاع البطيء للمدى الكامل'] },
+      { name: 'Dumbbell Calf Raise',       videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Calf+Raise+proper+form+shorts', tips: ['ارفع على أصابع القدم بالكامل', 'الكعب ينزل للأسفل لمدى كامل', 'جرب على درجة لزيادة المدى'] },
+      { name: 'Machine Hip Adduction',     videoUrl: 'https://www.youtube.com/results?search_query=Hip+Adduction+Machine+proper+form+shorts', tips: ['الحركة من الوركين لا من الركبتين', 'الإرجاع بالتحكم لا تترك الوزن يسقط', 'يستهدف عضلات الفخذ الداخلية'] },
+      { name: 'Machine Glute Kickbacks',   videoUrl: 'https://www.youtube.com/results?search_query=Machine+Glute+Kickback+proper+form+shorts', tips: ['اسند الصدر على المسند وثبّت الوضعية', 'ارفع الساق للخلف مع ضغط الأرداف في الأعلى', 'الحركة من الأردف لا من أسفل الظهر'] },
+    ],
+  },
+  Biceps: {
+    label: 'البايسبس', emoji: '💪', color: '#EAB308', img: '/assets/muscle_biceps.png',
+    exercises: [
+      { name: 'Barbell Curl',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Curl+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اثنِ حتى الأعلى واضغط على البايسبس', 'لا تتأرجح بالجذع للمساعدة'] },
+      { name: 'Dumbbell Curl',        videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Curl+proper+form+shorts', tips: ['يمكن تناوبهما أو معاً حسب الهدف', 'أضف دوران المعصم في الأعلى للضغط', 'الإرجاع بالتحكم لا تسقطهما'] },
+      { name: 'Hammer Curl',          videoUrl: 'https://www.youtube.com/results?search_query=Hammer+Curl+proper+form+shorts', tips: ['الإمساك محايد — الإبهام للأعلى', 'يستهدف عضلة العضد والساعد أيضاً', 'يساعد على سمك الذراع إجمالاً'] },
+      { name: 'Preacher Curl',        videoUrl: 'https://www.youtube.com/results?search_query=Preacher+Curl+proper+form+shorts', tips: ['الذراع ملاصق للمسند يمنع الغش', 'لا تفرد المرفق كلياً لحماية الوتر', 'التركيز الكامل على البايسبس'] },
+      { name: 'Cable Curl',           videoUrl: 'https://www.youtube.com/results?search_query=Cable+Curl+proper+form+shorts', tips: ['التوتر مستمر على البايسبس في كل المدى', 'جرب زوايا مختلفة للبكرة', 'يختلف عن الدمبل بالتوتر المستمر'] },
+      { name: 'Incline Dumbbell Curl',videoUrl: 'https://www.youtube.com/results?search_query=Incline+Dumbbell+Curl+proper+form+shorts', tips: ['المقعد مائل للخلف يمدد البايسبس أكثر', 'توتر أعلى في الجزء السفلي من الحركة', 'يضرب رأس البايسبس الطويل بشكل ممتاز'] },
+      { name: 'Concentration Curl',   videoUrl: 'https://www.youtube.com/results?search_query=Concentration+Curl+proper+form+shorts', tips: ['الكوع على الفخذ الداخلي ثابت تماماً', 'ركيز كامل على البايسبس بلا غش', 'اعمل بإبطاء لأقصى استشعار'] },
+      { name: 'Spider Curl',          videoUrl: 'https://www.youtube.com/results?search_query=Spider+Curl+proper+form+shorts', tips: ['الجسم على مقعد مائل للأمام', 'الجاذبية تزيد التوتر في الأعلى', 'ممتاز لتطوير ذروة البايسبس'] },
+      { name: 'Barbell Reverse Curl',       videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Reverse+Curl+proper+form+shorts', tips: ['المسكة ظهرية — الإبهام للأسفل', 'يستهدف عضلة العضد والساعد الأمامي', 'المرفقان ثابتان جانب الجذع'] },
+      { name: 'Dumbbell Concentration Curl',videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Concentration+Curl+proper+form+shorts', tips: ['الكوع على الفخذ الداخلي ثابت تماماً', 'تركيز كامل على البايسبس بلا غش', 'اعمل بإبطاء لأقصى استشعار'] },
+      { name: 'Machine Preacher Curl',      videoUrl: 'https://www.youtube.com/results?search_query=Machine+Preacher+Curl+proper+form+shorts', tips: ['الذراع ملاصقة للمسند لمنع الغش تماماً', 'اثنِ حتى الأعلى واضغط البايسبس ثانية', 'لا تفرد المرفق كلياً لحماية الوتر'] },
+      { name: 'Cable Hammer Curls',         videoUrl: 'https://www.youtube.com/results?search_query=Cable+Hammer+Curl+proper+form+shorts', tips: ['الحبل يحافظ على التوتر طوال الحركة', 'الإمساك محايد — الإبهام للأعلى', 'يستهدف عضلة العضد والساعد مع البايسبس'] },
+    ],
+  },
+  Triceps: {
+    label: 'الترايسبس', emoji: '🔱', color: '#F97316', img: '/assets/muscle_triceps.png',
+    exercises: [
+      { name: 'Triceps Pushdown',  videoUrl: 'https://www.youtube.com/results?search_query=Triceps+Pushdown+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اضغط للأسفل حتى الامتداد الكامل', 'الإرجاع بالتحكم لا تدع الوزن يرفعك'] },
+      { name: 'Skull Crusher',     videoUrl: 'https://www.youtube.com/results?search_query=Skull+Crusher+proper+form+shorts', tips: ['المرفقان ثابتان وموجهان للأعلى', 'انزل البار خلف الرأس أو للجبهة', 'لا تسرع — خطر على الكوع إذا أُسيء'] },
+      { name: 'Overhead Triceps',  videoUrl: 'https://www.youtube.com/results?search_query=Overhead+Triceps+Extension+proper+form+shorts', tips: ['المرفقان قريبان من الرأس لا بعيدان', 'امتداد كامل للأعلى في كل تكرار', 'يستهدف الرأس الطويل — أكبر جزء في الترايسبس'] },
+      { name: 'Diamond Push-Up',   videoUrl: 'https://www.youtube.com/results?search_query=Diamond+Push-Up+proper+form+shorts', tips: ['الأيدي على شكل ماسة تحت الصدر', 'المرفقان للداخل أثناء النزول', 'الجسم خط مستقيم طوال الحركة'] },
+      { name: 'Triceps Dip',       videoUrl: 'https://www.youtube.com/results?search_query=Triceps+Dip+proper+form+shorts', tips: ['الكوعان للخلف لا للجانبين', 'انزل حتى 90 درجة لاستهداف الترايسبس', 'ثبت الجسم رأسياً لا أمامياً'] },
+      { name: 'Close-Grip Bench',  videoUrl: 'https://www.youtube.com/results?search_query=Close+Grip+Bench+Press+proper+form+shorts', tips: ['المسكة بعرض الكتف أو أضيق قليلاً', 'المرفقان للداخل أثناء النزول', 'يستهدف الترايسبس والصدر الأوسط'] },
+      { name: 'Cable Kickback',    videoUrl: 'https://www.youtube.com/results?search_query=Cable+Triceps+Kickback+proper+form+shorts', tips: ['الكوع ثابت جانب الجذع', 'امتداد كامل للخلف في كل تكرار', 'الجذع موازٍ للأرض لعزل الترايسبس'] },
+      { name: 'Cable Overhead Triceps Extension', videoUrl: 'https://www.youtube.com/results?search_query=Cable+Overhead+Triceps+Extension+form+shorts', tips: ['المرفقان قريبان من الرأس طوال الحركة', 'يستهدف الرأس الطويل للترايسبس', 'الحركة للخلف فوق الرأس وامتداد كامل'] },
+      { name: 'Cable Triceps Kickback',            videoUrl: 'https://www.youtube.com/results?search_query=Cable+Triceps+Kickback+proper+form+shorts', tips: ['الكوع ثابت جانب الجذع', 'امتداد كامل للخلف في كل تكرار', 'الجذع موازٍ للأرض لعزل الترايسبس'] },
+    ],
+  },
+  Core: {
+    label: 'الكور', emoji: '🎯', color: '#EC4899', img: '/assets/muscle_core.png',
+    exercises: [
+      { name: 'Plank',              videoUrl: 'https://www.youtube.com/results?search_query=Plank+proper+form+shorts', tips: ['الجسم خط مستقيم من الرأس للقدمين', 'لا ترفع الوركين أو تخفضهما', 'اضغط البطن بشكل إرادي طوال المدة'] },
+      { name: 'Crunches',           videoUrl: 'https://www.youtube.com/results?search_query=Crunches+proper+form+shorts', tips: ['لا تشد الرقبة بيديك', 'ارفع الكتفين لا الظهر كاملاً', 'التنفس منتظم: زفير عند الرفع'] },
+      { name: 'Leg Raise',          videoUrl: 'https://www.youtube.com/results?search_query=Leg+Raise+proper+form+shorts', tips: ['أسفل الظهر لاصق بالأرض', 'الإرجاع البطيء أكثر تأثيراً من السريع', 'ثنِ الركبتين لتخفيف الصعوبة'] },
+      { name: 'Russian Twist',      videoUrl: 'https://www.youtube.com/results?search_query=Russian+Twist+proper+form+shorts', tips: ['ارفع القدمين لزيادة الصعوبة', 'لف الجذع وليس الكتفين فقط', 'الحركة تنبع من عضلات الخصر'] },
+      { name: 'Ab Wheel',           videoUrl: 'https://www.youtube.com/results?search_query=Ab+Wheel+proper+form+shorts', tips: ['ابدأ من الركبتين قبل من الوقوف', 'الظهر مستقيم لا يقوس', 'لا تتمدد أبعد مما تستطيع العودة منه'] },
+      { name: 'Cable Crunch',       videoUrl: 'https://www.youtube.com/results?search_query=Cable+Crunch+proper+form+shorts', tips: ['اثنِ من الوسط لا من الوركين', 'الوجه للأسفل والوركان ثابتة', 'الحركة قصيرة ومركزة في البطن'] },
+      { name: 'Hanging Knee Raise', videoUrl: 'https://www.youtube.com/results?search_query=Hanging+Knee+Raise+proper+form+shorts', tips: ['لا تتأرجح واستخدم الزخم', 'اضغط البطن قبل بدء الرفع', 'ارفع الركبتين حتى الصدر للمدى الكامل'] },
+      { name: 'Hollow Body Hold',   videoUrl: 'https://www.youtube.com/results?search_query=Hollow+Body+Hold+proper+form+shorts', tips: ['الظهر مسطح تماماً على الأرض', 'ارفع الكتفين والقدمين معاً في آنٍ واحد', 'ضغط مستمر لا يتوقف'] },
+      { name: 'Cable Core Rotation', videoUrl: 'https://www.youtube.com/results?search_query=Cable+Core+Rotation+proper+form+shorts', tips: ['الحركة من الكور لا من الكتفين', 'الذراعان شبه ممدودتان طوال الحركة', 'دوران بطيء ومتحكم في الاتجاهين'] },
+      { name: 'Hanging Leg Raise',   videoUrl: 'https://www.youtube.com/results?search_query=Hanging+Leg+Raise+proper+form+shorts', tips: ['لا تتأرجح واستخدم الزخم', 'ارفع الساقين مفرودتين للأفق أو أعلى', 'اضغط البطن قبل بدء الرفع'] },
+      { name: 'Dumbbell Side Bend',  videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Side+Bend+proper+form+shorts', tips: ['الميلان من الخصر لا من الكتفين', 'الجانب الآخر يمتد ببطء أثناء النزول', 'لا تدور بالجذع — الحركة جانبية فقط'] },
+    ],
+  },
+  Cardio: {
+    label: 'الكارديو', emoji: '❤️', color: '#EF4444', img: '/assets/cardio.png',
+    exercises: [
+      { name: 'Treadmill Run',    videoUrl: 'https://www.youtube.com/results?search_query=Treadmill+Running+proper+form+shorts', tips: ['ابدأ بالمشي السريع للإحماء دقيقتين', 'الخطوة المتوسطة أفضل للمفاصل', 'المشي بزاوية ميل يحرق سعرات أكثر'] },
+      { name: 'Rowing Machine',   videoUrl: 'https://www.youtube.com/results?search_query=Rowing+Machine+proper+form+shorts', tips: ['الترتيب: الأرجل ثم الظهر ثم الذراعين', 'لا تقوس الظهر — احذر من هذا', 'وتيرة 22-28 شوطاً في الدقيقة مثالية'] },
+      { name: 'Jump Rope',        videoUrl: 'https://www.youtube.com/results?search_query=Jump+Rope+proper+form+shorts', tips: ['انط على أصابع القدمين لا الكعبين', 'ابدأ ببطء وزد الوتيرة تدريجياً', 'يحرق السعرات بشكل ممتاز في وقت قصير'] },
+      { name: 'Stationary Bike',  videoUrl: 'https://www.youtube.com/results?search_query=Stationary+Bike+proper+form+shorts', tips: ['اضبط ارتفاع المقعد: الركبة شبه ممدودة في أسفل الدورة', 'الركبة الأمامية لا تتعدى القدم عند أعلى نقطة', 'مريح جداً للمفاصل مقارنة بالجري'] },
+      { name: 'Stair Climber',    videoUrl: 'https://www.youtube.com/results?search_query=Stair+Climber+proper+form+shorts', tips: ['لا تعتمد على الدرابزين كثيراً', 'الخطوات بعمق للاستهداف الأمثل للأرداف', 'يستهدف الأرداف والساق والكور معاً'] },
+      { name: 'Battle Ropes',     videoUrl: 'https://www.youtube.com/results?search_query=Battle+Ropes+proper+form+shorts', tips: ['الجسم في وضع التمريرة: ركبتان مثنيتان', 'حرك الحبلين معاً أو بالتناوب', 'يتطلب قوة هائلة ويرفع معدل ضربات القلب بسرعة'] },
+      { name: 'Sled Push',        videoUrl: 'https://www.youtube.com/results?search_query=Sled+Push+proper+form+shorts', tips: ['أمِل الجسم للأمام بزاوية 45 درجة', 'الخطوات قصيرة وسريعة', 'يطوّر القوة الانفجارية للساق والكور'] },
+    ],
+  },
+}
+
+// ── Routines ──────────────────────────────────────────────────
+export const ROUTINES = [
+  {
+    name: 'Chest Day 🫁',
+    muscles: ['Chest', 'Triceps'],
+    exercises: [
+      { muscle: 'Chest',   name: 'Bench Press',         defaultSets: 4 },
+      { muscle: 'Chest',   name: 'Incline Bench Press', defaultSets: 3 },
+      { muscle: 'Chest',   name: 'Cable Fly',           defaultSets: 3 },
+      { muscle: 'Chest',   name: 'Pec Deck',            defaultSets: 3 },
+      { muscle: 'Triceps', name: 'Triceps Pushdown',    defaultSets: 3 },
+      { muscle: 'Triceps', name: 'Skull Crusher',       defaultSets: 3 },
+    ],
+  },
+  {
+    name: 'Pull Day 🗂️',
+    muscles: ['Back', 'Biceps'],
+    exercises: [
+      { muscle: 'Back',   name: 'Deadlift',       defaultSets: 4 },
+      { muscle: 'Back',   name: 'Lat Pulldown',   defaultSets: 3 },
+      { muscle: 'Back',   name: 'Barbell Row',    defaultSets: 3 },
+      { muscle: 'Back',   name: 'Face Pull',      defaultSets: 3 },
+      { muscle: 'Biceps', name: 'Barbell Curl',   defaultSets: 3 },
+      { muscle: 'Biceps', name: 'Hammer Curl',    defaultSets: 3 },
+    ],
+  },
+  {
+    name: 'Push Day 🦾',
+    muscles: ['Chest', 'Shoulders', 'Triceps'],
+    exercises: [
+      { muscle: 'Chest',     name: 'Bench Press',         defaultSets: 4 },
+      { muscle: 'Shoulders', name: 'Overhead Press',      defaultSets: 3 },
+      { muscle: 'Chest',     name: 'Incline Bench Press', defaultSets: 3 },
+      { muscle: 'Shoulders', name: 'Lateral Raise',       defaultSets: 4 },
+      { muscle: 'Triceps',   name: 'Triceps Pushdown',    defaultSets: 3 },
+    ],
+  },
+  {
+    name: 'Legs Day 🦵',
+    muscles: ['Legs'],
+    exercises: [
+      { muscle: 'Legs', name: 'Barbell Squat',      defaultSets: 4 },
+      { muscle: 'Legs', name: 'Romanian Deadlift',  defaultSets: 3 },
+      { muscle: 'Legs', name: 'Leg Press',          defaultSets: 3 },
+      { muscle: 'Legs', name: 'Leg Extension',      defaultSets: 3 },
+      { muscle: 'Legs', name: 'Leg Curl',           defaultSets: 3 },
+      { muscle: 'Legs', name: 'Standing Calf Raise',         defaultSets: 4 },
+    ],
+  },
+  {
+    name: 'Full Body ⚡',
+    muscles: ['Chest', 'Back', 'Legs', 'Shoulders'],
+    exercises: [
+      { muscle: 'Chest',     name: 'Bench Press',    defaultSets: 3 },
+      { muscle: 'Back',      name: 'Deadlift',       defaultSets: 3 },
+      { muscle: 'Legs',      name: 'Barbell Squat',  defaultSets: 3 },
+      { muscle: 'Shoulders', name: 'Overhead Press', defaultSets: 3 },
+      { muscle: 'Back',      name: 'Pull-Up',        defaultSets: 3 },
+      { muscle: 'Core',      name: 'Plank',          defaultSets: 3 },
+    ],
+  },
+  {
+    name: 'Upper Body 🏆',
+    muscles: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+    exercises: [
+      { muscle: 'Chest',     name: 'Bench Press',      defaultSets: 4 },
+      { muscle: 'Back',      name: 'Barbell Row',      defaultSets: 3 },
+      { muscle: 'Shoulders', name: 'Overhead Press',   defaultSets: 3 },
+      { muscle: 'Biceps',    name: 'Barbell Curl',     defaultSets: 3 },
+      { muscle: 'Triceps',   name: 'Triceps Pushdown', defaultSets: 3 },
+      { muscle: 'Shoulders', name: 'Lateral Raise',    defaultSets: 3 },
+    ],
+  },
+]
+
+// ── Daily Challenge Pool (9 challenges) ───────────────────────
+export const DAILY_CHALLENGE_POOL = [
+  {
+    id: 'dc1', type: 'daily',
+    title: 'أنهِ جلسة اليوم',
+    desc: 'أكمل جلسة تدريبية واحدة على الأقل اليوم',
+    icon: '⚡', xp: 50, target: 1,
+    check: (sessions) => sessions.filter(s => dayKey(s.date) === todayKey()).length,
+  },
+  {
+    id: 'dc2', type: 'daily',
+    title: '10 سيتات مكتملة',
+    desc: 'أكمل 10 سيتات على الأقل في جلسة واحدة',
+    icon: '🎯', xp: 40, target: 10,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      return todaySessions.reduce((max, s) =>
+        Math.max(max, s.exercises.flatMap(e => e.sets).filter(setCounts).length), 0)
+    },
+  },
+  {
+    id: 'dc3', type: 'daily',
+    title: '3 مجموعات عضلية',
+    desc: 'تدرب على 3 مجموعات عضلية مختلفة في يوم واحد',
+    icon: '🦾', xp: 60, target: 3,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      const muscles = new Set(todaySessions.flatMap(s => s.exercises.map(e => e.muscle)))
+      return muscles.size
+    },
+  },
+  {
+    id: 'dc4', type: 'daily',
+    title: 'جلسة 45 دقيقة',
+    desc: 'أكمل جلسة تدريبية مدتها 45 دقيقة أو أكثر',
+    icon: '⏱️', xp: 55, target: 45,
+    check: (sessions) => {
+      const today = todayKey()
+      return sessions.filter(s => dayKey(s.date) === today && s.duration >= 45).length > 0 ? 45 : 0
+    },
+  },
+  {
+    id: 'dc5', type: 'daily',
+    title: '500 كجم حجم',
+    desc: 'ارفع 500 كيلوغرام إجمالي في جلسة واحدة',
+    icon: '💪', xp: 65, target: 500,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      return Math.max(0, ...todaySessions.map(s =>
+        s.exercises.flatMap(e => e.sets).reduce((t, ss) =>
+          t + setVolume(ss), 0)))
+    },
+  },
+  {
+    id: 'dc6', type: 'daily',
+    title: 'تمرين الصدر اليوم',
+    desc: 'قم بتمارين الصدر بـ 3 سيتات على الأقل',
+    icon: '🫁', xp: 45, target: 3,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Chest').flatMap(e => e.sets.filter(setCounts))).length
+    },
+  },
+  {
+    id: 'dc7', type: 'daily',
+    title: 'تمرين الأرجل اليوم',
+    desc: 'قم بتمارين الأرجل بـ 3 سيتات على الأقل',
+    icon: '🦵', xp: 45, target: 3,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      return todaySessions.flatMap(s => s.exercises.filter(e => e.muscle === 'Legs').flatMap(e => e.sets.filter(setCounts))).length
+    },
+  },
+  {
+    id: 'dc8', type: 'daily',
+    title: '5 تمارين مختلفة',
+    desc: 'قم بـ 5 تمارين مختلفة في جلسة واحدة',
+    icon: '📋', xp: 70, target: 5,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      return Math.max(0, ...todaySessions.map(s => s.exercises.length))
+    },
+  },
+  {
+    id: 'dc9', type: 'daily',
+    title: 'سجل وزن اليوم',
+    desc: 'سجل وزن في كل سيت تكمله اليوم',
+    icon: '⚖️', xp: 30, target: 1,
+    check: (sessions) => {
+      const today = todayKey()
+      const todaySessions = sessions.filter(s => dayKey(s.date) === today)
+      const hasSetsWithWeight = todaySessions.some(s =>
+        s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) > 0)))
+      return hasSetsWithWeight ? 1 : 0
+    },
+  },
+]
+
+// ── Weekly Challenge Pool (4 challenges) ──────────────────────
+export const WEEKLY_CHALLENGE_POOL = [
+  {
+    id: 'wc1', type: 'weekly',
+    title: '4 جلسات هذا الأسبوع',
+    desc: 'أكمل 4 جلسات تدريبية خلال 7 أيام',
+    icon: '📅', xp: 150, target: 4,
+    check: (sessions) => {
+      const weekAgo = Date.now() - 7 * 86400000
+      return sessions.filter(s => new Date(s.date) > weekAgo).length
+    },
+  },
+  {
+    id: 'wc2', type: 'weekly',
+    title: 'حجم 5000 كجم أسبوعي',
+    desc: 'ارفع 5000 كيلوغرام إجمالي خلال الأسبوع',
+    icon: '🏋️', xp: 200, target: 5000,
+    check: (sessions) => {
+      const weekAgo = Date.now() - 7 * 86400000
+      return sessions.filter(s => new Date(s.date) > weekAgo)
+        .reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
+          .reduce((tt, ss) => tt + setVolume(ss), 0), 0)
+    },
+  },
+  {
+    id: 'wc3', type: 'weekly',
+    title: 'تدرب على كل مجموعة عضلية',
+    desc: 'تدرب على 5 مجموعات عضلية مختلفة هذا الأسبوع',
+    icon: '🎯', xp: 180, target: 5,
+    check: (sessions) => {
+      const weekAgo = Date.now() - 7 * 86400000
+      const muscles = new Set(sessions.filter(s => new Date(s.date) > weekAgo)
+        .flatMap(s => s.exercises.map(e => e.muscle)))
+      return muscles.size
+    },
+  },
+  {
+    id: 'wc4', type: 'weekly',
+    title: 'ساعتان تدريب أسبوعياً',
+    desc: 'اجمع 120 دقيقة من التدريب هذا الأسبوع',
+    icon: '⏰', xp: 160, target: 120,
+    check: (sessions) => {
+      const weekAgo = Date.now() - 7 * 86400000
+      return sessions.filter(s => new Date(s.date) > weekAgo)
+        .reduce((t, s) => t + (s.duration || 0), 0)
+    },
+  },
+]
+
+// ── Boss Challenges (2 challenges) ────────────────────────────
+export const BOSS_CHALLENGES = [
+  {
+    id: 'bc1', type: 'boss',
+    title: 'تحدي الشهر: 20 جلسة',
+    desc: 'أكمل 20 جلسة تدريبية في شهر واحد — تحدي الزعيم!',
+    icon: '👹', xp: 500, target: 20,
+    check: (sessions) => {
+      const monthAgo = Date.now() - 30 * 86400000
+      return sessions.filter(s => new Date(s.date) > monthAgo).length
+    },
+  },
+  {
+    id: 'bc2', type: 'boss',
+    title: 'تحدي الأسطورة: 10 طن',
+    desc: 'ارفع 10,000 كيلوغرام في جلسة واحدة — إنجاز الأبطال!',
+    icon: '🏔️', xp: 750, target: 10000,
+    check: (sessions) => {
+      return Math.max(0, ...sessions.map(s =>
+        s.exercises.flatMap(e => e.sets)
+          .reduce((t, ss) => t + setVolume(ss), 0)))
+    },
+  },
+]
+
+// ── Achievements (40 achievements across 4 categories) ────────
+export const ACHIEVEMENT_CATS = [
+  { id: 'all',       label: 'الكل' },
+  { id: 'sessions',  label: 'الجلسات' },
+  { id: 'strength',  label: 'القوة' },
+  { id: 'streak',    label: 'الالتزام' },
+  { id: 'volume',    label: 'الحجم' },
+]
+
+export const RARITY_COLORS = {
+  common:    { color: '#9CA3AF', label: 'عادي' },
+  rare:      { color: '#3B82F6', label: 'نادر' },
+  epic:      { color: '#A855F7', label: 'ملحمي' },
+  legendary: { color: '#EAB308', label: 'أسطوري' },
+}
+
+export const ACHIEVEMENTS = [
+  // ── Sessions ──────────────────────────────────────────────────
+  {
+    id: 'a1', cat: 'sessions', rarity: 'common',
+    icon: '🌱', title: 'الخطوة الأولى', desc: 'أنهِ جلستك الأولى', xp: 100,
+    check: (sessions) => sessions.length >= 1,
+  },
+  {
+    id: 'a2', cat: 'sessions', rarity: 'common',
+    icon: '🏋️', title: '5 جلسات', desc: 'أنهِ 5 جلسات تدريبية', xp: 150,
+    check: (sessions) => sessions.length >= 5,
+  },
+  {
+    id: 'a3', cat: 'sessions', rarity: 'common',
+    icon: '📋', title: '10 جلسات', desc: 'أنهِ 10 جلسات تدريبية', xp: 200,
+    check: (sessions) => sessions.length >= 10,
+  },
+  {
+    id: 'a4', cat: 'sessions', rarity: 'rare',
+    icon: '🥈', title: '25 جلسة', desc: 'أنهِ 25 جلسة تدريبية', xp: 300,
+    check: (sessions) => sessions.length >= 25,
+  },
+  {
+    id: 'a5', cat: 'sessions', rarity: 'rare',
+    icon: '🥇', title: '50 جلسة', desc: 'أنهِ 50 جلسة تدريبية', xp: 500,
+    check: (sessions) => sessions.length >= 50,
+  },
+  {
+    id: 'a6', cat: 'sessions', rarity: 'epic',
+    icon: '💯', title: '100 جلسة', desc: 'أنهِ 100 جلسة تدريبية', xp: 800,
+    check: (sessions) => sessions.length >= 100,
+  },
+  {
+    id: 'a7', cat: 'sessions', rarity: 'legendary',
+    icon: '🏆', title: 'مئتا جلسة', desc: 'أنهِ 200 جلسة تدريبية', xp: 1500,
+    check: (sessions) => sessions.length >= 200,
+  },
+  {
+    id: 'a8', cat: 'sessions', rarity: 'common',
+    icon: '⏱️', title: 'ساعة في الجيم', desc: 'أكمل جلسة مدتها 60 دقيقة أو أكثر', xp: 120,
+    check: (sessions) => sessions.some(s => (s.duration || 0) >= 60),
+  },
+  {
+    id: 'a9', cat: 'sessions', rarity: 'rare',
+    icon: '🕐', title: 'ساعتان متواصلتان', desc: 'أكمل جلسة مدتها 120 دقيقة أو أكثر', xp: 250,
+    check: (sessions) => sessions.some(s => (s.duration || 0) >= 120),
+  },
+  {
+    id: 'a10', cat: 'sessions', rarity: 'common',
+    icon: '🌅', title: 'رياضي الصباح', desc: 'سجل 3 جلسات في يوم واحد', xp: 180,
+    check: (sessions) => {
+      const byday = {}
+      sessions.forEach(s => {
+        const d = dayKey(s.date)
+        byday[d] = (byday[d] || 0) + 1
+      })
+      return Object.values(byday).some(c => c >= 3)
+    },
+  },
+  // ── Strength ──────────────────────────────────────────────────
+  {
+    id: 'b1', cat: 'strength', rarity: 'common',
+    icon: '🏋️', title: 'أول 100 كجم', desc: 'ارفع 100 كجم في أي تمرين', xp: 150,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) >= 100))),
+  },
+  {
+    id: 'b2', cat: 'strength', rarity: 'rare',
+    icon: '⚡', title: '140 كجم', desc: 'ارفع 140 كجم في أي تمرين', xp: 300,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) >= 140))),
+  },
+  {
+    id: 'b3', cat: 'strength', rarity: 'epic',
+    icon: '🦁', title: '180 كجم', desc: 'ارفع 180 كجم في أي تمرين', xp: 500,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.some(e => e.sets.some(ss => setCounts(ss) && parseFloat(ss.weight) >= 180))),
+  },
+  {
+    id: 'b4', cat: 'strength', rarity: 'legendary',
+    icon: '👑', title: 'تحدي 200 كجم', desc: 'ارفع 200 كجم في أي تمرين', xp: 1000,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.some(e => e.sets.some(ss => parseFloat(ss.weight) >= 200))),
+  },
+  {
+    id: 'b5', cat: 'strength', rarity: 'common',
+    icon: '🎯', title: '15 سيت في جلسة', desc: 'أكمل 15 سيت في جلسة واحدة', xp: 120,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.flatMap(e => e.sets).filter(setCounts).length >= 15),
+  },
+  {
+    id: 'b6', cat: 'strength', rarity: 'rare',
+    icon: '🔥', title: '30 سيت في جلسة', desc: 'أكمل 30 سيت في جلسة واحدة', xp: 250,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.flatMap(e => e.sets).filter(setCounts).length >= 30),
+  },
+  {
+    id: 'b7', cat: 'strength', rarity: 'common',
+    icon: '🏗️', title: 'بناء الأساس', desc: 'قم بـ Deadlift و Bench Press في نفس الجلسة', xp: 130,
+    check: (sessions) => sessions.some(s => {
+      const names = s.exercises.map(e => e.name)
+      return names.includes('Deadlift') && names.includes('Bench Press')
+    }),
+  },
+  {
+    id: 'b8', cat: 'strength', rarity: 'epic',
+    icon: '🦍', title: 'الثلاثية الكبرى', desc: 'قم بـ Deadlift و Squat و Bench Press في نفس الجلسة', xp: 400,
+    check: (sessions) => sessions.some(s => {
+      const names = s.exercises.map(e => e.name)
+      return names.includes('Deadlift') && names.includes('Barbell Squat') && names.includes('Bench Press')
+    }),
+  },
+  {
+    id: 'b9', cat: 'strength', rarity: 'rare',
+    icon: '🌊', title: 'تنوع العضلات', desc: 'تدرب على 6 مجموعات عضلية مختلفة في جلسة واحدة', xp: 280,
+    check: (sessions) => sessions.some(s =>
+      new Set(s.exercises.map(e => e.muscle)).size >= 6),
+  },
+  {
+    id: 'b10', cat: 'strength', rarity: 'legendary',
+    icon: '🧠', title: 'عقل المحارب', desc: 'أكمل 500 سيت إجمالية عبر كل جلساتك', xp: 800,
+    check: (sessions) =>
+      sessions.flatMap(s => s.exercises.flatMap(e => e.sets)).filter(setCounts).length >= 500,
+  },
+  // ── Streak ────────────────────────────────────────────────────
+  {
+    id: 'c1', cat: 'streak', rarity: 'common',
+    icon: '🔥', title: '3 أيام متواصلة', desc: 'التزم بخطتك 3 أيام متتالية — تمريناً أو راحة', xp: 100,
+    check: (s, xp, streak) => streak >= 3,
+  },
+  {
+    id: 'c2', cat: 'streak', rarity: 'common',
+    icon: '🔥🔥', title: 'أسبوع نار', desc: 'التزم بخطتك 7 أيام متتالية — تمريناً أو راحة', xp: 250,
+    check: (s, xp, streak) => streak >= 7,
+  },
+  {
+    id: 'c3', cat: 'streak', rarity: 'rare',
+    icon: '🔥🔥🔥', title: 'أسبوعان متواصلان', desc: 'التزم بخطتك 14 يوماً متتالياً — تمريناً أو راحة', xp: 450,
+    check: (s, xp, streak) => streak >= 14,
+  },
+  {
+    id: 'c4', cat: 'streak', rarity: 'epic',
+    icon: '🌙', title: 'شهر النار', desc: 'التزم بخطتك 30 يوماً متتالياً — تمريناً أو راحة', xp: 800,
+    check: (s, xp, streak) => streak >= 30,
+  },
+  {
+    id: 'c5', cat: 'streak', rarity: 'legendary',
+    icon: '⚡', title: 'لا يُوقَف', desc: 'التزم بخطتك 60 يوماً متتالياً — تمريناً أو راحة', xp: 2000,
+    check: (s, xp, streak) => streak >= 60,
+  },
+  {
+    id: 'c6', cat: 'streak', rarity: 'legendary',
+    icon: '🌟', title: 'أسطورة اليد الحديدية', desc: 'التزم بخطتك 100 يوم متتالٍ — تمريناً أو راحة', xp: 3000,
+    check: (s, xp, streak) => streak >= 100,
+  },
+  {
+    id: 'c7', cat: 'streak', rarity: 'common',
+    icon: '📅', title: 'عاد من جديد', desc: 'ابدأ من جديد بعد انقطاع — كل يوم فرصة جديدة', xp: 50,
+    check: (sessions) => sessions.length >= 1,
+  },
+  {
+    id: 'c8', cat: 'streak', rarity: 'rare',
+    icon: '🏆', title: '5 أيام هذا الأسبوع', desc: 'تدرب 5 أيام في أسبوع واحد', xp: 200,
+    check: (sessions) => {
+      const weekAgo = Date.now() - 7 * 86400000
+      const days = new Set(sessions.filter(s => new Date(s.date) > weekAgo).map(s => dayKey(s.date)))
+      return days.size >= 5
+    },
+  },
+  {
+    id: 'c9', cat: 'streak', rarity: 'epic',
+    icon: '💎', title: 'ملتزم بالأهداف', desc: 'لا تغب عن الجيم أكثر من يومين متتاليين لمدة شهر', xp: 600,
+    check: (sessions) => {
+      if (sessions.length < 5) return false
+      const monthAgo = Date.now() - 30 * 86400000
+      const monthSessions = sessions.filter(s => new Date(s.date) > monthAgo)
+      if (monthSessions.length < 5) return false
+      const days = [...new Set(monthSessions.map(s => dayKey(s.date)))].sort()
+      for (let i = 1; i < days.length; i++) {
+        const diff = (new Date(days[i]) - new Date(days[i - 1])) / 86400000
+        if (diff > 3) return false
+      }
+      return true
+    },
+  },
+  {
+    id: 'c10', cat: 'streak', rarity: 'rare',
+    icon: '📆', title: 'الشهر كامل', desc: 'سجل جلسات في 20 يوم مختلف خلال شهر واحد', xp: 400,
+    check: (sessions) => {
+      const monthAgo = Date.now() - 30 * 86400000
+      const days = new Set(sessions.filter(s => new Date(s.date) > monthAgo).map(s => dayKey(s.date)))
+      return days.size >= 20
+    },
+  },
+  // ── Volume ────────────────────────────────────────────────────
+  {
+    id: 'd1', cat: 'volume', rarity: 'common',
+    icon: '📦', title: 'أول طن', desc: 'ارفع 1000 كجم في جلسة واحدة', xp: 150,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.flatMap(e => e.sets)
+        .reduce((t, ss) => t + setVolume(ss), 0) >= 1000),
+  },
+  {
+    id: 'd2', cat: 'volume', rarity: 'rare',
+    icon: '📦📦', title: '5 طن في جلسة', desc: 'ارفع 5000 كجم في جلسة واحدة', xp: 300,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.flatMap(e => e.sets)
+        .reduce((t, ss) => t + setVolume(ss), 0) >= 5000),
+  },
+  {
+    id: 'd3', cat: 'volume', rarity: 'epic',
+    icon: '🏔️', title: '10 طن في جلسة', desc: 'ارفع 10,000 كجم في جلسة واحدة', xp: 600,
+    check: (sessions) => sessions.some(s =>
+      s.exercises.flatMap(e => e.sets)
+        .reduce((t, ss) => t + setVolume(ss), 0) >= 10000),
+  },
+  {
+    id: 'd4', cat: 'volume', rarity: 'legendary',
+    icon: '🌋', title: 'جبل من الحديد', desc: 'ارفع 100,000 كجم إجمالي عبر كل جلساتك', xp: 1000,
+    check: (sessions) =>
+      sessions.reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
+        .reduce((tt, ss) => tt + setVolume(ss), 0), 0) >= 100000,
+  },
+  {
+    id: 'd5', cat: 'volume', rarity: 'legendary',
+    icon: '🪐', title: 'نجم الأثقال', desc: 'ارفع 1,000,000 كجم إجمالياً — مليون! ', xp: 5000,
+    check: (sessions) =>
+      sessions.reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
+        .reduce((tt, ss) => tt + setVolume(ss), 0), 0) >= 1000000,
+  },
+  {
+    id: 'd6', cat: 'volume', rarity: 'common',
+    icon: '⚖️', title: 'وزن ثابت', desc: 'دوّن الوزن في 10 سيتات', xp: 80,
+    check: (sessions) =>
+      sessions.flatMap(s => s.exercises.flatMap(e => e.sets))
+        .filter(ss => parseFloat(ss.weight) > 0).length >= 10,
+  },
+  {
+    id: 'd7', cat: 'volume', rarity: 'rare',
+    icon: '📊', title: 'بيانات دقيقة', desc: 'دوّن الوزن في 100 سيت', xp: 200,
+    check: (sessions) =>
+      sessions.flatMap(s => s.exercises.flatMap(e => e.sets))
+        .filter(ss => parseFloat(ss.weight) > 0).length >= 100,
+  },
+  {
+    id: 'd8', cat: 'volume', rarity: 'common',
+    icon: '🎪', title: 'تنوع ممتاز', desc: 'تدرب على 5 تمارين مختلفة تماماً', xp: 100,
+    check: (sessions) =>
+      new Set(sessions.flatMap(s => s.exercises.map(e => e.name))).size >= 5,
+  },
+  {
+    id: 'd9', cat: 'volume', rarity: 'epic',
+    icon: '🧬', title: 'مكتبة الحركات', desc: 'تدرب على 20 تمريناً مختلفاً عبر جلساتك', xp: 400,
+    check: (sessions) =>
+      new Set(sessions.flatMap(s => s.exercises.map(e => e.name))).size >= 20,
+  },
+  {
+    id: 'd10', cat: 'volume', rarity: 'epic',
+    icon: '🌊', title: 'موجة الحجم', desc: 'ارفع 50,000 كجم في أسبوع واحد', xp: 700,
+    check: (sessions) => {
+      const weekAgo = Date.now() - 7 * 86400000
+      return sessions.filter(s => new Date(s.date) > weekAgo)
+        .reduce((t, s) => t + s.exercises.flatMap(e => e.sets)
+          .reduce((tt, ss) => tt + setVolume(ss), 0), 0) >= 50000
+    },
+  },
+]
+
+// ── Rest Timer Presets (seconds) ──────────────────────────────
+export const REST_PRESETS = [45, 60, 90, 120, 180]
+
+// ── Nav Tabs (RTL order: Profile | Achievements | Challenges | Workout | Home) ─
+export const NAV_TABS = [
+  { id: 'home',         label: 'الرئيسية', icon: '🏠' },
+  { id: 'workout',      label: 'تمرين',    icon: '⚔️' },
+  { id: 'exercises',    label: 'التمارين', icon: '📚' },
+  { id: 'achievements', label: 'جوائز',    icon: '🏆' },
+  { id: 'profile',      label: 'الملف',    icon: '👤' },
+]
+// Settings accessible via gear icon in header (not a nav tab)
+
+export const PLAN_TEMPLATE = {
+  version: '1.0',
+  planName: 'اسم الخطة',
+  startDate: todayKey(),
+  durationWeeks: 12,
+  goal: 'muscle',
+  weeklySchedule: [
+    {
+      dayOfWeek: 1,
+      name: 'Push Day',
+      exercises: [
+        { muscle: 'Chest',     name: 'Bench Press',      sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+        { muscle: 'Chest',     name: 'Incline Bench Press', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90 },
+        { muscle: 'Shoulders', name: 'Overhead Press',   sets: 3, repsMin: 8,  repsMax: 10, restSeconds: 120 },
+        { muscle: 'Shoulders', name: 'Lateral Raise',    sets: 4, repsMin: 12, repsMax: 15, restSeconds: 60  },
+        { muscle: 'Triceps',   name: 'Triceps Pushdown', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+      ],
+    },
+    {
+      dayOfWeek: 3,
+      name: 'Pull Day',
+      exercises: [
+        { muscle: 'Back',   name: 'Deadlift',      sets: 4, repsMin: 5,  repsMax: 8,  restSeconds: 180 },
+        { muscle: 'Back',   name: 'Lat Pulldown',  sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+        { muscle: 'Back',   name: 'Barbell Row',   sets: 3, repsMin: 8,  repsMax: 10, restSeconds: 120 },
+        { muscle: 'Biceps', name: 'Barbell Curl',  sets: 3, repsMin: 10, repsMax: 12, restSeconds: 60  },
+        { muscle: 'Biceps', name: 'Hammer Curl',   sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60  },
+      ],
+    },
+    {
+      dayOfWeek: 5,
+      name: 'Legs Day',
+      exercises: [
+        { muscle: 'Legs', name: 'Barbell Squat',     sets: 4, repsMin: 6,  repsMax: 10, restSeconds: 180 },
+        { muscle: 'Legs', name: 'Romanian Deadlift', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+        { muscle: 'Legs', name: 'Leg Press',         sets: 3, repsMin: 10, repsMax: 15, restSeconds: 90  },
+        { muscle: 'Legs', name: 'Leg Extension',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60  },
+        { muscle: 'Legs', name: 'Standing Calf Raise',        sets: 4, repsMin: 15, repsMax: 20, restSeconds: 45  },
+      ],
+    },
+  ],
+}
+
+export const AI_PLAN_PROMPT = `أنا أستخدم تطبيق مران (MERAN) لتتبع التمارين. أحتاج منك ملء الـ JSON التالي بخطة تمرين مخصصة بناءً على [PDF/الفيديو/البرنامج] المرفق.
+
+قواعد مهمة:
+- قيم "muscle" يجب أن تكون فقط من: Chest, Back, Shoulders, Legs, Biceps, Triceps, Core, Cardio
+- "dayOfWeek": 0=الأحد، 1=الاثنين، 2=الثلاثاء، 3=الأربعاء، 4=الخميس، 5=الجمعة، 6=السبت
+- "goal": muscle | strength | fat_loss | endurance | recomp | maintain
+- أبقِ نفس هيكل JSON بالضبط، فقط غيّر القيم
+
+هيكل JSON:
+TEMPLATE_PLACEHOLDER
+
+أعطني الـ JSON المكتمل فقط بدون أي شرح إضافي.`
+
+export const NOTIFICATION_MESSAGES = {
+  morning: [
+    { title: '🌅 صباح التحدي', body: 'كل يوم فرصة جديدة تكون أقوى من أمس.' },
+    { title: '⚔️ يوم جديد', body: 'المحارب الحقيقي لا ينتظر الحافز — هو يصنعه.' },
+    { title: '💜 صباح الطاقة', body: 'بدنك ينتظر التحدي — أطعمه الحركة اليوم.' },
+    { title: '🔥 بداية النهار', body: 'الفرق بينك وبين أهدافك: الاستمرارية.' },
+    { title: '🌄 الصباح للأبطال', body: 'اليوم تكتب صفحة جديدة في رحلتك.' },
+    { title: '🚀 السرّ إنك تبدأ', body: 'ما تحتاج حماس، تحتاج أول خطوة.' },
+    { title: '📅 سنة من الحين', body: 'بتشكر نفسك إنك بديت اليوم.' },
+  ],
+  tip: [
+    { title: '💡 نصيحة التمرين', body: 'استرح دقيقتين بين السيتات للعضلات الكبيرة.' },
+    { title: '📊 معلومة عضلية', body: 'العضلة تنمو وقت الراحة لا وقت التمرين — نم جيداً.' },
+    { title: '🔬 علم الجسم', body: 'الحمل التدريجي هو السر الوحيد للنمو العضلي.' },
+    { title: '⚡ تقنية السيت', body: 'البطء في الإرجاع أكثر فائدة من السرعة في الرفع.' },
+    { title: '🏋️ حكمة الجيم', body: 'الشكل الصحيح أهم من الوزن — الإصابة تضيع أشهر.' },
+    { title: '💧 تذكير مائي', body: 'اشرب ماءً الآن — الجفاف يقلل قوتك ٢٠٪.' },
+    { title: '🧠 نصيحة ذهنية', body: 'تخيل العضلة تعمل أثناء التمرين — أثبتها الأبحاث.' },
+    { title: '🥩 بروتين اليوم', body: 'تناول بروتيناً بعد التمرين بـ 30 دقيقة للحصول على أفضل نتيجة.' },
+  ],
+  hydration: [
+    { title: '💧 حان وقت الماء', body: 'اشرب ٥٠٠مل ماء الآن — جسمك يحتاجه.' },
+    { title: '🥤 تذكير مائي', body: 'الجفاف يقلل الأداء ٢٠٪ — اشرب الآن!' },
+    { title: '⚗️ الهيدرا أولاً', body: 'لا تنسَ الماء — هو الأساس قبل أي مكمل.' },
+  ],
+  workout: [
+    { title: '⚔️ حان وقت الجيم!', body: 'الجيم ينتظرك — هيا نحصد القوة اليوم!' },
+    { title: '💪 لا عذر اليوم!', body: 'أغلق الهاتف وافتح الشنطة — وقت التمرين.' },
+    { title: '🔥 النار تشتعل!', body: 'جسمك جاهز والجيم ينتظر — قم الآن.' },
+    { title: '⚡ انطلق يا بطل!', body: 'كل جلسة تمرين تقربك من النسخة الأفضل.' },
+    { title: '🏆 وقت الإنجاز!', body: 'المحاربون لا يتأخرون — حان دورك.' },
+    { title: '⏱️ الوقت ما يرجع', body: 'كل دقيقة تأجيل سيت ضايع.' },
+    { title: '🧱 طوبة اليوم', body: 'سيت واحد اليوم أحسن من عشرة بكرة.' },
+    { title: '😄 تذكير صادق', body: 'الأعذار ما تحرق سعرات.' },
+  ],
+  evening: [
+    { title: '🌙 مراجعة اليوم', body: 'هل أكملت تمرينك اليوم؟ سجّله في التطبيق.' },
+    { title: '⭐ يوم قوي آخر', body: 'الاستمرارية هي الفوز — فخور بك اليوم.' },
+    { title: '😴 قبل النوم', body: 'النوم الجيد = نمو عضلي أفضل — استرح مبكراً.' },
+    { title: '🗓️ جهّز لغد', body: 'جهّز شنطتك الآن حتى لا يكون لديك عذر غداً.' },
+    { title: '💜 احتفل بنفسك', body: 'كل يوم تستمر فيه هو انتصار — أنت رائع.' },
+    { title: '🌱 العضلة تنمو الحين', body: 'نمت زين = تمرّنت زين.' },
+    { title: '📊 خلّ الأرقام تتكلم', body: 'راجع جلستك — التقدّم يبان بالأرقام لا بالإحساس.' },
+  ],
+}
+
+export const WORKOUT_TIME_HOURS = {
+  'الصباح':  7,
+  'الظهيرة': 12,
+  'المساء':  17,
+  'الليل':   20,
+}
+
+// ── XP Rates ──────────────────────────────────────────────────
+export const XP_RATES = {
+  set_done:       10,
+  session_finish: 50,
+  session_hour:   30,
+  challenge:      1,
+}
+
+// ── Built-in Workout Programs ─────────────────────────────────
+export const BUILT_IN_PLANS = [
+  {
+    planId:       'machine_beginner_3day',
+    planName:     'خطة المبتدأ — ماشينات فقط',
+    description:  'برنامج 3 أيام أسبوعياً للمبتدئين باستخدام الماشينات فقط — آمن وفعال لبناء القاعدة العضلية بدون خوف من الإصابة.',
+    durationWeeks: 6,
+    daysPerWeek:  '3',
+    difficulty:   'مبتدئ',
+    tags:         ['ماشينات', '3 أيام', 'مبتدئ', 'آمن للمفاصل'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Push — صدر، أكتاف، ترايسبس',
+        exercises: [
+          { name: 'Hammer Strength Machine Bench Press', muscle: 'Chest',     sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Machine Incline Press',               muscle: 'Chest',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+          { name: 'Pec Deck',                        muscle: 'Chest',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+          { name: 'Machine Shoulder Press',              muscle: 'Shoulders', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Machine Lateral Raise',               muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+          { name: 'Triceps Pushdown',                muscle: 'Triceps',   sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Pull — ظهر، بايسبس',
+        exercises: [
+          { name: 'Lat Pulldown',          muscle: 'Back',   sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Seated Cable Row',             muscle: 'Back',   sets: 4, repsMin: 10, repsMax: 10, restSeconds: 120 },
+          { name: 'Machine Pullover',      muscle: 'Back',   sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Machine Preacher Curl', muscle: 'Biceps', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Cable Hammer Curls',    muscle: 'Biceps', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Legs — أرجل',
+        exercises: [
+          { name: 'Hack Squat',             muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 150 },
+          { name: 'Leg Press',              muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 10, restSeconds: 150 },
+          { name: 'Leg Curl',               muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Leg Extension',          muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Machine Glute Kickbacks',muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 12, restSeconds: 90  },
+          { name: 'Standing Calf Raise',             muscle: 'Legs', sets: 3, repsMin: 15, repsMax: 15, restSeconds: 60  },
+        ],
+      },
+    ],
+  },
+  {
+    planId:       'ppl_alex_lueth_v2',
+    planName:     'Push Pull Legs — Alex Lueth',
+    description:  'برنامج 5-6 أيام أسبوعياً مبني على العلم لبناء العضلات وحرق الدهون، من خبرة 20 سنة في التدريب.',
+    durationWeeks: 6,
+    daysPerWeek:  '5-6',
+    difficulty:   'متوسط–متقدم',
+    tags:         ['PPL', 'هايبرتروفي', 'جيم تجاري'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Push A — صدر، أكتاف، ترايسبس',
+        exercises: [
+          { name: 'Bench Press',              muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Dumbbell Shoulder Press',   muscle: 'Shoulders', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Pec Deck',     muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 120 },
+          { name: 'Machine Reverse Fly',              muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Overhead Triceps Extension', muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Lateral Raise',              muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Triceps Pushdown',           muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Pull A — ظهر، بايسبس',
+        exercises: [
+          { name: 'Pull-Up',                    muscle: 'Back',    sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Dumbbell Row',    muscle: 'Back',    sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Dumbbell Farmers Carry',     muscle: 'Back',    sets: 3, repsMin: 1,  repsMax: 1,  restSeconds: 150 },
+          { name: 'Seated Cable Row', muscle: 'Back',    sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 150 },
+          { name: 'Barbell Reverse Curl',       muscle: 'Biceps',  sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Curl',  muscle: 'Biceps',  sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Core Rotation',        muscle: 'Core',    sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Legs A — أرجل',
+        exercises: [
+          { name: 'Barbell Squat',          muscle: 'Legs', sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 180 },
+          { name: 'Dumbbell Romanian Deadlift',  muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Dumbbell Lunge',              muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 120 },
+          { name: 'Seated Leg Curl',             muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+          { name: 'Smith Machine Calf Raise',    muscle: 'Legs', sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+          { name: 'Machine Hip Abduction',       muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+          { name: 'Hanging Leg Raise',           muscle: 'Core', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Push B — صدر، أكتاف، ترايسبس',
+        exercises: [
+          { name: 'Incline Dumbbell Press',    muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Skull Crusher',                  muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 150 },
+          { name: 'Cable Fly',   muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 120 },
+          { name: 'Lateral Raise',          muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Reverse Fly',            muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Triceps Kickback',          muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Cable Crunch',                    muscle: 'Core',      sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Pull B — ظهر، بايسبس',
+        exercises: [
+          { name: 'Lat Pulldown',        muscle: 'Back',   sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Barbell Row',         muscle: 'Back',   sets: 4, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Straight Arm Pulldown',   muscle: 'Back',   sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Barbell Curl',                  muscle: 'Biceps', sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Shrug',                muscle: 'Back',   sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Concentration Curl',   muscle: 'Biceps', sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Side Bend',            muscle: 'Core',   sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+      {
+        name: 'Legs B — أرجل',
+        exercises: [
+          { name: 'Bulgarian Split Squat',         muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Hip Thrust',            muscle: 'Legs', sets: 3, repsMin: 6,  repsMax: 15, restSeconds: 150 },
+          { name: 'Leg Extension',                 muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Lying Leg Curl',                muscle: 'Legs', sets: 4, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Dumbbell Calf Raise',           muscle: 'Legs', sets: 4, repsMin: 8,  repsMax: 20, restSeconds: 90  },
+          { name: 'Machine Hip Adduction',         muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+        ],
+      },
+    ],
+  },
+  {
+    planId:       'home_workout_explosive',
+    planName:     'التمارين المنزلية + انفجارية',
+    description:  'خطة 4 أيام أسبوعياً تجمع بين تدريب القوة وبناء العضلات والقوة الانفجارية. تعتمد على الدمبل والباربل والعقلة ووزن الجسم فقط — مثالية للتدريب في المنزل دون الحاجة لأجهزة الجيم.',
+    durationWeeks: 8,
+    daysPerWeek:  '4',
+    difficulty:   'متوسط',
+    tags:         ['منزلي', 'بناء عضلات', 'قوة انفجارية', 'دمبل', 'باربل', 'عقلة', '4 أيام'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Upper A — صدر، ظهر، كتف، ذراعين',
+        exercises: [
+          { name: 'Pull-Up',                    muscle: 'Back',      sets: 4, repsMin: 5,  repsMax: 10, restSeconds: 120 },
+          { name: 'Bench Press',                muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 12, restSeconds: 120 },
+          { name: 'Dumbbell Row',    muscle: 'Back',      sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Incline Dumbbell Press',     muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Lateral Raise',     muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Dumbbell Curl',              muscle: 'Biceps',    sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+          { name: 'Overhead Triceps Extension', muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Lower A — أرجل، مؤخرة، سمانة، بطن',
+        exercises: [
+          { name: 'Barbell Squat',              muscle: 'Legs', sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+          { name: 'Bulgarian Split Squat',      muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Dumbbell Romanian Deadlift', muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Lying Leg Curl',             muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+          { name: 'Dumbbell Calf Raise',        muscle: 'Legs', sets: 4, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Plank',                      muscle: 'Core', sets: 3, repsMin: 30, repsMax: 60, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Upper B — ظهر، كتف، صدر، ذراعين',
+        exercises: [
+          { name: 'Barbell Row',    muscle: 'Back',      sets: 4, repsMin: 6,  repsMax: 12, restSeconds: 120 },
+          { name: 'Dumbbell Shoulder Press',  muscle: 'Shoulders', sets: 3, repsMin: 6,  repsMax: 12, restSeconds: 90  },
+          { name: 'Incline Dumbbell Press',   muscle: 'Chest',     sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 90  },
+          { name: 'Pull-Up',                  muscle: 'Back',      sets: 3, repsMin: 5,  repsMax: 10, restSeconds: 120 },
+          { name: 'Reverse Fly',     muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Hammer Curl',              muscle: 'Biceps',    sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+          { name: 'Skull Crusher',           muscle: 'Triceps',   sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Explosive Full Body — انفجاري، مؤخرة، بطن',
+        exercises: [
+          { name: 'Squat Jump',          muscle: 'Legs',      sets: 4, repsMin: 3,  repsMax: 5,  restSeconds: 120 },
+          { name: 'Broad Jump',          muscle: 'Legs',      sets: 4, repsMin: 3,  repsMax: 3,  restSeconds: 120 },
+          { name: 'Explosive Push-Up',   muscle: 'Chest',     sets: 4, repsMin: 3,  repsMax: 6,  restSeconds: 120 },
+          { name: 'Dumbbell Jump Squat', muscle: 'Legs',      sets: 3, repsMin: 4,  repsMax: 6,  restSeconds: 90  },
+          { name: 'Dumbbell Push Press', muscle: 'Shoulders', sets: 3, repsMin: 5,  repsMax: 8,  restSeconds: 90  },
+          { name: 'Hip Thrust',  muscle: 'Legs',      sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Dumbbell Calf Raise', muscle: 'Legs',      sets: 3, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Hanging Leg Raise',   muscle: 'Core',      sets: 3, repsMin: 8,  repsMax: 15, restSeconds: 60  },
+        ],
+      },
+    ],
+  },
+]
+
+// ── Exercise Alternatives (machine busy / unavailable) ────────
+// Ordered fallbacks for the same muscle + movement pattern. The
+// "استبدال التمرين" button cycles: original → 1 → 2 → 3 → original.
+// Sets, reps, and rest never change — only the exercise name.
+const CURATED_ALTERNATIVES = {
+  // ── Push day ────────────────────────────────────────────────
+  'Hammer Strength Machine Bench Press': [
+    'Chest Press Machine', 'Smith Machine Bench Press', 'Cable Chest Press',
+  ],
+  'Machine Incline Press': [
+    'Smith Machine Incline Bench Press', 'Incline Dumbbell Press', 'Low-to-High Cable Press',
+  ],
+  'Pec Deck': [
+    'Cable Fly', 'Standing Cable Fly', 'Resistance Band Fly',
+  ],
+  'Machine Shoulder Press': [
+    'Smith Machine Shoulder Press', 'Seated Dumbbell Shoulder Press', 'Cable Shoulder Press',
+  ],
+  'Machine Lateral Raise': [
+    'Cable Lateral Raise', 'Dumbbell Lateral Raise', 'Leaning Cable Lateral Raise',
+  ],
+  'Triceps Pushdown': [
+    'Rope Triceps Pushdown', 'Overhead Cable Triceps Extension', 'Assisted Dips',
+  ],
+  // ── Pull day ────────────────────────────────────────────────
+  'Lat Pulldown': [
+    'Assisted Pull-Up Machine', 'Single Arm Lat Pulldown', 'Straight Arm Pulldown',
+  ],
+  'Seated Cable Row': [
+    'Chest Supported Row Machine', 'Hammer Strength Row', 'Single Arm Cable Row',
+  ],
+  'Machine Pullover': [
+    'Straight Arm Cable Pulldown', 'Lat Prayer Pulldown', 'Dumbbell Pullover',
+  ],
+  'Machine Preacher Curl': [
+    'Cable Preacher Curl', 'EZ Bar Preacher Curl', 'Seated Dumbbell Curl',
+  ],
+  'Cable Hammer Curls': [
+    'Dumbbell Hammer Curl', 'Rope Hammer Curl', 'Cross Body Hammer Curl',
+  ],
+  // ── Legs day ────────────────────────────────────────────────
+  'Hack Squat': [
+    'Leg Press', 'Smith Machine Squat', 'Goblet Squat',
+  ],
+  'Leg Press': [
+    'Hack Squat', 'Smith Machine Squat', 'Bulgarian Split Squat',
+  ],
+  'Leg Curl': [
+    'Seated Leg Curl', 'Nordic Curl (Assisted)', 'Stability Ball Leg Curl',
+  ],
+  'Leg Extension': [
+    'Spanish Squat', 'Assisted Sissy Squat', 'Split Squat',
+  ],
+  'Machine Glute Kickbacks': [
+    'Cable Glute Kickback', 'Smith Machine Glute Kickback', 'Bulgarian Split Squat',
+  ],
+  'Standing Calf Raise': [
+    'Seated Calf Raise', 'Leg Press Calf Raise', 'Smith Machine Calf Raise',
+  ],
+
+  // ── Free weights ────────────────────────────────────────────
+  // Everything above was written for the machines-only beginner plan,
+  // which left the barbell and dumbbell lifts — most of what the other
+  // built-in plans are made of — with no swap button at all. A
+  // substitute has to be the same movement at the same joint, not
+  // merely the same muscle: the button exists for a taken machine or a
+  // sore shoulder, and offering a curl in place of a row would be
+  // worse than offering nothing.
+  'Bench Press': [
+    'Dumbbell Bench Press', 'Hammer Strength Machine Bench Press', 'Smith Machine Bench Press',
+  ],
+  'Incline Bench Press': [
+    'Incline Dumbbell Press', 'Machine Incline Press', 'Smith Machine Incline Bench Press',
+  ],
+  'Overhead Press': [
+    'Seated Dumbbell Shoulder Press', 'Machine Shoulder Press', 'Arnold Press',
+  ],
+  'Lateral Raise': [
+    'Cable Lateral Raise', 'Machine Lateral Raise', 'Leaning Cable Lateral Raise',
+  ],
+  'Cable Fly': [
+    'Pec Deck', 'Dumbbell Fly', 'Low-to-High Cable Fly',
+  ],
+  'Skull Crusher': [
+    'Overhead Cable Triceps Extension', 'Triceps Pushdown', 'Close Grip Bench Press',
+  ],
+  'Pull-Up': [
+    'Assisted Pull-Up Machine', 'Lat Pulldown', 'Inverted Row',
+  ],
+  'Barbell Row': [
+    'Chest Supported Row Machine', 'Seated Cable Row', 'Single Arm Dumbbell Row',
+  ],
+  'Face Pull': [
+    'Reverse Pec Deck', 'Rear Delt Cable Fly', 'Band Pull-Apart',
+  ],
+  'Barbell Curl': [
+    'EZ Bar Curl', 'Seated Dumbbell Curl', 'Cable Curl',
+  ],
+  'Hammer Curl': [
+    'Cable Hammer Curls', 'Rope Hammer Curl', 'Cross Body Hammer Curl',
+  ],
+  'Deadlift': [
+    'Trap Bar Deadlift', 'Rack Pull', 'Romanian Deadlift',
+  ],
+  'Barbell Squat': [
+    'Hack Squat', 'Leg Press', 'Goblet Squat',
+  ],
+  'Goblet Squat': [
+    'Barbell Squat', 'Hack Squat', 'Bulgarian Split Squat',
+  ],
+  'Romanian Deadlift': [
+    'Dumbbell Romanian Deadlift', 'Leg Curl', 'Good Morning',
+  ],
+  'Plank': [
+    'Ab Wheel Rollout', 'Dead Bug', 'Hanging Knee Raise',
+  ],
+}
+
+// ── Default Exercise Mapping (aliases → standard names) ───────
+// Used to unify exercise variants for shared PR tracking.
+// Keys are alias names, values are the Standard Name to group under.
+// User can extend this via Settings → Import Mapping.
+// RULE: merge ONLY name variants of the same movement on the SAME
+// equipment. Machine / cable / dumbbell / barbell versions of a
+// movement use very different loads and must NEVER share weights.
+export const DEFAULT_EXERCISE_MAPPING = {
+  // ── Triceps (pushdown = cable station by definition) ─────────
+  'Cable Triceps Pushdown':           'Triceps Pushdown',
+  'Rope Pushdown':                    'Triceps Pushdown',
+  'Cable Pushdown':                   'Triceps Pushdown',
+  'Tricep Pressdown':                 'Triceps Pushdown',
+  'Triceps Pressdown':                'Triceps Pushdown',
+  'V-Bar Pushdown':                   'Triceps Pushdown',
+  'Straight Bar Pushdown':            'Triceps Pushdown',
+  'Tricep Rope Pushdown':             'Triceps Pushdown',
+  'Cable Overhead Triceps Extension': 'Overhead Triceps Extension',
+  'Skull Crushers':                   'Skull Crusher',
+  'Lying Barbell Triceps Extensions': 'Skull Crusher',
+  'Cable Kickback':                   'Cable Triceps Kickback',
+  // ── Chest ────────────────────────────────────────────────────
+  'Barbell Bench Press':              'Bench Press',
+  'Pec Deck Fly':                     'Pec Deck',
+  'Machine Fly':                      'Pec Deck',
+  'Machine Chest Fly (Pec Deck)':     'Pec Deck',
+  'Cable Chest Fly (High-to-Low)':    'Cable Fly',
+  'Dumbbell Incline Bench Press':     'Incline Dumbbell Press',
+  // ── Back ─────────────────────────────────────────────────────
+  'Supinated Lat Pulldown':           'Lat Pulldown',
+  'Wide Grip Pulldown':               'Lat Pulldown',
+  'Close Grip Pulldown':              'Lat Pulldown',
+  'Cable Lat Pulldown':               'Lat Pulldown',
+  'Wide Grip Seated Cable Row':       'Seated Cable Row',
+  'Cable Row':                        'Seated Cable Row',
+  'Barbell Bent Over Row':            'Barbell Row',
+  'Straight Arm Cable Pulldown':      'Straight Arm Pulldown',
+  'Unilateral Dumbbell Row':          'Dumbbell Row',
+  // ── Shoulders (lateral/reverse fly convention = dumbbell) ────
+  'Dumbbell Lateral Raise':           'Lateral Raise',
+  'Side Raise':                       'Lateral Raise',
+  'Dumbbell Reverse Fly':             'Reverse Fly',
+  'Rear Delt Fly':                    'Reverse Fly',
+  'Seated Dumbbell Overhead Press':   'Dumbbell Shoulder Press',
+  'Dumbbell OHP':                     'Dumbbell Shoulder Press',
+  // ── Biceps ───────────────────────────────────────────────────
+  'Alternating Dumbbell Curl':        'Dumbbell Curl',
+  'Dumbbell Concentration Curl':      'Concentration Curl',
+  'Barbell Reverse Curl':             'Reverse Curl',
+  // ── Legs ─────────────────────────────────────────────────────
+  'Barbell Back Squat':               'Barbell Squat',
+  'Dumbbell Romanian Deadlift (RDL)': 'Dumbbell Romanian Deadlift',
+  'Machine Hip Abduction':            'Hip Abduction',
+  'Machine Hip Adduction':            'Hip Adduction',
+  'Calf Raise':                       'Standing Calf Raise',
+  'Feet Elevated Smith Machine Calf Raise': 'Smith Machine Calf Raise',
+  'Feet Elevated Dumbbell Calf Raise':'Dumbbell Calf Raise',
+  'Barbell Hip Thrust':               'Hip Thrust',
+  'Bulgarian Split Squat (Quad Bias)':'Bulgarian Split Squat',
+  // ── Explosive / Plyometric ────────────────────────────────────
+  'Jump Squat':                       'Squat Jump',
+  'Plyometric Push-Up':               'Explosive Push-Up',
+  'Clapping Push-Up':                 'Explosive Push-Up',
+  'Jump Squat (Dumbbell)':            'Dumbbell Jump Squat',
+  'Dumbbell Push-Press':              'Dumbbell Push Press',
+}
+
+// ── Swap targets, for every exercise the app knows ────────────
+//
+// The curated table above is hand-written and stops where its author
+// stopped: it was built for the machines-only beginner plan, and for a
+// long time that meant sixty-five of the ninety-seven exercises in the
+// catalogue had no swap button at all. Nothing errored — the button
+// simply was not drawn, which is a hard thing to notice until you are
+// standing in front of a taken machine.
+//
+// So the curated list becomes an override rather than the whole answer.
+// Anything it does not cover falls back to the exercise's own muscle
+// group, which is where a real substitute lives anyway, and which has
+// the advantage that every name offered is one the app already knows —
+// with its own video, its own history and its own info card. Inventing
+// three plausible-sounding names per exercise would have filled the
+// table faster and left the app offering lifts it cannot say anything
+// about.
+//
+// Within a group, siblings that share a movement word — curl, press,
+// row, raise — come first, so "Dumbbell Curl" offers "Cable Curl"
+// before it offers "Barbell Reverse Curl". Equipment words are ignored
+// in that comparison for exactly the same reason: the machine being
+// busy is usually why someone is looking.
+
+// Words that describe the tool rather than the movement. Two lifts
+// matching only on "cable" have nothing in common worth offering.
+const EQUIPMENT_WORDS = new Set([
+  'machine', 'cable', 'dumbbell', 'barbell', 'smith', 'seated', 'standing',
+  'lying', 'single', 'arm', 'bar', 'trap', 'assisted', 'band', 'resistance',
+  'rope', 'plate', 'kettlebell', 'body', 'weighted',
+])
+
+const movementWords = (name) => new Set(
+  String(name).toLowerCase()
+    .replace(/[^a-z ]+/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !EQUIPMENT_WORDS.has(w)),
+)
+
+const MAX_ALTERNATIVES = 3
+
+const buildAlternatives = () => {
+  // name → the other exercises in its muscle group, in catalogue order.
+  const siblings = new Map()
+  for (const group of Object.values(MUSCLE_GROUPS)) {
+    const names = (group.exercises || []).map(e => e.name)
+    for (const name of names) {
+      siblings.set(name, names.filter(n => n !== name))
+    }
+  }
+
+  const out = { ...CURATED_ALTERNATIVES }
+  for (const [name, pool] of siblings) {
+    if (out[name]?.length) continue          // a curated answer always wins
+    if (!pool.length) continue               // a group of one has nothing to offer
+
+    const mine = movementWords(name)
+    const scored = pool.map((other, order) => {
+      let shared = 0
+      for (const w of movementWords(other)) if (mine.has(w)) shared++
+      return { other, shared, order }
+    })
+    // Shared movement first, catalogue order to break ties — so the
+    // list is the same on every device and every render.
+    scored.sort((a, b) => (b.shared - a.shared) || (a.order - b.order))
+    out[name] = scored.slice(0, MAX_ALTERNATIVES).map(s => s.other)
+  }
+  return out
+}
+
+/**
+ * What the swap button offers, for any exercise.
+ *
+ * Curated entries where they exist, muscle-group siblings everywhere
+ * else. Built once at module load: the catalogue never changes at
+ * runtime, and the order has to be stable or the cycle would land
+ * somewhere different each time it is pressed.
+ */
+export const EXERCISE_ALTERNATIVES = buildAlternatives()

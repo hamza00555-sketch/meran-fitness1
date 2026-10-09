@@ -28,6 +28,10 @@ export default defineConfig({
         clientsClaim: true,
         cacheId: 'meran-v1',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,otf,woff,woff2}'],
+        // The old design lives at /classic/ with a service worker of its
+        // own; this one must not answer its pages with the new app.
+        globIgnores: ['classic/**'],
+        navigateFallbackDenylist: [/^\/classic\//],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {

@@ -2,9 +2,9 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <!-- The design switch (src/design.js): if the old design was chosen,
-         go there before anything loads. Same storage, same data. -->
-    <script>try{if(localStorage.getItem('meran_design')==='classic')location.replace('/classic/')}catch(e){}</script>
+    <!-- The frozen old design. Shown only while it is the chosen one
+         (src/design.js); otherwise back to the new design at /. -->
+    <script>try{if(localStorage.getItem('meran_design')!=='classic')location.replace('/')}catch(e){}</script>
     <link rel="icon" type="image/png" sizes="512x512" href="/assets/meran-app-icon-transparent-512.png" />
     <link rel="icon" type="image/png" sizes="180x180" href="/assets/meran-app-icon-transparent-180.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/meran-app-icon-transparent-180.png" />

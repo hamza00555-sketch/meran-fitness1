@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --config classic/vite.config.js",
     "preview": "vite preview",
-    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs tests/month-report.test.mjs tests/report-share.test.mjs tests/deload.test.mjs tests/alternatives.test.mjs tests/set-carry.test.mjs tests/plan-day-name.test.mjs tests/exercise-media.test.mjs tests/greetings.test.mjs tests/day.test.mjs tests/streak.test.mjs",
+    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs tests/month-report.test.mjs tests/report-share.test.mjs tests/deload.test.mjs tests/alternatives.test.mjs tests/set-carry.test.mjs tests/plan-day-name.test.mjs tests/exercise-media.test.mjs tests/greetings.test.mjs tests/day.test.mjs tests/streak.test.mjs tests/classic.test.mjs",
     "test:live": "node tests/pack.live.mjs",
     "ledger": "node scripts/rest-ledger.mjs",
     "pack:prompts": "node scripts/prompts.mjs",
@@ -19,7 +19,9 @@
     "screens": "node scripts/screens.mjs",
     "screens:audit": "node scripts/screens.mjs --audit",
     "ds:push": "node scripts/push-design-system.mjs",
-    "ds:screens": "node scripts/push-screens.mjs"
+    "ds:screens": "node scripts/push-screens.mjs",
+    "dev:classic": "vite --config classic/vite.config.js",
+    "test:design": "node tests/design-switch.e2e.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

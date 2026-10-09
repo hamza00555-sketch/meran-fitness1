@@ -34,7 +34,7 @@ if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
   git fetch -q --unshallow origin 2>/dev/null || true
 fi
 
-APP_PATHS=(src public tests index.html vite.config.js package.json package-lock.json)
+APP_PATHS=(src public tests index.html vite.config.js vercel.json package.json package-lock.json classic)
 
 echo "Commits since the restore point that touch the app (all of these are undone):"
 git log --oneline "$TAG..HEAD" -- "${APP_PATHS[@]}" || true

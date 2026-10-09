@@ -304,7 +304,7 @@ export default function SettingsPage({ profile, onUpdateProfile, sessions, xp, u
       <div>
 
         {/* ── Design: new or the old one, same data ─────────── */}
-        <DesignSwitch isNew={true} />
+        <DesignSwitch isNew={false} />
 
         {/* ── Users ──────────────────────────────────────────── */}
         <div style={{ marginBottom: 10 }}>

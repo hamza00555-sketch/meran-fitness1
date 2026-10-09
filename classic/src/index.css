@@ -1,0 +1,697 @@
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Thin.otf'); font-weight: 100; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-ExtraLight.otf'); font-weight: 200; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Light.otf'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Regular.otf'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Medium.otf'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-SemiBold.otf'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Bold.otf'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-ExtraBold.otf'); font-weight: 800; font-display: swap; }
+@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Black.otf'); font-weight: 900; font-display: swap; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── Backgrounds: near-black with a blue undertone ──
+     The ground sits just off pure black so OLED panels stay quiet and
+     the cards, one step lighter, separate cleanly without borders
+     doing all the work. Depth comes from the gap between these steps,
+     not from glow. */
+  --bg:       #050810;
+  --bg1:      #070B14;
+  --bg2:      #0A101C;
+  --bg3:      #111927;
+  --border:   #16202E;
+  --border2:  #1F2D40;
+
+  /* ── Primary: Meran Green ──
+     The triplet is the switch. Every border, shadow and gradient in the
+     app is written as rgba(var(--cyan-rgb), …), so the accent moves as
+     one when a mode redefines it — no scattered literals left behind. */
+  --cyan-rgb: 94,195,42;
+  --cyan:     #5EC32A;
+  --cyan-hi:  #A8F060;               /* the highlight a shimmer sweeps through */
+  --cyan-lo:  rgba(var(--cyan-rgb),0.10);
+  --cyan-md:  rgba(var(--cyan-rgb), calc(0.22 * var(--glow-mul)));
+  --cyan-glow:rgba(var(--cyan-rgb), calc(0.11 * var(--glow-mul)));
+
+  /* ── Mode dials ──
+     Neutral at 1. A mode turns them instead of restating every rule:
+     --glow-mul scales how hard the accent burns, --breath how slowly
+     the app's idle animations run. */
+  --glow-mul: 1;
+  --breath:   1;
+
+  /* ── Gold (XP / rewards) ── */
+  --gold:     #F59E0B;
+  --gold-lo:  rgba(245,158,11,0.12);
+  --gold-md:  rgba(245,158,11,0.30);
+
+  /* ── Secondary: Sky Blue (replaces purple) ──
+     Same trick as the accent: one triplet, so the rest/recovery side
+     of the UI can step aside as a unit when the accent takes blue. */
+  --purple-rgb:  59,157,232;
+  --purple:      #3B9DE8;
+  --purple-lo:   rgba(var(--purple-rgb),0.10);
+  --purple-md:   rgba(var(--purple-rgb),0.22);
+  --purple-deep: #1A75C0;
+
+  /* ── Status colors ── */
+  --orange:   #F97316;
+  --orange-lo:rgba(249,115,22,0.12);
+
+  --red:      #EF4444;
+  --red-lo:   rgba(239,68,68,0.12);
+  --red-md:   rgba(239,68,68,0.25);
+
+  --blue:     #3B9DE8;
+  --blue-lo:  rgba(59,157,232,0.12);
+
+  --green:    #22C55E;
+  --green-lo: rgba(34,197,94,0.12);
+
+  /* ── Text ── */
+  --text:     #EEF4FF;
+  --text2:    #B8D0E8;
+  --text3:    #6E8899;   /* 5.3:1 on --bg1 — muted, still legible */
+
+  /* ── Fonts ── */
+  --font-ar:   'Changa', 'Zanjabeel', sans-serif;
+  --font-mono: 'Oxanium', ui-monospace, monospace;
+
+  /* ── Radii ── */
+  --radius:    18px;
+  --radius-sm: 12px;
+  --radius-xs: 6px;
+
+  /* ── Safe areas ── */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Gradients ── */
+  --grad-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
+  --grad-hero:    linear-gradient(145deg, #08130C 0%, #081020 100%);
+  --grad-card:    linear-gradient(135deg, rgba(var(--cyan-rgb),0.06) 0%, rgba(var(--purple-rgb),0.04) 100%);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  direction: rtl;
+  font-family: var(--font-ar);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  min-height: 100dvh;
+}
+
+#root { min-height: 100dvh; }
+
+::-webkit-scrollbar { width: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+input[type=number] { -moz-appearance: textfield; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes alertDrain {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+@keyframes alertBump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.12); color: var(--cyan); }
+  100% { transform: scale(1); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes glowPulse {
+  0%,100% { box-shadow: 0 0 12px var(--cyan-glow); }
+  50%      { box-shadow: 0 0 28px var(--cyan-md); }
+}
+/* Coaching tags on an exercise card: a soft pulse so a change of
+   advice is noticed mid-workout without being distracting. The tag's
+   own colour drives it via --tag-glow. */
+@keyframes tagPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--tag-glow); transform: scale(1); }
+  50%      { box-shadow: 0 0 14px 2px var(--tag-glow); transform: scale(1.04); }
+}
+.tag-pulse { animation: tagPulse calc(1.9s * var(--breath)) ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tag-pulse { animation: none; box-shadow: 0 0 10px 1px var(--tag-glow); }
+}
+
+/* ── Weight-up celebration ─────────────────────────────────────
+   Fires dead-centre when a set beats the old best. Meant to land like
+   a win: a burst of rays, a slam-in badge, and the new number. */
+@keyframes prBurst {
+  0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+  45%  { transform: scale(1.18) rotate(3deg);  opacity: 1; }
+  65%  { transform: scale(0.94) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0deg);     opacity: 1; }
+}
+@keyframes prRays {
+  0%   { transform: scale(0.3) rotate(0deg);   opacity: 0.9; }
+  100% { transform: scale(2.4) rotate(140deg); opacity: 0; }
+}
+@keyframes prShock {
+  0%   { transform: scale(0.2); opacity: 0.85; border-width: 10px; }
+  100% { transform: scale(2.8); opacity: 0;    border-width: 1px; }
+}
+@keyframes prWeightPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  55%  { transform: scale(1.3);  opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes prSpark {
+  0%   { transform: translate(0,0) scale(1);   opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+}
+@keyframes prFadeOut {
+  0%, 72% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-burst, .pr-rays, .pr-shock, .pr-weight, .pr-spark { animation: none !important; }
+  .pr-rays, .pr-shock, .pr-spark { display: none !important; }
+}
+
+@keyframes xpFloat {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(0)    scale(0.6); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(-10px) scale(1.25); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-90px) scale(1.0); }
+}
+@keyframes levelBurst {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-5deg); }
+  60%  { opacity: 1; transform: scale(1.1) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes pulseDot {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+@keyframes iconGlow {
+  0%,100% { filter: drop-shadow(0 0 8px var(--cyan)); }
+  50%      { filter: drop-shadow(0 0 20px var(--cyan)); }
+}
+@keyframes ringExpand {
+  0%   { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes rotateGlow {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes progressFill {
+  from { width: 0%; }
+  to   { width: var(--target-width); }
+}
+@keyframes prFlash {
+  0%   { opacity: 0; transform: scale(0.6); }
+  40%  { opacity: 1; transform: scale(1.15); }
+  70%  { transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes prRipple {
+  0%   { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(4); opacity: 0; }
+}
+/* ── The raise ring ────────────────────────────────────────────
+   Two gold strokes climb the exercise card from the bottom centre and
+   meet at the top (RaiseRing.jsx). The ring holds, whole and still, for
+   half a second, then draws again from the bottom — for as long as the
+   advice to add weight stands. A repeated climb rather than a static
+   frame, because the eye that missed the first pass catches the third.
+   One keyframe carries both the draw and the hold, so the cycle rides
+   --breath like every other looping motion; a deload would slow it,
+   though a deload never shows it (the hint is nulled at its source). */
+@keyframes raiseDraw {
+  0%    { stroke-dashoffset: 100; animation-timing-function: cubic-bezier(0.22,1,0.36,1); }
+  72.2% { stroke-dashoffset: 0; }   /* 1.3s of an 1.8s cycle: the draw lands */
+  100%  { stroke-dashoffset: 0; }   /* and holds for the last 0.5s */
+}
+.raise-ring { filter: drop-shadow(0 0 6px rgba(245,158,11,0.35)); }
+.raise-ring-path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: raiseDraw calc(1.8s * var(--breath)) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The ring, whole and still: the signal stays, the motion goes. */
+  .raise-ring-path { animation: none; stroke-dashoffset: 0; opacity: 1; }
+}
+/* A floor only — the advice is already silenced during a deload. */
+:root[data-deload="1"] .raise-ring { display: none !important; }
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.page-enter  { animation: fadeUp   0.22s ease forwards; }
+.modal-enter { animation: slideUp  0.25s ease forwards; }
+.fade-in     { animation: fadeIn   0.2s  ease forwards; }
+.scale-enter { animation: scaleIn  0.2s  ease forwards; }
+.slide-down  { animation: slideDown 0.25s ease forwards; }
+.glow-pulse  { animation: glowPulse calc(2.5s * var(--breath)) ease-in-out infinite; }
+.icon-glow   { animation: iconGlow  calc(2s   * var(--breath)) ease-in-out infinite; }
+.pulse-dot   { animation: pulseDot  calc(1.5s * var(--breath)) ease-in-out infinite; }
+.spin        { animation: spin 1s linear infinite; }
+
+.xp-float {
+  position: fixed;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gold);
+  pointer-events: none;
+  z-index: 9999;
+  animation: xpFloat 1.5s cubic-bezier(0.22,1,0.36,1) forwards;
+  text-shadow: 0 0 20px var(--gold), 0 0 40px rgba(234,179,8,0.5);
+  white-space: nowrap;
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, var(--gold) 0%, #fff 50%, var(--gold) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer calc(2.5s * var(--breath)) linear infinite;
+}
+
+.shimmer-green {
+  background: linear-gradient(90deg, var(--cyan) 0%, var(--cyan-hi) 50%, var(--cyan) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer calc(2.5s * var(--breath)) linear infinite;
+}
+
+*:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* ── Primary action button (Meran Green gradient) ── */
+.btn-cyan {
+  width: 100%;
+  background: var(--grad-primary);
+  color: #fff;
+  font-family: var(--font-ar);
+  font-size: 17px;
+  font-weight: 800;
+  border: none;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(var(--cyan-rgb),0.32), 0 0 0 1px rgba(var(--cyan-rgb),0.15);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-cyan:hover { opacity: 0.93; }
+.btn-cyan:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(var(--cyan-rgb),0.20);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 12px 16px;
+  color: var(--text2);
+  font-family: var(--font-ar);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* ── Glassmorphism card ── */
+.glass-card {
+  background: rgba(16, 25, 40, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(var(--cyan-rgb),0.12);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ── Gradient card ── */
+.gradient-card {
+  background: var(--grad-card);
+  border: 1px solid rgba(var(--cyan-rgb),0.14);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.28);
+}
+
+/* ── Active workout glow button ── */
+.btn-active-glow {
+  background: var(--grad-primary);
+  box-shadow: 0 0 32px rgba(var(--cyan-rgb),0.45), 0 4px 16px rgba(0,0,0,0.4);
+  animation: glowPulse calc(2s * var(--breath)) ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Home Page + Achievements Page — layout system (clamp-based)
+   These classes are ONLY used in HomePage.jsx & AchievementsPage.jsx
+   ══════════════════════════════════════════════════════════ */
+:root {
+  --hp-icon-size:  clamp(88px, 23vw, 118px);
+  --ap-icon-size:  clamp(70px, 19vw,  98px);
+  --hp-card-pad:   clamp(12px, 3.2vw,  18px);
+  --hp-card-gap:   clamp(10px, 2.6vw,  16px);
+  --hp-card-mb:    clamp(14px, 3.5vw,  20px);
+}
+
+/* Horizontal card inner wrapper */
+.hp-row, .ap-row {
+  display: flex;
+  align-items: center;
+  gap: var(--hp-card-gap);
+  padding: var(--hp-card-pad);
+}
+
+/* Icon container — home page */
+.hp-icon {
+  width: var(--hp-icon-size);
+  height: var(--hp-icon-size);
+  flex-shrink: 0;
+  border-radius: clamp(16px, 4vw, 22px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.hp-icon img { width: 90%; height: 90%; object-fit: contain; }
+
+/* Icon container — achievements page */
+.ap-icon {
+  width: var(--ap-icon-size);
+  height: var(--ap-icon-size);
+  flex-shrink: 0;
+  border-radius: clamp(13px, 3.5vw, 18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(32px, 8.5vw, 46px);
+}
+
+/* Achievements filter tab */
+.ap-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: clamp(34px, 5.5vh, 46px);
+  padding: 0 clamp(12px, 3.2vw, 18px);
+  border-radius: 20px;
+  font-family: var(--font-ar);
+  font-size: clamp(12px, 3.2vw, 14px);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  border-width: 1px;
+  border-style: solid;
+}
+
+/* Card title / subtitle inside home + achievements */
+.hp-title   { font-size: clamp(19px, 5vw, 26px);   font-weight: 900; line-height: 1.15; }
+.hp-sub     { font-size: clamp(13px, 3.5vw, 16px);  color: var(--text3); line-height: 1.35; }
+.hp-meta    { font-size: clamp(11px, 3vw,  13px);   color: var(--text3); }
+.ap-title   { font-size: clamp(13px, 3.5vw, 15px);  font-weight: 700; }
+.ap-sub     { font-size: clamp(11px, 3vw,  13px);   color: var(--text3); }
+
+@media (max-width: 380px) {
+  :root {
+    --hp-icon-size: 80px;
+    --ap-icon-size: 66px;
+    --hp-card-pad:  10px;
+    --hp-card-gap:  8px;
+  }
+  .hp-title { font-size: 18px; }
+  .ap-title { font-size: 13px; }
+  .ap-tab   { min-height: 32px; padding: 0 10px; font-size: 12px; }
+}
+
+/* ── Monthly report ────────────────────────────────────────────
+   The report is meant to feel alive, not merely animated, so a lot of
+   this runs continuously rather than once on entry. Two rules keep
+   that from turning into a stutter on a phone:
+
+     · only transform and opacity are animated — never width, height
+       or top, which would force layout on every frame;
+     · nothing off screen animates. Sections carry .mr-idle when the
+       observer says they have left the viewport, and that switches
+       their animations off.
+
+   Everything below is disabled outright under reduced motion at the
+   end of this block. */
+
+/* The cover never sits still: a slow drift that outlasts any single
+   viewing, so it reads as a living image rather than a loop. */
+@keyframes kenBurns {
+  0%   { transform: scale(1.06) translate3d(0, 0, 0); }
+  50%  { transform: scale(1.14) translate3d(-1.5%, -1.5%, 0); }
+  100% { transform: scale(1.06) translate3d(0, 0, 0); }
+}
+
+/* Three blurred orbs behind the content. Capped at three on purpose —
+   each one is a large composited layer. */
+@keyframes orbDrift {
+  0%   { transform: translate3d(0, 0, 0)        scale(1); }
+  33%  { transform: translate3d(18vw, -8vh, 0)  scale(1.18); }
+  66%  { transform: translate3d(-12vw, 10vh, 0) scale(0.92); }
+  100% { transform: translate3d(0, 0, 0)        scale(1); }
+}
+
+/* A breathing halo behind every headline number. */
+@keyframes auraPulse {
+  0%, 100% { opacity: 0.28; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 0.6;  transform: translate(-50%, -50%) scale(1.22); }
+}
+
+/* A light sweeping across a card. Staggered by --i so no two cards
+   flash together. */
+@keyframes sweepShine {
+  0%        { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+  8%        { opacity: 0.5; }
+  22%, 100% { transform: translateX(240%) skewX(-18deg); opacity: 0; }
+}
+
+/* Rings and arcs draw themselves in rather than appearing complete. */
+@keyframes drawStroke {
+  from { stroke-dashoffset: var(--dash); }
+  to   { stroke-dashoffset: var(--offset); }
+}
+
+/* Bars grow from nothing with a small overshoot, so a chart lands
+   rather than slides. Two axes: a column chart grows upward, a row of
+   horizontal bars grows sideways out of its own anchored edge. */
+@keyframes barGrow {
+  0%   { transform: scaleY(0); }
+  70%  { transform: scaleY(1.06); }
+  100% { transform: scaleY(1); }
+}
+@keyframes barGrowX {
+  0%   { transform: scaleX(0); }
+  70%  { transform: scaleX(1.04); }
+  100% { transform: scaleX(1); }
+}
+
+/* Calendar cells pop in one after another, a wave sweeping the month. */
+@keyframes cellPop {
+  0%   { transform: scale(0.2); opacity: 0; }
+  65%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* The closing card assembles itself from its own pieces. */
+@keyframes cardFlyIn {
+  0%   { transform: translate3d(var(--fx, 0), var(--fy, 40px), 0) scale(0.86) rotate(var(--fr, -4deg)); opacity: 0; }
+  100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* The bump a counted number makes when it lands. */
+@keyframes numberTick {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+
+.mr-cover-img  { animation: kenBurns 26s ease-in-out infinite; will-change: transform; }
+.mr-orb        { animation: orbDrift var(--dur, 34s) ease-in-out infinite; will-change: transform; }
+.mr-aura       { animation: auraPulse 3.6s ease-in-out infinite; }
+.mr-shine::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,0.13) 50%, transparent 60%);
+  animation: sweepShine 9s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 1.4s);
+  pointer-events: none;
+}
+.mr-draw       { animation: drawStroke 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.mr-bar        { transform-origin: bottom; animation: barGrow 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+                 animation-delay: calc(var(--i, 0) * 60ms); }
+/* Horizontal: the origin is set inline, because it follows the text
+   direction rather than the component. */
+.mr-bar-h      { animation: barGrowX 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+                 animation-delay: calc(var(--i, 0) * 60ms); }
+.mr-cell       { animation: cellPop 0.42s cubic-bezier(0.34, 1.5, 0.64, 1) both;
+                 animation-delay: calc(var(--i, 0) * 25ms); }
+.mr-fly        { animation: cardFlyIn 0.7s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+                 animation-delay: calc(var(--i, 0) * 110ms); }
+.mr-rise       { animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+                 animation-delay: calc(var(--i, 0) * 110ms); }
+.mr-tick       { animation: numberTick 0.45s cubic-bezier(0.34, 1.5, 0.64, 1); }
+
+/* A section that has scrolled away stops working. This is what lets
+   the whole report animate at once without the phone paying for all
+   of it at once. */
+.mr-idle,
+.mr-idle * { animation-play-state: paused !important; }
+.mr-section { content-visibility: auto; contain-intrinsic-size: auto 520px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mr-cover-img, .mr-orb, .mr-aura, .mr-draw, .mr-bar, .mr-bar-h,
+  .mr-cell, .mr-fly, .mr-rise, .mr-tick { animation: none !important; }
+  .mr-shine::after { display: none !important; }
+  .mr-orb { display: none !important; }
+  /* Anything the animation was going to end on has to be its resting
+     state instead, or the report renders blank and still. */
+  .mr-bar   { transform: scaleY(1); }
+  .mr-bar-h { transform: scaleX(1); }
+  .mr-cell { transform: scale(1); opacity: 1; }
+  .mr-fly, .mr-rise { opacity: 1; transform: none; }
+  .mr-draw { stroke-dashoffset: var(--offset); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Deload mode
+   ───────────────────────────────────────────────────────────
+   One attribute on <html> — data-deload="1" — and the whole app
+   changes register. Not a tint: the accent, the corner radius, the
+   glow strength and the tempo all move together, because a week of
+   deliberately lighter weights should be legible at a glance without
+   reading a single label.
+
+   The brief was active recovery, not illness. So: cooler, softer and
+   slower, but never grey and never still. The app is still training.
+   ══════════════════════════════════════════════════════════ */
+:root[data-deload="1"] {
+  /* ── Palette ──
+     Glacier, not sky. The accent sits at ~195° — far enough round from
+     the app's sky blue to read as ice rather than a second daytime
+     colour, and cold enough that the screen feels a few degrees lower
+     than it did. Everything downstream follows on its own, because the
+     chrome is written against the triplet rather than against
+     literals. */
+  --cyan-rgb: 92,201,238;
+  --cyan:     #5CC9EE;
+  --cyan-hi:  #BEEDFF;              /* frost, for the shimmer to run through */
+
+  /* The secondary has to move out of the way. In normal mode it is
+     this exact blue and it marks the rest side of the home page — a
+     rest card and a training card the same colour would erase the one
+     distinction that screen depends on. So it steps aside to a cool
+     periwinkle: still calm, still in the same family, still not
+     green. */
+  --purple-rgb:  138,147,201;
+  --purple:      #8894C4;
+  --purple-deep: #59649C;
+
+  /* ── Softness ──
+     Rounder corners and a glow turned down to just over half. The
+     accent is present but no longer burning. */
+  --radius:    22px;
+  --radius-sm: 16px;
+  --glow-mul:  0.55;
+
+  /* ── Tempo ──
+     Every idle animation slows by the same factor. A breath instead
+     of a pulse. Not stopped: 1.6× is noticeably calmer while still
+     clearly alive. */
+  --breath: 1.6;
+
+  --grad-primary: linear-gradient(135deg, #86DFF8 0%, #2691BE 100%);
+  --grad-hero:    linear-gradient(145deg, #050C16 0%, #071626 100%);
+
+  /* ── Cold surfaces ──
+     The accent alone cannot make a room feel colder. The whole ground
+     shifts a few degrees toward blue: same darkness, less warmth in
+     it. Subtle on its own, and the reason the mode reads as
+     temperature rather than as a recolour. */
+  --bg:      #04070E;
+  --bg1:     #060A13;
+  --bg2:     #08101C;
+  --bg3:     #0E1928;
+  --border:  #142232;
+  --border2: #1C3048;
+  --text2:   #BCD4E8;
+  --text3:   #6C8A9D;
+}
+
+/* The three named card surfaces carry their shadow inline in this file
+   rather than through a token, so the softening is restated once here
+   instead of being threaded through every rule. */
+:root[data-deload="1"] .glass-card {
+  box-shadow: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+:root[data-deload="1"] .gradient-card {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.22);
+}
+:root[data-deload="1"] .btn-cyan {
+  box-shadow: 0 4px 16px rgba(var(--cyan-rgb),0.22), 0 0 0 1px rgba(var(--cyan-rgb),0.12);
+}
+:root[data-deload="1"] .btn-active-glow {
+  box-shadow: 0 0 22px rgba(var(--cyan-rgb),0.28), 0 4px 14px rgba(0,0,0,0.35);
+}
+
+/* The shimmer is the loudest thing on the screen — a light running
+   across text on a loop. Under a deload it slows further than --breath
+   alone would take it and loses its brightest stop. */
+:root[data-deload="1"] .shimmer-green {
+  animation-duration: calc(4.5s * var(--breath));
+}
+
+/* The weight-up celebration is already suppressed at its source in
+   ExerciseCard, before the timer starts. This is only a floor, so a
+   future call site can't reintroduce it by accident. */
+:root[data-deload="1"] .pr-fade { display: none !important; }
+
+/* Reduced motion still wins: everything above is duration and colour,
+   and the existing guards further up switch the animations themselves
+   off regardless of mode. */

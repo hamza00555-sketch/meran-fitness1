@@ -1,4 +1,6 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "routes": [
     {
       "src": "/sw.js",
@@ -11,9 +13,27 @@
     {
       "src": "/workbox-(.*)\\.js",
       "dest": "/workbox-$1.js",
-      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" }
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
     },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/" }
+    {
+      "src": "/classic/sw.js",
+      "dest": "/classic/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/classic/(.*)",
+      "dest": "/classic/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/"
+    }
   ]
 }
