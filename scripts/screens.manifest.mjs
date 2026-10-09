@@ -169,6 +169,7 @@ export const FIXTURES = {
   fresh: {
     clock: '2026-07-08T10:00:00+03:00',
     seed: {
+      hf_onboarded: true,
       hf_pack_prompted: true,
       hf_seen_version: APP_VERSION,
       hf_weights_reset_v2: true,
@@ -178,6 +179,13 @@ export const FIXTURES = {
 
   /** Nothing seeded at all, so the app greets a new install. */
   'first-run': { clock: '2026-07-08T10:00:00+03:00', seed: {} },
+
+  /** A returning user who has not seen this version's notes. */
+  'whats-new': {
+    clock: '2026-07-08T10:00:00+03:00',
+    extend: 'veteran',
+    seed: { hf_seen_version: null },
+  },
 
   /** Version seen, pack never offered — so the art-pack offer is the
    *  one thing waiting on the home screen. */
@@ -293,6 +301,11 @@ export const FIXTURES = {
    *  crosses it and the level-up screen takes over. */
   'player-levelup': { extend: 'player', seed: { hf_xp: 4190 } },
 
+  /** A returning user whose history unlocks achievements on open — their
+   *  XP crosses a level outside any session, so the full screen shows.
+   *  (Inside a session the level waits for the summary instead.) */
+  'levelup-boot': { extend: 'veteran', seed: { hf_unlocked: [], hf_xp: 4190 } },
+
   /** The same player on the smallest screen the app supports. */
   'player-se': { extend: 'player', device: 'iPhone SE' },
 
@@ -331,7 +344,8 @@ export const SCREENS = [
     label: 'الرئيسية', labelEn: 'Home',
     reach: [{ tab: 'home' }],
     expect: { text: /ابدأ التمرين|جلسة حرة|يوم تمرين/, accent: '#5EC32A' },
-    covers: ['src/pages/HomePage.jsx', 'src/components/TodayHero.jsx'],
+    covers: ['src/pages/HomePage.jsx', 'src/components/TodayHero.jsx', 'src/components/home/HomeBits.jsx',
+             'src/components/streak/StreakNumber.jsx'],
     state: 'مستخدم عائد، خطة مفعّلة، يوم تمرين — الحالة الافتراضية',
   },
   {
@@ -346,35 +360,61 @@ export const SCREENS = [
   },
   {
     id: 'page-workout', group: 'pages', fixture: 'veteran', shot: 'fold',
-    label: 'تمرين — بلا جلسة جارية', labelEn: 'Workout — no active session',
-    reach: [{ tab: 'workout' }],
+    label: 'السجل', labelEn: 'History',
+    reach: [{ tab: 'history' }],
     expect: { accent: '#5EC32A' },
-    covers: ['src/pages/WorkoutPage.jsx', 'src/components/streak/StreakChip.jsx'],
-    state: 'مدخل التمرين وسجل الجلسات السابقة',
+    covers: ['src/pages/HistoryPage.jsx', 'src/components/history/TodayCard.jsx',
+             'src/components/history/SessionRow.jsx', 'src/components/history/Txt.jsx',
+             'src/components/streak/StreakChip.jsx'],
+    state: 'تمرين اليوم فوق، والجلسات السابقة مجمّعة بالأسبوع',
+  },
+  {
+    id: 'sheet-history-routines', group: 'modals', fixture: 'veteran', shot: 'fold',
+    label: 'السجل — اختر روتين', labelEn: 'History — pick a routine',
+    reach: [{ tab: 'history' }, { text: /اختر روتين/ }, { settle: 600 }],
+    covers: ['src/components/history/RoutinePickerSheet.jsx'],
+    state: 'بدل خطة اليوم: روتين جاهز يبدأ منه',
+  },
+  {
+    id: 'sheet-history-edit', group: 'modals', fixture: 'veteran', shot: 'fold',
+    label: 'السجل — تعديل جلسة', labelEn: 'History — edit a session',
+    reach: [{ tab: 'history' }, { aria: /^خيارات جلسة/ }, { settle: 400 },
+            { text: 'تعديل الجلسة' }, { settle: 700 }],
+    expect: { text: /حفظ التعديلات/ },
+    covers: ['src/components/history/EditSessionSheet.jsx'],
+    state: 'جلسة سابقة مفتوحة للتعديل من قائمة ⋯',
   },
   {
     id: 'page-exercises', group: 'pages', fixture: 'veteran', shot: 'fold',
     label: 'التمارين', labelEn: 'Exercise library',
     reach: [{ tab: 'exercises' }],
     expect: { accent: '#5EC32A' },
-    covers: ['src/pages/ExercisesPage.jsx', 'src/components/ExerciseCard.jsx'],
+    covers: ['src/pages/ExercisesPage.jsx', 'src/components/library/Thumb.jsx'],
     state: 'مكتبة التمارين مصنّفة بالعضلات',
   },
   {
     id: 'page-achievements', group: 'pages', fixture: 'veteran', shot: 'fold',
     label: 'الجوائز', labelEn: 'Achievements',
-    reach: [{ tab: 'achievements' }],
+    reach: [{ tab: 'progress' }, { text: /^الإنجازات$/ }, { settle: 600 }],
     expect: { accent: '#5EC32A' },
-    covers: ['src/pages/AchievementsPage.jsx'],
+    covers: ['src/pages/AchievementsPage.jsx', 'src/pages/ProgressPage.jsx', 'src/components/progress/RankCrest.jsx',
+             'src/components/progress/RankLadder.jsx', 'src/components/progress/Medal.jsx'],
     state: 'كل الإنجازات مفتوحة',
   },
   {
     id: 'page-achievements-locked', group: 'pages', fixture: 'fresh', shot: 'fold',
     label: 'الجوائز — مقفلة', labelEn: 'Achievements — locked',
-    reach: [{ tab: 'achievements' }],
+    reach: [{ tab: 'progress' }, { text: /^الإنجازات$/ }, { settle: 600 }],
     expect: { accent: '#5EC32A' },
     covers: ['src/pages/AchievementsPage.jsx'],
     state: 'الحالة الفارغة — لا شيء مفتوح بعد',
+  },
+  {
+    id: 'page-progress-numbers', group: 'pages', fixture: 'veteran', shot: 'fold',
+    label: 'التقدم — الأرقام', labelEn: 'Progress — numbers',
+    reach: [{ tab: 'progress' }, { text: /^الأرقام$/ }, { settle: 700 }],
+    covers: ['src/pages/StatsPage.jsx', 'src/components/BarChart.jsx', 'src/components/progress/Numify.jsx'],
+    state: 'هل تمرّنت؟ الأسابيع والأحجام والعضلات بالأرقام',
   },
   {
     id: 'page-profile', group: 'pages', fixture: 'veteran', shot: 'fold',
@@ -389,13 +429,13 @@ export const SCREENS = [
     label: 'الإعدادات', labelEn: 'Settings',
     reach: [{ settings: true }],
     expect: { accent: '#5EC32A' },
-    covers: ['src/pages/SettingsPage.jsx'],
+    covers: ['src/pages/SettingsPage.jsx', 'src/components/DesignSwitch.jsx', 'src/components/kit/index.jsx'],
     state: 'أعلى الإعدادات',
   },
   {
     id: 'page-settings-deload', group: 'pages', fixture: 'veteran', shot: 'fold',
     label: 'الإعدادات — قسم الديلود', labelEn: 'Settings — deload section',
-    reach: [{ settings: true }, { scrollTo: 'الديلود' }],
+    reach: [{ settings: true }, { text: 'الديلود' }, { settle: 600 }],
     expect: { text: /ديلود/ },
     covers: ['src/components/DeloadSection.jsx'],
     state: 'قسم فترة التخفيف داخل الإعدادات',
@@ -421,55 +461,55 @@ export const SCREENS = [
   {
     id: 'state-recovery-open', group: 'states', fixture: 'veteran', shot: 'fold',
     label: 'كرت دورة التعافي مفتوحاً', labelEn: 'Recovery cycle, expanded',
-    reach: [{ tab: 'home' }, { openDetails: true }, { scrollTo: 'دورة التعافي' }],
-    expect: { text: /للتذكرة الجاية/ },
-    covers: ['src/pages/HomePage.jsx'],
-    state: 'الفقاعات وتقدّم التذكرة الجاية — الستريك نفسه صار في لوحته فوق',
+    reach: [{ tab: 'home' }, { click: '[data-testid="streak-number"]' }, { settle: 700 }],
+    expect: { text: /ليش/ },
+    covers: ['src/components/streak/StreakSheet.jsx', 'src/streak.js'],
+    state: 'الضغط على رقم الستريك في الرئيسية يفتح «ليش N؟» — كل التفاصيل هنا، مو في الرئيسية',
   },
   {
     id: 'state-credit-spent', group: 'states', fixture: 'credit-spent', shot: 'fold',
     label: 'تذكرة غطّت أمس', labelEn: 'A ticket covered yesterday',
-    reach: [{ tab: 'home' }, { settle: 400 }],
-    expect: { selector: '[data-testid="streak-note"]', text: /تذكرة غطّت أمس/ },
-    covers: ['src/components/streak/Scoreboard.jsx', 'src/streak.js', 'src/recovery.js'],
-    state: 'لوحة الستريك: أمس انصرفت تذكرة، اليوم مطلوب، وثمن الغياب آخر تذكرة',
+    reach: [{ tab: 'home' }, { click: '[data-testid="streak-number"]' }, { settle: 700 }],
+    expect: { text: /ليش/ },
+    covers: ['src/components/streak/StreakSheet.jsx', 'src/streak.js', 'src/recovery.js'],
+    state: '«ليش N؟» بعد ما غطّت تذكرة أمس — اليوم مطلوب، وثمن الغياب آخر تذكرة',
   },
   {
     id: 'state-credit-warning', group: 'states', fixture: 'credit-warning', shot: 'fold',
     label: 'بلا تذاكر — نهاراً', labelEn: 'No tickets left, daytime',
-    reach: [{ tab: 'home' }, { settle: 400 }],
-    expect: { selector: '[data-testid="streak-board"]', text: /يرجع 10 إلى صفر/ },
-    covers: ['src/components/streak/Scoreboard.jsx'],
-    state: 'الرصيد صفر واليوم يوم تمرين — الثمن مكتوب تحت الرقم من الصبح',
+    reach: [{ tab: 'home' }, { click: '[data-testid="streak-number"]' }, { settle: 700 }],
+    expect: { text: /يرجع 10 إلى صفر/ },
+    covers: ['src/components/streak/StreakSheet.jsx'],
+    state: 'الرصيد صفر واليوم يوم تمرين — الثمن مكتوب في «ليش N؟» من الصبح',
   },
   {
     id: 'state-streak-late', group: 'states', fixture: 'credit-late', shot: 'fold',
     label: 'بلا تذاكر — آخر الليل', labelEn: 'No tickets left, late at night',
-    reach: [{ tab: 'home' }, { settle: 400 }],
+    reach: [{ tab: 'home' }, { click: '[data-testid="streak-number"]' }, { settle: 700 }],
     expect: { text: /بدون تمرين الليلة/ },
-    covers: ['src/components/streak/Scoreboard.jsx', 'src/components/streak/StreakIcons.jsx'],
+    covers: ['src/components/streak/StreakSheet.jsx', 'src/components/streak/StreakIcons.jsx'],
     state: '23:40 والرصيد صفر — الحالة تقول الليلة تحسم، ومعها الوقت الباقي على 3 الفجر',
   },
   {
     id: 'state-streak-done', group: 'states', fixture: 'trained-today', shot: 'fold',
     label: 'تمرّنت اليوم', labelEn: 'Trained today',
     reach: [{ tab: 'home' }, { settle: 400 }],
-    expect: { text: /انحسب اليوم/ },
-    covers: ['src/components/streak/Scoreboard.jsx', 'src/components/TodayHero.jsx'],
-    state: 'اليوم انحسب — اللهب ممتلئ، وبطاقة اليوم تقول «تمرين اليوم خلص»',
+    expect: { selector: '[data-testid="streak-number"].counted' },
+    covers: ['src/components/streak/StreakNumber.jsx', 'src/components/TodayHero.jsx'],
+    state: 'اليوم انحسب — اللهب ممتلئ جنب الرقم، والمسرح يقول إن تمرين اليوم خلص',
   },
   {
     id: 'state-streak-rest', group: 'states', fixture: 'rest-day', shot: 'fold',
     label: 'يوم راحة مجدولة', labelEn: 'Scheduled rest day',
-    reach: [{ tab: 'home' }, { settle: 400 }],
+    reach: [{ tab: 'home' }, { click: '[data-testid="streak-number"]' }, { settle: 700 }],
     expect: { text: /انحسبت لك من 3 الفجر/ },
-    covers: ['src/components/streak/Scoreboard.jsx'],
+    covers: ['src/components/streak/StreakSheet.jsx'],
     state: 'الراحة المجدولة تنحسب من 3 الفجر بلا أي فعل',
   },
   {
     id: 'sheet-skip', group: 'modals', fixture: 'veteran', shot: 'fold',
     label: 'قبل تخطي اليوم', labelEn: 'Before skipping today',
-    reach: [{ tab: 'home' }, { text: /تخطي اليوم/ }, { settle: 600 }],
+    reach: [{ tab: 'home' }, { aria: 'خيارات اليوم' }, { aria: /تخطي اليوم/ }, { settle: 600 }],
     expect: { selector: '[data-testid="skip-sheet"]' },
     covers: ['src/components/streak/SkipSheet.jsx'],
     state: 'الورقة تقول ثمن التخطي على الستريك قبل ما تنتقل الخطة',
@@ -490,22 +530,31 @@ export const SCREENS = [
     covers: ['src/pages/HomePage.jsx'],
     state: 'الحالة الفارغة: لا تاريخ، لا ستريك، لا خطة',
   },
+  {
+    id: 'state-onboarding', group: 'states', fixture: 'first-run', shot: 'fold',
+    label: 'أول فتح — الإعداد', labelEn: 'First run — setup',
+    reach: [{ settle: 900 }],
+    covers: ['src/components/frame/Onboarding.jsx'],
+    state: 'تثبيت جديد: ثلاث أسئلة قبل الرئيسية — الخطة، الوقت، الإشعارات',
+  },
 
   // ── Player ──────────────────────────────────────────────────
   {
     id: 'player-working', group: 'player', fixture: 'player', shot: 'fold',
     label: 'مشغّل التمرين', labelEn: 'Workout player',
     reach: [{ tab: 'workout' }],
-    expect: { text: /إنهاء المجموعة|Bench Press|Hammer/ },
+    expect: { selector: '[data-testid="complete-set"]' },
     covers: ['src/components/player/WorkoutPlayer.jsx', 'src/components/player/ExerciseHero.jsx',
              'src/components/player/WorkingArea.jsx', 'src/components/player/ExerciseQueue.jsx',
-             'src/components/player/ExerciseTags.jsx', 'src/components/player/SetHistory.jsx'],
+             'src/components/player/ExerciseTags.jsx', 'src/components/player/SetHistory.jsx',
+             'src/components/player/SessionBar.jsx', 'src/components/player/SessionMedia.jsx',
+             'src/pages/WorkoutPage.jsx'],
     state: 'تمرين جارٍ: الأوزان، العدّات، والمجموعة القادمة',
   },
   {
     id: 'player-rest', group: 'player', fixture: 'player', shot: 'fold',
     label: 'المشغّل — الراحة بين المجموعات', labelEn: 'Player — rest between sets',
-    reach: [{ tab: 'workout' }, { text: /إنهاء المجموعة/ }, { settle: 900 }],
+    reach: [{ tab: 'workout' }, { click: '[data-testid="complete-set"]' }, { settle: 900 }],
     covers: ['src/components/player/InlineRest.jsx'],
     state: 'مؤقّت الراحة يعمل داخل المشغّل بعد إنهاء مجموعة',
   },
@@ -513,7 +562,7 @@ export const SCREENS = [
     id: 'player-se', group: 'player', fixture: 'player-se', shot: 'fold',
     label: 'المشغّل — شاشة صغيرة', labelEn: 'Player — small screen',
     reach: [{ tab: 'workout' }],
-    expect: { text: /إنهاء المجموعة/ },
+    expect: { selector: '[data-testid="complete-set"]' },
     covers: ['src/components/player/WorkoutPlayer.jsx'],
     state: 'نفس المشغّل على iPhone SE — أضيق شاشة يدعمها التطبيق',
   },
@@ -530,16 +579,17 @@ export const SCREENS = [
 
   // ── Modals and sheets ───────────────────────────────────────
   {
-    id: 'modal-rest-timer', group: 'modals', fixture: 'veteran', shot: 'fold',
+    id: 'modal-rest-timer', group: 'modals', fixture: 'player', shot: 'fold',
     label: 'مؤقّت الراحة', labelEn: 'Rest timer',
-    reach: [{ tab: 'home' }, { aria: 'مؤقت الراحة' }, { settle: 600 }],
-    covers: ['src/components/RestTimer.jsx'],
-    state: 'المؤقّت العائم، مفتوحاً من الهيدر',
+    reach: [{ tab: 'workout' }, { click: '[data-testid="complete-set"]' }, { settle: 400 },
+            { aria: 'صغّر الجلسة' }, { settle: 900 }],
+    covers: ['src/components/RestTimer.jsx', 'src/components/frame/LiveBar.jsx'],
+    state: 'تصغير الجلسة وقت الراحة: شريط الجلسة فوق التبويبات، والمؤقّت يكمّل',
   },
   {
     id: 'modal-routines', group: 'modals', fixture: 'player-empty', shot: 'fold',
     label: 'الروتينات', labelEn: 'Routines',
-    reach: [{ tab: 'workout' }, { text: /روتين/ }, { settle: 600 }],
+    reach: [{ tab: 'workout' }, { text: /اختر روتين/ }, { settle: 600 }],
     covers: ['src/components/RoutinesModal.jsx'],
     state: 'اختيار روتين محفوظ لجلسة فارغة',
   },
@@ -551,7 +601,7 @@ export const SCREENS = [
     state: 'بحث وإضافة تمرين إلى الجلسة',
   },
   {
-    id: 'modal-whats-new', group: 'modals', fixture: 'first-run', shot: 'fold',
+    id: 'modal-whats-new', group: 'modals', fixture: 'whats-new', shot: 'fold',
     label: 'ما الجديد', labelEn: "What's new",
     reach: [{ settle: 1200 }],
     covers: ['src/components/WhatsNewModal.jsx'],
@@ -567,12 +617,21 @@ export const SCREENS = [
 
   // ── Full-screen ─────────────────────────────────────────────
   {
-    id: 'full-level-up', group: 'fullscreen', fixture: 'player-levelup', shot: 'fold',
+    id: 'full-level-up', group: 'fullscreen', fixture: 'levelup-boot', shot: 'fold',
     label: 'شاشة المستوى', labelEn: 'Level up',
-    reach: [{ tab: 'workout' }, { text: /إنهاء المجموعة/ }, { settle: 1200 }],
-    expect: { text: /استمر/ },
+    reach: [{ settle: 2000 }],
+    expect: { text: /كمّل/ },
     covers: ['src/components/LevelUpScreen.jsx'],
-    state: 'إنهاء مجموعة يعبر بالمستوى الرابع إلى الخامس',
+    state: 'إنجازات تنفتح عند الفتح وتعبر بالمستوى — خارج الجلسة، فالشاشة الكاملة تظهر',
+  },
+  {
+    id: 'full-session-summary', group: 'fullscreen', fixture: 'player-levelup', shot: 'fold',
+    label: 'ملخّص الجلسة', labelEn: 'Session summary',
+    reach: [{ tab: 'workout' }, { click: '[data-testid="complete-set"]' }, { settle: 600 },
+            { aria: /^إنهاء$/ }, { settle: 500 }, { text: /احفظ وأنهِ/ }, { settle: 2500 }],
+    expect: { selector: '[data-testid="session-summary"]' },
+    covers: ['src/components/frame/SessionSummary.jsx', 'src/components/player/FinishSheet.jsx'],
+    state: 'بعد «احفظ وأنهِ»: المدة والمجموعات والحجم، والمستوى الجديد ينتظر هنا بدل ما يقاطع الجلسة',
   },
   {
     id: 'full-deload-end', group: 'fullscreen', fixture: 'deload-ended', shot: 'fold',
@@ -585,7 +644,7 @@ export const SCREENS = [
     id: 'overlay-system-alert', group: 'fullscreen', fixture: 'credit-spent', shot: 'fold',
     label: 'تنبيه النظام', labelEn: 'System alert',
     reach: [{ settle: 700 }],
-    covers: ['src/components/SystemAlert.jsx'],
+    covers: ['src/components/SystemAlert.jsx', 'src/components/system/glyphs.jsx'],
     state: 'التنبيه الذي يعلن صرف يوم راحة — يختفي بعد ٣٫٢ ثانية',
     noSettle: true,
   },
@@ -612,36 +671,36 @@ export const SCREENS = [
   {
     id: 'page-photos', group: 'pages', fixture: 'veteran', shot: 'fold',
     label: 'صور التقدم', labelEn: 'Progress photos',
-    reach: [{ tab: 'profile' }, { text: /صور/ }, { settle: 600 }],
+    reach: [{ tab: 'progress' }, { text: /^الصور$/ }, { settle: 600 }],
     covers: ['src/pages/PhotosPage.jsx'],
-    state: 'صفحة صور التقدم، فارغة — تُبلَغ من الملف الشخصي فقط',
+    state: 'صفحة صور التقدم، فارغة',
   },
   {
     id: 'modal-exercise-info', group: 'modals', fixture: 'veteran', shot: 'fold',
     label: 'تفاصيل التمرين', labelEn: 'Exercise details',
-    reach: [{ tab: 'exercises' }, { clickNth: ['button', 3] }, { settle: 700 }],
-    covers: ['src/components/ExerciseInfoModal.jsx'],
+    reach: [{ tab: 'library' }, { click: '.lib-row' }, { settle: 700 }],
+    covers: ['src/components/ExerciseInfoModal.jsx', 'src/components/library/Sparkline.jsx'],
     state: 'بطاقة تمرين مفتوحة من المكتبة: العضلة، الشرح، الفيديو',
   },
   {
     id: 'sheet-day-preview', group: 'modals', fixture: 'veteran', shot: 'fold',
     label: 'عرض تمارين اليوم', labelEn: "Today's exercises",
-    reach: [{ tab: 'home' }, { text: /عرض التمارين/ }, { settle: 700 }],
+    reach: [{ tab: 'home' }, { aria: 'خيارات اليوم' }, { aria: /عرض التمارين/ }, { settle: 700 }],
     covers: ['src/components/DayPreviewSheet.jsx'],
     state: 'ورقة تعرض تمارين اليوم قبل بدء الجلسة',
   },
   {
     id: 'panel-rest-ledger', group: 'modals', fixture: 'credit-spent', shot: 'fold',
     label: 'سجل الراحة', labelEn: 'Rest ledger',
-    reach: [{ settings: true }, { scrollTo: 'سجل المكافأة' }],
-    expect: { text: /سجل المكافأة/ },
+    reach: [{ settings: true }, { text: 'متقدم' }, { settle: 600 }],
+    expect: { text: /سجل الراحة/ },
     covers: ['src/components/RestLedgerPanel.jsx'],
     state: 'شريط التشخيص الذي يعرض قرار المحرّك يوماً بيوم',
   },
   {
     id: 'page-settings-pack', group: 'pages', fixture: 'veteran', shot: 'fold',
     label: 'الإعدادات — حزمة الصور', labelEn: 'Settings — art pack',
-    reach: [{ settings: true }, { scrollTo: 'حزمة الصور' }],
+    reach: [{ settings: true }, { text: 'حزمة الصور' }, { settle: 600 }],
     expect: { text: /حزمة الصور/ },
     covers: ['src/components/AssetPackSection.jsx'],
     state: 'إدارة حزمة الفن: التنزيل، الحجم، الحذف',
@@ -658,13 +717,4 @@ export const SCREENS = [
 
 /** Files the manifest deliberately does not cover, and why. Checked by
  *  `--audit` so the list stays honest as the app grows. */
-export const KNOWN_UNCOVERED = {
-  'src/pages/StatsPage.jsx': 'dead — imported by nothing; ProfilePage superseded it',
-  'src/pages/HistoryPage.jsx': 'dead — imported by nothing; WorkoutPage has its own history view',
-  'src/pages/TodayPage.jsx': 'dead — imported by nothing',
-  'src/components/AIPanel.jsx': 'dead — imported by nothing',
-  'src/pages/ChallengesPage.jsx':
-    'UNREACHABLE IN THE SHIPPED APP: App.jsx renders it at tab === "challenges" '
-    + 'but nothing anywhere calls setTab("challenges") and it is absent from '
-    + 'NAV_TABS. A whole page ships with no way in.',
-}
+export const KNOWN_UNCOVERED = {}

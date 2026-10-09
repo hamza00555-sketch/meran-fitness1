@@ -94,6 +94,7 @@ async function boot(page) {
     localStorage.setItem('hf_weights_reset_v2', 'true')
     localStorage.setItem('hf_seen_version', JSON.stringify(v))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة', goal: 'muscle' }))
+    localStorage.setItem('hf_onboarded', 'true')
     // Unlocked achievements are where the artwork actually shows.
     localStorage.setItem('hf_unlocked', JSON.stringify(['a1', 'a2', 'a3', 'b1', 'c1', 'd1']))
   }, APP_VERSION)
@@ -116,10 +117,13 @@ const blobCount = (page) => page.evaluate(() => new Promise((resolve) => {
 const pointer = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
 
 const openSettings = async (page) => {
-  await page.evaluate(() => {
-    const btns = [...document.querySelectorAll('header button')]
-    ;(btns[1] || btns[0]).click()
-  })
+  // The new frame: the gear sits on Home, and the pack has its own
+  // page inside Settings.
+  await page.evaluate(() => document.querySelector('nav.f-tabs button')?.click())
+  await page.waitForTimeout(400)
+  await page.evaluate(() => document.querySelector('button[aria-label="الإعدادات"]')?.click())
+  await page.waitForTimeout(600)
+  await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('حزمة الصور'))?.click())
   await page.waitForTimeout(700)
   await page.evaluate(() => document.querySelector('[data-pack="install"],[data-pack="cancel"]')?.scrollIntoView())
   await page.waitForTimeout(200)
@@ -175,16 +179,19 @@ const waitPhase = async (page, want, ms = 60000) => {
   ok('every distinct picture is stored', await blobCount(page) === UNIQUE, `${await blobCount(page)}/${UNIQUE}`)
   const p = await pointer(page)
   ok('the pointer records the version', p?.packVersion === manifest.packVersion, JSON.stringify(p))
-  ok('one manifest fetch', net.manifests === 1, String(net.manifests))
+  // Two at most: boot reads it once for the exercise stills' URL map
+  // (no pack yet), and the install reads it once more.
+  ok('the manifest is not re-fetched per file', net.manifests <= 2, String(net.manifests))
   ok('each distinct file fetched exactly once', net.files === UNIQUE, `${net.files}/${UNIQUE}`)
 
   // The point of the whole exercise: the awards page now draws the
   // downloaded artwork instead of emoji.
   const gotoAwards = async () => {
-    await page.evaluate(() => {
-      const b = [...document.querySelectorAll('nav button')].find(x => x.textContent.includes('جوائز'))
-      b && b.click()
-    })
+    // Achievements are a view inside the progress tab now.
+    await page.evaluate(() => document.querySelectorAll('nav.f-tabs button')[2]?.click())
+    await page.waitForTimeout(500)
+    await page.evaluate(() => [...document.querySelectorAll('[role="radio"],[role="tab"],button')]
+      .find(x => x.textContent.trim() === 'الإنجازات')?.click())
     await page.waitForTimeout(900)
   }
   await gotoAwards()
@@ -272,7 +279,7 @@ const waitPhase = async (page, want, ms = 60000) => {
   await openSettings(page)
   ok('a hash mismatch ends in an error state', await waitPhase(page, 'error') === 'error')
   ok('the failure is named as a corrupt file',
-    await page.evaluate(() => document.body.innerText.includes('ملف تالف')))
+    await page.evaluate(() => document.body.innerText.includes('ملف خربان')))
 
   const stored = await blobCount(page)
   ok('the rest of the pack still installs', stored === UNIQUE - 1, `${stored}/${UNIQUE - 1}`)

@@ -139,19 +139,31 @@ function initScript([seed, clock]) {
 // Every way of reaching a screen lives here, so the manifest stays data
 // and a selector strategy is fixed in one place rather than thirty.
 
-const navIndex = (id) => NAV_TABS.findIndex(t => t.id === id)
+// The new design's frame (src/App.jsx): four tabs — home, history,
+// progress, library. The old tab ids still resolve, so a manifest entry
+// written for the old navigation lands on the screen that replaced it:
+// the session opens full screen on its own when one is seeded, the
+// profile opens from the avatar on Home, achievements live in progress.
+const NEW_TABS = ['home', 'history', 'progress', 'library']
+const TAB_ALIASES = { workout: 'history', exercises: 'library', achievements: 'progress' }
 
 const STEPS = {
-  // Nav tabs are addressed by index, not by label: «تمرين» is a
-  // substring of «التمارين», so a name selector picks the wrong one.
   async tab(page, id) {
-    const i = navIndex(id)
+    if (id === 'workout' && await page.locator('[data-testid="session-cover"]').count()) return
+    if (id === 'profile') {
+      await STEPS.tab(page, 'home')
+      await page.locator('.h-avatar').first().click()
+      await page.waitForTimeout(700)
+      return
+    }
+    const i = NEW_TABS.indexOf(TAB_ALIASES[id] || id)
     if (i === -1) throw new Error(`no nav tab "${id}"`)
-    await page.locator('nav > button').nth(i).click()
+    await page.locator('nav.f-tabs > button').nth(i).click()
     await page.waitForTimeout(700)
   },
   async settings(page) {
-    await page.getByRole('button', { name: 'الإعدادات' }).click()
+    if (!await page.locator('.h-top').count()) await STEPS.tab(page, 'home')
+    await page.getByRole('button', { name: 'الإعدادات' }).first().click()
     await page.waitForTimeout(700)
   },
   async aria(page, name) {

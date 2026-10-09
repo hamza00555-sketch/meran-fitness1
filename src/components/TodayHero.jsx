@@ -174,7 +174,7 @@ export default function TodayHero({
   let artShown = false
   if (resting) {
     artShown = true
-    stageArt = <img className="k-stage-art hm-art-rest" src="/assets/hero_rest.png" alt="" />
+    stageArt = <img className="k-stage-art hm-art-rest" src="/assets/hero_rest.webp" alt="" />
   } else if ((planned || free || active) && onDeload) {
     const cooled = art ? <img className="k-stage-art hm-art-cool" src={art} alt="" /> : null
     stageArt = <Art id="deload_hero" className="k-stage-art hm-art-deload" alt="" fallback={cooled} />

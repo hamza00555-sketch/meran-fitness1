@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && vite build --config classic/vite.config.js",
     "preview": "vite preview",
-    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs tests/month-report.test.mjs tests/report-share.test.mjs tests/deload.test.mjs tests/alternatives.test.mjs tests/set-carry.test.mjs tests/plan-day-name.test.mjs tests/exercise-media.test.mjs tests/greetings.test.mjs tests/day.test.mjs tests/streak.test.mjs tests/classic.test.mjs",
+    "test": "node --test tests/assets.test.mjs tests/progression.test.mjs tests/recovery-credits.test.mjs tests/month-report.test.mjs tests/report-share.test.mjs tests/deload.test.mjs tests/alternatives.test.mjs tests/set-carry.test.mjs tests/plan-day-name.test.mjs tests/exercise-media.test.mjs tests/greetings.test.mjs tests/day.test.mjs tests/streak.test.mjs tests/classic.test.mjs tests/history.test.mjs tests/search.test.mjs",
     "test:live": "node tests/pack.live.mjs",
     "ledger": "node scripts/rest-ledger.mjs",
     "pack:prompts": "node scripts/prompts.mjs",
@@ -21,7 +21,8 @@
     "ds:push": "node scripts/push-design-system.mjs",
     "ds:screens": "node scripts/push-screens.mjs",
     "dev:classic": "vite --config classic/vite.config.js",
-    "test:design": "node tests/design-switch.e2e.mjs"
+    "test:design": "node tests/design-switch.e2e.mjs",
+    "test:progress": "node tests/progress.e2e.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

@@ -236,18 +236,22 @@ for (const [iso, expect, label] of [
   await ctx.close()
 }
 
+// Settings is a list of sub-pages now; the deload one is its own row.
+async function openDeloadSettings(page) {
+  await page.getByRole('button', { name: 'الإعدادات' }).first().click()
+  await page.waitForTimeout(500)
+  await page.getByText('الديلود', { exact: true }).first().click()
+  await page.waitForTimeout(500)
+}
+
 // ══ 8. Starting one from Settings ═════════════════════════════
 // The whole point of stage 7: a person can turn this on. Drives the
 // real controls rather than writing the config directly.
 {
   const { ctx, page, errors } = await open('2026-07-01T10:00:00+03:00', { deload: null })
-  await page.getByRole('button', { name: 'الإعدادات' }).click()
-  await page.waitForTimeout(500)
+  await openDeloadSettings(page)
+  ok('settings: the deload page is there', await page.getByText('ابدأ فترة ديلود').count() > 0)
 
-  const section = page.getByText('الديلود · فترة تخفيف', { exact: false }).first()
-  ok('settings: the deload section is there', await section.count() > 0)
-
-  await section.scrollIntoViewIfNeeded()
   const start = page.getByRole('button', { name: /ابدأ فترة ديلود/ }).first()
   ok('settings: the start button is there', await start.count() > 0)
   await start.click()
@@ -280,12 +284,14 @@ for (const [iso, expect, label] of [
 // ══ 9. Ending it early keeps both dates ═══════════════════════
 {
   const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { deload: DELOAD })
-  await page.getByRole('button', { name: 'الإعدادات' }).click()
-  await page.waitForTimeout(500)
+  await openDeloadSettings(page)
   const end = page.getByRole('button', { name: /أنهِ الديلود الآن/ }).first()
   ok('settings: the running card offers an early end', await end.count() > 0)
   await end.scrollIntoViewIfNeeded()
   await end.click()
+  await page.waitForTimeout(300)
+  // It asks once, like starting does.
+  await page.getByRole('button', { name: /^أنهِ الديلود$/ }).last().click()
   await page.waitForTimeout(700)
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery')))
@@ -382,7 +388,7 @@ for (const [iso, expect, label] of [
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
 
-  await page.getByRole('button', { name: /تنزيل الآن/ }).click()
+  await page.locator('[data-pack="offer-accept"]').click()
   // ~12MB of blobs, verified and written to IndexedDB one at a time.
   await page.waitForTimeout(75000)
 

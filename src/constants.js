@@ -151,26 +151,28 @@ export const GREETINGS = {
     'رجعتك أهم من غيابك يا {name} — يلا 🚀',
     '{name} 🔄 صفحة جديدة، نفس البطل',
   ],
-  // A rest ticket was spent on yesterday's missed day (automatically,
-  // at 03:00 — the lines never suggest it was a choice or a payment).
+  // Yesterday was a missed training day that a rest ticket covered
+  // (automatically, at 03:00). The lines speak only of yesterday and
+  // today: tickets live in «ليش N؟», never on Home (حمزة: «انا اللي
+  // همني فقط رقم الستريك»).
   creditSpent: [
-    '{name}، تذكرة حمتك أمس — اليوم ردّ الجميل 🎟️',
-    'أمس غطّتك تذكرة يا {name}، اليوم شغل 💪',
-    '{name}، الستريك نجا أمس بتذكرة — لا تخلّيه يحتاج ثانية 🛟',
-    'التذكرة سوّت شغلها يا {name}، الحين دورك 🔄',
-    '{name}، أمس عدّى على تذكرة — اليوم سدّد بسيت قوي 🏋️',
-    'يوم التذكرة خلص يا {name}، يلا نرجع 🚀',
-    '{name} 🧾 أمس انصرفت تذكرة، اليوم اكسب غيرها',
+    '{name}، أمس فاتك — اليوم ردّ الجميل 🎯',
+    'أمس عدّى بدون تمرين يا {name}، اليوم شغل 💪',
+    '{name}، الستريك صمد أمس — لا تخلّيه يصمد مرتين 🛟',
+    'أمس استراحة غصب يا {name}، الحين دورك 🔄',
+    '{name}، أمس فاتك — اليوم عوّضه بسيت قوي 🏋️',
+    'أمس انتهى يا {name}، يلا نرجع 🚀',
+    '{name} 🧭 أمس ضاع، اليوم يرجّع البوصلة',
     '{name}، أخذت نفس أمس — اليوم ارفع الإيقاع 🥁',
     'أمس راحة، اليوم عودة يا {name} — الستريك ينتظرك 🔥',
-    'تذكرتك غطّتك أمس يا {name}، اليوم أنت تغطّي نفسك ⚡',
+    'أمس غطّاك الستريك يا {name}، اليوم أنت تغطّيه ⚡',
   ],
   // A rest day the person chose today, paid from the balance. Until now
   // this day fell through to the streak or training-day lines — telling
   // someone resting on purpose to go and train.
   restTaken: [
     '{name}، راحة اختيارية اليوم — استمتع فيها بلا ذنب 🛋️',
-    'خذ نفس يا {name}، الرصيد موجود لهالسبب 🎟️',
+    'خذ نفس يا {name}، الراحة جزء من الخطة 🧘',
     '{name} 😌 اليوم راحة من اختيارك، بكرة نرجع أقوى',
     'الراحة اللي تختارها بنفسك ذكاء يا {name} 🧠',
     '{name}، الستريك محفوظ — ريّح جسمك اليوم 🔐',
@@ -206,13 +208,13 @@ export const GREETINGS = {
 
 // ── Ranks ─────────────────────────────────────────────────────
 export const RANKS = [
-  { label: 'مبتدئ',   tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20', img: '/assets/rank_e.png' },
-  { label: 'متوسط',   tier: 'D',  minLevel: 5,  color: '#5EC32A', bg: '#5EC32A20', img: '/assets/rank_d.png' },
-  { label: 'متقدم',   tier: 'C',  minLevel: 10, color: '#3B9DE8', bg: '#3B9DE820', img: '/assets/rank_c.png' },
-  { label: 'محترف',   tier: 'B',  minLevel: 20, color: '#A855F7', bg: '#A855F720', img: '/assets/rank_b.png' },
-  { label: 'بطل',     tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620', img: '/assets/rank_a.png' },
-  { label: 'أسطورة',  tier: 'S',  minLevel: 50, color: '#F59E0B', bg: '#F59E0B20', img: '/assets/rank_s.png' },
-  { label: 'خارق',    tier: 'S+', minLevel: 75, color: '#EC4899', bg: '#EC489920', img: '/assets/rank_s_plus.png' },
+  { label: 'مبتدئ',   tier: 'E',  minLevel: 1,  color: '#9CA3AF', bg: '#9CA3AF20', img: '/assets/rank_e.webp' },
+  { label: 'متوسط',   tier: 'D',  minLevel: 5,  color: '#5EC32A', bg: '#5EC32A20', img: '/assets/rank_d.webp' },
+  { label: 'متقدم',   tier: 'C',  minLevel: 10, color: '#3B9DE8', bg: '#3B9DE820', img: '/assets/rank_c.webp' },
+  { label: 'محترف',   tier: 'B',  minLevel: 20, color: '#A855F7', bg: '#A855F720', img: '/assets/rank_b.webp' },
+  { label: 'بطل',     tier: 'A',  minLevel: 35, color: '#F97316', bg: '#F9731620', img: '/assets/rank_a.webp' },
+  { label: 'أسطورة',  tier: 'S',  minLevel: 50, color: '#F59E0B', bg: '#F59E0B20', img: '/assets/rank_s.webp' },
+  { label: 'خارق',    tier: 'S+', minLevel: 75, color: '#EC4899', bg: '#EC489920', img: '/assets/rank_s_plus.webp' },
 ]
 
 // ── Commitment Levels (0-5 flames based on streak) ───────────
@@ -227,12 +229,12 @@ export const COMMITMENT_LEVELS = [
 
 // ── Goals ─────────────────────────────────────────────────────
 export const GOALS = [
-  { id: 'muscle',   label: 'بناء العضلات',    icon: '💪', desc: 'زيادة الكتلة العضلية والقوة',          img: '/assets/goalc_muscle.png' },
-  { id: 'fat_loss', label: 'حرق الدهون',      icon: '🔥', desc: 'تقليل نسبة الدهون وتحسين الجسم',      img: '/assets/goalc_fatloss.png' },
-  { id: 'strength', label: 'زيادة القوة',     icon: '⚔️', desc: 'رفع أوزان أثقل وتحسين الأداء',        img: '/assets/goalc_strength.png' },
-  { id: 'endurance',label: 'التحمل واللياقة', icon: '🏃', desc: 'تحسين اللياقة والقدرة على التحمل',    img: '/assets/goalc_endurance.png' },
-  { id: 'recomp',   label: 'إعادة التشكيل',   icon: '⚡', desc: 'بناء العضل وحرق الدهون معاً',         img: '/assets/goalc_recomp.png' },
-  { id: 'maintain', label: 'المحافظة',         icon: '🛡️', desc: 'الحفاظ على مستوى اللياقة الحالي',    img: '/assets/goalc_muscle.png' },
+  { id: 'muscle',   label: 'بناء العضلات',    icon: '💪', desc: 'زيادة الكتلة العضلية والقوة',          img: '/assets/goalc_muscle.webp' },
+  { id: 'fat_loss', label: 'حرق الدهون',      icon: '🔥', desc: 'تقليل نسبة الدهون وتحسين الجسم',      img: '/assets/goalc_fatloss.webp' },
+  { id: 'strength', label: 'زيادة القوة',     icon: '⚔️', desc: 'رفع أوزان أثقل وتحسين الأداء',        img: '/assets/goalc_strength.webp' },
+  { id: 'endurance',label: 'التحمل واللياقة', icon: '🏃', desc: 'تحسين اللياقة والقدرة على التحمل',    img: '/assets/goalc_endurance.webp' },
+  { id: 'recomp',   label: 'إعادة التشكيل',   icon: '⚡', desc: 'بناء العضل وحرق الدهون معاً',         img: '/assets/goalc_recomp.webp' },
+  { id: 'maintain', label: 'المحافظة',         icon: '🛡️', desc: 'الحفاظ على مستوى اللياقة الحالي',    img: '/assets/goalc_muscle.webp' },
 ]
 
 // ── Gym Types ─────────────────────────────────────────────────
@@ -259,7 +261,7 @@ export const WEEK_DAYS_SHORT = ['ح', 'ن', 'ث', 'أ', 'خ', 'ج', 'س']
 // ── Muscle Groups ─────────────────────────────────────────────
 export const MUSCLE_GROUPS = {
   Chest: {
-    label: 'الصدر', emoji: '🫁', color: '#FF6B35', img: '/assets/muscle_chest.png',
+    label: 'الصدر', emoji: '🫁', color: '#FF6B35', img: '/assets/muscle_chest.webp',
     exercises: [
       { name: 'Bench Press',         videoUrl: 'https://www.youtube.com/results?search_query=Bench+Press+proper+form+shorts', tips: ['اثبت الكتفين على المقعد طوال الحركة', 'المسكة أعرض من الكتفين قليلاً', 'نزّل البار لمنتصف الصدر وليس الحلق'] },
       { name: 'Incline Bench Press', videoUrl: 'https://www.youtube.com/results?search_query=Incline+Bench+Press+proper+form+shorts', tips: ['زاوية 30-45 درجة للاستهداف الأمثل', 'الجزء العلوي من الصدر هو المحرك', 'لا ترفع الأرداف عن المقعد'] },
@@ -276,7 +278,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Back: {
-    label: 'الظهر', emoji: '🗂️', color: '#3B82F6', img: '/assets/muscle_back.png',
+    label: 'الظهر', emoji: '🗂️', color: '#3B82F6', img: '/assets/muscle_back.webp',
     exercises: [
       { name: 'Deadlift',             videoUrl: 'https://www.youtube.com/results?search_query=Deadlift+proper+form+shorts', tips: ['الظهر مستقيم طوال الحركة — لا قوس', 'البار يلصق بالجسم من البداية للنهاية', 'ابدأ بدفع الأرض بالأرجل وليس سحب الظهر'] },
       { name: 'Pull-Up',              videoUrl: 'https://www.youtube.com/results?search_query=Pull-Up+proper+form+shorts', tips: ['اسحب بالظهر لا بالذراعين', 'الكتفان للأسفل والخلف قبل بدء السحب', 'انزل بالتحكم البطيء للمدى الكامل'] },
@@ -295,7 +297,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Shoulders: {
-    label: 'الأكتاف', emoji: '🦾', color: '#A855F7', img: '/assets/muscle_shoulders.png',
+    label: 'الأكتاف', emoji: '🦾', color: '#A855F7', img: '/assets/muscle_shoulders.webp',
     exercises: [
       { name: 'Overhead Press',        videoUrl: 'https://www.youtube.com/results?search_query=Overhead+Press+proper+form+shorts', tips: ['الظهر مستقيم لا تقوس أسفل الظهر', 'ارفع البار عمودياً فوق الرأس', 'اشد البطن لحماية أسفل الظهر'] },
       { name: 'Dumbbell OHP',          videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Overhead+Press+proper+form+shorts', tips: ['ابدأ بالمرفقين على زاوية 90 درجة', 'ارفع للأعلى مبتعداً عن الأذنين', 'الدمبلان يلتقيان في الأعلى دون تصادم'] },
@@ -313,7 +315,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Legs: {
-    label: 'الأرجل', emoji: '🦵', color: '#22C55E', img: '/assets/muscle_legs.png',
+    label: 'الأرجل', emoji: '🦵', color: '#22C55E', img: '/assets/muscle_legs.webp',
     exercises: [
       { name: 'Barbell Squat',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Squat+proper+form+shorts', tips: ['الظهر مستقيم طوال الحركة', 'الركبتان تتجهان نحو أصابع القدم', 'انزل حتى الفخذ موازٍ للأرض على الأقل'] },
       { name: 'Leg Press',             videoUrl: 'https://www.youtube.com/results?search_query=Leg+Press+proper+form+shorts', tips: ['القدمان بعرض الكتفين على اللوحة', 'لا تقفل الركبتين كلياً في الأعلى', 'الظهر ملاصق للمسند طوال الحركة'] },
@@ -337,7 +339,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Biceps: {
-    label: 'البايسبس', emoji: '💪', color: '#EAB308', img: '/assets/muscle_biceps.png',
+    label: 'البايسبس', emoji: '💪', color: '#EAB308', img: '/assets/muscle_biceps.webp',
     exercises: [
       { name: 'Barbell Curl',         videoUrl: 'https://www.youtube.com/results?search_query=Barbell+Curl+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اثنِ حتى الأعلى واضغط على البايسبس', 'لا تتأرجح بالجذع للمساعدة'] },
       { name: 'Dumbbell Curl',        videoUrl: 'https://www.youtube.com/results?search_query=Dumbbell+Curl+proper+form+shorts', tips: ['يمكن تناوبهما أو معاً حسب الهدف', 'أضف دوران المعصم في الأعلى للضغط', 'الإرجاع بالتحكم لا تسقطهما'] },
@@ -354,7 +356,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Triceps: {
-    label: 'الترايسبس', emoji: '🔱', color: '#F97316', img: '/assets/muscle_triceps.png',
+    label: 'الترايسبس', emoji: '🔱', color: '#F97316', img: '/assets/muscle_triceps.webp',
     exercises: [
       { name: 'Triceps Pushdown',  videoUrl: 'https://www.youtube.com/results?search_query=Triceps+Pushdown+proper+form+shorts', tips: ['المرفقان ثابتان جانب الجذع', 'اضغط للأسفل حتى الامتداد الكامل', 'الإرجاع بالتحكم لا تدع الوزن يرفعك'] },
       { name: 'Skull Crusher',     videoUrl: 'https://www.youtube.com/results?search_query=Skull+Crusher+proper+form+shorts', tips: ['المرفقان ثابتان وموجهان للأعلى', 'انزل البار خلف الرأس أو للجبهة', 'لا تسرع — خطر على الكوع إذا أُسيء'] },
@@ -368,7 +370,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Core: {
-    label: 'الكور', emoji: '🎯', color: '#EC4899', img: '/assets/muscle_core.png',
+    label: 'الكور', emoji: '🎯', color: '#EC4899', img: '/assets/muscle_core.webp',
     exercises: [
       { name: 'Plank',              videoUrl: 'https://www.youtube.com/results?search_query=Plank+proper+form+shorts', tips: ['الجسم خط مستقيم من الرأس للقدمين', 'لا ترفع الوركين أو تخفضهما', 'اضغط البطن بشكل إرادي طوال المدة'] },
       { name: 'Crunches',           videoUrl: 'https://www.youtube.com/results?search_query=Crunches+proper+form+shorts', tips: ['لا تشد الرقبة بيديك', 'ارفع الكتفين لا الظهر كاملاً', 'التنفس منتظم: زفير عند الرفع'] },
@@ -384,7 +386,7 @@ export const MUSCLE_GROUPS = {
     ],
   },
   Cardio: {
-    label: 'الكارديو', emoji: '❤️', color: '#EF4444', img: '/assets/cardio.png',
+    label: 'الكارديو', emoji: '❤️', color: '#EF4444', img: '/assets/cardio.webp',
     exercises: [
       { name: 'Treadmill Run',    videoUrl: 'https://www.youtube.com/results?search_query=Treadmill+Running+proper+form+shorts', tips: ['ابدأ بالمشي السريع للإحماء دقيقتين', 'الخطوة المتوسطة أفضل للمفاصل', 'المشي بزاوية ميل يحرق سعرات أكثر'] },
       { name: 'Rowing Machine',   videoUrl: 'https://www.youtube.com/results?search_query=Rowing+Machine+proper+form+shorts', tips: ['الترتيب: الأرجل ثم الظهر ثم الذراعين', 'لا تقوس الظهر — احذر من هذا', 'وتيرة 22-28 شوطاً في الدقيقة مثالية'] },

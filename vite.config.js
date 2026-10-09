@@ -27,10 +27,17 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cacheId: 'meran-v1',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,otf,woff,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,otf,woff,woff2}'],
         // The old design lives at /classic/ with a service worker of its
-        // own; this one must not answer its pages with the new app.
-        globIgnores: ['classic/**'],
+        // own; this one must not answer its pages with the new app. The
+        // heavy PNG art is the old design's; the new one ships WebP copies
+        // (~12× lighter), so the PNGs stay out of this precache.
+        globIgnores: [
+          'classic/**',
+          'assets/muscle_*.png', 'assets/rank_*.png', 'assets/hero_*.png', 'assets/ach_*.png',
+          'assets/goalc_*.png', 'assets/challenge_*.png', 'assets/cardio.png',
+          'fonts/Zanjabeel-*.otf',
+        ],
         navigateFallbackDenylist: [/^\/classic\//],
         cleanupOutdatedCaches: true,
         runtimeCaching: [

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
-  scheduleNotificationsForToday, applySubsToDay, planDayTitle, getHistoricalMax, sessionVolume,
+  scheduleNotificationsForToday, applySubsToDay, getHistoricalMax, sessionVolume,
 } from './utils.js'
 import {
   NAV_TABS, ACHIEVEMENTS,
@@ -45,6 +45,7 @@ import ExercisesPage   from './pages/ExercisesPage.jsx'
 import RestTimer        from './components/RestTimer.jsx'
 import RoutinesModal    from './components/RoutinesModal.jsx'
 import LevelUpScreen    from './components/LevelUpScreen.jsx'
+import { dayWord }       from './components/player/sessionWords.js'
 import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
@@ -538,7 +539,7 @@ export default function App() {
     }).filter(Boolean)
     collectRef.current = true
     setSummary({
-      title: planDayTitle(finished) || finished.name || 'جلسة حرة',
+      title: dayWord(finished),
       duration, sets: doneSets.length, volume: sessionVolume(finished), prs,
       streakLine,
       streakBefore: computeRecovery(sessions, recoveryCfg).consistencyStreak,
@@ -663,9 +664,9 @@ export default function App() {
   // The header chip stands in for the scoreboard wherever the
   // scoreboard is not on screen: every other tab, and Home once it has
   // scrolled away.
-  const [boardVisible, setBoardVisible] = useState(true)
-  const onBoardVisible = useCallback((v) => setBoardVisible(v), [])
   const [askSkip, setAskSkip] = useState(false)
+  // Which Settings sub-page to open on (e.g. the deload from Home); null = the root list.
+  const [settingsSection, setSettingsSection] = useState(null)
 
   const [showStreak, setShowStreak] = useState(false)
 
@@ -848,6 +849,8 @@ export default function App() {
       const how = await sharePoster({
         report: monthReport,
         profile,
+        mapping: exerciseMapping,
+        liveStreak: recovery.consistencyStreak,
         onInline: setPosterUrl,
       })
       if (how === SHARE_RESULT.DOWNLOADED) pushAlert('📥', 'تم حفظ صورة التقرير')
@@ -861,7 +864,7 @@ export default function App() {
     } finally {
       setSharing(false)
     }
-  }, [monthReport, profile, sharing, pushAlert])
+  }, [monthReport, profile, sharing, pushAlert, exerciseMapping, recovery.consistencyStreak])
 
   // ── Changing frequency or plan ───────────────────────────────
   // Both keep the streak, because each past day is judged by the pattern
@@ -947,7 +950,7 @@ export default function App() {
             greeting={greeting}
             onOpenProfile={() => pushPage('profile')}
             onOpenStreak={() => setShowStreak(true)}
-            onOpenSettings={() => pushPage('settings')}
+            onOpenSettings={() => { setSettingsSection(null); pushPage('settings') }}
             active={active}
             plan={plan}
             planIndex={planIndex}
@@ -957,7 +960,7 @@ export default function App() {
             recovery={recovery}
             recoveryConfig={recoveryCfg}
             streakToday={streakToday}
-            onScoreboardVisible={onBoardVisible}
+            repTarget={repTarget}
             onOverrideRecovery={overrideRecoveryDay}
             tickets={recovery.usableCredits}
             creditProgress={recovery.creditProgress}
@@ -973,7 +976,7 @@ export default function App() {
             deloadSuggestion={deloadSuggestion}
             onStartDeload={beginDeload}
             onDismissDeloadSuggestion={() => setRecoveryCfg(prev => dismissSuggestion(prev, today))}
-            onOpenDeload={() => pushPage('settings')}
+            onOpenDeload={() => { setSettingsSection('deload'); pushPage('settings') }}
           />
         )}
         {!page && tab === 'history' && (
@@ -984,7 +987,12 @@ export default function App() {
               plan={plan}
               planIndex={planIndex}
               onStartPlannedWorkout={startPlannedWorkout}
-              onStartWorkout={() => startWorkout()}
+              onStartWorkout={(exercises) => startWorkout(exercises)}
+              active={active}
+              onResumeWorkout={() => setSessionOpen(true)}
+              recovery={recovery}
+              repTarget={repTarget}
+              recoveryConfig={recoveryCfg}
               exerciseMapping={exerciseMapping}
               onUpdateSession={updateSession}
               onDeleteSession={deleteSession}
@@ -1009,7 +1017,7 @@ export default function App() {
         {page === 'profile' && (
           <>
             <NavBar title="الملف" onBack={popPage}
-              actions={<IconButton icon={GearSix} label="الإعدادات" onClick={() => pushPage('settings')} />} />
+              actions={<IconButton icon={GearSix} label="الإعدادات" onClick={() => { setSettingsSection(null); pushPage('settings') }} />} />
             <ProfilePage
               profile={profile}
               sessions={sessions}
@@ -1017,6 +1025,9 @@ export default function App() {
               streak={streak}
               level={level}
               recovery={recovery}
+              photos={photos}
+              storedBest={storedBest}
+              onOpenSettings={() => { setSettingsSection(null); pushPage('settings') }}
               onUpdateProfile={handleUpdateProfile}
               onGoToPhotos={() => pushPage('photos')}
             />
@@ -1026,6 +1037,7 @@ export default function App() {
           <>
             <NavBar title="الإعدادات" onBack={popPage} />
             <SettingsPage
+              section={settingsSection}
               profile={profile}
               onUpdateProfile={handleUpdateProfile}
               sessions={sessions}
@@ -1086,9 +1098,6 @@ export default function App() {
           docks it as the live bar above the tabs. */}
       {active && sessionOpen && (
         <div className="f-cover" role="dialog" aria-modal="true" aria-label="الجلسة" data-testid="session-cover">
-          <div className="f-cover-bar">
-            <IconButton icon={CaretDown} label="صغّر الجلسة" weight="bold" onClick={() => setSessionOpen(false)} />
-          </div>
           <WorkoutPage
             active={active}
             sessions={sessions}
@@ -1121,7 +1130,7 @@ export default function App() {
 
       {/* ── Live bar + tabs ── */}
       {active && !sessionOpen && (
-        <LiveBar active={active} title={planDayTitle(active) || active.name || 'تمرين'} onOpen={() => setSessionOpen(true)} />
+        <LiveBar active={active} title={dayWord(active)} onOpen={() => setSessionOpen(true)} />
       )}
       <nav className="f-tabs" aria-label="التنقل">
         {NAV.map(t => {
@@ -1192,12 +1201,14 @@ export default function App() {
           }))}
         />
       )}
-      {showWhatsNew && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
+      {showWhatsNew && !(active && sessionOpen) && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
       {/* Queued behind the version notice so the two never stack. */}
-      {packOffer && !showWhatsNew && !onboarding && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
+      {packOffer && !showWhatsNew && !onboarding && !(active && sessionOpen) && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
       {showReport && monthReport && (
         <MonthReport
           report={monthReport}
+          mapping={exerciseMapping}
+          liveStreak={recovery.consistencyStreak}
           sharing={sharing}
           onShare={handleSharePoster}
           onClose={() => setShowReport(false)}

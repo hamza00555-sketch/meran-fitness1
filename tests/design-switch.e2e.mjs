@@ -22,7 +22,7 @@ const july = (...days) => days.map((n, i) => ({
 const SEED = {
   hf_sessions: july(1, 3, 5, 7, 9),
   hf_recovery: { daysPerWeek: 3, overrides: [], restDays: [], patternHistory: [], streakResetAt: null, autoSpendFrom: '2026-07-01', deload: null, deloadHistory: [], deloadSuggestDismissedAt: null },
-  hf_xp: 4200, hf_profile: { name: 'حمزة' }, hf_pack_prompted: true, hf_seen_version: '2.2', hf_weights_reset_v2: true,
+  hf_xp: 4200, hf_profile: { name: 'حمزة' }, hf_onboarded: true, hf_pack_prompted: true, hf_seen_version: '2.2', hf_weights_reset_v2: true,
 }
 
 const browser = await chromium.launch()
@@ -48,8 +48,9 @@ const settle = () => page.waitForLoadState('networkidle').then(() => page.waitFo
 
 // 1. The new design, with the streak board.
 await page.goto(APP); await settle()
-ok('new: the streak board is on Home', await page.locator('[data-testid="streak-board"]').count() === 1)
-const newStreak = (await page.locator('[data-testid="streak-number"]').innerText()).trim()
+ok('new: the streak number is on Home', await page.locator('[data-testid="streak-number"]').count() === 1)
+const streakDigits = async () => (await page.locator('[data-testid="streak-number"]').innerText()).replace(/\D/g, '')
+const newStreak = await streakDigits()
 
 // 2. Switch off → the old design.
 await openSettings()
@@ -59,7 +60,7 @@ await sw.click()
 await page.waitForURL(/\/classic\/$/, { timeout: 10000 }).catch(() => {})
 await settle()
 ok('switch off: lands on /classic/', new URL(page.url()).pathname === '/classic/', page.url())
-ok('classic: no streak board — it is the old design', await page.locator('[data-testid="streak-board"]').count() === 0)
+ok('classic: no streak number — it is the old design', await page.locator('[data-testid="streak-number"]').count() === 0)
 const pill = await page.evaluate(() => (document.querySelector('header')?.innerText || '').match(/🔥\s*(\d+)/)?.[1] || null)
 ok('classic: same data — the old header shows the same streak', pill === newStreak, `${pill} vs ${newStreak}`)
 ok('classic: the choice is stored', await page.evaluate(() => localStorage.getItem('meran_design')) === 'classic')
@@ -72,7 +73,7 @@ ok('reload /: goes straight to the old design', new URL(page.url()).pathname ===
 await page.evaluate(() => navigator.serviceWorker?.ready)
 await page.reload(); await settle()
 ok('classic: survives a reload under the service workers',
-  new URL(page.url()).pathname === '/classic/' && await page.locator('[data-testid="streak-board"]').count() === 0)
+  new URL(page.url()).pathname === '/classic/' && await page.locator('[data-testid="streak-number"]').count() === 0)
 
 // 5. Switch on → back to the new design, with everything since.
 await openSettings()
@@ -82,8 +83,8 @@ await sw2.click()
 await page.waitForURL(u => new URL(u).pathname === '/', { timeout: 10000 }).catch(() => {})
 await settle()
 ok('switch on: back on /', new URL(page.url()).pathname === '/', page.url())
-ok('new again: the streak board is back', await page.locator('[data-testid="streak-board"]').count() === 1)
-ok('new again: the same streak', (await page.locator('[data-testid="streak-number"]').innerText()).trim() === newStreak)
+ok('new again: the streak number is back', await page.locator('[data-testid="streak-number"]').count() === 1)
+ok('new again: the same streak', await streakDigits() === newStreak)
 
 // 6. /classic/ opened directly while the new design is chosen → back to /.
 await page.goto(new URL('/classic/', APP).href); await settle()

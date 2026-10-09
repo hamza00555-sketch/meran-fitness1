@@ -10,7 +10,7 @@ import { mediaSlotFor } from '../../exerciseMedia.js'
 // stays quiet (the tiles above already carry the lit art). Never an
 // emoji, never a raster below 24pt (critique F39).
 
-/** «/assets/muscle_chest.png» → the WebP copy (same folder, ~15× lighter). */
+/** «/assets/muscle_chest.webp» → the WebP copy (same folder, ~15× lighter). */
 export const webp = (src) => (src ? src.replace(/\.png$/, '.webp') : src)
 
 export default function Thumb({ name, art, mapping }) {

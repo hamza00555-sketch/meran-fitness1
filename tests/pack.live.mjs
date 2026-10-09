@@ -73,6 +73,7 @@ await page.addInitScript((v) => {
   localStorage.setItem('hf_weights_reset_v2', 'true')
   localStorage.setItem('hf_seen_version', JSON.stringify(v))
   localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة', goal: 'muscle' }))
+  localStorage.setItem('hf_onboarded', 'true')
   localStorage.setItem('hf_unlocked', JSON.stringify(['a1', 'a2', 'a3', 'b1', 'c1', 'd1']))
 }, APP_VERSION)
 
@@ -87,10 +88,13 @@ await page.waitForTimeout(600)
 // The download is already running; Settings is only where its state
 // is visible. Retry the gear, the offer sheet takes a moment to go.
 for (let i = 0; i < 10; i++) {
-  await page.evaluate(() => {
-    const btns = [...document.querySelectorAll('header button')]
-    ;(btns[1] || btns[0])?.click()
-  })
+  // The new frame: the gear sits on Home, and the pack has its own
+  // page inside Settings.
+  await page.evaluate(() => document.querySelector('nav.f-tabs button')?.click())
+  await page.waitForTimeout(400)
+  await page.evaluate(() => document.querySelector('button[aria-label="الإعدادات"]')?.click())
+  await page.waitForTimeout(600)
+  await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('حزمة الصور'))?.click())
   await page.waitForTimeout(600)
   if (await page.evaluate(() => !!document.querySelector('[data-pack-phase]'))) break
 }
@@ -123,10 +127,11 @@ ok('every picture downloaded and verified', stored === unique, `${stored}/${uniq
 ok('the manifest and each distinct file were fetched once',
   hits === unique + 1, `${hits} requests, expected ${unique + 1}`)
 
-await page.evaluate(() => {
-  const b = [...document.querySelectorAll('nav button')].find(x => x.textContent.includes('جوائز'))
-  b && b.click()
-})
+  // Achievements are a view inside the progress tab now.
+  await page.evaluate(() => document.querySelectorAll('nav.f-tabs button')[2]?.click())
+  await page.waitForTimeout(500)
+  await page.evaluate(() => [...document.querySelectorAll('[role="radio"],[role="tab"],button')]
+    .find(x => x.textContent.trim() === 'الإنجازات')?.click())
 await page.waitForTimeout(1200)
 const painted = await page.evaluate(() => {
   const imgs = [...document.querySelectorAll('img[data-art]')]

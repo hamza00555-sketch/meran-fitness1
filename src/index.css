@@ -513,83 +513,18 @@ input[type=number] { -moz-appearance: textfield; }
    off regardless of mode. */
 
 /* ══ Streak ══════════════════════════════════════════════════════
-   The scoreboard on Home, the header chip and the skip sheet. The
-   number is never shown alone: a status line, the deadline and cost,
-   and seven days of what each did to it. See src/streak.js. */
+   The header chip and the skip sheet. (The scoreboard that used to
+   sit on Home is gone: حمزة wants the number only there —
+   components/streak/StreakNumber.jsx; the details live in the sheet.) */
 
-.sb {
-  position: relative;
-  padding: 4px 2px 14px;
-  margin-bottom: var(--hp-card-mb);
-  border-bottom: 1px solid var(--border);
-  display: grid; gap: 6px;
-}
-/* Lit only once today counts and nothing else on screen wants a tap. */
-.sb.counted::before {
-  content: ""; position: absolute; inset-inline-start: -30px; top: -26px;
-  width: 280px; height: 200px; pointer-events: none;
-  background: radial-gradient(closest-side, rgba(var(--streak-rgb),0.15), rgba(var(--streak-rgb),0));
-}
-.sb > * { position: relative; }
-.sb-top { display: flex; align-items: center; gap: 10px; }
-.sb-eyebrow { font-family: var(--font-ar); font-size: 13px; font-weight: 600; color: var(--text3); }
-.sb-deload {
-  font-family: var(--font-ar); font-size: 12px; font-weight: 600; color: var(--text2);
-  background: var(--bg3); border-radius: 999px; padding: 1px 10px;
-}
-.sb-tix {
-  margin-inline-start: auto; display: inline-flex; align-items: center; gap: 5px;
-  font-family: var(--font-ar); font-size: 13px; font-weight: 700; color: var(--rest);
-}
-.sb-tix.empty { color: var(--text3); font-weight: 600; }
-.sb-num { display: flex; align-items: center; gap: 8px; }
-.sb-flame { position: relative; color: var(--streak); display: grid; place-items: center; }
-.sb-badge, .streak-chip-badge {
+.streak-chip-badge {
   position: absolute; inset-inline-end: -7px; bottom: -4px;
   width: 17px; height: 17px; border-radius: 999px; background: var(--bg);
   display: grid; place-items: center;
 }
-.sb-badge.rest, .streak-chip-badge.rest { color: var(--rest); }
-.sb-badge.streak, .streak-chip-badge.streak { color: var(--streak); }
-.sb-big {
-  font-family: var(--font-mono); font-size: 58px; font-weight: 800; line-height: 0.95;
-  color: var(--streak); font-variant-numeric: tabular-nums; letter-spacing: -1px;
-}
-/* Zero stays on screen, dimmed — an outline in the squared numeric
-   face read as an empty box. */
-.sb-big.zero, .streak-chip .zero { color: var(--text3); }
-.sb-unit { font-family: var(--font-ar); font-size: 17px; font-weight: 600; color: var(--text2); align-self: flex-end; margin-bottom: 8px; }
-.sb-ms { margin-inline-start: auto; display: grid; justify-items: end; line-height: 1.3; font-family: var(--font-ar); font-size: 12px; color: var(--text3); }
-.sb-ms b { font-family: var(--font-mono); font-size: 18px; color: var(--text2); }
-.sb-status { margin: 0; font-family: var(--font-ar); font-size: 17px; font-weight: 700; color: var(--text); line-height: 1.45; }
-.sb-status.warn {
-  background: var(--bg3); border-radius: 10px; padding: 7px 11px;
-  box-shadow: inset -3px 0 0 var(--streak);
-}
-.sb-note { margin: 0; font-family: var(--font-ar); font-size: 13px; color: var(--rest); line-height: 1.6; }
-.sb-detail { margin: 0; font-family: var(--font-ar); font-size: 14px; color: var(--text2); line-height: 1.65; }
-/* Changa, not the numeric face: the countdown is «باقي 9 س 40 د», and the
-   numeric face has no Arabic, so the words came apart. */
-.sb-cd { font-family: var(--font-ar); font-weight: 700; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.sb-cd.late { color: var(--streak); font-size: 19px; }
-.sb-chain { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 6px; }
-.sb-cell { display: grid; justify-items: center; gap: 2px; }
-.sb-cell-d { font-family: var(--font-ar); font-size: 11px; color: var(--text3); }
-.sb-cell-d.today { color: var(--text); font-weight: 700; }
-.sb-cell-g { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; }
-.sb-cell-g.ring { box-shadow: inset 0 0 0 1.6px var(--streak); }
-.sb-cell-g.ring.done { box-shadow: inset 0 0 0 2.2px var(--streak); }
-.sb-cell-g.ring.reset { box-shadow: inset 0 0 0 1.4px var(--border2); }
-.sb-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--streak); display: block; }
-.sb-dim { width: 5px; height: 5px; border-radius: 999px; background: var(--border2); display: block; }
-.sb-c-rest { color: var(--rest); display: grid; }
-.sb-c-miss { color: var(--text3); display: grid; }
-.sb-c-idle { color: var(--border2); display: grid; }
-/* An isolated LTR run, or the bidi algorithm prints «+1» as «1+». */
-.sb-cell-x { font-family: var(--font-mono); font-size: 11px; font-weight: 700; min-height: 14px; line-height: 14px; direction: ltr; unicode-bidi: isolate; }
-.sb-cell-x.up { color: var(--streak); }
-.sb-cell-x.held { color: var(--rest); }
-.sb-cell-x.broke { color: var(--text3); font-family: var(--font-ar); }
+.streak-chip-badge.rest { color: var(--rest); }
+.streak-chip-badge.streak { color: var(--streak); }
+.streak-chip .zero { color: var(--text3); }
 
 .streak-chip {
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
@@ -630,31 +565,6 @@ input[type=number] { -moz-appearance: textfield; }
   .skip-sheet { animation: none; }
 }
 
-/* Short screens: the start button must stay above the tab bar. The
-   seven days step aside first (they explain the past; the button acts
-   on today), then the number shrinks. */
-@media (max-height: 700px) {
-  .sb { gap: 3px; padding: 0 2px 10px; }
-  .sb-big { font-size: 48px; }
-  .sb-unit { margin-bottom: 5px; font-size: 15px; }
-  .sb-ms b { font-size: 16px; }
-  .sb-status { font-size: 16px; line-height: 1.4; }
-  .sb-status.warn { padding: 5px 10px; }
-  .sb-note, .sb-detail { font-size: 13px; line-height: 1.5; }
-  .sb-cd.late { font-size: 16px; }
-  .sb-chain { margin-top: 3px; gap: 2px; }
-  .sb-cell { gap: 0; }
-  .sb-cell-d, .sb-cell-x { font-size: 10px; line-height: 12px; min-height: 12px; }
-  .sb-cell-g { width: 22px; height: 22px; }
-}
-@media (max-height: 620px) {
-  /* The spend notice already said it, and the ticket mark on the flame
-     still shows it; on a 568pt screen the start button comes first. */
-  .sb-note { display: none; }
-  .sb-chain { display: none; }
-  .sb-big { font-size: 42px; }
-  .sb-flame svg { width: 24px; height: 24px; }
-}
 
 /* ── Reduced motion, everywhere ── */
 @media (prefers-reduced-motion: reduce) {

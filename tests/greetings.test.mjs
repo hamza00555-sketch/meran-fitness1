@@ -60,6 +60,11 @@ test('the streak pools carry the number, the others do not', () => {
   }
 })
 
+test('no line talks about tickets — Home shows the streak number only', () => {
+  // Tickets are explained in «ليش N؟»; the greeting sits on Home.
+  for (const l of all) assert.ok(!/تذكر|تذاكر|🎟/.test(l), l)
+})
+
 test('no line is repeated across the pools', () => {
   assert.equal(new Set(all).size, all.length)
 })

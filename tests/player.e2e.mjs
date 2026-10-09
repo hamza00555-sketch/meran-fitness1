@@ -90,6 +90,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
     localStorage.setItem('hf_seen_version', JSON.stringify(version))
+    localStorage.setItem('hf_onboarded', 'true')
     localStorage.setItem('hf_weights_reset_v2', 'true')
     if (active) localStorage.setItem('hf_active', JSON.stringify(active))
     if (sessions) localStorage.setItem('hf_sessions', JSON.stringify(sessions))
@@ -157,7 +158,7 @@ const centre = async (locator) => {
   ok('live: the live block names the set', /المجموعة\s*1\s*من\s*2/.test(await page.getByTestId('live-block').innerText()))
   ok('stage: the media stage shows before the first set', await page.getByTestId('exercise-stage').count() === 1)
   ok('stage: the muscle art appears once, not twice',
-    await page.evaluate(() => [...document.querySelectorAll('img')].filter(i => /muscle_chest/.test(i.src)).length) === 1)
+    await page.evaluate(() => [...document.querySelectorAll('[data-testid="session"] img')].filter(i => /muscle_chest/.test(i.src)).length) === 1)
   const greens = await page.evaluate((accent) => [...document.querySelectorAll('[data-testid="session"] button')]
     .filter(b => b.offsetParent && getComputedStyle(b).backgroundColor === accent).length, ACCENT)
   ok('one green fill: only the docked button is filled green', greens === 1, String(greens))

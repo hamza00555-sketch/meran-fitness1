@@ -16,6 +16,7 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
+import { APP_VERSION } from '../src/constants.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-report-e2e'
@@ -64,13 +65,14 @@ async function open(iso, { sessions = SESSIONS, reduced = false } = {}) {
   // than let the pack download hang the page.
   await page.route('**/*.r2.dev/**', r => r.abort())
 
-  await page.addInitScript(([sessions, recovery, iso]) => {
+  await page.addInitScript(([sessions, recovery, iso, version]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     localStorage.setItem('hf_recovery', JSON.stringify(recovery))
     localStorage.setItem('hf_xp', '4200')
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
-    localStorage.setItem('hf_seen_version', '99')
+    localStorage.setItem('hf_seen_version', JSON.stringify(version))
+    localStorage.setItem('hf_onboarded', 'true')
     // The app stamps a weights-reset watermark on first run for anyone
     // with history, which would put the whole seeded month behind the
     // cutoff and hide every record.
@@ -83,7 +85,7 @@ async function open(iso, { sessions = SESSIONS, reduced = false } = {}) {
       static now() { return fixed }
     }
     globalThis.Date = D
-  }, [sessions, RECOVERY, iso])
+  }, [sessions, RECOVERY, iso, APP_VERSION])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1400)
