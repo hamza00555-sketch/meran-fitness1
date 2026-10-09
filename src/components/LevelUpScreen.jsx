@@ -1,102 +1,133 @@
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { ShareFat } from '@phosphor-icons/react'
 import { getRank } from '../utils.js'
-import Art from '../assets/Art.jsx'
+import { Button, Sheet, Num } from './kit/index.jsx'
+import RankCrest from './progress/RankCrest.jsx'
+import RankLadder from './progress/RankLadder.jsx'
+import { shareLevelCard } from './progress/levelCard.js'
+import '../styles/screens/celebrate.css'
 
-export default function LevelUpScreen({ level, onDismiss }) {
+// ── مستوى جديد ────────────────────────────────────────────────
+//
+// One beat, then still. The screen wipes in from the start edge, the
+// eyebrow says what happened in Arabic, the old number rolls up and out
+// as the new one rolls in, the crest and the ladder arrive, then the two
+// answers: «كمّل» and «شارك». Nothing glows and nothing loops.
+//
+// When the level opens a new rank (5, 10, 20, 35, 50, 75) the crest is
+// the hero instead of the number, and the eyebrow says so.
+//
+// Props: level (required), onDismiss; `from` when the caller knows the
+// level before (defaults to level − 1); `onShare` to replace the
+// built-in card share.
+
+export default function LevelUpScreen({ level, from, onDismiss, onShare }) {
   const rank = getRank(level)
+  const promoted = level > 1 && rank.minLevel === level
+  const before = from != null && from < level ? from : Math.max(0, level - 1)
+  const [inline, setInline] = useState(null)
+  const [sharing, setSharing] = useState(false)
+  const foot = useRef(null)
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.92)',
-      backdropFilter: 'blur(12px)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: 24,
-    }}>
-      {/* Glow rings */}
-      <div style={{
-        position: 'absolute', width: 340, height: 340,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.14) 0%, rgba(var(--purple-rgb),0.06) 50%, transparent 70%)',
-        animation: 'glowPulse 2s ease-in-out infinite',
-      }} />
-      <div style={{
-        position: 'absolute', width: 200, height: 200,
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.10) 0%, transparent 70%)',
-        animation: 'glowPulse 1.8s ease-in-out infinite',
-        animationDelay: '0.3s',
-      }} />
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' || (e.key === 'Enter' && document.activeElement?.classList?.contains('cel'))) onDismiss?.()
+    }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    // Focus the dialog itself (screen readers land on it, Enter/Escape
+    // work) without drawing a focus ring round the button.
+    const t = setTimeout(() => foot.current?.closest('.cel')?.focus({ preventScroll: true }), 0)
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; clearTimeout(t) }
+  }, [onDismiss])
 
-      {/* Content */}
-      <div style={{
-        position: 'relative', textAlign: 'center',
-        animation: 'scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards',
-      }}>
-        {/* Crown */}
-        <div style={{ fontSize: 64, marginBottom: 16, lineHeight: 1 }}
-          className="icon-glow">
-          <Art id="scene_levelup" size={64} fallback="👑" />
-        </div>
+  useEffect(() => () => { if (inline) URL.revokeObjectURL(inline) }, [inline])
 
-        {/* LEVEL UP text */}
-        <div className="shimmer-text" style={{
-          fontFamily: 'var(--font-mono)', fontSize: 13,
-          fontWeight: 800, letterSpacing: 6, marginBottom: 8,
-        }}>
-          LEVEL UP!
-        </div>
+  const share = async () => {
+    if (onShare) { onShare({ level, rank }); return }
+    if (sharing) return
+    setSharing(true)
+    try { await shareLevelCard({ level, rank, onInline: setInline }) } catch { /* nothing to say */ }
+    setSharing(false)
+  }
 
-        {/* Level number */}
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 72, fontWeight: 900,
-          color: 'var(--cyan)', lineHeight: 1,
-          textShadow: '0 0 40px rgba(var(--cyan-rgb),0.7), 0 0 80px rgba(var(--cyan-rgb),0.3)',
-          marginBottom: 4,
-          animation: 'levelBurst 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
-        }}>
-          {level}
-        </div>
+  return createPortal(
+    <div className={`cel${promoted ? ' cel-promoted' : ''}`} role="dialog" aria-modal="true" aria-labelledby="lu-title" data-testid="level-up" tabIndex={-1}>
+      <div className="cel-body">
+        <span className="cel-eyebrow cel-beat" style={{ '--b': 0 }} id="lu-title">
+          {promoted ? 'رتبة جديدة' : 'مستوى جديد'}
+        </span>
 
-        {/* Level label */}
-        <div style={{
-          fontFamily: 'var(--font-ar)', fontSize: 18,
-          color: 'var(--text2)', marginBottom: 20,
-        }}>
-          مستوى {level}
-        </div>
-
-        {/* Rank badge */}
-        {rank && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: rank.bg || rank.color + '20',
-            border: `1px solid ${rank.color}50`,
-            borderRadius: 24, padding: '8px 20px',
-            marginBottom: 32,
-          }}>
-            <span style={{
-              fontFamily: 'var(--font-mono)', fontWeight: 800,
-              fontSize: 14, color: rank.color,
-            }}>{rank.tier}</span>
-            <span style={{
-              fontFamily: 'var(--font-ar)', fontWeight: 700,
-              fontSize: 16, color: rank.color,
-            }}>{rank.label}</span>
-          </div>
+        {promoted ? (
+          <>
+            <RankCrest rank={rank} size={168} className="cel-crest cel-crest-hero" />
+            <div className="cel-rank cel-beat" style={{ '--b': 2 }}>
+              <bdi dir="ltr" className="cel-rank-letter">{rank.tier}</bdi>
+              <span className="cel-rank-name">{rank.label}</span>
+            </div>
+            <p className="cel-sub cel-beat" style={{ '--b': 3 }}>المستوى <Num>{level}</Num></p>
+          </>
+        ) : (
+          <>
+            <Roll from={before} to={level} />
+            <div className="cel-crest-row cel-beat" style={{ '--b': 2 }}>
+              <RankCrest rank={rank} size={56} className="cel-crest" />
+              <span className="cel-crest-text">
+                <bdi dir="ltr" className="cel-crest-letter">{rank.tier}</bdi>
+                <span>{rank.label}</span>
+              </span>
+            </div>
+          </>
         )}
 
-        {/* Dismiss button */}
-        <div>
-          <button
-            onClick={onDismiss}
-            className="btn-cyan"
-            style={{ maxWidth: 240, margin: '0 auto' }}
-          >
-            استمر 💪
-          </button>
-        </div>
+        <RankLadder level={level} className="cel-ladder cel-beat" />
       </div>
+
+      <div className="cel-foot cel-beat" style={{ '--b': 4 }} ref={foot}>
+        <Button variant="primary" size="lg" full onClick={onDismiss}>كمّل</Button>
+        <Button variant="secondary" size="lg" full icon={ShareFat} onClick={share} disabled={sharing}>شارك</Button>
+      </div>
+
+      <Sheet open={!!inline} onClose={() => setInline(null)} title="صورة المستوى">
+        {inline && (
+          <div className="cel-inline">
+            <img src={inline} alt={`مستوى جديد ${level}`} />
+            <p>اضغط على الصورة مطوّلاً واحفظها، أو شاركها من هناك.</p>
+          </div>
+        )}
+      </Sheet>
+    </div>,
+    document.body,
+  )
+}
+
+// The number rolls like an odometer: each digit that changes slides up
+// out of its window as the new one slides in, the last digit first.
+function Roll({ from, to }) {
+  const a = String(from)
+  const b = String(to)
+  const len = Math.max(a.length, b.length)
+  const A = a.padStart(len, ' ')
+  const B = b.padStart(len, ' ')
+  return (
+    <div className="cel-roll cel-beat" style={{ '--b': 1 }} aria-label={`المستوى ${to}`} role="img">
+      <bdi dir="ltr" className="cel-roll-n" aria-hidden="true">
+        {B.split('').map((ch, i) => {
+          const old = A[i]
+          const order = len - 1 - i
+          if (old === ch) return <span key={i} className="cel-digit">{ch}</span>
+          return (
+            <span key={i} className="cel-digit">
+              <span className="cel-strip" style={{ '--d': order }}>
+                <span>{old === ' ' ? ' ' : old}</span>
+                <span>{ch}</span>
+              </span>
+            </span>
+          )
+        })}
+      </bdi>
     </div>
   )
 }

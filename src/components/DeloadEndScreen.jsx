@@ -1,6 +1,11 @@
-import Art from '../assets/Art.jsx'
+import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import Art, { useHasArt } from '../assets/Art.jsx'
 import { toWesternDigits } from '../day.js'
 import { dayDiff } from '../recovery.js'
+import { arabicName } from '../exerciseMedia.js'
+import { Button, Num } from './kit/index.jsx'
+import '../styles/screens/celebrate.css'
 
 /**
  * Shown once, on the first open after a deload closes.
@@ -12,88 +17,60 @@ import { dayDiff } from '../recovery.js'
  *
  * `heaviest` is the single lift that best answers "back to what" — a
  * number the user recognises beats a sentence promising one.
+ *
+ * Same calm structure as the level-up: it wipes in, the eyebrow turns
+ * from the deload's ice back to the green (the room warming up again),
+ * the returning weight is the one big number, then «يلا نكمل» and still.
  */
 export default function DeloadEndScreen({ entry, heaviest, onDismiss }) {
   const days = entry ? dayDiff(entry.from, entry.until || entry.plannedUntil) + 1 : 0
+  const pct = entry?.pct != null ? toWesternDigits(entry.pct) : null
+  const hasArt = useHasArt('deload_end')
+  const foot = useRef(null)
+  const ar = heaviest ? arabicName(heaviest.name) : null
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.92)',
-      backdropFilter: 'blur(12px)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: 24,
-    }}>
-      {/* The mode is already off by the time this renders, so the glow
-          is green again — which is the point being made. */}
-      <div style={{
-        position: 'absolute', width: 340, height: 340, borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(var(--cyan-rgb),0.14) 0%, rgba(var(--purple-rgb),0.06) 50%, transparent 70%)',
-        animation: 'glowPulse 2s ease-in-out infinite',
-      }} />
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onDismiss?.() }
+    window.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const t = setTimeout(() => foot.current?.closest('.cel')?.focus({ preventScroll: true }), 0)
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; clearTimeout(t) }
+  }, [onDismiss])
 
-      <div style={{
-        position: 'relative', textAlign: 'center', maxWidth: 340,
-        animation: 'scaleIn 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards',
-      }}>
-        <div style={{ fontSize: 64, marginBottom: 16, lineHeight: 1 }} className="icon-glow">
-          <Art id="deload_end" size={64} fallback="💪" />
-        </div>
-
-        <div className="shimmer-text" style={{
-          fontFamily: 'var(--font-mono)', fontSize: 13,
-          fontWeight: 800, letterSpacing: 6, marginBottom: 10,
-        }}>
-          DELOAD COMPLETE
-        </div>
-
-        <div style={{
-          fontFamily: 'var(--font-ar)', fontSize: 26, fontWeight: 900,
-          color: 'var(--cyan)', marginBottom: 8, lineHeight: 1.4,
-        }}>
-          خلص الديلود
-        </div>
-
-        <div style={{
-          fontFamily: 'var(--font-ar)', fontSize: 15, color: 'var(--text2)',
-          lineHeight: 1.9, marginBottom: 22,
-        }}>
-          {days > 0 && `${toWesternDigits(days)} ${days === 1 ? 'يوم' : 'أيام'} بأوزان أخف بـ${toWesternDigits(entry.pct)}٪. `}
+  return createPortal(
+    <div className="cel cel-deload" role="dialog" aria-modal="true" aria-labelledby="de-title" data-testid="deload-end" tabIndex={-1}>
+      <div className="cel-body">
+        {hasArt && <Art id="deload_end" size={120} className="cel-art cel-beat" style={{ '--b': 0 }} />}
+        <span className="cel-eyebrow cel-thaw cel-beat" style={{ '--b': 0 }}>
+          <span className="cel-thaw-ice" aria-hidden="true">رجعت للأوزان الكاملة</span>
+          <span>رجعت للأوزان الكاملة</span>
+        </span>
+        <h1 className="cel-title cel-beat" style={{ '--b': 1 }} id="de-title">خلص الديلود</h1>
+        <p className="cel-text cel-beat" style={{ '--b': 1 }}>
+          {days > 0 && <><Num>{days}</Num> {days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}{pct != null && <> بأوزان أخف بـ<Num>{pct}%</Num></>}. </>}
           أوزانك رجعت كما كانت بالضبط — ما ضاع منها شي.
-        </div>
+        </p>
 
         {heaviest && (
-          <div style={{
-            background: 'var(--cyan-lo)', border: '1px solid var(--cyan-md)',
-            borderRadius: 16, padding: '14px 18px', marginBottom: 24,
-          }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              color: 'var(--text3)', letterSpacing: 2, marginBottom: 6,
-            }}>
-              ترجع إلى
+          <div className="cel-return cel-beat" style={{ '--b': 2 }}>
+            <span className="cel-return-label">ترجع إلى</span>
+            <div className="cel-return-n">
+              <Num className="cel-return-w">{toWesternDigits(heaviest.weight)}</Num>
+              <span className="cel-return-u">كجم</span>
             </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 34, fontWeight: 900,
-              color: 'var(--cyan)', lineHeight: 1,
-              animation: 'levelBurst 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards',
-            }}>
-              {toWesternDigits(heaviest.weight)}<span style={{ fontSize: 16 }}> كجم</span>
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 13,
-              color: 'var(--text2)', marginTop: 6,
-            }}>
-              {heaviest.name}
-            </div>
+            <span className="cel-return-name">
+              {ar || <bdi dir="ltr">{heaviest.name}</bdi>}
+              {ar && <bdi dir="ltr" className="cel-return-en">{heaviest.name}</bdi>}
+            </span>
           </div>
         )}
-
-        <button onClick={onDismiss} className="btn-cyan" style={{ maxWidth: 240, margin: '0 auto' }}>
-          يلا نكمل 💪
-        </button>
       </div>
-    </div>
+
+      <div className="cel-foot cel-beat" style={{ '--b': 3 }} ref={foot}>
+        <Button variant="primary" size="lg" full onClick={onDismiss}>يلا نكمل</Button>
+      </div>
+    </div>,
+    document.body,
   )
 }

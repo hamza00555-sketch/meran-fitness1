@@ -1,240 +1,167 @@
-import { useState } from 'react'
-import { Card, SectionTitle } from '../components/ui.jsx'
+import { useMemo, useRef, useState } from 'react'
 import { ACHIEVEMENTS, ACHIEVEMENT_CATS, RARITY_COLORS } from '../constants.js'
-import { calcStreak } from '../utils.js'
-import Art from '../assets/Art.jsx'
-import { achSlot } from '../assets/slots.js'
+import { getRank, xpProgress } from '../utils.js'
+import { Num, Gauge, Chip, Sheet, Chapter } from '../components/kit/index.jsx'
+import Medal from '../components/progress/Medal.jsx'
+import RankLadder from '../components/progress/RankLadder.jsx'
+import RankCrest from '../components/progress/RankCrest.jsx'
+import Numify from '../components/progress/Numify.jsx'
+import { progressContext, progressOf, nearestLocked, fmtEarned } from '../components/progress/achievementMeta.js'
+import '../styles/screens/progress.css'
 
-export default function AchievementsPage({ sessions, xp, streak, unlockedAchievements, unlockedAt = {}, level }) {
-  const [catFilter, setCatFilter] = useState('all')
+// ── الإنجازات ─────────────────────────────────────────────────
+//
+// One lit moment: the rank crest on a stage, the letter beside its
+// Arabic name, and the one number that moves — XP to the next level.
+// Under it the ladder E → S+, then «التالي» (the three badges closest
+// to flipping, with how far along they are), then the medal wall in
+// three columns. Tapping a medal opens it in a sheet.
+//
+// No gold on this page at all: gold means «raise the weight». XP and
+// the level are neutral or accent.
+
+const fmt = (n) => Math.round(n).toLocaleString('en-US')
+
+export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, unlockedAchievements, unlockedAt = {}, level: levelProp }) {
+  const [cat, setCat] = useState('all')
+  const [open, setOpen] = useState(null)
 
   const unlocked = unlockedAchievements || []
+  const satisfied = useMemo(() => new Set(
+    ACHIEVEMENTS.filter(a => { try { return a.check(sessions, xp, streak) } catch { return false } }).map(a => a.id),
+  ), [sessions, xp, streak])
+  const isEarned = (id) => unlocked.includes(id) || satisfied.has(id)
+  const ctx = useMemo(() => progressContext(sessions, streak), [sessions, streak])
 
-  const satisfiedIds = new Set(
-    ACHIEVEMENTS.filter(a => {
-      try { return a.check(sessions, xp, streak) } catch { return false }
-    }).map(a => a.id)
-  )
+  const prog = xpProgress(xp)
+  const level = levelProp || prog.level
+  const rank = getRank(level)
+  const left = Math.max(0, prog.neededXP - prog.currentXP)
 
-  const filtered = catFilter === 'all'
-    ? ACHIEVEMENTS
-    : ACHIEVEMENTS.filter(a => a.cat === catFilter)
-
-  const unlockedCount = ACHIEVEMENTS.filter(a => unlocked.includes(a.id) || satisfiedIds.has(a.id)).length
+  const earnedCount = ACHIEVEMENTS.filter(a => isEarned(a.id)).length
+  const next = nearestLocked(ACHIEVEMENTS, isEarned, ctx, 3)
+  const shown = cat === 'all' ? ACHIEVEMENTS : ACHIEVEMENTS.filter(a => a.cat === cat)
+  const openA = open && ACHIEVEMENTS.find(a => a.id === open)
 
   return (
-    <div style={{ paddingBottom: 100 }}>
-
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <Card style={{ padding: 'var(--hp-card-pad)', marginBottom: 'var(--hp-card-mb)' }} topColor="var(--gold)">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 900, marginBottom: 3 }}>
-              جوائز 🏆
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text3)' }}>
-              أنجازاتك ومكافآتك
-            </div>
+    <div className="pg" data-testid="achievements">
+      {/* ── The rank on a lit stage ── */}
+      <section className="pg-stage" aria-label="رتبتك">
+        <RankCrest rank={rank} size={160} className="pg-stage-art" />
+        <div className="pg-stage-body">
+          <span className="k-eyebrow">رتبتك</span>
+          <div className="pg-rank">
+            <bdi dir="ltr" className="pg-rank-letter">{rank.tier}</bdi>
+            <span className="pg-rank-name">{rank.label}</span>
           </div>
-          <AchievCircle done={unlockedCount} total={40} />
+          <span className="pg-level">المستوى <Num>{level}</Num></span>
         </div>
-      </Card>
+      </section>
 
-      {/* ── Category Tabs ──────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
-        {ACHIEVEMENT_CATS.map(cat => {
-          const isActive = catFilter === cat.id
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setCatFilter(cat.id)}
-              className="ap-tab"
-              style={{
-                background: isActive ? 'var(--gold-lo)' : 'var(--bg2)',
-                borderColor: isActive ? 'var(--gold)' : 'var(--border)',
-                color: isActive ? 'var(--gold)' : 'var(--text3)',
-                fontWeight: isActive ? 700 : 400,
-              }}
-            >
-              {cat.label}
-            </button>
-          )
-        })}
+      <div className="pg-xp">
+        <Gauge value={prog.currentXP} max={prog.neededXP} tone="accent" label={`التقدم للمستوى ${level + 1}`} />
+        <div className="pg-xp-row">
+          <span>باقي <Num>{fmt(left)} XP</Num> للمستوى <Num>{level + 1}</Num></span>
+          <Num className="pg-xp-of">{fmt(prog.currentXP)} / {fmt(prog.neededXP)}</Num>
+        </div>
       </div>
 
-      {/* ── Achievement Cards ────────────────────────────────────
-          Horizontal: text RIGHT (RTL-first) · icon LEFT           */}
+      <RankLadder level={level} className="pg-ladder" />
 
-      {filtered.map(a => {
-        const isUnlocked = unlocked.includes(a.id) || satisfiedIds.has(a.id)
-        const rarity     = RARITY_COLORS[a.rarity] || RARITY_COLORS.common
-        return (
-          <AchievCard
-            key={a.id}
-            achievement={a}
-            isUnlocked={isUnlocked}
-            earnedAt={unlockedAt[a.id]}
-            rarity={rarity}
-          />
-        )
-      })}
+      {/* ── Next up ── */}
+      {next.length > 0 && (
+        <Chapter eyebrow="أقرب ميداليات لك" title="التالي">
+          <div className="pg-next">
+            {next.map(({ a, p }) => (
+              <button key={a.id} type="button" className="pg-next-row" onClick={() => setOpen(a.id)}>
+                <Medal achievement={a} earned={false} size={44} compact />
+                <span className="pg-next-main">
+                  <span className="pg-next-top">
+                    <span className="pg-next-title"><Numify>{a.title}</Numify></span>
+                    <Num className="pg-next-count">{p.value}/{p.target}</Num>
+                  </span>
+                  <Gauge value={p.ratio} max={1} tone="accent" label={`${a.title}: ${p.value} من ${p.target}`} />
+                  <span className="pg-next-sub"><Numify>{a.desc}</Numify></span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </Chapter>
+      )}
+
+      {/* ── The medal wall ── */}
+      <Chapter
+        eyebrow="الميداليات"
+        title={<><Num>{earnedCount}</Num> من <Num>{ACHIEVEMENTS.length}</Num></>}
+      >
+        <div className="pg-filters" role="group" aria-label="نوع الميداليات">
+          {ACHIEVEMENT_CATS.map(c => (
+            <Chip key={c.id} selected={cat === c.id} onClick={() => setCat(c.id)} className="hit44">{c.label}</Chip>
+          ))}
+        </div>
+        <div className="pg-grid">
+          {shown.map(a => {
+            const earned = isEarned(a.id)
+            return (
+              <button key={a.id} type="button" className={`pg-tile${earned ? ' on' : ''}`}
+                onClick={() => setOpen(a.id)}
+                aria-label={`${a.title} — ${earned ? 'محققة' : 'مقفلة'}`}>
+                <Medal achievement={a} earned={earned} />
+                <span className="pg-tile-title"><Numify>{a.title}</Numify></span>
+              </button>
+            )
+          })}
+        </div>
+      </Chapter>
+
+      <MedalSheet
+        a={openA}
+        open={!!openA}
+        earned={openA ? isEarned(openA.id) : false}
+        earnedAt={openA ? unlockedAt[openA.id] : null}
+        progress={openA ? progressOf(openA, ctx) : null}
+        onClose={() => setOpen(null)}
+      />
     </div>
   )
 }
 
-// Map achievement category/rarity → illustration image
-function getAchImg(a) {
-  if (a.rarity === 'legendary' || a.rarity === 'epic') return '/assets/ach_master.png'
-  const map = { sessions: '/assets/ach_consistency.png', streak: '/assets/ach_consistency.png', strength: '/assets/ach_strength.png', volume: '/assets/ach_volume.png' }
-  return map[a.cat] || '/assets/ach_consistency.png'
-}
+function MedalSheet({ a, open, earned, earnedAt, progress, onClose }) {
+  // Keep the last medal while the sheet animates out.
+  const last = useRef(a)
+  if (a) last.current = a
+  const m = a || last.current
+  if (!m) return null
+  const catLabel = ACHIEVEMENT_CATS.find(c => c.id === m.cat)?.label
+  const rarity = RARITY_COLORS[m.rarity]?.label || 'عادي'
 
-// ── Achievement Card ──────────────────────────────────────────
-// Date + time an achievement was earned, in the user's local timezone
-function fmtEarned(ms) {
-  try {
-    const d = new Date(ms)
-    const date = d.toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })
-    const time = d.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
-    return `${date} · ${time}`
-  } catch { return '' }
-}
-
-function AchievCard({ achievement: a, isUnlocked, rarity, earnedAt }) {
   return (
-    <Card
-      style={{
-        padding: 0,
-        marginBottom: 'var(--hp-card-mb)',
-        opacity: isUnlocked ? 1 : 0.55,
-        borderColor: isUnlocked ? rarity.color + '40' : undefined,
-        background: isUnlocked ? rarity.color + '07' : undefined,
-        transition: 'all 0.3s',
-      }}
-      topColor={isUnlocked ? rarity.color : undefined}
-    >
-      {/* ── Inner horizontal row ── */}
-      <div className="ap-row">
-
-        {/* TEXT SIDE — right in RTL (first child) */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Badges */}
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 5 }}>
-            <span style={{
-              background: rarity.color + '20', color: rarity.color,
-              border: `1px solid ${rarity.color}38`,
-              borderRadius: 10, padding: '2px 8px',
-              fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-            }}>{rarity.label}</span>
-            {isUnlocked && (
-              <span style={{
-                background: 'var(--green-lo)', color: 'var(--green)',
-                border: '1px solid #22C55E38',
-                borderRadius: 10, padding: '2px 8px',
-                fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
-              }}>✓ محقق</span>
-            )}
-          </div>
-
-          <div className="ap-title" style={{
-            fontFamily: 'var(--font-ar)',
-            color: isUnlocked ? 'var(--text)' : 'var(--text3)',
-            marginBottom: 3,
-          }}>{a.title}</div>
-
-          {isUnlocked && earnedAt && (
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              color: 'var(--green)', marginBottom: 3, direction: 'rtl',
-            }}>
-              🕒 {fmtEarned(earnedAt)}
+    <Sheet open={open} onClose={onClose} title={<Numify>{m.title}</Numify>}>
+      <div className="pg-sheet">
+        <Medal achievement={m} earned={earned} size={132} showUnit />
+        <p className="pg-sheet-desc"><Numify>{m.desc}</Numify></p>
+        <div className="pg-sheet-chips">
+          <Chip>{rarity}</Chip>
+          {catLabel && <Chip>{catLabel}</Chip>}
+          <Chip tone={earned ? 'accent' : 'neutral'}><Num>+{m.xp} XP</Num></Chip>
+        </div>
+        {earned ? (
+          <p className="pg-sheet-state on">
+            {earnedAt ? <>حققتها <span className="pg-sheet-date"><Numify>{fmtEarned(earnedAt)}</Numify></span></> : 'محققة'}
+          </p>
+        ) : progress ? (
+          <div className="pg-sheet-prog">
+            <div className="pg-sheet-prog-row">
+              <span>وصلت</span>
+              <span><Num>{progress.value}</Num> من <Num>{progress.target}</Num>{progress.unit ? ` ${progress.unit}` : ''}</span>
             </div>
-          )}
-
-          <div className="ap-sub" style={{ fontFamily: 'var(--font-ar)', marginBottom: 7 }}>
-            {a.desc}
+            <Gauge value={progress.ratio} max={1} tone="accent" label="التقدم" />
           </div>
-
-          <div style={{
-            display: 'inline-block',
-            background: 'var(--gold-lo)', border: '1px solid var(--gold-md)',
-            borderRadius: 8, padding: '2px 8px',
-            fontFamily: 'var(--font-mono)', fontSize: 11,
-            color: 'var(--gold)', fontWeight: 700,
-          }}>+{a.xp} XP</div>
-        </div>
-
-        {/* ICON SIDE — left in RTL (second child) */}
-        <div className="ap-icon" style={{
-          background: isUnlocked ? rarity.color + '18' : 'var(--bg3)',
-          border: `2px solid ${isUnlocked ? rarity.color + '50' : 'var(--border)'}`,
-          filter: isUnlocked ? `drop-shadow(0 0 10px ${rarity.color}80)` : 'none',
-          boxShadow: isUnlocked ? `0 4px 18px ${rarity.color}20` : 'none',
-          position: 'relative', overflow: 'visible',
-        }}>
-          {isUnlocked
-            ? (
-              // Its own artwork once the pack is installed; the emoji it
-              // has always used until then.
-              <Art
-                id={achSlot(a.id)}
-                style={{ width: '82%', height: '82%' }}
-                fallback={<span style={{ fontSize: 'clamp(30px,8vw,44px)' }}>{a.icon}</span>}
-              />
-            )
-            : (
-              <>
-                {/* Locked: the same artwork, drained of colour — falls back
-                    to the generic category illustration already shipped. */}
-                <Art
-                  id={achSlot(a.id)}
-                  style={{ width: '78%', height: '78%', filter: 'grayscale(1)', opacity: 0.35 }}
-                  fallback={
-                    <img
-                      src={getAchImg(a)}
-                      alt=""
-                      style={{ width: '78%', height: '78%', objectFit: 'contain', filter: 'grayscale(1)', opacity: 0.35 }}
-                    />
-                  }
-                />
-                <div style={{
-                  position: 'absolute', bottom: -4, right: -4,
-                  fontSize: 15, lineHeight: 1,
-                  background: 'var(--bg2)', border: '1px solid var(--border2)',
-                  borderRadius: '50%', width: 22, height: 22,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>🔒</div>
-              </>
-            )
-          }
-        </div>
-
+        ) : (
+          <p className="pg-sheet-state">مقفلة — تنفتح لما يتحقق الشرط</p>
+        )}
       </div>
-    </Card>
+    </Sheet>
   )
 }
 
-// ── Achievement Circle ────────────────────────────────────────
-function AchievCircle({ done, total }) {
-  const pct  = total > 0 ? done / total : 0
-  const R    = 24; const CX = 30; const CY = 30
-  const circ = 2 * Math.PI * R
-
-  return (
-    <svg width={60} height={60} viewBox="0 0 60 60">
-      <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border2)" strokeWidth={5} />
-      <circle
-        cx={CX} cy={CY} r={R} fill="none"
-        stroke="var(--gold)" strokeWidth={5} strokeLinecap="round"
-        strokeDasharray={circ}
-        strokeDashoffset={circ * (1 - pct)}
-        transform={`rotate(-90 ${CX} ${CY})`}
-        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
-      />
-      <text x={CX} y={CY + 4} textAnchor="middle" fill="var(--gold)"
-        style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700 }}>
-        {done}/{total}
-      </text>
-    </svg>
-  )
-}
