@@ -1,0 +1,211 @@
+/* ══ السجل — the history tab ═══════════════════════════════════
+   A tool page: quiet, open rows on the ground, hairlines instead of
+   boxes. The only surface is the pinned «تمرين اليوم» card; the only
+   green fill is its start button; gold appears only on a session that
+   set an exercise's best weight. Written against role tokens. */
+
+.hs-page { display: block; }
+.hs-latin { font-weight: 600; unicode-bidi: isolate; }
+.hs-unit { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+
+/* ── تمرين اليوم ── */
+.hs-today {
+  display: grid; gap: var(--space-1);
+  margin-bottom: var(--space-6); padding: var(--space-4);
+  background: var(--surface-1); border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+.hs-today-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-3);
+}
+.hs-today-eyebrow.hs-rest { color: var(--rest); }
+.hs-today-eyebrow.hs-done svg { color: var(--accent); }
+.hs-live { color: var(--ink-2); }
+.hs-live-dot {
+  width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent);
+  animation: pulseDot calc(2.5s * var(--breath)) ease-in-out infinite;
+}
+.hs-today-title {
+  margin: 0; font-size: var(--t-title); font-weight: 700; line-height: 1.3; color: var(--ink);
+  text-wrap: balance;
+}
+.hs-today-sub { margin: 0; font-size: var(--t-body); font-weight: 500; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.hs-today-note { margin: var(--space-2) 0 0; font-size: var(--t-label); color: var(--ink-3); }
+.hs-today-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+/* Side by side where they fit; on a 320pt phone the routine button
+   wraps under the start button and takes the full line. (Doubled
+   classes: kit.css loads after this file.) */
+.hs-grow { flex: 1 1 auto; }
+.k-btn.hs-start { flex: 1 1 auto; }
+.k-btn.hs-routine { flex: 1 1 auto; padding-inline: var(--space-4); }
+@media (max-width: 359px) {
+  .k-btn.hs-routine { min-height: 44px; }
+}
+
+/* ── Training weeks ──
+   A 32pt label, quieter than the rows it heads (13/600 ink-2, the
+   totals in ink-3). Sticky under the status bar, not under y=0: the
+   installed app runs edge to edge (viewport-fit=cover, translucent
+   status bar), so top:0 would park «هذا الأسبوع» behind the clock. */
+.hs-week + .hs-week { margin-top: var(--space-3); }
+.hs-week-h {
+  position: sticky; top: var(--safe-top); z-index: 5;
+  box-sizing: border-box; min-height: 32px;
+  display: flex; align-items: center; flex-wrap: wrap; column-gap: 6px;
+  margin: 0 calc(-1 * var(--gutter)); padding: 6px var(--gutter);
+  background: var(--ground); box-shadow: inset 0 -1px 0 var(--hairline);
+  font-size: var(--t-label); font-weight: 600; line-height: 20px;
+}
+.hs-week-name { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
+.hs-week-sum { font-weight: 500; color: var(--ink-3); }
+.hs-week-sum::before { content: "· "; }
+
+/* ── A session row: open, no box ── */
+.hs-row { position: relative; display: flex; align-items: flex-start; gap: var(--space-1); }
+.hs-rows > * + * { border-top: 1px solid var(--hairline); }
+.hs-row-main {
+  flex: 1; min-width: 0;
+  display: grid; padding: var(--space-4) var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  background: none; border: 0; border-radius: var(--r-sm);
+  color: var(--ink); text-align: start; font-family: var(--font); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-press);
+}
+.hs-row-main:active { background: var(--surface-1); }
+/* Line 1: the day at the start, its date at the end (16/22 and 13 ink-3).
+   A title too long to share the line keeps its words and the date
+   drops under it. */
+.hs-row-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  column-gap: var(--space-3);
+}
+.hs-row-title { min-width: 0; font-size: 16px; font-weight: 600; line-height: 22px; color: var(--ink); text-wrap: balance; }
+.hs-row-date { flex: none; font-size: var(--t-label); font-weight: 500; line-height: 18px; color: var(--ink-3); }
+.k-iconbtn.hs-more-btn { margin-top: 5px; margin-inline-end: -12px; color: var(--ink-2); }
+
+/* Lines 2–3: two lifts at 13/18 with their best set. The name comes
+   first and is not cut while there is room: when it and the set cannot
+   share a line, the set drops under it, still at the end edge. */
+.hs-row-lines { display: grid; gap: 2px; margin-top: 6px; }
+.hs-ex { display: grid; }
+.hs-ex-line {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--space-3);
+  font-size: var(--t-label); line-height: 18px;
+}
+.hs-ex-name { flex: 1 1 auto; min-width: 0; display: grid; }
+.hs-ex-ar { color: var(--ink-2); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A Latin name (no Arabic one known) is its own LTR box at the start
+   edge, so a long one is cut at its end — «Some Custom Machine…» —
+   never at its first word. */
+.hs-ex-latin { justify-self: start; max-width: 100%; }
+/* The English name under an open exercise (the label on the machine)
+   adds nothing to the line's width — the Arabic name decides whether
+   the best set fits beside it — and wraps in full under it. */
+.hs-ex-en {
+  width: 0; min-width: 100%; text-align: right;   /* the RTL start edge */
+  font-size: var(--t-label); color: var(--ink-3); line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.hs-best {
+  flex: none; margin-inline-start: auto;
+  display: inline-flex; align-items: baseline; gap: 4px;
+  font-weight: 600; color: var(--ink); white-space: nowrap;
+}
+.hs-best .k-num { font-weight: 700; }
+/* Gold is drawn on the number itself, with its name in front of it:
+   «أعلى وزن 77.5 كجم × 12» — no pill, so two in a row stay quiet. */
+.hs-gold, .hs-gold .k-num, .hs-gold .hs-unit { color: var(--raise); }
+.hs-pr { font-size: var(--t-label); font-weight: 700; color: var(--raise); }
+.hs-pr-icon { display: none; flex: none; align-self: center; }
+/* On a 320pt phone the word would take the name's room: a gold trophy
+   (labelled «أعلى وزن») says it in 16pt. */
+@media (max-width: 359px) {
+  .hs-pr-word { display: none; }
+  .hs-pr-icon { display: block; }
+}
+.hs-row-meta {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  margin-top: var(--space-1); font-size: var(--t-label); font-weight: 500; line-height: 18px; color: var(--ink-3);
+}
+.hs-toggle { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); font-weight: 600; color: var(--ink-2); }
+.hs-caret { flex: none; color: var(--ink-3); transition: transform var(--dur-fast) var(--ease-out); }
+.hs-row-main[aria-expanded="true"] .hs-caret { transform: rotate(180deg); }
+
+/* Open: every exercise, every set, at reading size */
+.hs-ex-open { padding-block: var(--space-2); }
+.hs-ex-open .hs-ex-line { font-size: var(--t-body); line-height: 1.5; }
+.hs-ex-open + .hs-ex-open { border-top: 1px solid var(--hairline); }
+.hs-sets { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-2); }
+.hs-set { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-body); color: var(--ink); }
+.hs-set-n {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px;
+  border-radius: var(--r-pill); background: var(--surface-3);
+  font-size: var(--t-caption); font-weight: 700; color: var(--ink-2);
+}
+.hs-set-v { font-weight: 600; white-space: nowrap; }
+
+/* ── Undo, in the deleted row's place ── */
+.hs-undo {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  min-height: 56px; margin-block: var(--space-2);
+  padding-block: var(--space-1); padding-inline: var(--space-4) var(--space-1);
+  background: var(--surface-1); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--edge);
+  font-size: var(--t-body); color: var(--ink-2);
+}
+.hs-rows > .hs-undo, .hs-rows > * + .hs-undo, .hs-rows > .hs-undo + * { border-top: 0; }
+.hs-undo-text { min-width: 0; }
+.hs-undo-clock {
+  position: absolute; inset-inline: 0; bottom: 0; height: 2px; background: var(--ink-3);
+  transform-origin: right;   /* RTL: what is left shrinks back to the start edge */
+  animation-name: hs-undo-run; animation-timing-function: linear; animation-fill-mode: forwards;
+}
+@keyframes hs-undo-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ── اختر روتين ── */
+.hs-pick-note { margin: 0 0 var(--space-3); font-size: var(--t-label); line-height: 1.5; color: var(--ink-3); }
+.k-group.hs-pick { margin-bottom: 0; }
+
+/* ── ⋯ menu ── */
+.hs-menu-date { margin: 0 0 var(--space-3); font-size: var(--t-label); color: var(--ink-3); }
+.k-group.hs-menu { margin-bottom: 0; }
+.hs-menu .k-row-danger .k-row-icon { color: var(--danger); }
+
+/* ── Edit sheet ── */
+.hs-edit-of { margin: 0 0 var(--space-2); font-size: var(--t-label); color: var(--ink-3); }
+.hs-edit-ex { padding: var(--space-3) 0 var(--space-4); }
+.hs-edit-ex + .hs-edit-ex { border-top: 1px solid var(--hairline); }
+.hs-edit-ex-h { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.hs-edit-ex-ar { font-size: var(--t-headline); font-weight: 600; line-height: 1.35; color: var(--ink); }
+/* Removing a line while editing is an edit, not a destructive action:
+   red stays in the ⋯ menu. */
+.k-iconbtn.hs-edit-rm { color: var(--ink-2); }
+.k-iconbtn.hs-edit-rm-ex { margin-inline-end: -10px; }
+.hs-edit-grid {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) 16px minmax(0, 1fr) 44px;
+  align-items: center; gap: var(--space-2); margin-top: var(--space-2);
+}
+.hs-edit-set { display: contents; }
+.hs-edit-col { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); text-align: center; }
+.hs-edit-n { text-align: center; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); }
+.hs-edit-undone .hs-edit-n { color: var(--ink-3); }
+.hs-edit-x { text-align: center; color: var(--ink-3); font-size: var(--t-body); }
+.hs-field {
+  width: 100%; height: 44px; padding: 0 var(--space-2);
+  border: 0; border-radius: var(--r-sm); outline: none;
+  background: var(--surface-3); color: var(--ink);
+  font-family: var(--font); font-size: var(--t-headline); font-weight: 700;
+  font-variant-numeric: tabular-nums lining-nums; text-align: center; direction: ltr;
+}
+.hs-field::placeholder { color: var(--ink-3); }
+.hs-field:focus-visible, .hs-field:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.hs-edit-foot { display: flex; gap: var(--space-2); }
+.hs-edit-empty { margin: var(--space-3) 0 0; font-size: var(--t-body); line-height: 1.7; color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hs-undo-clock { animation: none; display: none; }
+  .hs-caret, .hs-row-main { transition: none; }
+  .hs-live-dot { animation: none; }
+}

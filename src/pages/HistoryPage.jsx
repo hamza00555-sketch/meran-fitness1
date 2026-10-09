@@ -1,315 +1,243 @@
-import { useState } from 'react'
-import { Card, SectionTitle, EmptyState, Badge } from '../components/ui.jsx'
-import RoutinesModal from '../components/RoutinesModal.jsx'
-import { fmtDate, fmtDuration, sessionVolume, planDayType, resolveExerciseName, ls } from '../utils.js'
-import { MUSCLE_GROUPS } from '../constants.js'
-import { toWesternDigits } from '../day.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { EmptyState, Sheet, ListGroup, ListRow } from '../components/kit/index.jsx'
+import { ClockCounterClockwise, PencilSimple, Trash } from '../components/kit/icons.js'
+import TodayCard from '../components/history/TodayCard.jsx'
+import SessionRow, { UndoRow } from '../components/history/SessionRow.jsx'
+import EditSessionSheet from '../components/history/EditSessionSheet.jsx'
+import RoutinePickerSheet from '../components/history/RoutinePickerSheet.jsx'
+import Txt from '../components/history/Txt.jsx'
+import {
+  groupByWeek, weekTotalsText, sessionTitle, sessionDateText, sessionDay, firstBestSessions,
+} from '../components/history/model.js'
+import { buildExercise, suggestedWeightFor, resolveExerciseName, getWeightsResetAt, ls } from '../utils.js'
+import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { sessionDeloadStamp, deloadWeight } from '../deload.js'
+import { DAY_STATUS } from '../recovery.js'
+import { todayKey } from '../day.js'
+import '../styles/screens/history.css'
 
 // ── السجل — what you did ──────────────────────────────────────
-// Split out of WorkoutPage, which now only runs the session.
+//
+// App draws the large title «السجل» above this page. Under it:
+//   1. «تمرين اليوم», pinned, so the tab is never a dead end (F12);
+//      «اختر روتين» opens RoutinePickerSheet (the ROUTINES on the kit,
+//      in Arabic) and starts the picked routine through onStartWorkout;
+//   2. the sessions, grouped by training week under sticky headers
+//      «هذا الأسبوع · 3 جلسات · 5.7 طن» (F67, F36);
+//   3. each session an open row — day, date, the first two lifts with
+//      their best set, time and sets — with one ⋯ for edit and delete.
+// Delete is immediate with six seconds to take it back: the row turns
+// into an undo bar, and onDeleteSession only runs when the time is up
+// (or when the page goes away), so the stored data is never touched by
+// a delete that was undone.
+//
+// Optional props, all safe when absent:
+//   active / onResumeWorkout  — a session already running (falls back to
+//                               the saved hf_active, read only)
+//   recovery                  — today's status, for the rest-day and
+//                               trained-today states of the card
+//   repTarget, recoveryConfig — for building a routine's sets (fall back
+//                               to their saved values, read only)
 
-export default function HistoryPage({ sessions, onUpdateSession, onDeleteSession, exerciseMapping = {}, onStartPlannedWorkout, onStartWorkout, plan, planIndex }) {
-  const [showRoutines, setShowRoutines] = useState(false)
-  return <HistoryView sessions={sessions} onStartWorkout={() => setShowRoutines(true)} showRoutines={showRoutines} setShowRoutines={setShowRoutines} onUpdateSession={onUpdateSession} onDeleteSession={onDeleteSession} exerciseMapping={exerciseMapping} />
-}
+const UNDO_MS = 6000
 
-// ── History sub-view ──────────────────────────────────────────
-function HistoryView({ sessions, onStartWorkout, showRoutines, setShowRoutines, onUpdateSession, onDeleteSession, exerciseMapping = {} }) {
-  const [expanded,   setExpanded]   = useState(null)
-  const [editingId,  setEditingId]  = useState(null)
-  const [editData,   setEditData]   = useState(null)
-  const [confirmDel, setConfirmDel] = useState(null) // session id pending delete
+export default function HistoryPage({
+  sessions = [], onUpdateSession, onDeleteSession, exerciseMapping = {},
+  onStartPlannedWorkout, onStartWorkout, plan, planIndex = 0,
+  active, onResumeWorkout, recovery, repTarget, recoveryConfig,
+}) {
+  const today = todayKey()
+  const [expanded, setExpanded] = useState(null)
+  const [menu, setMenu] = useState(null)           // { session, open, n }
+  const [edit, setEdit] = useState(null)           // { session, data, open, n }
+  const [pending, setPending] = useState(null)     // { id, label }
+  const [picker, setPicker] = useState(null)       // { open, n }
+  const sheetN = useRef(0)
 
-  const startEdit = (e, session) => {
-    e.stopPropagation()
-    setEditingId(session.id)
-    setExpanded(session.id)
-    setEditData(session.exercises.map(ex => ({ ...ex, sets: ex.sets.map(s => ({ ...s })) })))
+  // ── Deferred delete, so «تراجع» never has to un-delete anything ──
+  const pendingRef = useRef(null)
+  const timerRef = useRef(null)
+  const deleteRef = useRef(onDeleteSession)
+  deleteRef.current = onDeleteSession
+
+  const commitDelete = useCallback(() => {
+    clearTimeout(timerRef.current)
+    const p = pendingRef.current
+    pendingRef.current = null
+    if (p) deleteRef.current?.(p.id)
+  }, [])
+
+  // Leaving the tab mid-countdown completes the delete.
+  useEffect(() => () => commitDelete(), [commitDelete])
+
+  const removeSession = (s) => {
+    commitDelete()                        // an earlier delete goes through now
+    const p = { id: s.id, label: sessionDateText(s, today) }
+    pendingRef.current = p
+    setPending(p)
+    if (expanded === s.id) setExpanded(null)
+    timerRef.current = setTimeout(() => { commitDelete(); setPending(null) }, UNDO_MS)
+  }
+  const undoDelete = () => {
+    clearTimeout(timerRef.current)
+    pendingRef.current = null
+    setPending(null)
   }
 
-  const cancelEdit = (e) => {
-    e?.stopPropagation()
-    setEditingId(null)
-    setEditData(null)
-  }
+  // ── Today ──
+  const schedule = plan?.weeklySchedule
+  const planDay = schedule?.length ? schedule[(planIndex || 0) % schedule.length] : null
+  const running = active !== undefined ? active : ls.get('hf_active', null)
+  const visible = useMemo(() => sessions.filter(s => s.id !== pending?.id), [sessions, pending])
+  const trainedToday = recovery?.status === DAY_STATUS.COMPLETED || visible.some(s => sessionDay(s) === today)
+  const resting = recovery?.status === DAY_STATUS.RECOVERY && !trainedToday
 
-  const saveEdit = (e, sessionId) => {
-    e.stopPropagation()
-    const cleaned = editData.filter(ex => ex.sets.some(s => s.done))
+  const startRoutine = (routine) => {
+    // Built the way the player builds a loaded routine: last weight
+    // (lightened under a deload), the reps the progression suggests.
+    const cfg = recoveryConfig ?? ls.get('hf_recovery', null) ?? {}
+    const stamp = sessionDeloadStamp(cfg, today)
+    const lighten = stamp ? (w => deloadWeight(w, stamp.pct)) : undefined
+    const target = repTarget ?? { ...DEFAULT_REP_TARGET, ...ls.get('hf_rep_target', {}) }
+    const exercises = (routine?.exercises || []).map(ex => buildExercise({
+      muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || ex.sets || 3,
+      prevWeight: suggestedWeightFor(ex.name, { sessions, mapping: exerciseMapping, transform: lighten }),
+      prevReps: analyzeProgression(sessions, ex.name, exerciseMapping, target).suggestedReps,
+    }))
+    onStartWorkout?.(exercises)
+  }
+  const openPicker = () => setPicker({ open: true, n: ++sheetN.current })
+  const closePicker = () => setPicker(p => (p ? { ...p, open: false } : p))
+  const pickRoutine = (routine) => { closePicker(); startRoutine(routine) }
+
+  // ── The feed ──
+  const weeks = useMemo(() => groupByWeek(sessions, today), [sessions, today])
+  const firsts = useMemo(
+    () => firstBestSessions(visible, exerciseMapping, getWeightsResetAt()),
+    [visible, exerciseMapping],
+  )
+
+  // ── ⋯ menu and the editor ──
+  // A fresh key per opening, so each sheet remembers its own opener and
+  // hands focus back to the right ⋯.
+  const openMenu = (s) => setMenu({ session: s, open: true, n: ++sheetN.current })
+  const closeMenu = () => setMenu(m => (m ? { ...m, open: false } : m))
+  const SHEET_EXIT = 240   // the kit's sheet leaves in 220ms; open the next one after it
+
+  const startEdit = (s) => {
+    closeMenu()
+    setTimeout(() => setEdit({
+      session: s, open: true, n: ++sheetN.current,
+      data: (s.exercises || []).map(ex => ({ ...ex, sets: (ex.sets || []).map(x => ({ ...x })) })),
+    }), SHEET_EXIT)
+  }
+  const closeEdit = () => setEdit(e => (e ? { ...e, open: false } : e))
+
+  const saveEdit = () => {
+    if (!edit) return
+    const sessionId = edit.session.id
+    const cleaned = edit.data.filter(ex => ex.sets.some(s => s.done))
+    if (!cleaned.length) return
     onUpdateSession?.(sessionId, s => ({ ...s, exercises: cleaned }))
 
-    // Update weight snapshot if this is the most recent session
+    // The most recent session feeds the weight snapshot, as before.
     const mostRecentId = sessions.length > 0 ? Math.max(...sessions.map(s => s.id)) : null
     if (sessionId === mostRecentId) {
       const snapshot = {}
       for (const ex of cleaned) {
         const ws = (ex.sets || []).map(s => parseFloat(s.weight)).filter(w => w > 0)
-        if (ws.length) {
-          const canonical = resolveExerciseName(ex.name, exerciseMapping)
-          snapshot[canonical] = ws[ws.length - 1]
-        }
+        if (ws.length) snapshot[resolveExerciseName(ex.name, exerciseMapping)] = ws[ws.length - 1]
       }
       if (Object.keys(snapshot).length) {
         ls.set('hf_last_weights', { ...ls.get('hf_last_weights', {}), ...snapshot })
       }
     }
-
-    setEditingId(null)
-    setEditData(null)
+    closeEdit()
   }
 
-  const updSet = (ei, si, field, val) =>
-    setEditData(prev => prev.map((ex, i) => i !== ei ? ex : {
-      ...ex, sets: ex.sets.map((s, j) => j !== si ? s : { ...s, [field]: val })
-    }))
-
-  const delSet = (ei, si) =>
-    setEditData(prev => prev.map((ex, i) => i !== ei ? ex : {
-      ...ex, sets: ex.sets.filter((_, j) => j !== si)
-    }))
-
-  const delExercise = (ei) =>
-    setEditData(prev => prev.filter((_, i) => i !== ei))
-
-  const inputStyle = {
-    background: 'var(--bg3)', border: '1px solid var(--border2)',
-    borderRadius: 7, padding: '4px 7px',
-    color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 12,
-    outline: 'none', width: 58, textAlign: 'center',
-  }
-
-  if (!sessions.length) {
-    return (
-      <div style={{ paddingBottom: 120 }}>
-        <EmptyState art="empty_history" icon="📋" title="لا يوجد سجل بعد" desc="أنهِ جلسة لتظهر هنا" />
-        <div style={{
-          position: 'fixed', bottom: 0,
-          left: '50%', transform: 'translateX(-50%)',
-          width: '100%', maxWidth: 560,
-          padding: '12px 16px calc(var(--safe-bottom) + 76px)',
-          background: 'linear-gradient(transparent, var(--bg) 40%)',
-        }}>
-          <button className="btn-cyan" onClick={onStartWorkout}>⚔️ ابدأ التمرين</button>
-        </div>
-        {showRoutines && <RoutinesModal onSelect={() => {}} onClose={() => setShowRoutines(false)} />}
-      </div>
-    )
-  }
+  const menuSession = menu?.session
+  const menuTitle = menuSession ? sessionTitle(menuSession) : ''
+  const menuDate = menuSession ? sessionDateText(menuSession, today) : ''
 
   return (
-    <div style={{ paddingBottom: 120 }}>
-      <SectionTitle>سجل الجلسات</SectionTitle>
-      {sessions.map(s => {
-        const muscles  = [...new Set(s.exercises.filter(e => e.sets.some(ss => ss.done)).map(e => e.muscle))]
-        const allSets  = s.exercises.flatMap(e => e.sets)
-        const doneSets = allSets.filter(ss => ss.done).length
-        const vol      = sessionVolume(s)
-        const isOpen   = expanded === s.id
-        const isEditing = editingId === s.id
+    <div className="hs-page">
+      <TodayCard
+        planDay={planDay}
+        active={running}
+        resting={resting}
+        trainedToday={trainedToday}
+        onStartPlanned={onStartPlannedWorkout}
+        onStartFree={() => onStartWorkout?.()}
+        onPickRoutine={openPicker}
+        onResume={onResumeWorkout}
+      />
 
-        return (
-          <Card
-            key={s.id}
-            style={{ marginBottom: 3, padding: 5, cursor: isEditing ? 'default' : 'pointer',
-              border: isEditing ? '1px solid var(--cyan-md)' : undefined }}
-            onClick={() => { if (!isEditing) setExpanded(isOpen ? null : s.id) }}
-          >
-            {/* ── Session header ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ flex: 1 }}>
-                {s.planDayName && (
-                  <span style={{
-                    display: 'inline-block',
-                    background: 'rgba(0,210,255,0.08)', border: '1px solid rgba(0,210,255,0.25)',
-                    borderRadius: 20, padding: '2px 9px',
-                    fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--cyan)',
-                    fontWeight: 700, marginBottom: 5, letterSpacing: 0.3,
-                  }}>{planDayType({ name: s.planDayName, exercises: s.exercises })}</span>
-                )}
-                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
-                  {fmtDate(s.date)}
-                </div>
-                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
-                  {fmtDuration(s.duration)}{vol > 0 ? ` · ${(vol / 1000).toFixed(1)} طن` : ''}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {muscles.map(m => (
-                    <Badge key={m} color={MUSCLE_GROUPS[m]?.color || 'var(--cyan)'}>
-                      {MUSCLE_GROUPS[m]?.img
-                        ? <img src={MUSCLE_GROUPS[m].img} style={{ width: 14, height: 14, objectFit: 'contain', borderRadius: 3 }} alt="" />
-                        : MUSCLE_GROUPS[m]?.emoji
-                      } {MUSCLE_GROUPS[m]?.label || m}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* action buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginRight: 4 }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--cyan)', textAlign: 'center' }}>
-                  {doneSets}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>sets</div>
-                {!isEditing && (
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button
-                      onClick={e => startEdit(e, s)}
-                      title="تعديل"
-                      style={{
-                        background: 'var(--bg3)', border: '1px solid var(--border)',
-                        borderRadius: 7, width: 28, height: 28, cursor: 'pointer',
-                        color: 'var(--text2)', fontSize: 13,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >✏️</button>
-                    <button
-                      onClick={e => { e.stopPropagation(); setConfirmDel(s.id) }}
-                      title="حذف الجلسة"
-                      style={{
-                        background: 'var(--bg3)', border: '1px solid var(--border)',
-                        borderRadius: 7, width: 28, height: 28, cursor: 'pointer',
-                        color: '#EF4444', fontSize: 13,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >🗑️</button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── Delete session confirm ── */}
-            {confirmDel === s.id && (
-              <div onClick={e => e.stopPropagation()} style={{
-                marginTop: 10, padding: '10px 12px',
-                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
-                borderRadius: 10,
-              }}>
-                <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: '#EF4444', marginBottom: 8 }}>
-                  حذف هذه الجلسة نهائياً؟
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={e => { e.stopPropagation(); onDeleteSession?.(s.id); setConfirmDel(null) }}
-                    style={{
-                      flex: 1, background: '#EF4444', border: 'none', borderRadius: 8,
-                      padding: '7px', color: 'white',
-                      fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
-                    }}
-                  >نعم، احذف</button>
-                  <button
-                    onClick={e => { e.stopPropagation(); setConfirmDel(null) }}
-                    style={{
-                      flex: 1, background: 'var(--bg2)', border: '1px solid var(--border)',
-                      borderRadius: 8, padding: '7px', color: 'var(--text2)',
-                      fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
-                    }}
-                  >إلغاء</button>
-                </div>
-              </div>
-            )}
-
-            {/* ── Expanded: read-only or edit ── */}
-            {isOpen && !isEditing && (
-              <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
-                {/* Sessions saved before only-done-is-kept still carry the
-                    exercises that were skipped; show what happened. */}
-                {s.exercises.filter(ex => ex.sets.some(ss => ss.done)).map((ex, ei) => (
-                  <div key={ei} style={{ marginBottom: 10 }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--cyan)', marginBottom: 4 }}>
-                      {ex.name}
-                    </div>
-                    {ex.sets.filter(ss => ss.done).map((ss, si) => (
-                      <div key={si} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', marginBottom: 2, paddingRight: 8 }}>
-                        ✓ Set {si + 1}: {ss.weight || '—'}kg × {ss.reps || '—'} reps
-                      </div>
-                    ))}
-                  </div>
+      {sessions.length === 0 ? (
+        <EmptyState icon={ClockCounterClockwise} title="ما فيه جلسات للحين">
+          أول ما تخلّص تمرين ينحفظ هنا: التمارين، والأوزان، وكل مجموعة لعبتها.
+        </EmptyState>
+      ) : (
+        weeks.map(week => {
+          const shown = week.sessions.filter(s => s.id !== pending?.id)
+          const totals = weekTotalsText(shown)
+          return (
+            <section key={week.key} className="hs-week">
+              <h2 className="hs-week-h">
+                <span className="hs-week-name"><Txt>{week.label}</Txt></span>
+                {totals && <span className="hs-week-sum"><Txt>{totals}</Txt></span>}
+              </h2>
+              <div className="hs-rows">
+                {week.sessions.map(s => (
+                  s.id === pending?.id
+                    ? <UndoRow key={s.id} label={pending.label} onUndo={undoDelete} ms={UNDO_MS} />
+                    : (
+                      <SessionRow
+                        key={s.id}
+                        session={s}
+                        title={sessionTitle(s)}
+                        dateText={sessionDateText(s, today)}
+                        firsts={firsts}
+                        mapping={exerciseMapping}
+                        expanded={expanded === s.id}
+                        onToggle={() => setExpanded(x => (x === s.id ? null : s.id))}
+                        onMore={() => openMenu(s)}
+                      />
+                    )
                 ))}
               </div>
-            )}
+            </section>
+          )
+        })
+      )}
 
-            {/* ── Edit mode ── */}
-            {isEditing && editData && (
-              <div onClick={e => e.stopPropagation()} style={{ borderTop: '1px solid var(--cyan-md)', marginTop: 12, paddingTop: 12 }}>
-                {editData.map((ex, ei) => (
-                  <div key={ei} style={{ marginBottom: 14, background: 'var(--bg2)', borderRadius: 10, padding: '10px 10px 6px' }}>
-                    {/* Exercise header */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: MUSCLE_GROUPS[ex.muscle]?.color || 'var(--cyan)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {ex.name}
-                      </span>
-                      <button
-                        onClick={() => delExercise(ei)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 15, padding: '0 4px', flexShrink: 0 }}
-                        title="حذف التمرين"
-                      >🗑️</button>
-                    </div>
-                    {/* Column labels */}
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 4, paddingRight: 4 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', width: 36 }}>SET</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', width: 58, textAlign: 'center' }}>KG</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)', width: 58, textAlign: 'center' }}>REPS</span>
-                    </div>
-                    {/* Sets */}
-                    {ex.sets.map((ss, si) => (
-                      <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)', width: 36, flexShrink: 0 }}>
-                          {si + 1}
-                        </span>
-                        <input
-                          type="text" inputMode="decimal"
-                          value={ss.weight || ''}
-                          onChange={e => updSet(ei, si, 'weight', toWesternDigits(e.target.value))}
-                          placeholder="—"
-                          style={inputStyle}
-                        />
-                        <span style={{ color: 'var(--text3)', fontSize: 13 }}>×</span>
-                        <input
-                          type="text" inputMode="numeric"
-                          value={ss.reps || ''}
-                          onChange={e => updSet(ei, si, 'reps', toWesternDigits(e.target.value))}
-                          placeholder="—"
-                          style={inputStyle}
-                        />
-                        <button
-                          onClick={() => delSet(ei, si)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, padding: '0 2px', flexShrink: 0 }}
-                        >✕</button>
-                      </div>
-                    ))}
-                  </div>
-                ))}
+      {menu && (
+        <Sheet key={menu.n} open={menu.open} onClose={closeMenu} title={<Txt>{menuTitle}</Txt>}>
+          <p className="hs-menu-date"><Txt>{menuDate}</Txt></p>
+          <ListGroup className="hs-menu">
+            <ListRow leading={PencilSimple} title="تعديل الجلسة" onClick={() => startEdit(menuSession)} />
+            <ListRow leading={Trash} title="حذف الجلسة" tone="danger"
+              onClick={() => { closeMenu(); removeSession(menuSession) }} />
+          </ListGroup>
+        </Sheet>
+      )}
 
-                {/* Save / Cancel */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                  <button
-                    onClick={e => saveEdit(e, s.id)}
-                    style={{
-                      flex: 1, background: 'var(--grad-primary)', border: 'none', borderRadius: 10,
-                      padding: '10px', color: 'white',
-                      fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    }}
-                  >✓ حفظ التعديلات</button>
-                  <button
-                    onClick={cancelEdit}
-                    style={{
-                      background: 'var(--bg2)', border: '1px solid var(--border)',
-                      borderRadius: 10, padding: '10px 16px', color: 'var(--text2)',
-                      fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-                    }}
-                  >إلغاء</button>
-                </div>
-              </div>
-            )}
+      {edit && (
+        <EditSessionSheet
+          key={edit.n}
+          open={edit.open}
+          onClose={closeEdit}
+          title={sessionTitle(edit.session)}
+          dateText={sessionDateText(edit.session, today)}
+          data={edit.data}
+          mapping={exerciseMapping}
+          onChange={data => setEdit(e => (e ? { ...e, data } : e))}
+          onSave={saveEdit}
+        />
+      )}
 
-            {!isEditing && (
-              <div style={{ textAlign: 'center', marginTop: 8, color: 'var(--text3)', fontSize: 12 }}>
-                {isOpen ? '▲' : '▼'}
-              </div>
-            )}
-          </Card>
-        )
-      })}
+      {picker && (
+        <RoutinePickerSheet key={picker.n} open={picker.open} onClose={closePicker} onSelect={pickRoutine} />
+      )}
     </div>
   )
 }
