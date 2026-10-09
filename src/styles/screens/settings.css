@@ -1,0 +1,179 @@
+/* ══ Settings — an inset-grouped root, pushed sub-pages ═══════════
+   iOS Settings, in Floodlight's terms: one surface per group, hairlines
+   between rows, a check mark for the chosen option, one well style for
+   every field, no coloured edges. Written against tokens only. */
+
+/* A sub-page brings its own back bar, so App's «الإعدادات» bar steps
+   aside while one is open (App renders it as a sibling of this page). */
+.f-main:has(> .st[data-sub]) > .k-navbar { display: none; }
+
+.st { display: grid; padding-bottom: var(--space-6); }
+.st-body { display: grid; }
+
+@keyframes st-push { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+@keyframes st-pop  { from { opacity: 0; transform: translateX(16px); }  to { opacity: 1; transform: none; } }
+.st-push { animation: st-push var(--dur-base) var(--ease-out); }
+.st-pop  { animation: st-pop var(--dur-base) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .st-push, .st-pop { animation: none; } }
+
+/* ── The design switch keeps its own file (shared with classic/); in the
+   new design it sits in the group style of the rest of the page. ── */
+.st-design { margin-bottom: var(--space-6); }
+.st-design > div { margin-bottom: 0 !important; }
+.st-design > div > div:first-child { margin: 0 0 8px !important; padding-inline: 4px; }
+.st-design > div > div:first-child > div > div:first-child { display: none !important; }
+.st-design > div > div:first-child span { font-size: var(--t-label) !important; font-weight: 600 !important; color: var(--ink-3) !important; }
+.st-design > div > div:nth-child(2) {
+  background: var(--surface-1) !important; border: 0 !important; border-radius: var(--r-md) !important;
+  box-shadow: inset 0 0 0 1px var(--edge) !important; padding: 4px 12px !important;
+}
+.st-design [data-testid="design-switch"] > div > div:first-child { font-size: var(--t-headline) !important; font-weight: 600 !important; }
+.st-design [data-testid="design-switch"] > div > div:nth-child(2) { font-size: var(--t-label) !important; color: var(--ink-3) !important; line-height: 1.45 !important; }
+
+/* ── Scope ──
+   Kit classes are restyled only inside this area: the Settings page
+   (.st), the Profile page (.pf), and the area's own groups that a Sheet
+   portals out to <body> (.st-area). Every other screen keeps the kit's
+   own footers and trailing values. */
+
+/* ── Rows ── */
+:is(.st, .pf, .st-area) .k-row-trail { text-align: end; }
+.st-row-value { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: bottom; }
+.st-check { min-height: 56px; }
+.st-check-mark { flex: none; width: 22px; height: 22px; color: var(--accent); display: grid; place-items: center; }
+.st-check:disabled { cursor: default; }
+:is(.st, .pf, .st-area) .k-row:disabled .k-row-title { color: var(--ink-3); }
+:is(.st, .pf, .st-area) :is(.k-row-sub, .k-row-trail) .k-num { font-weight: 600; }
+.st-danger .k-row-title, .st-danger .k-row-icon { color: var(--danger); }
+.st-accent .k-row-title, .st-accent .k-row-icon { color: var(--accent); }
+
+/* A row that holds two targets (switch user / delete user). */
+.st-split { display: flex; align-items: stretch; position: relative; }
+.st-split + .st-split::before, .k-row + .st-split::before, .st-split + .k-row::before {
+  content: ""; position: absolute; top: 0; inset-inline-start: 16px; inset-inline-end: 0; height: 1px; background: var(--hairline);
+}
+:is(.st, .pf, .st-area) .k-group-body > [role="radiogroup"] + .k-row::before {
+  content: ""; position: absolute; top: 0; inset-inline-start: 16px; inset-inline-end: 0; height: 1px; background: var(--hairline);
+}
+.st-split > .k-row { flex: 1; min-width: 0; }
+.st-split > .k-iconbtn { align-self: center; margin-inline-end: 6px; color: var(--ink-3); }
+
+/* ── Group footers carry copy, sometimes a stepper ── */
+:is(.st, .pf, .st-area) .k-group-f { font-size: var(--t-label); line-height: 1.6; }
+:is(.st, .pf, .st-area) .k-group-f p { margin: 0; }
+.st-lede { margin: 0 0 var(--space-5); font-size: var(--t-body); line-height: 1.7; color: var(--ink-2); text-wrap: pretty; }
+.st-note { margin: calc(-1 * var(--space-3)) 4px var(--space-6); font-size: var(--t-label); color: var(--ink-3); line-height: 1.6; }
+.st-version { margin: var(--space-2) 0 0; text-align: center; font-size: var(--t-caption); color: var(--ink-3); }
+
+/* ── Saved tick in the bar ── */
+.st-saved { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: var(--t-label); font-weight: 600; color: var(--accent); }
+
+/* ── Notice ── */
+.st-notice { margin-bottom: var(--space-5); align-items: center; }
+.st-notice .k-iconbtn { margin: -6px -8px -6px -6px; color: var(--ink-3); }
+
+/* ── The one text field ── */
+.st-field { display: grid; gap: 6px; min-width: 0; }
+.st-field-label { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); padding-inline: 4px; }
+.st-field-box {
+  display: flex; align-items: center; gap: 8px; min-height: 48px; padding-inline: 14px;
+  background: var(--surface-3); border-radius: var(--r-sm);
+  transition: box-shadow var(--dur-fast);
+}
+.st-field-box:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+.st-field.invalid .st-field-box { box-shadow: inset 0 0 0 2px var(--danger); }
+.st-field-box input, .st-field-box textarea {
+  flex: 1; min-width: 0; width: 100%; background: transparent; border: 0; outline: none; color: var(--ink);
+  font-family: var(--font); font-size: 16px; font-weight: 500; line-height: 1.4; padding: 12px 0;
+}
+.st-field-box input[dir="ltr"] { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.st-field-box input::placeholder, .st-field-box textarea::placeholder { color: var(--ink-3); }
+.st-field-box input:focus-visible, .st-field-box textarea:focus-visible { outline: none; }
+.st-field-box textarea { resize: none; font-size: 13px; line-height: 1.5; min-height: 140px; direction: ltr; text-align: left; user-select: text; -webkit-user-select: text; }
+.st-field-unit { flex: none; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.st-field-hint { font-size: var(--t-label); color: var(--ink-3); padding-inline: 4px; }
+.st-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: calc(-1 * var(--space-2)) 0 var(--space-6); }
+.st-fields.one { grid-template-columns: 1fr; }
+.st-inline-add { display: flex; gap: var(--space-2); align-items: flex-end; padding: 12px 16px; position: relative; }
+.st-inline-add::before { content: ""; position: absolute; top: 0; inset-inline-start: 16px; inset-inline-end: 0; height: 1px; background: var(--hairline); }
+.st-inline-add .st-field { flex: 1; }
+.st-inline-add .k-btn { min-height: 48px; }
+
+/* ── Switch row: the row is the target; a disabled one reads as
+   unavailable (the title greys, the switch fades — no opacity on text) ── */
+.st-switch-row .k-switch { cursor: inherit; }
+.st-switch-row:disabled { cursor: default; }
+.st-switch-row:disabled:active { background: transparent; }
+.st-switch-row:disabled .k-row-title { color: var(--ink-3); }
+.st-switch-row:disabled .k-switch { opacity: 0.45; }
+
+/* ── Stepper: «12 عدة ← 15 عدة ← ارفع وزنك» ── */
+.st-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 6px; }
+.st-steps .k-chip { min-height: 30px; }
+.st-steps-arrow { color: var(--ink-3); font-size: var(--t-body); }
+
+/* ── Action stack at the foot of a sub-page ── */
+.st-actions { display: grid; gap: var(--space-2); margin-bottom: var(--space-6); }
+
+/* ── Plan detail sheet ── */
+.st-plan-meta { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--space-4); }
+.st-plan-desc { margin: 0 0 var(--space-5); font-size: var(--t-body); line-height: 1.7; color: var(--ink-2); text-wrap: pretty; }
+.st-plan-day { margin-bottom: var(--space-5); }
+.st-plan-day .k-group-h { display: flex; gap: 6px; align-items: baseline; }
+.st-plan-day .k-group-h b { color: var(--ink); font-size: var(--t-body); font-weight: 700; }
+.st-ex-name { display: grid; gap: 0; min-width: 0; }
+.st-ex-en { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); font-stretch: 85%; }
+.st-ex-sets { font-size: var(--t-label); color: var(--ink-2); white-space: nowrap; }
+.st-plan-day .k-row { min-height: 52px; }
+.st-plan-day .k-row-title { font-size: var(--t-body); }
+
+/* ── Deload ── */
+.dl-run { display: grid; gap: var(--space-3); padding: var(--space-2) 0 var(--space-6); }
+.dl-day { display: flex; align-items: baseline; gap: 8px; margin: 0; color: var(--ink-2); font-size: var(--t-headline); font-weight: 600; }
+.dl-day b { font-size: var(--t-display); font-weight: 800; line-height: 1; color: var(--ink); font-stretch: 85%; }
+.dl-run p.dl-line { margin: 0; font-size: var(--t-body); line-height: 1.6; color: var(--ink-2); }
+
+/* ── Art pack ── */
+.ap-progress { display: grid; gap: 8px; padding: 12px 16px 14px; position: relative; }
+.ap-progress::before { content: ""; position: absolute; top: 0; inset-inline-start: 16px; inset-inline-end: 0; height: 1px; background: var(--hairline); }
+.ap-progress-meta { display: flex; justify-content: space-between; font-size: var(--t-label); color: var(--ink-2); }
+.ap-phase { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
+.ap-phase[data-tone="accent"] { color: var(--accent); }
+.ap-phase[data-tone="danger"] { color: var(--danger); }
+
+/* ── Rest ledger ── */
+.rl-toggle-caret { color: var(--ink-3); transition: transform var(--dur-fast) var(--ease-out); }
+.rl-toggle[aria-expanded="true"] .rl-toggle-caret { transform: rotate(180deg); }
+.rl-body { display: grid; gap: var(--space-3); padding: 4px 16px 16px; }
+.rl-start { margin: 0; font-size: var(--t-label); color: var(--ink-3); }
+.rl-start b { color: var(--ink); font-weight: 600; }
+.rl-restore { margin: 0; font-size: var(--t-label); color: var(--ink-2); line-height: 1.7; background: var(--surface-3); border-radius: var(--r-sm); padding: 8px 12px; }
+.rl-restore .k-num { display: block; color: var(--ink-3); }
+.rl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-inline: -16px; padding-inline: 16px; }
+.rl-table { border-collapse: collapse; font-size: var(--t-caption); min-width: 100%; }
+.rl-table th { font-weight: 600; color: var(--ink-3); text-align: start; }
+.rl-table th, .rl-table td { padding: 7px 8px; border-bottom: 1px solid var(--hairline); white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.rl-table tr.out td { color: var(--ink-3); }
+.rl-table tr.earned td { background: var(--accent-wash); }
+.rl-table td.k-eligible { color: var(--accent); font-weight: 600; }
+.rl-table td.k-paid { color: var(--rest); font-weight: 600; }
+.rl-table td.k-miss { color: var(--danger); font-weight: 600; }
+.rl-totals { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: var(--t-label); }
+.rl-totals dt { color: var(--ink-3); }
+.rl-totals dd { margin: 0; color: var(--ink); font-weight: 700; text-align: end; }
+
+/* ── Active programme, change confirmation ── */
+.st-active { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-label); font-weight: 600; color: var(--accent); }
+.st-confirm { display: grid; gap: var(--space-3); padding-bottom: var(--space-2); }
+.st-confirm-what { margin: 0; font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
+
+/* ── Bars inside Settings: the back label never runs into the title ── */
+.st .k-navbar { grid-template-columns: minmax(max-content, 1fr) minmax(0, auto) minmax(0, 1fr); column-gap: var(--space-2); }
+.st .k-navbar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── The account row's initial ── */
+.st-avatar {
+  flex: none; width: 40px; height: 40px; border-radius: var(--r-pill);
+  background: var(--surface-3); color: var(--ink); display: grid; place-items: center;
+  font-size: var(--t-headline); font-weight: 700;
+}

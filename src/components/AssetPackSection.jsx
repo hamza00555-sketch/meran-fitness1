@@ -1,215 +1,128 @@
 // ── Settings › حزمة الصور ─────────────────────────────────
-// Download, update, retry and remove the external art pack.
-// Follows the page's existing section rhythm and reuses ProgressBar
-// and the red error-box convention rather than inventing new ones.
+// Download, update, retry and remove the external art pack. The
+// data-pack hooks are what tests/pack.e2e.mjs drives; keep them.
 
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Card, SectionTitle, ProgressBar } from './ui.jsx'
+import { ListGroup, ListRow, Button, Gauge, Banner, Sheet, Num } from './kit/index.jsx'
+import { Image, Warning, Info } from './kit/icons.js'
 import { usePackState, installPack, deletePack, cancelInstall } from '../assets/pack.js'
 import { ALL_SLOT_IDS } from '../assets/slots.js'
 import { getUsers } from '../utils.js'
+import { Ar } from '../pages/settings/parts.jsx'
 
 const mb = (bytes) => (bytes / 1048576).toFixed(1)
 
-const LABELS = {
-  unknown:     { text: 'جارٍ الفحص…',            color: 'var(--text3)' },
-  checking:    { text: 'جارٍ فحص التحديثات…',    color: 'var(--text3)' },
-  idle:        { text: 'غير مثبّتة',              color: 'var(--text3)' },
-  downloading: { text: 'جارٍ التنزيل…',           color: 'var(--cyan)'  },
-  verifying:   { text: 'جارٍ التحقق…',            color: 'var(--cyan)'  },
-  ready:       { text: 'مثبّتة',                  color: 'var(--cyan)'  },
-  error:       { text: 'فشل التنزيل',             color: 'var(--red)'   },
-  offline:     { text: 'لا يوجد اتصال',           color: 'var(--gold)'  },
-  nospace:     { text: 'المساحة غير كافية',       color: 'var(--red)'   },
-  unsupported: { text: 'غير مدعومة على هذا المتصفح', color: 'var(--text3)' },
+export const PACK_LABELS = {
+  unknown:     { text: 'نتأكد…',              tone: 'ink' },
+  checking:    { text: 'ندوّر على تحديث…',     tone: 'ink' },
+  idle:        { text: 'مو منزّلة',            tone: 'ink' },
+  downloading: { text: 'تتنزّل…',              tone: 'accent' },
+  verifying:   { text: 'نتحقق منها…',          tone: 'accent' },
+  ready:       { text: 'منزّلة',               tone: 'accent' },
+  error:       { text: 'ما اكتمل التنزيل',     tone: 'danger' },
+  offline:     { text: 'ما فيه اتصال',          tone: 'danger' },
+  nospace:     { text: 'المساحة ما تكفي',      tone: 'danger' },
+  unsupported: { text: 'المتصفح ما يدعمها',    tone: 'ink' },
 }
 
 const FAIL_REASON = {
-  hash:    'ملف تالف',
-  http:    'الملف غير موجود على الخادم',
-  network: 'انقطاع في الشبكة',
-  decode:  'تعذّر فتح الصورة',
+  hash:    'ملف خربان',
+  http:    'الملف مو موجود على الخادم',
+  network: 'انقطع النت',
+  decode:  'ما قدرنا نفتح الصورة',
 }
-
-const actionBtn = (accent) => ({
-  flex: 1, padding: '12px 14px', borderRadius: 12,
-  background: accent ? 'var(--cyan)' : 'var(--bg3)',
-  border: accent ? 'none' : '1px solid var(--border2)',
-  color: accent ? '#07130A' : 'var(--text)',
-  fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
-  cursor: 'pointer',
-})
 
 export default function AssetPackSection() {
   const state = usePackState()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const busy = state.phase === 'downloading' || state.phase === 'checking' || state.phase === 'verifying'
-  const label = LABELS[state.phase] || LABELS.unknown
+  const label = PACK_LABELS[state.phase] || PACK_LABELS.unknown
   const total = state.filesTotal || ALL_SLOT_IDS.length
   const pct = total ? Math.round((state.filesDone / total) * 100) : 0
   const multiUser = getUsers().length > 1
+  const failed = state.failed || []
+  const canDelete = (state.phase === 'ready' || state.phase === 'error' || state.phase === 'offline') && !busy && state.filesDone > 0
+  const ready = state.phase === 'ready'
+
+  const installLabel = ready ? 'دوّر على تحديث'
+    : (state.phase === 'error' || state.phase === 'offline') ? 'حاول مرة ثانية'
+    : state.remoteBytes > 0 ? <Ar>{`نزّل الحزمة · ${mb(state.remoteBytes)} ميجا تقريباً`}</Ar>
+    : 'نزّل الحزمة'
 
   return (
-    <div style={{ marginBottom: 10 }}>
-      <SectionTitle>حزمة الصور</SectionTitle>
-      <Card style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 15, fontWeight: 700 }}>
-              صور مران المخصّصة
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', marginTop: 2, lineHeight: 1.7 }}>
-              صور التمارين وأنيميشناتها والجوائز والاحتفالات — تُحمَّل مرة واحدة وتعمل بدون إنترنت
-            </div>
-          </div>
-          <span data-pack-phase={state.phase} style={{
-            fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 700,
-            color: label.color, flexShrink: 0,
-          }}>{label.text}</span>
-        </div>
-
-        {/* Progress — files, because a byte total is only as honest as
-            the manifest's declared sizes. */}
+    <>
+      <ListGroup footer="صور التمارين وحركاتها والجوائز والاحتفالات. تتنزّل مرة وحدة وتشتغل بدون نت.">
+        <ListRow leading={Image} title="صور مران"
+          trailing={<span className="ap-phase" data-pack-phase={state.phase} data-tone={label.tone}>{label.text}</span>} />
         {busy && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <ProgressBar value={state.filesDone} max={total} gradient />
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
-            }}>
-              <span>{state.filesDone} / {total}</span>
-              <span>{pct}%{state.bytesDone > 0 ? ` · ${mb(state.bytesDone)} MB` : ''}</span>
+          <div className="ap-progress">
+            <Gauge value={state.filesDone} max={total} tone="accent" label="تقدم التنزيل" />
+            <div className="ap-progress-meta">
+              <span><Num>{state.filesDone}</Num> من <Num>{total}</Num></span>
+              <span><Num>{`${pct}%`}</Num>{state.bytesDone > 0 && <> · <Num>{mb(state.bytesDone)}</Num> ميجا</>}</span>
             </div>
           </div>
         )}
+        {ready && <ListRow title="عدد الصور" trailing={<Num>{state.filesDone}</Num>} />}
+        {ready && state.packVersion && <ListRow title="الإصدار" trailing={<Num>{`v${state.packVersion}`}</Num>} />}
+      </ListGroup>
 
-        {state.phase === 'ready' && (
-          <div style={{
-            background: 'var(--bg3)', borderRadius: 10, padding: '10px 14px',
-            fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text3)',
-            display: 'flex', justifyContent: 'space-between', gap: 8,
-          }}>
-            <span>{state.filesDone} صورة</span>
-            {state.packVersion && <span dir="ltr">v{state.packVersion}</span>}
-          </div>
-        )}
-
-        {/* crypto.subtle is missing outside a secure context — LAN
-            testing over plain HTTP. Say so rather than implying the
-            files were hash-checked when they weren't. */}
-        {state.verified === false && state.phase === 'ready' && (
-          <div style={{
-            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
-            borderRadius: 10, padding: '10px 14px',
-            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--gold)', lineHeight: 1.6,
-          }}>
-            تم التحقق من الحجم فقط — التحقق الكامل يحتاج اتصالاً آمناً (HTTPS)
-          </div>
-        )}
-
-        {(state.phase === 'error' || state.phase === 'nospace' || state.phase === 'offline') && (
-          <div style={{
-            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: 10, padding: '10px 14px',
-            fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--red)', lineHeight: 1.7,
-          }}>
-            {state.phase === 'offline' && (
-              <>
-                لا يوجد اتصال بالإنترنت.
-                <div style={{ marginTop: 4, opacity: 0.85 }}>
-                  ما نجح تنزيله محفوظ — إعادة المحاولة تُكمل الناقص فقط.
-                </div>
-              </>
-            )}
-            {state.phase === 'nospace' && 'المساحة على الجهاز غير كافية لتنزيل الحزمة.'}
-            {state.phase === 'error' && (
-              state.failed.length === 0
-                // Nothing individually failed, so the manifest itself
-                // never arrived — a different problem, and a different fix.
-                ? 'تعذّر الوصول إلى خادم الصور. حاول مرة أخرى بعد قليل.'
-                : (
-                  <>
-                    تعذّر تنزيل {state.failed.length} من {total} صورة.
-                    <div style={{ marginTop: 4, opacity: 0.85 }}>
-                      السبب: {FAIL_REASON[state.failed[0].reason] || 'خطأ غير معروف'}
-                    </div>
-                    <div style={{ marginTop: 4, opacity: 0.85 }}>
-                      ما نجح تنزيله محفوظ — إعادة المحاولة تُكمل الناقص فقط.
-                    </div>
-                  </>
-                )
-            )}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          {busy ? (
-            <button data-pack="cancel" onClick={cancelInstall} style={actionBtn(false)}>إيقاف</button>
-          ) : (
-            <button
-              data-pack="install"
-              onClick={installPack}
-              disabled={state.phase === 'unsupported'}
-              style={{
-                ...actionBtn(state.phase !== 'ready'),
-                opacity: state.phase === 'unsupported' ? 0.5 : 1,
-                cursor: state.phase === 'unsupported' ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {state.phase === 'ready' ? 'التحقق من التحديثات'
-                : (state.phase === 'error' || state.phase === 'offline') ? 'إعادة المحاولة'
-                : state.remoteBytes > 0 ? `تنزيل الحزمة · ~${mb(state.remoteBytes)} MB`
-                : 'تنزيل الحزمة'}
-            </button>
-          )}
-          {(state.phase === 'ready' || state.phase === 'error' || state.phase === 'offline') && !busy && state.filesDone > 0 && (
-            <button data-pack="delete" onClick={() => setConfirmDelete(true)} style={{ ...actionBtn(false), flex: 0, padding: '12px 18px', color: 'var(--red)' }}>
-              حذف
-            </button>
-          )}
-        </div>
-      </Card>
-
-      {confirmDelete && createPortal(
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 900,
-          background: 'rgba(0,0,0,0.75)',
-          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-        }} onClick={() => setConfirmDelete(false)}>
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 480, background: 'var(--bg2)',
-              borderRadius: '18px 18px 0 0', border: '1px solid var(--border2)',
-              padding: 20, display: 'flex', flexDirection: 'column', gap: 14,
-            }}
-          >
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>
-              حذف حزمة الصور؟
-            </div>
-            <div style={{ fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.8 }}>
-              سترجع الرموز الافتراضية، وتحتاج إنترنت لتنزيلها مرة أخرى.
-              {multiUser && (
-                <div style={{ color: 'var(--gold)', marginTop: 6 }}>
-                  الحزمة مشتركة بين كل المستخدمين على هذا الجهاز — الحذف يشملهم جميعاً.
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button data-pack="delete-cancel" onClick={() => setConfirmDelete(false)} style={actionBtn(false)}>إلغاء</button>
-              <button
-                data-pack="delete-confirm"
-                onClick={() => { deletePack(); setConfirmDelete(false) }}
-                style={{ ...actionBtn(false), background: 'var(--red)', border: 'none', color: '#fff' }}
-              >حذف</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
+      {/* crypto.subtle is missing outside a secure context — LAN
+          testing over plain HTTP. Say so rather than implying the
+          files were hash-checked when they weren't. */}
+      {state.verified === false && ready && (
+        <Banner tone="neutral" icon={Info} className="st-notice">
+          <Ar>{'تأكدنا من الحجم بس. التحقق الكامل يحتاج اتصال آمن (HTTPS).'}</Ar>
+        </Banner>
       )}
-    </div>
+
+      {(state.phase === 'error' || state.phase === 'nospace' || state.phase === 'offline') && (
+        <Banner tone="danger" icon={Warning} className="st-notice"
+          title={state.phase === 'offline' ? 'ما فيه اتصال بالنت'
+            : state.phase === 'nospace' ? 'المساحة على الجوال ما تكفي'
+            : failed.length === 0 ? 'ما وصلنا لخادم الصور'
+            : <Ar>{`ما تنزّلت ${failed.length} من ${total} صورة`}</Ar>}>
+          {state.phase === 'nospace' ? 'فضّي شوي مساحة وحاول مرة ثانية.'
+            : state.phase === 'error' && failed.length === 0
+              // Nothing individually failed, so the manifest itself
+              // never arrived — a different problem, and a different fix.
+              ? 'حاول مرة ثانية بعد شوي.'
+              : <>
+                  {state.phase === 'error' && <>السبب: {FAIL_REASON[failed[0]?.reason] || 'خطأ ما نعرفه'}. </>}
+                  اللي تنزّل محفوظ، والمحاولة الثانية تكمّل الناقص بس.
+                </>}
+        </Banner>
+      )}
+
+      <div className="st-actions">
+        {busy ? (
+          <Button data-pack="cancel" variant="secondary" size="lg" full onClick={cancelInstall}>وقّف التنزيل</Button>
+        ) : (
+          <Button data-pack="install" variant={ready ? 'secondary' : 'primary'} size="lg" full
+            onClick={installPack} disabled={state.phase === 'unsupported'}>
+            {installLabel}
+          </Button>
+        )}
+        {canDelete && (
+          <Button data-pack="delete" variant="destructive" full onClick={() => setConfirmDelete(true)}>حذف الحزمة</Button>
+        )}
+      </div>
+
+      <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title="حذف حزمة الصور؟"
+        footer={(
+          <div className="k-confirm-actions">
+            <Button data-pack="delete-confirm" variant="destructive-fill" size="lg" full
+              onClick={() => { deletePack(); setConfirmDelete(false) }}>احذف</Button>
+            <Button data-pack="delete-cancel" variant="secondary" size="lg" full autoFocus
+              onClick={() => setConfirmDelete(false)}>رجوع</Button>
+          </div>
+        )}>
+        <p className="k-confirm-msg">ترجع الرموز العادية، وتحتاج نت عشان تنزّلها مرة ثانية.</p>
+        {multiUser && (
+          <p className="k-confirm-msg" style={{ marginTop: 8 }}>الحزمة مشتركة بين كل المستخدمين على هذا الجوال، والحذف يشملهم كلهم.</p>
+        )}
+      </Sheet>
+    </>
   )
 }
