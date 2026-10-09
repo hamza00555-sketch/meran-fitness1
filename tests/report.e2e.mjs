@@ -6,8 +6,10 @@
 //
 // What is worth testing through a browser rather than in Node: the
 // date window as the app's own clock actually sees it, whether the
-// report renders without throwing, whether reduced motion really
-// stops everything, and whether the poster's Arabic survives canvas.
+// report renders without throwing, whether its chrome stays off the
+// text and its index really navigates, whether motion is entrances
+// only (and none at all under reduced motion), and whether the
+// poster's Arabic survives canvas inside the Stories safe area.
 //
 // The last one is the reason this file writes a PNG to /tmp: shaping
 // cannot be asserted, it has to be looked at.
@@ -134,47 +136,87 @@ for (const [iso, expect, label] of WINDOW) {
 }
 
 // ══ 2. The report renders ═════════════════════════════════════
+// The cover, then five numbered chapters, each with its own heading.
 
-const SECTIONS = ['نصائح هذا الشهر', 'الحجم والأرقام', 'الالتزام', 'العضلات والتوازن', 'التقدم والإنجازات']
+const CHAPTERS = ['نصائح هذا الشهر', 'الحجم', 'الالتزام', 'العضلات', 'التقدم']
 
 async function openReport(page) {
   await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
-  await page.waitForTimeout(300)
-  // Skip the opening sequence.
-  await page.locator('body').click({ position: { x: 200, y: 400 } }).catch(() => {})
-  await page.waitForTimeout(700)
+  // No opening sequence to skip: the cover is the first frame.
+  await page.waitForTimeout(900)
 }
 
-// Sections carry `content-visibility: auto`, which is what keeps the
-// report cheap — but it also means a section scrolled far away is not
-// laid out, so innerText does not contain it. Reading the text once at
-// the bottom would therefore "lose" the top of the report. Walk the
-// whole thing and union what was on screen at each step.
-async function textWhileScrolling(page) {
-  const scroller = page.locator('div[style*="overflow-y: auto"]').last()
-  let seen = await page.evaluate(() => document.body.innerText)
-  for (let i = 1; i <= 6; i++) {
+// Walk the whole report so every chapter has had its entrance.
+async function scrollThrough(page) {
+  const scroller = page.locator('.rp-scroll')
+  for (let i = 1; i <= 8; i++) {
     await scroller.evaluate((el, i) => { el.scrollTop = el.clientHeight * i * 0.8 }, i)
-    await page.waitForTimeout(500)
-    seen += '\n' + await page.evaluate(() => document.body.innerText)
+    await page.waitForTimeout(350)
   }
-  return seen
 }
+
+// Headings of the chapters that are actually laid out.
+const chapterTitles = (page) => page.evaluate(() =>
+  [...document.querySelectorAll('.rp .rp-ch')]
+    .filter(c => c.getBoundingClientRect().height > 40)
+    .map(c => c.querySelector('.rp-ch-title')?.textContent.trim()))
+
+// Animations inside the report layer: [how many, how many loop].
+const motion = (page) => page.evaluate(() => {
+  const root = document.querySelector('.rp')
+  if (!root) return [-1, -1]
+  const anims = [...root.querySelectorAll('*')].map(el => getComputedStyle(el))
+    .filter(cs => cs.animationName && cs.animationName !== 'none')
+  return [anims.length, anims.filter(cs => cs.animationIterationCount === 'infinite').length]
+})
 
 {
   const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00')
   await openReport(page)
-  const text = await textWhileScrolling(page)
-  for (const s of SECTIONS) ok(`section rendered: ${s}`, text.includes(s))
+
+  // The cover: the month's total is the headline, not a caption.
+  const cover = await page.evaluate(() => {
+    const hero = document.querySelector('.rp-hero')
+    return hero ? { text: hero.textContent.trim(), size: parseFloat(getComputedStyle(hero).fontSize) } : null
+  })
+  ok('cover: the month total is the headline number',
+    !!cover && cover.size >= 72 && /^\d{1,3}(,\d{3})+$/.test(cover.text), JSON.stringify(cover))
+
+  // The chrome is solid and never sits on the text: bar, scroller and
+  // index are stacked, and both bar buttons are real 44pt targets.
+  const chrome = await page.evaluate(() => {
+    const r = (s) => document.querySelector(s)?.getBoundingClientRect()
+    const bar = r('.rp-bar'), scroll = r('.rp-scroll'), index = r('.rp-index')
+    const btns = [...document.querySelectorAll('.rp-bar button')].map(b => b.getBoundingClientRect())
+    return {
+      stacked: !!(bar && scroll && index) && bar.bottom <= scroll.top + 0.5 && scroll.bottom <= index.top + 0.5,
+      targets: btns.length === 2 && btns.every(b => b.width >= 44 && b.height >= 44),
+    }
+  })
+  ok('chrome: bar, report and index never overlap', chrome.stacked, JSON.stringify(chrome))
+  ok('chrome: close and share are 44pt buttons', chrome.targets, JSON.stringify(chrome))
+
+  // The index is a control, not a picture of one: a tap brings its
+  // chapter to the top and marks it current.
+  await page.locator('.rp-index button', { hasText: 'العضلات' }).click()
+  await page.waitForTimeout(1200)
+  const jumped = await page.evaluate(() => {
+    const ch = document.getElementById('rp-muscles')
+    const top = document.querySelector('.rp-scroll').getBoundingClientRect().top
+    const cur = document.querySelector('.rp-index [aria-current="true"]')?.textContent.trim()
+    return { offset: Math.round(ch.getBoundingClientRect().top - top), cur }
+  })
+  ok('index: a tap jumps to its chapter and marks it current',
+    Math.abs(jumped.offset) <= 4 && jumped.cur === 'العضلات', JSON.stringify(jumped))
+
+  await scrollThrough(page)
+  const titles = await chapterTitles(page)
+  for (const s of CHAPTERS) ok(`chapter rendered: ${s}`, titles.includes(s), titles.join(' | '))
   ok('report: no page errors', errors.length === 0, errors.join('; '))
 
-  const moving = await page.evaluate(() => {
-    const root = [...document.querySelectorAll('div')]
-      .find(d => getComputedStyle(d).zIndex === '1000' && getComputedStyle(d).position === 'fixed')
-    return root ? [...root.querySelectorAll('*')]
-      .filter(el => { const a = getComputedStyle(el).animationName; return a && a !== 'none' }).length : -1
-  })
-  ok('report: it actually moves', moving > 20, `${moving} animating elements`)
+  const [ran, loops] = await motion(page)
+  ok('motion: the entrances run', ran > 10, `${ran} animated elements`)
+  ok('motion: nothing loops — one beat, then still', loops === 0, `${loops} infinite animations`)
   await ctx.close()
 }
 
@@ -183,33 +225,26 @@ async function textWhileScrolling(page) {
 {
   const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { reduced: true })
   await openReport(page)
-  const still = await page.evaluate(() => {
-    const root = [...document.querySelectorAll('div')]
-      .find(d => getComputedStyle(d).zIndex === '1000' && getComputedStyle(d).position === 'fixed')
-    return root ? [...root.querySelectorAll('*')]
-      .filter(el => { const a = getComputedStyle(el).animationName; return a && a !== 'none' }).length : -1
-  })
+  await scrollThrough(page)
+  const [still] = await motion(page)
   ok('reduced motion: nothing animates', still === 0, `${still} still moving`)
 
-  const text = await textWhileScrolling(page)
+  const titles = await chapterTitles(page)
   ok('reduced motion: the report still renders in full',
-    SECTIONS.every(s => text.includes(s)),
-    SECTIONS.filter(s => !text.includes(s)).join(', '))
+    CHAPTERS.every(s => titles.includes(s)),
+    CHAPTERS.filter(s => !titles.includes(s)).join(', '))
   ok('reduced motion: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
 // ══ 4. The poster ═════════════════════════════════════════════
 // Arabic inside a canvas is the one thing here that cannot be
-// asserted — the PNG is written out to be looked at.
+// asserted — the PNG is written out to be looked at. Where the ink
+// sits can be: everything between y 250 and y 1600, clear of the
+// Stories header above and the reply bar below.
 
 {
   const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00')
-  const poster = await page.evaluate(async () => {
-    const mod = await import('/assets/index.js').catch(() => null)
-    return mod ? 'bundled' : 'unbundled'
-  }).catch(() => 'unbundled')
-
   // The built bundle does not expose modules, so the poster is exercised
   // through the button the user actually presses.
   await openReport(page)
@@ -221,25 +256,43 @@ async function textWhileScrolling(page) {
     Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
     Object.defineProperty(navigator, 'share', {
       value: async ({ files }) => {
-        const buf = await files[0].arrayBuffer()
+        const file = files[0]
+        const b = new Uint8Array(await file.arrayBuffer())
         let s = ''
-        const b = new Uint8Array(buf)
         for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i])
-        captured = { b64: btoa(s), name: files[0].name, type: files[0].type, bytes: b.length }
+
+        // The rows that carry ink: any channel brighter than the stage light.
+        const bmp = await createImageBitmap(file)
+        const c = document.createElement('canvas')
+        c.width = bmp.width
+        c.height = bmp.height
+        const x = c.getContext('2d')
+        x.drawImage(bmp, 0, 0)
+        const d = x.getImageData(0, 0, c.width, c.height).data
+        let first = -1, last = -1
+        for (let y = 0; y < c.height; y++) {
+          for (let px = 0; px < c.width; px += 2) {
+            const i = (y * c.width + px) * 4
+            if (Math.max(d[i], d[i + 1], d[i + 2]) > 120) {
+              if (first < 0) first = y
+              last = y
+              break
+            }
+          }
+        }
+        captured = { b64: btoa(s), name: file.name, type: file.type, bytes: b.length, first, last }
       },
       configurable: true,
     })
 
-    document.querySelector('button[style*="var(--cyan)"]')?.click()
-    const btn = [...document.querySelectorAll('button')].find(b => /مشاركة/.test(b.textContent))
-    btn?.click()
+    document.querySelector('.rp-bar button[aria-label="مشاركة التقرير"]')?.click()
     // Give the draw, the encode and the share a moment.
-    for (let i = 0; i < 60 && !captured; i++) await new Promise(r => setTimeout(r, 100))
+    for (let i = 0; i < 80 && !captured; i++) await new Promise(r => setTimeout(r, 100))
     if (realShare) Object.defineProperty(navigator, 'share', { value: realShare, configurable: true })
     return captured
   })
 
-  ok('poster: the share button produced a file', !!shot, poster)
+  ok('poster: the share button produced a file', !!shot)
   if (shot) {
     ok('poster: it is a PNG', shot.type === 'image/png' && /\.png$/.test(shot.name), shot.name)
     ok('poster: it is not an empty image', shot.bytes > 50_000, `${(shot.bytes / 1024).toFixed(0)} KB`)
@@ -247,6 +300,8 @@ async function textWhileScrolling(page) {
     // PNG header carries its own dimensions; no decoder needed.
     ok('poster: 1080×1920', buf.readUInt32BE(16) === 1080 && buf.readUInt32BE(20) === 1920,
       `${buf.readUInt32BE(16)}×${buf.readUInt32BE(20)}`)
+    ok('poster: all of it sits between y 250 and y 1600',
+      shot.first >= 250 && shot.last <= 1600, `ink from y ${shot.first} to y ${shot.last}`)
     writeFileSync(`${OUT}/poster.png`, buf)
     console.log(`\n  poster written to ${OUT}/poster.png — open it and check the Arabic is joined up\n`)
   }

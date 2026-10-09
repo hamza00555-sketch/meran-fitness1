@@ -1,299 +1,247 @@
 // ── The monthly report ────────────────────────────────────────
-// A full-screen layer over the whole app, following LevelUpScreen's
-// pattern so it covers the bottom nav rather than sitting inside the
-// page. Two acts:
+// A full-screen layer over the whole app (it covers the tab bar), in
+// three fixed parts so nothing ever floats over the text:
 //
-//   1. An opening the month gets to make an entrance on — the cover
-//      full-bleed and drifting, the month's name, then the headline
-//      number counting up out of nothing.
-//   2. The body, scrolled, where each section animates as it arrives
-//      and keeps breathing while it is on screen.
+//   1. a solid 56pt bar — close at the start, share at the end, both
+//      neutral 44pt buttons; the month's name appears in it once the
+//      cover has scrolled away;
+//   2. the scroller — the cover (the month's one lit moment: the total
+//      as a 96px broadcast number, what it is made of, and the one green
+//      action, «شارك شهرك»), then five numbered chapters with no boxes;
+//   3. a solid bottom index — real buttons that jump to each chapter,
+//      the current one followed by an IntersectionObserver.
 //
-// Everything continuous is switched off the moment its section leaves
-// the viewport, and everything at all is switched off under reduced
-// motion. Both live in useMotion.js and index.css rather than here.
+// Motion is entrances only: each piece arrives once, the number counts
+// up once, and then the page is still. Under reduced motion nothing
+// moves at all.
 
-import { useEffect, useRef, useState } from 'react'
-import Art from '../../assets/Art.jsx'
-import { useReducedMotion, useScrollProgress, useSequence } from '../../hooks/useMotion.js'
-import Ambient from './Ambient.jsx'
-import { Counted, AR } from './parts.jsx'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Art, { useHasArt } from '../../assets/Art.jsx'
+import { useReducedMotion } from '../../hooks/useMotion.js'
+import { Button, Num } from '../kit/index.jsx'
+import { X, ShareFat } from '../kit/icons.js'
+import { Counted, Bidi, Wordmark, AR } from './parts.jsx'
 import Tips from './sections/Tips.jsx'
 import Volume from './sections/Volume.jsx'
 import Consistency from './sections/Consistency.jsx'
 import Muscles from './sections/Muscles.jsx'
 import Progress from './sections/Progress.jsx'
+import '../../styles/screens/report.css'
 
-const SECTIONS = ['نصائح', 'الحجم', 'الالتزام', 'العضلات', 'التقدم']
+// ShareFat is a forward arrow: under RTL forward points left.
+const ShareRtl = (props) => <ShareFat {...props} mirrored />
 
-// A gradient stands in for the cover until the art pack is installed —
-// the palette the app already uses, not a drawing.
-const COVER_FALLBACK = 'linear-gradient(150deg, #0C1220 0%, #16301C 45%, #2A1F08 100%)'
+// Without the month's cover from the art pack, the stage still gets a
+// figure: the bundled «mountain of iron» — the month's tonnage, drawn.
+const STAGE_FIGURE = '/assets/ach_volume.webp'
 
-export default function MonthReport({ report, onClose, onShare, sharing = false }) {
+/** The share button in the bar: a neutral 44pt icon, a spinner while
+ *  the poster is being drawn. */
+function ShareIcon({ onShare, sharing }) {
+  return (
+    <button
+      type="button"
+      className="k-iconbtn k-iconbtn-ghost rp-bar-btn"
+      style={{ width: 44, height: 44 }}
+      onClick={onShare}
+      disabled={sharing}
+      aria-busy={sharing || undefined}
+      aria-label={sharing ? 'جارٍ تجهيز صورة التقرير' : 'مشاركة التقرير'}
+      title={sharing ? 'جارٍ تجهيز الصورة…' : 'مشاركة التقرير'}
+    >
+      {sharing
+        ? <span className="rp-spin" aria-hidden="true" />
+        : <ShareRtl size={22} weight="regular" aria-hidden="true" />}
+    </button>
+  )
+}
+
+export default function MonthReport({
+  report, onClose, onShare, sharing = false,
+  // Optional — the report works without them:
+  mapping = {},          // the user's exercise aliases, for Arabic names
+  liveStreak = null,     // the streak right now, for a month still running
+  today,                 // the app's day key; defaults to todayKey()
+}) {
   const reduced = useReducedMotion()
   const scroller = useRef(null)
-  const [progress, setProgress] = useState(0)
-  const [introDone, setIntroDone] = useState(reduced)
+  const cover = useRef(null)
+  const closeBtn = useRef(null)
+  const lockUntil = useRef(0)
+  const hasArt = useHasArt(report?.cover)
+  const [scrolled, setScrolled] = useState(false)
+  const [pastCover, setPastCover] = useState(false)
+  const [active, setActive] = useState(null)
 
-  // The cover and the month's name are on screen from the first frame —
-  // an opening that starts on a blank rectangle reads as a page that
-  // failed to load. The beats stage what comes after: the number, then
-  // the prompt to move on.
-  const beat = useSequence(3, { run: !introDone, interval: 900 })
-
-  useScrollProgress(scroller, { onProgress: setProgress })
-
+  // Escape closes, the page behind must not scroll while this is up,
+  // and keyboard focus starts inside the layer. Once, on open: the
+  // caller hands a fresh onClose every render, and re-running this on
+  // each one would keep pulling focus back to the close button.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
   useEffect(() => {
-    if (beat >= 3) setIntroDone(true)
-  }, [beat])
-
-  // Escape closes, and the page behind must not scroll while this is up.
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => { if (e.key === 'Escape') closeRef.current?.() }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    closeBtn.current?.focus?.({ preventScroll: true })
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [onClose])
+  }, [])
 
-  const cover = (
-    <Art
-      id={report.cover}
-      alt=""
-      className="mr-cover-img"
-      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-      fallback={<div style={{ width: '100%', height: '100%', background: COVER_FALLBACK }} />}
-    />
-  )
+  const has = !!report?.hasData
+  const chapters = has ? [
+    report.tips?.length ? { id: 'rp-tips', label: 'نصائح' } : null,
+    { id: 'rp-volume', label: 'الحجم' },
+    { id: 'rp-consistency', label: 'الالتزام' },
+    report.muscles?.length ? { id: 'rp-muscles', label: 'العضلات' } : null,
+    { id: 'rp-progress', label: 'التقدم' },
+  ].filter(Boolean) : []
+  const ids = chapters.map(c => c.id).join(',')
+  const nOf = (id) => chapters.findIndex(c => c.id === id) + 1
 
-  // ── Act one ──
-  if (!introDone) {
-    return (
-      <div
-        onClick={() => setIntroDone(true)}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'var(--bg)', overflow: 'hidden', cursor: 'pointer',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.55 }}>{cover}</div>
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(8,11,20,0.5) 0%, rgba(8,11,20,0.88) 70%, var(--bg) 100%)',
-        }} />
-        <Ambient />
+  // The bar's hairline and title, and the last chapter at the very
+  // bottom (a short last chapter never reaches the observer's band).
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    let frame = 0
+    const measure = () => {
+      frame = 0
+      setScrolled(el.scrollTop > 4)
+      setPastCover(el.scrollTop > (cover.current?.offsetHeight || 300) - 72)
+      if (performance.now() < lockUntil.current) return
+      const last = ids.split(',').pop()
+      if (el.scrollTop > 0 && el.scrollTop + el.clientHeight >= el.scrollHeight - 4) setActive(last)
+      else if (el.scrollTop < (cover.current?.offsetHeight || 300) * 0.5) setActive(null)
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure) }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    measure()
+    return () => { el.removeEventListener('scroll', onScroll); if (frame) cancelAnimationFrame(frame) }
+  }, [ids])
 
-        <div style={{ position: 'relative', textAlign: 'center', padding: 24 }}>
-          <div className="mr-rise" style={{
-            fontFamily: 'var(--font-ar)', fontSize: 13,
-            color: 'var(--text3)', letterSpacing: 2, marginBottom: 8,
-          }}>
-            تقرير الشهر
-          </div>
-          <h1 className="mr-rise shimmer-text" style={{
-            '--i': 1,
-            fontFamily: 'var(--font-ar)', fontSize: 'clamp(30px, 9vw, 46px)',
-            fontWeight: 900, marginBottom: 26,
-          }}>
-            {report.monthLabel}
-          </h1>
-          {beat >= 1 && (
-            <div className="mr-rise" style={{ '--i': 0, position: 'relative' }}>
-              <div aria-hidden="true" className="mr-aura" style={{
-                position: 'absolute', top: '46%', left: '50%',
-                width: 240, height: 240, borderRadius: '50%',
-                background: 'radial-gradient(circle, var(--cyan) 0%, transparent 66%)',
-                filter: 'blur(30px)',
-              }} />
-              <div style={{ position: 'relative' }}>
-                <div style={{
-                  fontSize: 'clamp(52px, 17vw, 92px)', fontWeight: 900,
-                  color: 'var(--text)', lineHeight: 1,
-                }}>
-                  <Counted value={report.volume.total} run duration={1500} />
-                </div>
-                <div style={{
-                  fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700,
-                  color: 'var(--cyan)', marginTop: 10,
-                }}>
-                  كيلوغراماً رفعتها
-                </div>
-              </div>
-            </div>
-          )}
-          {beat >= 2 && (
-            <div className="mr-rise" style={{
-              '--i': 0, marginTop: 34, fontFamily: 'var(--font-ar)',
-              fontSize: 12, color: 'var(--text3)',
-            }}>
-              المس للمتابعة
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
+  // Which chapter is on screen: the one crossing a band 40–45% down.
+  useEffect(() => {
+    const root = scroller.current
+    if (!root || typeof IntersectionObserver !== 'function') return
+    const io = new IntersectionObserver((entries) => {
+      if (performance.now() < lockUntil.current) return
+      for (const e of entries) if (e.isIntersecting) setActive(e.target.id)
+    }, { root, rootMargin: '-40% 0px -55% 0px', threshold: 0 })
+    for (const id of ids.split(',')) {
+      const el = id && document.getElementById(id)
+      if (el) io.observe(el)
+    }
+    return () => io.disconnect()
+  }, [ids])
 
-  // ── Act two ──
-  const activeSection = Math.min(SECTIONS.length - 1, Math.floor(progress * SECTIONS.length))
+  const go = useCallback((id) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    lockUntil.current = performance.now() + (reduced ? 50 : 900)
+    setActive(id)
+    el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+  }, [reduced])
+
+  const total = report?.volume?.total || 0
+  const long = AR(total).replace(/\D/g, '').length >= 7
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'var(--bg)', display: 'flex', flexDirection: 'column',
-    }}>
-      {/* Top bar sits above the scroller so it never scrolls away.
-          padding-top clears the status bar / notch — without
-          --safe-top the buttons render under it and cannot be
-          tapped there, which is exactly what every other overlay in
-          the app (header, RestTimer, SystemAlert) already accounts
-          for and this one had missed. */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 3,
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: 'calc(var(--safe-top) + 12px) 14px 12px',
-        background: 'linear-gradient(180deg, rgba(8,11,20,0.92), transparent)',
-        pointerEvents: 'none',
-      }}>
+    <div className="rp" role="dialog" aria-modal="true" aria-label={`تقرير ${report?.monthLabel || 'الشهر'}`}>
+      <header className="rp-bar" data-scrolled={scrolled ? '1' : undefined}>
         <button
+          ref={closeBtn}
+          type="button"
+          className="k-iconbtn k-iconbtn-ghost rp-bar-btn"
+          style={{ width: 44, height: 44 }}
           onClick={onClose}
           aria-label="إغلاق"
-          style={{
-            pointerEvents: 'auto',
-            width: 36, height: 36, borderRadius: 12,
-            background: 'rgba(8,11,20,0.7)', border: '1px solid var(--border2)',
-            color: 'var(--text)', fontSize: 18, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backdropFilter: 'blur(8px)',
-          }}
-        >✕</button>
-        <div style={{ flex: 1 }} />
-        {/* The glyph alone, squared off to match the close button
-            opposite it. The label was spending a third of the header's
-            width on a word the icon already says; the accessible name
-            carries it instead, and the spinner keeps the state
-            visible while a poster is being drawn. */}
-        <button
-          onClick={onShare}
-          disabled={sharing}
-          aria-label={sharing ? 'جارٍ تجهيز الصورة' : 'مشاركة التقرير'}
-          title={sharing ? 'جارٍ التجهيز…' : 'مشاركة'}
-          style={{
-            pointerEvents: 'auto',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 36, height: 36, borderRadius: 12,
-            background: 'var(--cyan)', border: 'none',
-            color: '#06210A', cursor: sharing ? 'wait' : 'pointer',
-            opacity: sharing ? 0.7 : 1,
-            boxShadow: '0 0 16px var(--cyan-glow)',
-          }}
+          title="إغلاق"
         >
-          {sharing ? (
-            <span className="spin" style={{
-              width: 15, height: 15, borderRadius: '50%',
-              border: '2px solid rgba(6,33,10,0.35)', borderTopColor: '#06210A',
-              display: 'block',
-            }} />
-          ) : (
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"
-                 stroke="currentColor" strokeWidth="2.1"
-                 strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 16V4" />
-              <path d="M7.5 8.5 12 4l4.5 4.5" />
-              <path d="M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14" />
-            </svg>
-          )}
+          <X size={22} weight="regular" aria-hidden="true" />
         </button>
-      </div>
+        <span className={`rp-bar-title${pastCover ? ' is-on' : ''}`} aria-hidden={!pastCover}>
+          تقرير <Bidi text={report?.monthLabel || ''} />
+        </span>
+        {has ? <ShareIcon onShare={onShare} sharing={sharing} /> : <span style={{ width: 44 }} />}
+      </header>
 
-      {/* The rail: one element reading --scroll, so following the
-          scroll costs a style write rather than a React render. */}
-      <div aria-hidden="true" style={{
-        position: 'absolute', top: 'calc(var(--safe-top) + 64px)',
-        bottom: 'calc(var(--safe-bottom) + 20px)', right: 6, width: 3,
-        zIndex: 3, background: 'var(--border)', borderRadius: 99, overflow: 'hidden',
-      }}>
-        <div style={{
-          width: '100%', height: '100%', borderRadius: 99,
-          background: 'linear-gradient(180deg, var(--cyan), var(--gold))',
-          transformOrigin: 'top',
-          transform: `scaleY(${progress})`,
-          boxShadow: '0 0 8px var(--cyan)',
-        }} />
-      </div>
+      <div ref={scroller} className="rp-scroll">
+        {has ? (
+          <>
+            <section ref={cover} className={`rp-cover${hasArt ? ' has-art' : ''}`} aria-label="غلاف الشهر">
+              {hasArt ? (
+                <Art id={report.cover} alt="" className="rp-cover-art"
+                     style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <img className="rp-cover-fig" src={STAGE_FIGURE} alt="" aria-hidden="true" draggable="false"
+                     onError={(e) => { e.currentTarget.style.display = 'none' }} />
+              )}
+              <div className="rp-cover-body">
+                <p className="rp-eyebrow rp-in" style={{ '--i': 0 }}>
+                  تقرير الشهر · <Bidi text={report.monthLabel} />
+                </p>
+                <p className={`rp-hero rp-in${long ? ' is-long' : ''}`} style={{ '--i': 1 }}
+                   aria-label={`${AR(total)} كجم`}>
+                  <Counted value={total} duration={900} />
+                </p>
+                <p className="rp-hero-unit rp-in" style={{ '--i': 1 }}>كجم رفعتها</p>
+                <p className="rp-cover-stats rp-in" style={{ '--i': 2 }}>
+                  <span><b><Num>{AR(report.sessionCount)}</Num></b> جلسة</span>
+                  <span><b><Num>{AR(report.sets.completed)}</Num></b> مجموعة</span>
+                  {report.prs.length > 0 && (
+                    <span className="is-raise"><b><Num>{report.prs.length}</Num></b> أعلى وزن</span>
+                  )}
+                </p>
+                <Button
+                  variant="primary" size="lg" full icon={ShareRtl}
+                  className="rp-cover-cta rp-in" style={{ '--i': 3 }}
+                  onClick={onShare} disabled={sharing}
+                >
+                  {sharing ? 'نجهّز الصورة…' : 'شارك شهرك'}
+                </Button>
+              </div>
+            </section>
 
-      <div style={{
-        position: 'absolute', bottom: 'calc(var(--safe-bottom) + 14px)', left: 0, right: 0, zIndex: 3,
-        display: 'flex', justifyContent: 'center', gap: 6, pointerEvents: 'none',
-      }}>
-        {SECTIONS.map((s, i) => (
-          <span key={s} style={{
-            fontFamily: 'var(--font-ar)', fontSize: 10,
-            padding: '3px 9px', borderRadius: 99,
-            background: i === activeSection ? 'var(--cyan-lo)' : 'rgba(8,11,20,0.6)',
-            border: `1px solid ${i === activeSection ? 'var(--cyan)' : 'var(--border)'}`,
-            color: i === activeSection ? 'var(--cyan)' : 'var(--text3)',
-            backdropFilter: 'blur(6px)',
-            transition: 'color .2s, border-color .2s, background .2s',
-          }}>{s}</span>
-        ))}
-      </div>
+            <div className="rp-body">
+              <Tips tips={report.tips} n={nOf('rp-tips')} />
+              <Volume report={report} n={nOf('rp-volume')} mapping={mapping} />
+              <Consistency report={report} n={nOf('rp-consistency')} liveStreak={liveStreak} today={today} />
+              <Muscles report={report} n={nOf('rp-muscles')} />
+              <Progress report={report} n={nOf('rp-progress')} />
 
-      <div
-        ref={scroller}
-        style={{
-          position: 'absolute', inset: 0, overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch', zIndex: 1,
-        }}
-      >
-        <Ambient />
-
-        {/* The cover, parallaxing: it drifts up more slowly than the
-            content above it. */}
-        <div style={{
-          position: 'relative', height: 'clamp(180px, 34vw, 260px)',
-          overflow: 'hidden',
-        }}>
-          {cover}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(180deg, rgba(8,11,20,0.35) 0%, rgba(8,11,20,0.75) 60%, var(--bg) 100%)',
-          }} />
-          <div style={{
-            position: 'absolute', bottom: 12, right: 16, left: 16,
-            fontFamily: 'var(--font-ar)', textAlign: 'right',
-          }}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', letterSpacing: 1.5 }}>تقرير الشهر</div>
-            <div style={{ fontSize: 'clamp(22px, 6.5vw, 30px)', fontWeight: 900, color: 'var(--text)' }}>
-              {report.monthLabel}
+              <footer className="rp-foot">
+                <Wordmark height={22} />
+                <span><Bidi text={report.monthLabel} /></span>
+              </footer>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--cyan)', marginTop: 2 }}>
-              {AR(report.sessionCount)} جلسة · {AR(report.volume.total)} كجم
-            </div>
+          </>
+        ) : (
+          <div className="rp-empty">
+            <strong>ما فيه شي نعرضه لهالشهر</strong>
+            <p>سجّل جلساتك، وآخر الشهر يطلع لك تقريرك هنا.</p>
           </div>
-        </div>
-
-        <div style={{ position: 'relative', zIndex: 1, padding: '20px 16px 90px' }}>
-          <Tips tips={report.tips} />
-          <Volume report={report} />
-          <Consistency report={report} />
-          <Muscles report={report} />
-          <Progress report={report} />
-
-          <div style={{
-            textAlign: 'center', fontFamily: 'var(--font-ar)',
-            fontSize: 11, color: 'var(--text3)', paddingTop: 6,
-          }}>
-            مران · {report.monthLabel}
-          </div>
-        </div>
+        )}
       </div>
+
+      {chapters.length > 0 && (
+        <nav className="rp-index" aria-label="أقسام التقرير">
+          {chapters.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className="rp-index-btn"
+              aria-current={active === c.id ? 'true' : undefined}
+              onClick={() => go(c.id)}
+            >
+              {c.label}
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   )
 }

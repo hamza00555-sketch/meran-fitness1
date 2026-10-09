@@ -1,147 +1,125 @@
 // ── Shared pieces of the report ───────────────────────────────
-// Small building blocks the five sections all draw on, kept here so a
-// number counts up the same way and a card lands the same way wherever
-// it appears.
+// The building blocks the cover and the five chapters share, so a
+// number, a chapter heading and a line of engine text look the same
+// wherever they appear. Styles live in src/styles/screens/report.css.
 
-import { useEffect, useState } from 'react'
-import { useCountUp } from '../../hooks/useMotion.js'
+import { useCountUp, useReveal } from '../../hooks/useMotion.js'
+import { EXERCISE_MEDIA } from '../../exerciseMedia.js'
+import { todayKey } from '../../day.js'
+import { Num } from '../kit/index.jsx'
 
-const AR = (n) => Number(n || 0).toLocaleString('en-US')
+export const AR = (n) => Number(n || 0).toLocaleString('en-US')
 
-// ── A number that counts up and bumps when it lands ────────────
-export function Counted({ value, run, decimals = 0, duration = 1100, style, suffix }) {
-  const shown = useCountUp(value, { run, duration, decimals })
-  const [landed, setLanded] = useState(false)
+const cx = (...a) => a.filter(Boolean).join(' ')
 
-  useEffect(() => {
-    if (!run) return
-    const id = setTimeout(() => setLanded(true), duration)
-    return () => clearTimeout(id)
-  }, [run, duration])
+// ── A number that counts up once and then rests ────────────────
+// One beat: it climbs while its section arrives and stops. Under
+// reduced motion useCountUp hands back the final value immediately.
+export function Counted({ value, run = true, duration = 900 }) {
+  const shown = useCountUp(value, { run, duration })
+  return <Num>{AR(shown)}</Num>
+}
 
+// ── Engine text, made to read in Arabic ────────────────────────
+// The tips are written by monthReport.js, which knows exercises by
+// their English names and writes «٪12» with the Arabic percent sign.
+// Here, and only here, the line is made presentable: an exercise the
+// app has an Arabic name for is called by it, the percent goes after
+// a Western number, and every Latin or numeric run is isolated LTR so
+// «Leg Press, Squat» or «1.52» never reorders inside the Arabic.
+
+const NAMES = Object.keys(EXERCISE_MEDIA).sort((a, b) => b.length - a.length)
+const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const NAME_RE = new RegExp(`\\b(${NAMES.map(escape).join('|')})\\b`, 'g')
+
+export const arabize = (text) =>
+  String(text ?? '')
+    .replace(NAME_RE, (m) => EXERCISE_MEDIA[m]?.ar || m)
+    .replace(/٪\s?(\d+(?:\.\d+)?)/g, '$1%')
+    .replace(/\b(\d+) PR\b/g, (_, n) => (Number(n) === 0 ? 'ولا رقم قياسي' : `${n} ${Number(n) === 1 ? 'رقم قياسي' : 'أرقام قياسية'}`))
+    .replace(/رقم قياسي جديدة/g, 'رقم قياسي جديد')
+
+const RUN = /[+\-−]?[0-9A-Za-z][0-9A-Za-z.,:%×+\-−/'’ ]*[0-9A-Za-z%]|[+\-−]?[0-9A-Za-z]/g
+
+/** Arabic text with every number or Latin run wrapped in <Num>. */
+export function Bidi({ text, arabic = true }) {
+  const s = arabic ? arabize(text) : String(text ?? '')
+  const out = []
+  let last = 0
+  for (const m of s.matchAll(RUN)) {
+    if (m.index > last) out.push(s.slice(last, m.index))
+    out.push(<Num key={m.index}>{m[0]}</Num>)
+    last = m.index + m[0].length
+  }
+  if (last < s.length) out.push(s.slice(last))
+  return <>{out}</>
+}
+
+// ── A chapter: hairline, number, title ─────────────────────────
+// No box. The number is the report's own index (01–05, Archivo) and
+// matches the button that jumps to it in the bottom bar.
+export function Chapter({ id, n, title, note, children, className }) {
+  const [ref, run] = useReveal({ threshold: 0.08 })
+  return (
+    <section
+      ref={ref}
+      id={id}
+      data-chapter={id}
+      className={cx('rp-ch', 'mr-section', run ? 'rp-on' : 'rp-off', className)}
+      aria-labelledby={`${id}-t`}
+    >
+      <header className="rp-ch-h rp-in">
+        <span className="rp-ch-n"><Num>{String(n).padStart(2, '0')}</Num></span>
+        <h2 className="rp-ch-title" id={`${id}-t`}>{title}</h2>
+        {note && <p className="rp-ch-note">{note}</p>}
+      </header>
+      {children}
+    </section>
+  )
+}
+
+// ── A figure: a broadcast number with its label under it ───────
+export function Figure({ value, label, tone, i = 0, suffix }) {
+  return (
+    <div className={cx('rp-fig', 'rp-in', tone && `is-${tone}`)} style={{ '--i': i }}>
+      <b className="rp-fig-v"><Num>{typeof value === 'number' ? AR(value) : value}{suffix}</Num></b>
+      <span className="rp-fig-l">{label}</span>
+    </div>
+  )
+}
+
+// ── The wordmark ───────────────────────────────────────────────
+// The bundled light mark, cropped to its ink (172×67 of a 192×192
+// canvas) so it is drawn at the size asked for rather than as a speck
+// in a field of transparent margin. The same crop is used on the
+// poster (reportPoster.js).
+export const WORDMARK = { src: '/assets/app_logo_full_light.png', w: 192, h: 192, ink: { x: 10, y: 62, w: 172, h: 67 } }
+
+export function Wordmark({ height = 24, className }) {
+  const k = height / WORDMARK.ink.h
   return (
     <span
-      className={landed ? 'mr-tick' : undefined}
-      style={{ display: 'inline-block', fontVariantNumeric: 'tabular-nums', ...style }}
+      className={cx('rp-mark', className)}
+      role="img"
+      aria-label="مران"
+      style={{ width: Math.round(WORDMARK.ink.w * k), height }}
     >
-      {AR(shown)}{suffix}
+      <img
+        src={WORDMARK.src}
+        alt=""
+        draggable="false"
+        style={{
+          width: WORDMARK.w * k, height: WORDMARK.h * k,
+          transform: `translate(${-WORDMARK.ink.x * k}px, ${-WORDMARK.ink.y * k}px)`,
+        }}
+      />
     </span>
   )
 }
 
-// ── The one big number a section is built around ───────────────
-// The halo behind it breathes continuously; that is most of what makes
-// the section feel alive rather than merely arrived.
-export function Hero({ value, run, unit, caption, color = 'var(--cyan)', size = 'clamp(44px, 13vw, 68px)' }) {
-  return (
-    <div style={{ position: 'relative', textAlign: 'center', padding: '18px 0 10px' }}>
-      <div
-        aria-hidden="true"
-        className="mr-aura"
-        style={{
-          position: 'absolute', top: '46%', left: '50%',
-          width: 220, height: 220, borderRadius: '50%',
-          background: `radial-gradient(circle, ${color} 0%, transparent 66%)`,
-          filter: 'blur(26px)', pointerEvents: 'none',
-        }}
-      />
-      <div style={{ position: 'relative' }}>
-        <div style={{ fontSize: size, fontWeight: 900, color: 'var(--text)', lineHeight: 1 }}>
-          <Counted value={value} run={run} />
-        </div>
-        {unit && (
-          <div style={{ fontSize: 14, fontWeight: 700, color, marginTop: 6, fontFamily: 'var(--font-ar)' }}>
-            {unit}
-          </div>
-        )}
-        {caption && (
-          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, fontFamily: 'var(--font-ar)' }}>
-            {caption}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── A small labelled figure ────────────────────────────────────
-export function Tile({ value, label, run, color = 'var(--text)', i = 0, suffix }) {
-  return (
-    <div
-      className={run ? 'mr-rise mr-shine' : undefined}
-      style={{
-        '--i': i,
-        position: 'relative', overflow: 'hidden',
-        background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: 14, padding: '12px 10px', textAlign: 'center',
-        opacity: run ? undefined : 0,
-      }}
-    >
-      <div style={{ fontSize: 'clamp(18px, 5.4vw, 24px)', fontWeight: 900, color }}>
-        <Counted value={value} run={run} suffix={suffix} />
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3, fontFamily: 'var(--font-ar)' }}>
-        {label}
-      </div>
-    </div>
-  )
-}
-
-// ── A horizontal bar that grows in ─────────────────────────────
-// Width is set inline and the growth comes from a scale transform, so
-// the animation never touches layout.
-export function Bar({ pct, color, run, i = 0, height = 10 }) {
-  return (
-    <div style={{
-      background: 'var(--bg3)', borderRadius: 99,
-      height, overflow: 'hidden', flex: 1,
-    }}>
-      <div
-        className={run ? 'mr-bar-h' : undefined}
-        style={{
-          '--i': i,
-          width: `${Math.max(2, Math.min(100, pct))}%`,
-          height: '100%',
-          borderRadius: 99,
-          background: `linear-gradient(90deg, ${color}, ${color}AA)`,
-          boxShadow: `0 0 8px ${color}66`,
-          // The page is RTL, so a bar is anchored to the right of its
-          // track. Growing from the left edge would make it slide in
-          // from nowhere instead of extending out from its own start.
-          transformOrigin: 'right',
-          transform: run ? undefined : 'scaleX(0)',
-        }}
-      />
-    </div>
-  )
-}
-
-// ── A section heading ──────────────────────────────────────────
-export function Heading({ children, note, run }) {
-  return (
-    <div
-      className={run ? 'mr-rise' : undefined}
-      style={{ '--i': 0, marginBottom: 14, opacity: run ? undefined : 0 }}
-    >
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        fontFamily: 'var(--font-ar)',
-      }}>
-        <span style={{
-          width: 4, height: 20, borderRadius: 2,
-          background: 'var(--cyan)', boxShadow: '0 0 8px var(--cyan)',
-        }} />
-        <h2 style={{ fontSize: 'clamp(17px, 4.6vw, 21px)', fontWeight: 900, color: 'var(--text)' }}>
-          {children}
-        </h2>
-      </div>
-      {note && (
-        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4, fontFamily: 'var(--font-ar)' }}>
-          {note}
-        </div>
-      )}
-    </div>
-  )
-}
-
-export { AR }
+// ── Has this month finished? ───────────────────────────────────
+// The report is offered on the last two days of a month as well as the
+// first week after it. While the month is still running an «end of
+// month» figure would be a forecast, so whatever shows one asks this
+// first. Day keys turn at 03:00, like every other day in the app.
+export const monthOver = (month, today = todayKey()) => String(today).slice(0, 7) > month

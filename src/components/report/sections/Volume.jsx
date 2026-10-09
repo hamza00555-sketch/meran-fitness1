@@ -1,219 +1,162 @@
-// ── Section 2: what you moved ─────────────────────────────────
-// The month's tonnage as the headline, then the figures behind it, then
-// every weight that beat a previous best. Records get the app's own
-// celebration vocabulary, because that is what they are.
+// ── Chapter 02: what you moved ────────────────────────────────
+// The month's total is already the cover, so this chapter does not say
+// it again. It opens on the average session and the comparison with
+// last month, then the month day by day on a real calendar, the
+// figures behind it, and the records — «أقوى رقم» is the one gold thing
+// in the whole report, because gold means a weight that went up.
 
-import { useReveal } from '../../../hooks/useMotion.js'
-import { Heading, Hero, Tile, AR } from '../parts.jsx'
-import TrendChart from '../TrendChart.jsx'
+import { ArrowUp, ArrowDown, Drop, Minus } from '../../kit/icons.js'
+import { Num } from '../../kit/index.jsx'
+import { arabicName } from '../../../exerciseMedia.js'
+import { prevMonth, monthLabel } from '../../../monthReport.js'
+import { Chapter, Figure, AR } from '../parts.jsx'
+import TrendChart, { monthVerdict, DELOAD_INK } from '../TrendChart.jsx'
 
-// What the slope of the month is called. "Steady" is its own answer,
-// not a failure to be up.
-const DIRECTION = {
-  up:   { label: '▲ صاعد',  color: 'var(--cyan)' },
-  down: { label: '▼ نازل',  color: '#EF4444' },
-  flat: { label: '— ثابت',  color: 'var(--purple)' },
+const monthName = (m) => monthLabel(m).split(' ')[0]
+const kg = (n) => AR(Math.round(n * 10) / 10)
+
+function Verdict({ v }) {
+  if (!v) return null
+  if (v.dir === 'flat') {
+    return <span className="rp-verdict"><Minus size={14} weight="bold" aria-hidden="true" />ثابت</span>
+  }
+  const up = v.dir === 'up'
+  const Icon = up ? ArrowUp : ArrowDown
+  return (
+    <span className={`rp-verdict${up ? ' is-up' : ''}`}>
+      <Icon size={14} weight="bold" aria-hidden="true" />
+      <Num>{Math.abs(v.pct)}%</Num> خلال الشهر
+    </span>
+  )
 }
 
-export default function Volume({ report }) {
-  const [ref, run, active] = useReveal()
-  const { volume, sets, reps, time, prs, sessionCount } = report
+function Lift({ pr, mapping, best }) {
+  const ar = arabicName(pr.exercise, mapping)
+  const gain = Math.round((pr.weight - pr.prevBest) * 10) / 10
+  if (best) {
+    return (
+      <div className="rp-best rp-in" style={{ '--i': 6 }}>
+        <span className="rp-eyebrow">أقوى رقم</span>
+        <div className="rp-best-row">
+          <div className="rp-best-name">
+            <strong>{ar || <Num>{pr.exercise}</Num>}</strong>
+            {ar && <span className="rp-latin" dir="ltr">{pr.exercise}</span>}
+          </div>
+          <div className="rp-best-w">
+            <b><Num>{kg(pr.weight)}</Num></b><span>كجم</span>
+          </div>
+        </div>
+        <p className="rp-best-sub">
+          كان <Num>{kg(pr.prevBest)}</Num> كجم · <Num>+{kg(gain)}</Num> كجم
+          {pr.steps > 1 && <> على <Num>{pr.steps}</Num> جلسات</>}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <li className="rp-row">
+      <span className="rp-row-main">
+        <span className="rp-row-t">{ar || <Num>{pr.exercise}</Num>}</span>
+        {ar && <span className="rp-latin rp-row-s" dir="ltr">{pr.exercise}</span>}
+      </span>
+      <span className="rp-row-v">
+        <b><Num>{kg(pr.weight)}</Num></b> كجم
+        <small><Num>+{kg(gain)}</Num></small>
+      </span>
+    </li>
+  )
+}
 
+export default function Volume({ report, n = 2, id = 'rp-volume', mapping = {} }) {
+  const { volume, sets, reps, time, prs, sessionCount, month } = report
   const trend = volume.trendPct
-  const trendColor = trend === null ? 'var(--text3)' : trend >= 0 ? 'var(--cyan)' : '#EF4444'
+  const verdict = monthVerdict(volume.series || [])
+  const values = (volume.series || []).map(p => p.value)
+  const prev = monthName(prevMonth(month))
+
+  // The two verdicts answer different questions — this month against
+  // the last, and which way the days leaned inside this one. When they
+  // point opposite ways the card says so, or it reads as broken.
+  const disagree = trend !== null && verdict && verdict.dir !== 'flat' &&
+    ((trend >= 5 && verdict.dir === 'down') || (trend <= -5 && verdict.dir === 'up'))
 
   return (
-    <section ref={ref} className={`mr-section${active ? '' : ' mr-idle'}`} style={{ marginBottom: 34 }}>
-      <Heading run={run} note="مجموع ما رفعته: الوزن × التكرارات، لكل مجموعة">
-        الحجم والأرقام
-      </Heading>
-
-      <Hero
-        value={volume.total}
-        run={run}
-        unit="كيلوغرام هذا الشهر"
-        caption={
-          trend === null
-            ? `بمعدل ${AR(volume.perSession)} كجم لكل جلسة`
-            : `${trend >= 0 ? '▲' : '▼'} ٪${Math.abs(trend)} عن الشهر السابق (${AR(volume.prevTotal)} كجم)`
-        }
-      />
-
-      {trend !== null && (
-        <div
-          className={run ? 'mr-rise' : undefined}
-          style={{
-            '--i': 1, textAlign: 'center', marginBottom: 14,
-            opacity: run ? undefined : 0,
-          }}
-        >
-          <span style={{
-            display: 'inline-block', fontFamily: 'var(--font-ar)', fontSize: 12,
-            color: trendColor, background: `${trendColor}14`,
-            border: `1px solid ${trendColor}40`, borderRadius: 99, padding: '4px 12px',
-          }}>
-            {trend >= 0 ? 'ارتفاع' : 'انخفاض'} عن {AR(volume.prevTotal)} كجم
-          </span>
-        </div>
-      )}
-
-      {/* ── The month's shape ── */}
-      {volume.series?.length >= 3 && (
-        <div
-          className={run ? 'mr-rise mr-shine' : undefined}
-          style={{
-            '--i': 2, position: 'relative', overflow: 'hidden',
-            background: 'var(--bg2)', border: '1px solid var(--border)',
-            borderRadius: 14, padding: '14px 12px 12px', marginBottom: 10,
-            opacity: run ? undefined : 0,
-          }}
-        >
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 8, marginBottom: 8, fontFamily: 'var(--font-ar)',
-          }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text)' }}>
-              حجم كل يوم تمرين
+    <Chapter id={id} n={n} title="الحجم" note="الوزن × التكرار، لكل مجموعة مكتملة.">
+      <div className="rp-lead rp-in" style={{ '--i': 1 }}>
+        <p className="rp-lead-main">
+          بمعدل <b><Num>{AR(volume.perSession)}</Num></b> كجم لكل جلسة
+        </p>
+        {trend !== null && (
+          <p className={`rp-lead-cmp${trend > 0 ? ' is-up' : ''}`}>
+            {trend > 0 ? <ArrowUp size={16} weight="bold" aria-hidden="true" />
+              : trend < 0 ? <ArrowDown size={16} weight="bold" aria-hidden="true" />
+              : <Minus size={16} weight="bold" aria-hidden="true" />}
+            <span>
+              {trend === 0 ? 'نفس' : <Num>{Math.abs(trend)}%</Num>} {trend > 0 ? 'أكثر من' : trend < 0 ? 'أقل من' : ''} {prev}
+              <span className="rp-muted"> (<Num>{AR(volume.prevTotal)}</Num> كجم)</span>
             </span>
-            <span style={{
-              fontSize: 11, fontWeight: 700, borderRadius: 99, padding: '3px 10px',
-              color: DIRECTION[volume.direction].color,
-              background: `${DIRECTION[volume.direction].color}14`,
-              border: `1px solid ${DIRECTION[volume.direction].color}40`,
-            }}>
-              {DIRECTION[volume.direction].label}
-            </span>
-          </div>
-          {/* What the chart is for, said once. It answers a different
-              question from the figure above it — that one compares this
-              month with the last, this one asks which way the month
-              moved inside itself — and without saying so the card can
-              show «up» and «down» at the same time and look broken. */}
-          <div style={{
-            fontFamily: 'var(--font-ar)', fontSize: 10, color: 'var(--text3)',
-            lineHeight: 1.7, marginBottom: 8, marginTop: -2,
-          }}>
-            كل نقطة يوم تمرين، والخط المتقطع متوسط أيامك — الاتجاه هنا داخل الشهر نفسه، لا مقارنة بالشهر الماضي
-          </div>
-
-          <TrendChart series={volume.series} direction={volume.direction} />
-
-          {/* The two verdicts, reconciled when they disagree. */}
-          {trend !== null && volume.direction !== 'flat' &&
-           ((trend >= 0) !== (volume.direction === 'up')) && (
-            <div style={{
-              marginTop: 8, fontFamily: 'var(--font-ar)', fontSize: 11,
-              color: 'var(--text2)', lineHeight: 1.7,
-            }}>
-              {trend >= 0
-                ? 'مجموع الشهر أعلى من الشهر الماضي، لكن أيامك داخل الشهر كانت تخفّ تدريجياً.'
-                : 'مجموع الشهر أقل من الشهر الماضي، لكن أيامك داخل الشهر كانت تثقل تدريجياً.'}
-            </div>
-          )}
-
-          {/* A taper is not a slump, and the band alone does not say so. */}
-          {volume.deloadDays > 0 && (
-            <div style={{
-              marginTop: 6, fontFamily: 'var(--font-ar)', fontSize: 11,
-              color: '#5CC9EE', lineHeight: 1.7,
-            }}>
-              💧 المظلّل أيام ديلود — خفيفة بقصد، ومستثناة من حساب الاتجاه
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
-        <Tile value={sessionCount} label="جلسة" run={run} i={2} color="var(--cyan)" />
-        <Tile value={sets.completed} label="مجموعة مكتملة" run={run} i={3} />
-        <Tile value={reps.total} label="تكرار" run={run} i={4} />
+          </p>
+        )}
       </div>
 
-      {/* The averages are only shown when the month actually recorded
-          durations — an imported session has no length to average. */}
-      {time.known && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 10 }}>
-          <Tile value={time.totalMinutes} label="دقيقة في الجيم" run={run} i={5} color="var(--purple)" />
-          <Tile value={time.avgMinutes} label="متوسط الجلسة (د)" run={run} i={6} color="var(--purple)" />
-        </div>
-      )}
-
-      {sets.untrackedPct > 0 && (
-        <div
-          className={run ? 'mr-rise' : undefined}
-          style={{
-            '--i': 7, fontSize: 11, color: 'var(--text3)',
-            fontFamily: 'var(--font-ar)', textAlign: 'center', marginTop: 4,
-            opacity: run ? undefined : 0,
-          }}
-        >
-          ٪{sets.untrackedPct} من مجموعاتك بلا علامة إكمال ولم تُحتسب في التكرارات
-        </div>
-      )}
-
-      {/* ── Records ── */}
-      {prs.length > 0 && (
-        <div style={{ marginTop: 22 }}>
-          <div
-            className={run ? 'mr-rise' : undefined}
-            style={{
-              '--i': 8, fontFamily: 'var(--font-ar)', fontWeight: 800,
-              fontSize: 15, color: 'var(--gold)', marginBottom: 10,
-              display: 'flex', alignItems: 'center', gap: 7,
-              opacity: run ? undefined : 0,
-            }}
-          >
-            <span style={{ fontSize: 18 }}>🏆</span>
-            {prs.length === 1 ? 'رقم قياسي جديد' : `${AR(prs.length)} أرقام قياسية جديدة`}
+      {values.length > 0 && (
+        <div className="rp-block rp-in" style={{ '--i': 2 }}>
+          <div className="rp-block-h">
+            <span className="rp-eyebrow">حجم كل يوم</span>
+            <Verdict v={verdict} />
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {prs.slice(0, 6).map((pr, i) => (
-              <div
-                key={`${pr.exercise}-${pr.date}`}
-                className={run ? 'mr-fly mr-shine' : undefined}
-                style={{
-                  '--i': i, '--fy': '26px', '--fr': i % 2 ? '3deg' : '-3deg',
-                  position: 'relative', overflow: 'hidden',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: 'linear-gradient(90deg, var(--gold-lo), var(--bg2))',
-                  border: '1px solid var(--gold-md)',
-                  borderRadius: 12, padding: '10px 12px',
-                  opacity: run ? undefined : 0,
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontFamily: 'var(--font-ar)', fontWeight: 700, fontSize: 13,
-                    color: 'var(--text)', overflow: 'hidden',
-                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>{pr.exercise}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                    من {AR(pr.prevBest)} كجم
-                    {pr.steps > 1 ? ` على ${AR(pr.steps)} جلسات` : ''}
-                    {' · +'}{AR(Math.round((pr.weight - pr.prevBest) * 10) / 10)} كجم
-                  </div>
-                </div>
-                <div style={{
-                  fontSize: 19, fontWeight: 900, color: 'var(--gold)',
-                  fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
-                }}>
-                  {AR(pr.weight)} <span style={{ fontSize: 11 }}>كجم</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {prs.length > 6 && (
-            <div style={{
-              fontSize: 11, color: 'var(--text3)', textAlign: 'center',
-              marginTop: 8, fontFamily: 'var(--font-ar)',
-            }}>
-              و{AR(prs.length - 6)} غيرها
-            </div>
+          <TrendChart series={volume.series} month={month} verdict={verdict} />
+          <p className="rp-caption">
+            أعلى يوم <Num>{AR(Math.max(...values))}</Num> كجم · أدنى يوم <Num>{AR(Math.min(...values))}</Num> كجم
+          </p>
+          {volume.deloadDays > 0 && (
+            <p className="rp-caption rp-deload-note">
+              <Drop size={16} weight="fill" color={DELOAD_INK} aria-hidden="true" />
+              المظلّل أيام ديلود — خفيفة بقصد، وما تدخل في الحكم.
+            </p>
+          )}
+          {disagree && (
+            <p className="rp-caption">
+              {trend > 0
+                ? `مجموع الشهر أعلى من ${prev}، لكن أيامك داخل الشهر كانت تخف شوي شوي.`
+                : `مجموع الشهر أقل من ${prev}، لكن أيامك داخل الشهر كانت تثقل شوي شوي.`}
+            </p>
           )}
         </div>
       )}
-    </section>
+
+      <div className="rp-figs">
+        <Figure value={sessionCount} label="جلسة" i={3} />
+        <Figure value={sets.completed} label="مجموعة مكتملة" i={3} />
+        <Figure value={reps.total} label="تكرار" i={3} />
+        {time.known && <Figure value={time.totalMinutes} label="دقيقة في الجيم" i={4} />}
+        {time.known && <Figure value={time.avgMinutes} label="دقيقة للجلسة" i={4} />}
+      </div>
+
+      {sets.untrackedPct > 0 && (
+        <p className="rp-caption rp-in" style={{ '--i': 5 }}>
+          <Num>{sets.untrackedPct}%</Num> من مجموعاتك بدون علامة إكمال، وما انحسبت في التكرارات.
+        </p>
+      )}
+
+      {prs.length > 0 && (
+        <>
+          <Lift pr={prs[0]} mapping={mapping} best />
+          {prs.length > 1 && (
+            <div className="rp-more rp-in" style={{ '--i': 7 }}>
+              <span className="rp-eyebrow">
+                {prs.length === 2 ? 'وزن ثاني ارتفع' : <><Num>{prs.length - 1}</Num> أوزان ثانية ارتفعت</>}
+              </span>
+              <ul className="rp-rows">
+                {prs.slice(1, 6).map(pr => <Lift key={`${pr.exercise}-${pr.date}`} pr={pr} mapping={mapping} />)}
+              </ul>
+              {prs.length > 6 && (
+                <p className="rp-caption">و<Num>{prs.length - 6}</Num> غيرها</p>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </Chapter>
   )
 }
