@@ -1,14 +1,16 @@
 // ── «جديد في مران» ────────────────────────────────────────────
 //
 // Shown once after an update (App decides when: never on a fresh
-// install — critique F45). The kit's sheet: one scrim, top corners 16,
+// install — critique F45), and never over a running session: it holds
+// until the player is closed. The kit's sheet: one scrim, top corners 16,
 // a real way in and a real way out. Every line is a Phosphor icon, a
 // title and one or two sentences in plain Saudi Arabic — no emoji, no
 // "اضغط <gear>", and no "3 أيام أسبوعياً": the plan is a rolling cycle.
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sheet, Button, Num } from './kit/index.jsx'
 import { Palette, Flame, Ticket, ListChecks, Barbell, Timer, ArrowUp, Bell } from './kit/icons.js'
+import { useScreenClear } from './system/layers.js'
 import '../styles/screens/system.css'
 
 const FEATURES = [
@@ -55,19 +57,27 @@ const FEATURES = [
 ]
 
 export default function WhatsNewModal({ version, onClose }) {
+  // Never over a session: a workout restored at launch opens the player
+  // as a cover, and the changelog must not land on top of it between
+  // sets. It waits — no sheet, nothing inert — until no full-screen
+  // layer is up, then opens and stays open.
+  const [started, setStarted] = useState(false)
+  const clear = useScreenClear(!started)
+  useEffect(() => { if (clear) setStarted(true) }, [clear])
+
   // Closing plays the sheet's way out before the parent unmounts it.
-  const [open, setOpen] = useState(true)
+  const [closing, setClosing] = useState(false)
   const done = useRef(false)
   const close = useCallback(() => {
     if (done.current) return
     done.current = true
-    setOpen(false)
+    setClosing(true)
     setTimeout(() => onClose?.(), 230)
   }, [onClose])
 
   return (
     <Sheet
-      open={open}
+      open={started && !closing}
       onClose={close}
       title={<>جديد في مران <span className="sys-wn-ver">· الإصدار <Num>{version}</Num></span></>}
       footer={<Button variant="primary" size="lg" full onClick={close}>تمام</Button>}

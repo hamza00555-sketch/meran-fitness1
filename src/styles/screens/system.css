@@ -60,10 +60,15 @@
 /* ── Close button ──────────────────────────────────────────── */
 .sys-close { color: var(--ink-2); }
 
-/* ── Overlay (legacy): portalled, one scrim, one sheet ─────── */
+/* ── Overlay (legacy) = the kit's sheet ────────────────────────
+   Same scrim, radius, grabber, way in and way out as .k-scrim/.k-sheet
+   (kit.css), so a legacy sheet and a kit sheet are one thing (F30). */
 @keyframes sys-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sys-fade-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes sys-rise     { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sys-sink     { from { transform: none; } to { transform: translateY(100%); } }
 @keyframes sys-pop      { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes sys-unpop    { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.97); } }
 .sys-scrim {
   position: fixed; inset: 0; z-index: var(--z-cover);
   display: flex; align-items: center; justify-content: center;
@@ -71,26 +76,33 @@
   background: var(--scrim);
   animation: sys-fade-in var(--dur-fast) var(--ease-out);
 }
+.sys-scrim.is-leaving { animation: sys-fade-out 200ms var(--ease-exit) forwards; pointer-events: none; }
 .sys-scrim-bottom { align-items: flex-end; padding: 0; }
-.sys-panel { width: 100%; max-width: 540px; animation: sys-pop var(--dur-base) var(--ease-out); }
+.sys-panel { width: 100%; max-width: 540px; outline: none; animation: sys-pop var(--dur-base) var(--ease-out); }
+.sys-panel.is-leaving { animation: sys-unpop 200ms var(--ease-exit) forwards; }
 .sys-panel-bottom {
-  max-width: 560px; overflow: hidden;
+  max-width: 560px; max-height: 92dvh; overflow: hidden;
+  display: flex; flex-direction: column;
   background: var(--surface-2);
   border-radius: var(--r-md) var(--r-md) 0 0;
   box-shadow: 0 -12px 40px rgba(0,0,0,0.55), inset 0 1px 0 var(--hairline);
   padding-bottom: var(--safe-bottom);
   animation: sys-rise var(--dur-sheet) var(--ease-sheet);
 }
+.sys-panel-bottom.is-leaving { animation: sys-sink 200ms var(--ease-exit) forwards; }
 /* The card a legacy caller hands in becomes the sheet itself: no second
-   box inside the first. */
-.sys-panel-bottom > .sys-card { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+   box inside the first. It may shrink so its own list scrolls. */
+.sys-panel-bottom > .sys-card {
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+  min-height: 0; flex: 0 1 auto;
+}
 
 /* ══ Toast ═════════════════════════════════════════════════════
    One design. Docked at the bottom, above the tab bar (or the live bar
    when a session is minimised) — measured at runtime, with this calc as
    the fallback. Surface-2 with its edge and its top light; a Phosphor
    icon in place of the emoji it was handed; a thin line draining from
-   the start edge; tap or swipe it away. */
+   the start edge; tap or swipe it away. Under a cover it waits. */
 .sys-toast-dock {
   position: fixed; left: 0; right: 0; margin: 0 auto;
   bottom: calc(var(--safe-bottom) + 49px + 12px);
@@ -99,6 +111,9 @@
   padding-inline: var(--gutter);
   pointer-events: none;
 }
+/* A warning does not wait for a cover to close: it sits above the
+   player, the summary and onboarding (cover + 10 / + 20). */
+.sys-toast-dock.is-urgent { z-index: calc(var(--z-cover) + 30); }
 .sys-toast-wrap { position: relative; }
 @keyframes sys-toast-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .sys-toast {
@@ -114,6 +129,9 @@
   transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out);
 }
 .sys-toast.is-dragging { transition: none; }
+/* Raised under a cover: laid out (so it can tell when it is uncovered)
+   but not drawn, not announced twice and not on the clock. */
+.sys-toast.is-waiting { opacity: 0; animation: none; transition: none; }
 .sys-toast.is-leaving {
   opacity: 0; transform: translateY(16px);
   transition: transform var(--dur-fast) var(--ease-exit), opacity var(--dur-fast) var(--ease-exit);
@@ -163,8 +181,10 @@
   .sys-toast.is-leaving,
   .sys-toast.is-leaving.to-right,
   .sys-toast.is-leaving.to-left { transform: none; }
-  @keyframes sys-rise { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes sys-pop  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sys-rise  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sys-sink  { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes sys-pop   { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes sys-unpop { from { opacity: 1; } to { opacity: 0; } }
 }
 
 /* ══ What's New ═══════════════════════════════════════════════ */

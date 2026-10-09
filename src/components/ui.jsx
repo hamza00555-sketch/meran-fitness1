@@ -10,7 +10,7 @@
 // New code should use components/kit — these exist so the old code
 // keeps working while it is moved.
 
-import { useEffect, useRef } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Art from '../assets/Art.jsx'
 import { Button, IconButton, Gauge, Num } from './kit/index.jsx'
@@ -143,39 +143,89 @@ export function RankBadge({ rank }) {
   )
 }
 
-// ── Overlay (legacy modal) ────────────────────────────────────
-// Portalled to <body>, so it can no longer be trapped under the page's
-// stacking context with the header over its title (F30). One scrim, no
-// blur; align="bottom" is a sheet flush with the bottom edge, top
-// corners 16, the safe area respected. Escape closes.
+// ── Overlay (legacy modal) → the kit's sheet ──────────────────
+// Same API (children, onClose, align), same behaviour as the kit Sheet
+// so the two can no longer be told apart (F30):
+//   · portalled to <body>, one scrim, top corners 16, a grabber;
+//   · the page behind is inert and does not scroll; focus moves into
+//     the sheet and goes back to whatever opened it;
+//   · a real way out: a scrim tap, Escape or the CloseBtn inside it
+//     plays the exit (200ms, --ease-exit) and only then calls onClose.
+// align="center" keeps a centred panel for any caller that asks for it.
+const EXIT_MS = 200
+const OverlayCtx = createContext(null)
+
 export function Overlay({ children, onClose, align = 'center' }) {
+  const [leaving, setLeaving] = useState(false)
+  const [opener] = useState(() => (typeof document !== 'undefined' ? document.activeElement : null))
+  const panelRef = useRef(null)
   const close = useRef(onClose)
   close.current = onClose
+  const busy = useRef(false)
+  const alive = useRef(true)
+  const timers = useRef([])
+
+  // Leave, then hand over to the caller's handler (the CloseBtn's own
+  // onClick, or onClose). If the caller keeps us mounted, come back.
+  const requestClose = useCallback((handler) => {
+    if (busy.current) return
+    busy.current = true
+    setLeaving(true)
+    const ms = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : EXIT_MS
+    timers.current.push(setTimeout(() => {
+      ;(handler || close.current)?.()
+      timers.current.push(setTimeout(() => {
+        if (!alive.current) return
+        busy.current = false
+        setLeaving(false)
+      }, 60))
+    }, ms))
+  }, [])
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') close.current?.() }
-    window.addEventListener('keydown', onKey)
+    alive.current = true
+    const root = document.getElementById('root')
+    const wasInert = root ? root.inert : false
+    if (root) root.inert = true
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    // Into the sheet — unless a field inside it already took focus.
+    const panel = panelRef.current
+    if (panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true })
+    const onKey = (e) => { if (e.key === 'Escape') requestClose() }
+    window.addEventListener('keydown', onKey)
     return () => {
+      alive.current = false
+      timers.current.forEach(clearTimeout)
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
+      if (root) root.inert = wasInert
+      if (opener && opener.isConnected) opener.focus?.({ preventScroll: true })
     }
-  }, [])
+  }, [opener, requestClose])
 
   const bottom = align === 'bottom'
   return createPortal(
-    <div className={cx('sys-scrim', bottom && 'sys-scrim-bottom')} onClick={() => close.current?.()} role="presentation">
-      <div className={cx('sys-panel', bottom && 'sys-panel-bottom')} role="dialog" aria-modal="true"
-        onClick={e => e.stopPropagation()}>
-        {children}
+    <OverlayCtx.Provider value={requestClose}>
+      <div className={cx('sys-scrim', bottom && 'sys-scrim-bottom', leaving && 'is-leaving')}
+        onClick={() => requestClose()} role="presentation">
+        <div ref={panelRef} tabIndex={-1}
+          className={cx('sys-panel', bottom && 'sys-panel-bottom', leaving && 'is-leaving')}
+          role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+          {bottom && <span className="k-sheet-grab" aria-hidden="true" />}
+          {children}
+        </div>
       </div>
-    </div>,
+    </OverlayCtx.Provider>,
     document.body,
   )
 }
 
 // ── Close button: a 44pt × ────────────────────────────────────
+// Inside an Overlay it asks the Overlay to leave first, then runs its
+// own onClick — the sheet slides away instead of vanishing in a frame.
 export function CloseBtn({ onClick }) {
-  return <IconButton icon={X} label="إغلاق" onClick={onClick} className="sys-close" />
+  const requestClose = useContext(OverlayCtx)
+  const handle = requestClose ? () => requestClose(onClick) : onClick
+  return <IconButton icon={X} label="إغلاق" onClick={handle} className="sys-close" />
 }

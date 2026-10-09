@@ -12,9 +12,10 @@
 // is a picture and not just a sentence (critique F45). The size is
 // quoted when the manifest has been fetched.
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { installPack, markPrompted, usePackState } from '../assets/pack.js'
 import { Sheet, Button, Num } from './kit/index.jsx'
+import { useScreenClear } from './system/layers.js'
 import '../styles/screens/system.css'
 
 const SAMPLES = ['/assets/ach_consistency.webp', '/assets/ach_strength.webp', '/assets/ach_volume.webp']
@@ -26,7 +27,13 @@ const mb = (bytes) => {
 
 export default function AssetPackPrompt({ onClose }) {
   const pack = usePackState()
-  const [open, setOpen] = useState(true)
+  // A calm moment only: never over the workout player (a session restored
+  // at launch), the summary or another sheet. It waits, unmarked, until
+  // the screen is clear, then opens and stays open.
+  const [started, setStarted] = useState(false)
+  const clear = useScreenClear(!started)
+  useEffect(() => { if (clear) setStarted(true) }, [clear])
+  const [closing, setClosing] = useState(false)
   const done = useRef(false)
 
   // Mark first, act, then let the sheet leave before the parent unmounts it.
@@ -34,7 +41,7 @@ export default function AssetPackPrompt({ onClose }) {
     if (done.current) return false
     done.current = true
     markPrompted()
-    setOpen(false)
+    setClosing(true)
     setTimeout(() => onClose?.(), 230)
     return true
   }, [onClose])
@@ -45,7 +52,7 @@ export default function AssetPackPrompt({ onClose }) {
 
   return (
     <Sheet
-      open={open}
+      open={started && !closing}
       onClose={dismiss}
       title="صور مران"
       footer={(
