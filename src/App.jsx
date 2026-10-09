@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
-  scheduleNotificationsForToday, applySubsToDay,
+  scheduleNotificationsForToday, applySubsToDay, planDayTitle,
 } from './utils.js'
 import {
   NAV_TABS, ACHIEVEMENTS,
@@ -18,15 +18,17 @@ import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
 
-const NAV_ICONS = {
-  home:         HomeIcon,
-  workout:      DumbbellIcon,
-  exercises:    null,
-  challenges:   FlagIcon,
-  achievements: TrophyIcon,
-  profile:      PersonIcon,
-  settings:     SettingsIcon,
-}
+// ── The four tabs ──
+// Home, what you did, how you are progressing, and the library. The
+// profile opens from the avatar on Home and settings from the gear;
+// achievements live inside التقدم. «تمرين» and «التمارين» used to sit
+// side by side and mean different things.
+const NAV = [
+  { id: 'home',     label: 'الرئيسية', icon: House },
+  { id: 'history',  label: 'السجل',    icon: ClockCounterClockwise },
+  { id: 'progress', label: 'التقدم',   icon: ChartLineUp },
+  { id: 'library',  label: 'المكتبة',  icon: Books },
+]
 
 // Pages
 import HomePage        from './pages/HomePage.jsx'
@@ -47,6 +49,10 @@ import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import StreakChip       from './components/streak/StreakChip.jsx'
+import LiveBar          from './components/frame/LiveBar.jsx'
+import ProgressPage     from './pages/ProgressPage.jsx'
+import { LargeTitle, NavBar, IconButton } from './components/kit/index.jsx'
+import { House, ClockCounterClockwise, ChartLineUp, Books, GearSix, CaretDown } from './components/kit/icons.js'
 import SkipSheet        from './components/streak/SkipSheet.jsx'
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
@@ -147,6 +153,35 @@ export default function App() {
 
   // ── UI state ──────────────────────────────────────────────────
   const [tab,        setTab]        = useState('home')
+  // Pages pushed over a tab (profile → settings → …), and whether the
+  // running session is open full screen or docked as the live bar.
+  const [pages,      setPages]      = useState([])
+  const [sessionOpen, setSessionOpen] = useState(() => !!ls.get('hf_active', null))
+  const page = pages[pages.length - 1] || null
+  const pushPage = useCallback((p) => setPages(prev => [...prev.filter(x => x !== p), p]), [])
+  const popPage  = useCallback(() => setPages(prev => prev.slice(0, -1)), [])
+  const goTab    = useCallback((t) => {
+    setPages([])
+    setTab(prev => {
+      if (prev === t) window.scrollTo({ top: 0, behavior: 'smooth' })
+      return t
+    })
+  }, [])
+
+  // Each view keeps its own scroll position, so a tab switch does not
+  // dump you at the top of a long list, or halfway down the next one.
+  const viewKey = page || tab
+  const scrollPos = useRef({})
+  const viewRef = useRef(viewKey)
+  useEffect(() => {
+    const onScroll = () => { scrollPos.current[viewRef.current] = window.scrollY }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  useEffect(() => {
+    viewRef.current = viewKey
+    window.scrollTo(0, scrollPos.current[viewKey] || 0)
+  }, [viewKey])
   const [showRest,   setShowRest]   = useState(() => {
     // A rest timer left running when the app was closed keeps counting
     // on wall-clock time — bring it back so it isn't silently lost.
@@ -379,7 +414,7 @@ export default function App() {
       ...(deloadStamp ? { deload: deloadStamp } : null),
     }
     setActive(session)
-    setTab('workout')
+    setSessionOpen(true)
   }, [planIndex, sessions, exerciseMapping, exerciseSubs, repTarget, recoveryCfg])
 
   // Skipping only moves the plan. The streak still wants today's
@@ -401,7 +436,7 @@ export default function App() {
       ...(deloadStamp ? { deload: deloadStamp } : null),
     }
     setActive(session)
-    setTab('workout')
+    setSessionOpen(true)
   }, [recoveryCfg])
 
   const finishSession = useCallback(() => {
@@ -415,6 +450,7 @@ export default function App() {
     if (!finished) {
       setActive(null)
       setShowRest(false)
+      setSessionOpen(false)
       ls.remove('hf_rest_timer')
       setTab('home')
       pushAlert('ℹ️', 'الجلسة فاضية — ما انكتب فيها ولا وزن، فما انحفظت ولا تنحسب للستريك')
@@ -480,6 +516,8 @@ export default function App() {
     // to rest for, so close it and clear its saved state.
     setShowRest(false)
     ls.remove('hf_rest_timer')
+    setSessionOpen(false)
+    setPages([])
     setTab('home')
     pushAlert('🔥', streakLine)
   }, [active, sessions, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
@@ -615,6 +653,7 @@ export default function App() {
 
   const beginDeload = useCallback(({ days, pct } = {}) => {
     setRecoveryCfg(prev => startDeload(prev, todayKey(), { days, pct }))
+    setPages([])
     setTab('home')
     pushAlert('💧', `بدأت فترة ديلود — أوزانك أخف بـ${pct}٪`)
   }, [pushAlert])
@@ -795,7 +834,7 @@ export default function App() {
   return (
     <div style={{
       minHeight: '100dvh',
-      background: 'linear-gradient(180deg, #0A0E1A 0%, var(--bg) 30%)',
+      background: 'var(--ground)',
       color: 'var(--text)',
       maxWidth: 560,
       margin: '0 auto',
@@ -803,101 +842,20 @@ export default function App() {
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <header style={{
-        background: '#080B14',
-        borderBottom: '1px solid rgba(var(--cyan-rgb),0.12)',
-        padding: `calc(var(--safe-top) + 14px) 18px 14px`,
-        position: 'sticky', top: 0, zIndex: 100,
-        boxShadow: '0 1px 0 rgba(var(--cyan-rgb),0.08)',
-        // No backdrop-filter: on iOS it makes this bar composite into a
-        // layer that goes stale during scroll and paints at a wrong offset.
-        transform: 'translateZ(0)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            {/* The wordmark lives here now — the home page used to burn
-                a full-width card on it. Branding is a signature, not a
-                billboard. */}
-            <img src="/assets/app_logo_full_light.png" alt="مران" style={{
-              height: 18, objectFit: 'contain', objectPosition: 'right',
-              display: 'block', marginBottom: 3, opacity: 0.95,
-            }} />
-            <div style={{
-              fontFamily: 'var(--font-ar)', fontSize: 13,
-              fontWeight: 600, color: 'var(--text2)',
-              maxWidth: 230, lineHeight: 1.4,
-            }}>
-              {greeting}
-            </div>
-            {/* Only until a name is set — it used to stay forever, and the
-                height it took pushed Home's start button under the tabs. */}
-            {(!profile?.name || profile.name === DEFAULT_PROFILE.name) && (
-              <div style={{
-                fontFamily: 'var(--font-ar)', fontSize: 10,
-                color: 'var(--text3)', marginTop: 3,
-                display: 'flex', alignItems: 'center', gap: 3,
-              }}>
-                اضغط ⚙️ لتغيير اسمك
-              </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {(tab !== 'home' || !boardVisible) && (
-              <StreakChip
-                recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday}
-                onOpen={() => { setTab('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-              />
-            )}
-            <button
-              onClick={() => setShowRest(true)}
-              aria-label="مؤقت الراحة"
-              style={{
-                background: 'rgba(var(--cyan-rgb),0.07)', border: '1px solid rgba(var(--cyan-rgb),0.18)',
-                borderRadius: 10, width: 36, height: 36,
-                color: 'var(--text2)', cursor: 'pointer',
-                fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.15s',
-              }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = 'rgba(var(--cyan-rgb),0.18)'; e.currentTarget.style.color = 'var(--text2)' }}
-            >⏱️</button>
-            <button
-              onClick={() => setTab(t => t === 'settings' ? 'home' : 'settings')}
-              aria-label="الإعدادات"
-              style={{
-                background: tab === 'settings' ? 'var(--cyan-lo)' : 'rgba(var(--cyan-rgb),0.07)',
-                border: `1px solid ${tab === 'settings' ? 'var(--cyan)' : 'rgba(var(--cyan-rgb),0.18)'}`,
-                borderRadius: 10, width: 36, height: 36,
-                color: tab === 'settings' ? 'var(--cyan)' : 'var(--text2)', cursor: 'pointer',
-                fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.15s',
-              }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--cyan)'; e.currentTarget.style.color = 'var(--cyan)' }}
-              onMouseOut={e => {
-                if (tab !== 'settings') {
-                  e.currentTarget.style.borderColor = 'rgba(var(--cyan-rgb),0.18)'
-                  e.currentTarget.style.color = 'var(--text2)'
-                }
-              }}
-            ><SettingsIcon size={18} /></button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Page Content ────────────────────────────────────────── */}
-      <main
-        key={tab}
-        className="page-enter"
-        style={{ padding: '16px 14px 0', flex: 1 }}
-      >
-        {tab === 'home' && (
+      {/* ── Page content ──
+          No shared header any more: Home has its own top (date, greeting,
+          avatar, gear), every other tab a large title with the streak
+          chip, pushed pages a back bar. */}
+      <main key={viewKey} className="page-enter f-main" data-live={active && !sessionOpen ? '1' : undefined}>
+        {!page && tab === 'home' && (
           <HomePage
             sessions={sessions}
             xp={xp}
             streak={streak}
             profile={profile}
+            greeting={greeting}
+            onOpenProfile={() => pushPage('profile')}
+            onOpenSettings={() => pushPage('settings')}
             active={active}
             plan={plan}
             planIndex={planIndex}
@@ -916,17 +874,136 @@ export default function App() {
             onStartWorkout={() => startWorkout()}
             onStartPlannedWorkout={startPlannedWorkout}
             onSkipPlanDay={() => setAskSkip(true)}
-            onGoToWorkout={() => setTab('workout')}
+            onGoToWorkout={() => setSessionOpen(true)}
             monthReport={monthReport}
             onShowMonthReport={() => setShowReport(true)}
             deload={deload}
             deloadSuggestion={deloadSuggestion}
             onStartDeload={beginDeload}
             onDismissDeloadSuggestion={() => setRecoveryCfg(prev => dismissSuggestion(prev, today))}
-            onOpenDeload={() => setTab('settings')}
+            onOpenDeload={() => pushPage('settings')}
           />
         )}
-        {tab === 'workout' && (
+        {!page && tab === 'history' && (
+          <>
+            <LargeTitle title="السجل" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
+            <WorkoutPage
+              active={null}
+              sessions={sessions}
+              plan={plan}
+              planIndex={planIndex}
+              onUpdateActive={updateActive}
+              onFinish={finishSession}
+              onStartPlannedWorkout={startPlannedWorkout}
+              onStartWorkout={() => startWorkout()}
+              addXP={addWorkoutXP}
+              exerciseMapping={exerciseMapping}
+              repTarget={repTarget}
+              exerciseSubs={exerciseSubs}
+              onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
+              onUpdateSession={updateSession}
+              onDeleteSession={deleteSession}
+            />
+          </>
+        )}
+        {!page && tab === 'progress' && (
+          <>
+            <LargeTitle title="التقدم" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
+            <ProgressPage
+              achievements={{ sessions, xp, streak, unlockedAchievements, unlockedAt, level }}
+              photos={{ photos, setPhotos, onBack: () => goTab('progress') }}
+            />
+          </>
+        )}
+        {!page && tab === 'library' && (
+          <>
+            <LargeTitle title="المكتبة" actions={<StreakChip recovery={recovery} config={recoveryCfg} active={active} deload={deload} today={streakToday} onOpen={() => goTab('home')} />} />
+            <ExercisesPage sessions={sessions} exerciseMapping={exerciseMapping} />
+          </>
+        )}
+        {page === 'profile' && (
+          <>
+            <NavBar title="الملف" onBack={popPage}
+              actions={<IconButton icon={GearSix} label="الإعدادات" onClick={() => pushPage('settings')} />} />
+            <ProfilePage
+              profile={profile}
+              sessions={sessions}
+              xp={xp}
+              streak={streak}
+              level={level}
+              recovery={recovery}
+              onUpdateProfile={handleUpdateProfile}
+              onGoToPhotos={() => pushPage('photos')}
+            />
+          </>
+        )}
+        {page === 'settings' && (
+          <>
+            <NavBar title="الإعدادات" onBack={popPage} />
+            <SettingsPage
+              profile={profile}
+              onUpdateProfile={handleUpdateProfile}
+              sessions={sessions}
+              xp={xp}
+              unlockedAchievements={unlockedAchievements}
+              challengeState={challengeState}
+              photos={photos}
+              plan={plan}
+              onImportPlan={applyPlanChange}
+              onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
+              exerciseMapping={exerciseMapping}
+              recoveryCfg={recoveryCfg}
+              onUpdateRecovery={applyFrequencyChange}
+              changeCooldownLeft={changeCooldownLeft(recoveryCfg)}
+              currentStreak={recovery.consistencyStreak}
+              recovery={recovery}
+              repTarget={repTarget}
+              onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
+              today={today}
+              onStartDeload={beginDeload}
+              onEndDeload={finishDeload}
+              onImportMapping={(newMapping) => {
+                setExerciseMapping(prev => ({ ...prev, ...newMapping }))
+                pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
+              }}
+              onImport={(data) => {
+                if (data.type === 'exercise_mapping') {
+                  setExerciseMapping(prev => ({ ...prev, ...data.mapping }))
+                  pushAlert('🗺️', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
+                  return
+                }
+                if (data.sessions !== undefined)           setSessions((data.sessions || []).map(normalizeSession).filter(Boolean))
+                if (data.xp !== undefined)                 setXP(data.xp)
+                if (data.profile)                          setProfile(data.profile)
+                if (data.unlockedAchievements)             setUnlockedAchievements(data.unlockedAchievements)
+                if (data.challengeState)                   setChallengeState(data.challengeState)
+                if (data.photos)                           setPhotos(data.photos)
+                // Without this the restored history is judged against a
+                // default cycle, which rewrites the streak and loses every
+                // rest day. Older backups have no `recovery` key; they keep
+                // whatever is configured on the device.
+                if (data.recovery)                         setRecoveryCfg(prev => ({ ...prev, ...data.recovery }))
+                pushAlert('✅', 'تم استيراد البيانات بنجاح!')
+              }}
+            />
+          </>
+        )}
+        {page === 'photos' && (
+          <>
+            <NavBar title="صور التقدم" onBack={popPage} />
+            <PhotosPage photos={photos} setPhotos={setPhotos} onBack={popPage} embedded />
+          </>
+        )}
+      </main>
+
+      {/* ── The running session ──
+          Full screen while you train: no tabs to wander into mid-set. ⌄
+          docks it as the live bar above the tabs. */}
+      {active && sessionOpen && (
+        <div className="f-cover" role="dialog" aria-modal="true" aria-label="الجلسة" data-testid="session-cover">
+          <div className="f-cover-bar">
+            <IconButton icon={CaretDown} label="صغّر الجلسة" weight="bold" onClick={() => setSessionOpen(false)} />
+          </div>
           <WorkoutPage
             active={active}
             sessions={sessions}
@@ -943,8 +1020,9 @@ export default function App() {
                 setXP(prev => Math.max(0, prev - sessionXPRef.current))
                 sessionXPRef.current = 0
               }
-              setActive(null); setShowRest(false); setTab('home')
+              setActive(null); setShowRest(false); setSessionOpen(false); setTab('home')
             }}
+            onMinimize={() => setSessionOpen(false)}
             isResting={showRest}
             exerciseMapping={exerciseMapping}
             repTarget={repTarget}
@@ -953,157 +1031,22 @@ export default function App() {
             onUpdateSession={updateSession}
             onDeleteSession={deleteSession}
           />
-        )}
-        {tab === 'exercises' && <ExercisesPage sessions={sessions} exerciseMapping={exerciseMapping} />}
-        {tab === 'challenges' && (
-          <ChallengesPage
-            sessions={sessions}
-            challengeState={challengeState}
-            onCompleteChallenge={handleCompleteChallenge}
-            xp={xp}
-          />
-        )}
-        {tab === 'achievements' && (
-          <AchievementsPage
-            sessions={sessions}
-            xp={xp}
-            streak={streak}
-            unlockedAchievements={unlockedAchievements}
-            unlockedAt={unlockedAt}
-            level={level}
-          />
-        )}
-        {tab === 'profile' && (
-          <ProfilePage
-            profile={profile}
-            sessions={sessions}
-            xp={xp}
-            streak={streak}
-            level={level}
-            recovery={recovery}
-            onUpdateProfile={handleUpdateProfile}
-            onGoToPhotos={() => setTab('photos')}
-          />
-        )}
-        {tab === 'settings' && (
-          <SettingsPage
-            profile={profile}
-            onUpdateProfile={handleUpdateProfile}
-            sessions={sessions}
-            xp={xp}
-            unlockedAchievements={unlockedAchievements}
-            challengeState={challengeState}
-            photos={photos}
-            plan={plan}
-            onImportPlan={applyPlanChange}
-            onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
-            exerciseMapping={exerciseMapping}
-            recoveryCfg={recoveryCfg}
-            onUpdateRecovery={applyFrequencyChange}
-            changeCooldownLeft={changeCooldownLeft(recoveryCfg)}
-            currentStreak={recovery.consistencyStreak}
-            recovery={recovery}
-            repTarget={repTarget}
-            onUpdateRepTarget={(patch) => setRepTarget(prev => ({ ...prev, ...patch }))}
-            today={today}
-            onStartDeload={beginDeload}
-            onEndDeload={finishDeload}
-            onImportMapping={(newMapping) => {
-              setExerciseMapping(prev => ({ ...prev, ...newMapping }))
-              pushAlert('🗺️', `تم تحديث خريطة التمارين — ${Object.keys(newMapping).length} تمرين`)
-            }}
-            onImport={(data) => {
-              if (data.type === 'exercise_mapping') {
-                setExerciseMapping(prev => ({ ...prev, ...data.mapping }))
-                pushAlert('🗺️', `تم استيراد خريطة التمارين — ${Object.keys(data.mapping).length} تمرين`)
-                return
-              }
-              if (data.sessions !== undefined)           setSessions((data.sessions || []).map(normalizeSession).filter(Boolean))
-              if (data.xp !== undefined)                 setXP(data.xp)
-              if (data.profile)                          setProfile(data.profile)
-              if (data.unlockedAchievements)             setUnlockedAchievements(data.unlockedAchievements)
-              if (data.challengeState)                   setChallengeState(data.challengeState)
-              if (data.photos)                           setPhotos(data.photos)
-              // Without this the restored history is judged against a
-              // default cycle, which rewrites the streak and loses every
-              // rest day. Older backups have no `recovery` key; they keep
-              // whatever is configured on the device.
-              if (data.recovery)                         setRecoveryCfg(prev => ({ ...prev, ...data.recovery }))
-              pushAlert('✅', 'تم استيراد البيانات بنجاح!')
-            }}
-          />
-        )}
-        {tab === 'photos' && (
-          <PhotosPage
-            photos={photos}
-            setPhotos={setPhotos}
-            onBack={() => setTab('profile')}
-          />
-        )}
-      </main>
+        </div>
+      )}
 
-      {/* ── Bottom Navigation ────────────────────────────────────── */}
-      <nav style={{
-        position: 'fixed', bottom: 0,
-        left: 0, right: 0,
-        width: '100%', maxWidth: 560,
-        background: '#080B14',
-        borderTop: '1px solid rgba(var(--cyan-rgb),0.10)',
-        boxShadow: '0 -1px 0 rgba(var(--cyan-rgb),0.06)',
-        display: 'flex',
-        padding: `10px 6px calc(env(safe-area-inset-bottom, 0px) + 10px)`,
-        zIndex: 200,
-        margin: '0 auto',
-        // Centered with margin instead of translateX(-50%), and promoted to
-        // its own layer, so iOS keeps repainting it correctly while scrolling.
-        transform: 'translateZ(0)',
-        willChange: 'transform',
-      }}>
-        {NAV_TABS.map(t => {
-          const isActive = tab === t.id
-          const hasActiveSession = t.id === 'workout' && !!active
-          const IconComp = NAV_ICONS[t.id]
+      {/* ── Live bar + tabs ── */}
+      {active && !sessionOpen && (
+        <LiveBar active={active} title={planDayTitle(active) || active.name || 'تمرين'} onOpen={() => setSessionOpen(true)} />
+      )}
+      <nav className="f-tabs" aria-label="التنقل">
+        {NAV.map(t => {
+          const on = !page && tab === t.id
+          const Icon = t.icon
           return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                flex: 1, background: 'none', border: 'none',
-                cursor: 'pointer', position: 'relative',
-                display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 4, padding: '4px 2px',
-                transition: 'opacity 0.15s',
-                WebkitTapHighlightColor: 'transparent',
-              }}
-            >
-              {hasActiveSession && (
-                <div className="pulse-dot" style={{
-                  position: 'absolute', top: 2, right: '50%',
-                  transform: 'translateX(12px)',
-                  width: 7, height: 7, borderRadius: '50%',
-                  background: 'var(--cyan)',
-                }} />
-              )}
-
-              <div style={{
-                width: 38, height: 28,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: 8,
-                background: isActive ? 'var(--cyan-lo)' : 'transparent',
-                transition: 'background 0.2s',
-              }}>
-                {IconComp
-                  ? <IconComp size={19} color={isActive ? 'var(--cyan)' : '#4B5563'} filled={isActive} />
-                  : <span style={{ fontSize: 17, opacity: isActive ? 1 : 0.45 }}>{t.icon}</span>
-                }
-              </div>
-
-              <span style={{
-                fontFamily: 'var(--font-ar)', fontSize: 11,
-                color: isActive ? 'var(--cyan)' : '#4B5563',
-                fontWeight: isActive ? 700 : 500,
-                transition: 'color 0.15s',
-              }}>{t.label}</span>
+            <button key={t.id} type="button" className={`f-tab${on ? ' on' : ''}`}
+              aria-current={on ? 'page' : undefined} onClick={() => goTab(t.id)}>
+              <span className="f-tab-icon"><Icon size={24} weight={on ? 'fill' : 'regular'} aria-hidden="true" /></span>
+              <span className="f-tab-label">{t.label}</span>
             </button>
           )
         })}
@@ -1112,7 +1055,7 @@ export default function App() {
       {/* ── Overlays ─────────────────────────────────────────────── */}
       {/* The player owns rest inline while the workout tab is open —
           the floating card would be a second clock for the same rest. */}
-      {showRest && !(tab === 'workout' && active) && (
+      {showRest && !(sessionOpen && active) && (
         <RestTimer key={restKey} onClose={() => setShowRest(false)} />
       )}
       {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}

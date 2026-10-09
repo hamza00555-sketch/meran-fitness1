@@ -1,117 +1,23 @@
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Thin.otf'); font-weight: 100; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-ExtraLight.otf'); font-weight: 200; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Light.otf'); font-weight: 300; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Regular.otf'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Medium.otf'); font-weight: 500; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-SemiBold.otf'); font-weight: 600; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Bold.otf'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-ExtraBold.otf'); font-weight: 800; font-display: swap; }
-@font-face { font-family: 'Zanjabeel'; src: url('/fonts/Zanjabeel-Black.otf'); font-weight: 900; font-display: swap; }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
-  /* ── Backgrounds: near-black with a blue undertone ──
-     The ground sits just off pure black so OLED panels stay quiet and
-     the cards, one step lighter, separate cleanly without borders
-     doing all the work. Depth comes from the gap between these steps,
-     not from glow. */
-  --bg:       #050810;
-  --bg1:      #070B14;
-  --bg2:      #0A101C;
-  --bg3:      #111927;
-  --border:   #16202E;
-  --border2:  #1F2D40;
-
-  /* ── Primary: Meran Green ──
-     The triplet is the switch. Every border, shadow and gradient in the
-     app is written as rgba(var(--cyan-rgb), …), so the accent moves as
-     one when a mode redefines it — no scattered literals left behind. */
-  --cyan-rgb: 94,195,42;
-  --cyan:     #5EC32A;
-  --cyan-hi:  #A8F060;               /* the highlight a shimmer sweeps through */
-  --cyan-lo:  rgba(var(--cyan-rgb),0.10);
-  --cyan-md:  rgba(var(--cyan-rgb), calc(0.22 * var(--glow-mul)));
-  --cyan-glow:rgba(var(--cyan-rgb), calc(0.11 * var(--glow-mul)));
-
-  /* ── Mode dials ──
-     Neutral at 1. A mode turns them instead of restating every rule:
-     --glow-mul scales how hard the accent burns, --breath how slowly
-     the app's idle animations run. */
-  --glow-mul: 1;
-  --breath:   1;
-
-  /* ── Gold (XP / rewards) ── */
-  --gold:     #F59E0B;
-  --gold-lo:  rgba(245,158,11,0.12);
-  --gold-md:  rgba(245,158,11,0.30);
-
-  /* ── Secondary: Sky Blue (replaces purple) ──
-     Same trick as the accent: one triplet, so the rest/recovery side
-     of the UI can step aside as a unit when the accent takes blue. */
-  --purple-rgb:  59,157,232;
-  --purple:      #3B9DE8;
-  --purple-lo:   rgba(var(--purple-rgb),0.10);
-  --purple-md:   rgba(var(--purple-rgb),0.22);
-  --purple-deep: #1A75C0;
-
-  /* ── Status colors ── */
-  --orange:   #F97316;
-  --orange-lo:rgba(249,115,22,0.12);
-
-  --red:      #EF4444;
-  --red-lo:   rgba(239,68,68,0.12);
-  --red-md:   rgba(239,68,68,0.25);
-
-  --blue:     #3B9DE8;
-  --blue-lo:  rgba(59,157,232,0.12);
-
-  /* ── Roles for the streak ──
-     Orange is the streak and only the streak; the rest colour is rest
-     days and rest tickets. Written as roles over the palette so the
-     deload's own rest colour carries through. */
-  --streak:     var(--orange);
-  --streak-rgb: 249,115,22;
-  --rest:       var(--purple);
-
-  --green:    #22C55E;
-  --green-lo: rgba(34,197,94,0.12);
-
-  /* ── Text ── */
-  --text:     #EEF4FF;
-  --text2:    #B8D0E8;
-  --text3:    #6E8899;   /* 5.3:1 on --bg1 — muted, still legible */
-
-  /* ── Fonts ── */
-  --font-ar:   'Changa', 'Zanjabeel', sans-serif;
-  --font-mono: 'Oxanium', ui-monospace, monospace;
-
-  /* ── Radii ── */
-  --radius:    18px;
-  --radius-sm: 12px;
-  --radius-xs: 6px;
-
-  /* ── Safe areas ── */
-  --safe-top:    env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-
-  /* ── Gradients ── */
-  --grad-primary: linear-gradient(135deg, #6DD636 0%, #3EA812 100%);
-  --grad-hero:    linear-gradient(145deg, #08130C 0%, #081020 100%);
-  --grad-card:    linear-gradient(135deg, rgba(var(--cyan-rgb),0.06) 0%, rgba(var(--purple-rgb),0.04) 100%);
-}
+/* Tokens live in styles/tokens.css (imported first in main.jsx). */
 
 html, body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--ground);
+  color: var(--ink);
   direction: rtl;
-  font-family: var(--font-ar);
+  font-family: var(--font);
   font-size: 16px;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
+  /* Sideways bounce off, vertical rubber-band on: a hard stop at the
+     edge read as broken. */
+  overscroll-behavior-x: none;
   min-height: 100dvh;
+  touch-action: manipulation;
+  font-variant-numeric: tabular-nums;
 }
 
 #root { min-height: 100dvh; }
@@ -269,7 +175,7 @@ input[type=number] { -moz-appearance: textfield; }
   72.2% { stroke-dashoffset: 0; }   /* 1.3s of an 1.8s cycle: the draw lands */
   100%  { stroke-dashoffset: 0; }   /* and holds for the last 0.5s */
 }
-.raise-ring { filter: drop-shadow(0 0 6px rgba(245,158,11,0.35)); }
+.raise-ring { }
 .raise-ring-path {
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
@@ -287,74 +193,59 @@ input[type=number] { -moz-appearance: textfield; }
   100% { background-position: 0% 50%; }
 }
 
-.page-enter  { animation: fadeUp   0.22s ease forwards; }
+/* Opacity only: a transform left behind on <main> made it the containing
+   block for every fixed modal inside it, trapping them under the header. */
+.page-enter  { animation: fadeIn var(--dur-fast) var(--ease-out); }
 .modal-enter { animation: slideUp  0.25s ease forwards; }
 .fade-in     { animation: fadeIn   0.2s  ease forwards; }
 .scale-enter { animation: scaleIn  0.2s  ease forwards; }
 .slide-down  { animation: slideDown 0.25s ease forwards; }
-.glow-pulse  { animation: glowPulse calc(2.5s * var(--breath)) ease-in-out infinite; }
-.icon-glow   { animation: iconGlow  calc(2s   * var(--breath)) ease-in-out infinite; }
+.glow-pulse  { animation: none; }
+.icon-glow   { animation: none; }
 .pulse-dot   { animation: pulseDot  calc(1.5s * var(--breath)) ease-in-out infinite; }
 .spin        { animation: spin 1s linear infinite; }
 
 .xp-float {
   position: fixed;
-  font-family: var(--font-mono);
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--gold);
+  font-family: var(--font);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-2);
   pointer-events: none;
   z-index: 9999;
-  animation: xpFloat 1.5s cubic-bezier(0.22,1,0.36,1) forwards;
-  text-shadow: 0 0 20px var(--gold), 0 0 40px rgba(234,179,8,0.5);
+  animation: xpFloat 1.2s var(--ease-out) forwards;
   white-space: nowrap;
 }
 
-.shimmer-text {
-  background: linear-gradient(90deg, var(--gold) 0%, #fff 50%, var(--gold) 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer calc(2.5s * var(--breath)) linear infinite;
-}
+.shimmer-text { color: var(--ink); }
 
-.shimmer-green {
-  background: linear-gradient(90deg, var(--cyan) 0%, var(--cyan-hi) 50%, var(--cyan) 100%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer calc(2.5s * var(--breath)) linear infinite;
-}
+.shimmer-green { color: var(--accent); }
 
 *:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
-/* ── Primary action button (Meran Green gradient) ── */
+/* ── The primary action: one flat green fill per screen ──
+   Dark label at 7.6:1 instead of white on a gradient (1.9–3.1:1), no
+   halo, no gradient. */
 .btn-cyan {
   width: 100%;
-  background: var(--grad-primary);
-  color: #fff;
-  font-family: var(--font-ar);
-  font-size: 17px;
-  font-weight: 800;
+  min-height: 52px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font);
+  font-size: var(--t-headline);
+  font-weight: 700;
   border: none;
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: var(--r-md);
+  padding: 14px 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  box-shadow: 0 4px 20px rgba(var(--cyan-rgb),0.32), 0 0 0 1px rgba(var(--cyan-rgb),0.15);
-  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  gap: 8px;
+  transition: transform var(--dur-press) var(--ease-out), background var(--dur-press);
   -webkit-tap-highlight-color: transparent;
 }
-.btn-cyan:hover { opacity: 0.93; }
-.btn-cyan:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(var(--cyan-rgb),0.20);
-}
+.btn-cyan:active { transform: scale(0.98); background: var(--accent-press); }
 
 .btn-ghost {
   background: transparent;
@@ -368,32 +259,21 @@ input[type=number] { -moz-appearance: textfield; }
   transition: border-color 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
 
-/* ── Glassmorphism card ── */
+/* Legacy card classes, flattened onto the surface ladder. */
 .glass-card {
-  background: rgba(16, 25, 40, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(var(--cyan-rgb),0.12);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+  background: var(--surface-1);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--edge);
 }
 
-/* ── Gradient card ── */
 .gradient-card {
-  background: var(--grad-card);
-  border: 1px solid rgba(var(--cyan-rgb),0.14);
-  border-radius: var(--radius);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.28);
+  background: var(--surface-1);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--edge);
 }
 
-/* ── Active workout glow button ── */
-.btn-active-glow {
-  background: var(--grad-primary);
-  box-shadow: 0 0 32px rgba(var(--cyan-rgb),0.45), 0 4px 16px rgba(0,0,0,0.4);
-  animation: glowPulse calc(2s * var(--breath)) ease-in-out infinite;
-}
+.btn-active-glow { background: var(--accent); }
 
 /* ═══════════════════════════════════════════════════════════
    Home Page + Achievements Page — layout system (clamp-based)
@@ -561,16 +441,12 @@ input[type=number] { -moz-appearance: textfield; }
   100% { transform: scale(1); }
 }
 
-.mr-cover-img  { animation: kenBurns 26s ease-in-out infinite; will-change: transform; }
-.mr-orb        { animation: orbDrift var(--dur, 34s) ease-in-out infinite; will-change: transform; }
-.mr-aura       { animation: auraPulse 3.6s ease-in-out infinite; }
-.mr-shine::after {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(100deg, transparent 40%, rgba(255,255,255,0.13) 50%, transparent 60%);
-  animation: sweepShine 9s ease-in-out infinite;
-  animation-delay: calc(var(--i, 0) * 1.4s);
-  pointer-events: none;
-}
+/* No endless motion: the cover, the orbs, the auras and the shine sat
+   still is the design — the numbers count in once and stop. */
+.mr-cover-img  { }
+.mr-orb        { display: none; }
+.mr-aura       { display: none; }
+.mr-shine::after { content: none; }
 .mr-draw       { animation: drawStroke 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .mr-bar        { transform-origin: bottom; animation: barGrow 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
                  animation-delay: calc(var(--i, 0) * 60ms); }
@@ -619,81 +495,13 @@ input[type=number] { -moz-appearance: textfield; }
    The brief was active recovery, not illness. So: cooler, softer and
    slower, but never grey and never still. The app is still training.
    ══════════════════════════════════════════════════════════ */
-:root[data-deload="1"] {
-  /* ── Palette ──
-     Glacier, not sky. The accent sits at ~195° — far enough round from
-     the app's sky blue to read as ice rather than a second daytime
-     colour, and cold enough that the screen feels a few degrees lower
-     than it did. Everything downstream follows on its own, because the
-     chrome is written against the triplet rather than against
-     literals. */
-  --cyan-rgb: 92,201,238;
-  --cyan:     #5CC9EE;
-  --cyan-hi:  #BEEDFF;              /* frost, for the shimmer to run through */
-
-  /* The secondary has to move out of the way. In normal mode it is
-     this exact blue and it marks the rest side of the home page — a
-     rest card and a training card the same colour would erase the one
-     distinction that screen depends on. So it steps aside to a cool
-     periwinkle: still calm, still in the same family, still not
-     green. */
-  --purple-rgb:  138,147,201;
-  --purple:      #8894C4;
-  --purple-deep: #59649C;
-
-  /* ── Softness ──
-     Rounder corners and a glow turned down to just over half. The
-     accent is present but no longer burning. */
-  --radius:    22px;
-  --radius-sm: 16px;
-  --glow-mul:  0.55;
-
-  /* ── Tempo ──
-     Every idle animation slows by the same factor. A breath instead
-     of a pulse. Not stopped: 1.6× is noticeably calmer while still
-     clearly alive. */
-  --breath: 1.6;
-
-  --grad-primary: linear-gradient(135deg, #86DFF8 0%, #2691BE 100%);
-  --grad-hero:    linear-gradient(145deg, #050C16 0%, #071626 100%);
-
-  /* ── Cold surfaces ──
-     The accent alone cannot make a room feel colder. The whole ground
-     shifts a few degrees toward blue: same darkness, less warmth in
-     it. Subtle on its own, and the reason the mode reads as
-     temperature rather than as a recolour. */
-  --bg:      #04070E;
-  --bg1:     #060A13;
-  --bg2:     #08101C;
-  --bg3:     #0E1928;
-  --border:  #142232;
-  --border2: #1C3048;
-  --text2:   #BCD4E8;
-  --text3:   #6C8A9D;
-}
-
 /* The three named card surfaces carry their shadow inline in this file
    rather than through a token, so the softening is restated once here
    instead of being threaded through every rule. */
-:root[data-deload="1"] .glass-card {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.03);
-}
-:root[data-deload="1"] .gradient-card {
-  box-shadow: 0 4px 20px rgba(0,0,0,0.22);
-}
-:root[data-deload="1"] .btn-cyan {
-  box-shadow: 0 4px 16px rgba(var(--cyan-rgb),0.22), 0 0 0 1px rgba(var(--cyan-rgb),0.12);
-}
-:root[data-deload="1"] .btn-active-glow {
-  box-shadow: 0 0 22px rgba(var(--cyan-rgb),0.28), 0 4px 14px rgba(0,0,0,0.35);
-}
 
 /* The shimmer is the loudest thing on the screen — a light running
    across text on a loop. Under a deload it slows further than --breath
    alone would take it and loses its brightest stop. */
-:root[data-deload="1"] .shimmer-green {
-  animation-duration: calc(4.5s * var(--breath));
-}
 
 /* The weight-up celebration is already suppressed at its source in
    ExerciseCard, before the timer starts. This is only a floor, so a
@@ -846,4 +654,13 @@ input[type=number] { -moz-appearance: textfield; }
   .sb-chain { display: none; }
   .sb-big { font-size: 42px; }
   .sb-flame svg { width: 24px; height: 24px; }
+}
+
+/* ── Reduced motion, everywhere ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

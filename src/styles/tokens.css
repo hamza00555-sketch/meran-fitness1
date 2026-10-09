@@ -1,0 +1,183 @@
+/* ══ Meran tokens — «تحت الأضواء» (Floodlight) ════════════════════
+   The design system from the redesign (design-system/redesign/
+   critique.json → synthesis.direction). One lit moment per screen:
+   near-black graphite, hairlines instead of boxes, one flat green
+   action, colour only for state — gold to raise the weight, orange for
+   the streak, blue for rest — Changa for Arabic, Archivo for numbers.
+
+   Two layers:
+     1. role tokens (--ground, --surface-*, --ink-*, --accent, …), the
+        names new code is written against;
+     2. the legacy names (--bg, --cyan, --text3, …) mapped onto them, so
+        every inline style written before the redesign moves with it.
+   The legacy layer shrinks as screens are rebuilt. */
+
+/* Fonts ship with the app (precached by the service worker), so the
+   app looks the same online and offline. unicode-range makes it
+   impossible for Arabic to land in the numeric face: Arabic is always
+   Changa, digits and Latin are always Archivo. */
+@font-face {
+  font-family: 'Meran Arabic';
+  src: url('/fonts/meran-arabic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-08FF, U+200C-200F, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Meran Latin';
+  src: url('/fonts/meran-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  unicode-range: U+0020-007E, U+00A0, U+00B0, U+00B7, U+00D7, U+2009, U+2012-2015, U+2018-201F, U+2022, U+2026, U+2030, U+2032-2033, U+2039-203A, U+2191, U+2193, U+2212, U+2264-2265;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surfaces: a graphite ladder ── */
+  --ground:      #030404;   /* the page; near-black, never #000 (OLED smear) */
+  --surface-1:   #14171B;   /* cards, list groups, the tab bar */
+  --surface-2:   #1D2126;   /* raised: the docked button, the rest bar, sheets */
+  --surface-3:   #282D33;   /* wells: stepper discs, secondary fills, tracks */
+  --hairline:    rgba(255,255,255,0.08);
+  --edge:        rgba(255,255,255,0.06);   /* inset 1px on every surface: survives gym glare */
+  --stage-light: #2A3038;   /* the neutral light behind 3D art */
+  --scrim:       rgba(0,0,0,0.64);
+
+  /* ── Ink ── */
+  --ink:   #F4F6F8;
+  --ink-2: #B0B9C3;   /* 7:1 on every surface */
+  --ink-3: #8A95A1;   /* the floor for readable text: 4.5:1 on surface-3 */
+  --ink-4: #5A636E;   /* decoration only — never text */
+
+  /* ── Colour is state ── */
+  --accent-rgb:   94,195,42;
+  --accent:       #5EC32A;   /* the one fill per screen: the primary action */
+  --accent-press: #4FAE22;
+  --on-accent:    #06210A;   /* 7.6:1 on the green */
+  --accent-wash:  rgba(var(--accent-rgb),0.12);
+  --raise:        #FBBF24;   /* gold: raise the weight, best weight — nothing else */
+  --raise-wash:   rgba(251,191,36,0.14);
+  --on-raise:     #2A1A00;
+  --streak-rgb:   249,115,22;
+  --streak:       #F97316;   /* the streak — nothing else */
+  --rest-rgb:     59,157,232;
+  --rest:         #3B9DE8;   /* rest days, rest tickets */
+  --danger:       #F25555;   /* destructive text inside menus and confirms only */
+  --danger-fill:  #DC2626;
+
+  /* ── Type ── */
+  --font:     'Meran Latin', 'Meran Arabic', -apple-system, system-ui, sans-serif;
+  --t-poster:   96px;   /* numbers only, read not typed */
+  --t-display:  56px;   /* the day word, the live counters, the streak */
+  --t-screen:   28px;   /* large titles */
+  --t-title:    22px;
+  --t-headline: 17px;   /* buttons, row titles */
+  --t-body:     15px;
+  --t-label:    13px;   /* eyebrows, chips, units; the floor inside the player */
+  --t-caption:  12px;   /* the floor everywhere */
+
+  /* ── Shape ── */
+  --r-0:    0px;
+  --r-sm:   8px;
+  --r-md:   16px;
+  --r-pill: 999px;
+
+  /* ── Space: a 4pt scale ── */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-7: 32px; --space-8: 48px; --space-9: 64px;
+  --gutter: clamp(16px, 5.1vw, 20px);
+
+  /* ── Motion: one beat, then rest ── */
+  --dur-press: 100ms;
+  --dur-fast:  160ms;
+  --dur-base:  240ms;
+  --dur-sheet: 380ms;
+  --dur-hero:  420ms;
+  --ease-out:   cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit:  cubic-bezier(0.4, 0, 1, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-wipe:  cubic-bezier(0.7, 0, 0.2, 1);
+
+  /* ── Layers ── */
+  --z-frame: 100; --z-tabs: 200; --z-live: 300; --z-toast: 900; --z-cover: 1000;
+
+  /* ── Safe areas ── */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* ── Mode dials (deload) ── */
+  --breath: 1;
+  --glow-mul: 0;   /* no glow, in any mode */
+
+  /* ══ Legacy names, mapped onto the roles ══════════════════════ */
+  --bg:      var(--ground);
+  --bg1:     var(--surface-1);
+  --bg2:     var(--surface-1);
+  --bg3:     var(--surface-3);
+  --border:  var(--hairline);
+  --border2: rgba(255,255,255,0.12);
+
+  --cyan-rgb:  var(--accent-rgb);
+  --cyan:      var(--accent);
+  --cyan-hi:   var(--accent);
+  --cyan-lo:   var(--accent-wash);
+  --cyan-md:   rgba(var(--accent-rgb),0.32);
+  --cyan-glow: transparent;
+
+  --gold:    var(--raise);
+  --gold-lo: var(--raise-wash);
+  --gold-md: rgba(251,191,36,0.32);
+
+  --purple-rgb:  var(--rest-rgb);
+  --purple:      var(--rest);
+  --purple-lo:   rgba(var(--rest-rgb),0.12);
+  --purple-md:   rgba(var(--rest-rgb),0.26);
+  --purple-deep: #1A75C0;
+
+  --orange:    var(--streak);
+  --orange-lo: rgba(var(--streak-rgb),0.12);
+  --red:       var(--danger);
+  --red-lo:    rgba(242,85,85,0.12);
+  --red-md:    rgba(242,85,85,0.26);
+  --blue:      var(--rest);
+  --blue-lo:   rgba(var(--rest-rgb),0.12);
+  --green:     var(--accent);
+  --green-lo:  var(--accent-wash);
+
+  --text:  var(--ink);
+  --text2: var(--ink-2);
+  --text3: var(--ink-3);
+
+  --font-ar:   var(--font);
+  --font-mono: var(--font);
+
+  --radius:    var(--r-md);
+  --radius-sm: 12px;
+  --radius-xs: var(--r-sm);
+
+  --grad-primary: var(--accent);
+  --grad-hero:    var(--surface-1);
+  --grad-card:    var(--surface-1);
+}
+
+/* ══ Deload ═════════════════════════════════════════════════════
+   One attribute on <html> and the room cools: the accent goes glacier,
+   rest steps aside to periwinkle, the surfaces drop a few degrees at the
+   same lightness (so contrast holds), and the idle tempo slows. The
+   streak's orange and the raise gold do not change — a deload changes
+   the load, not what counts. */
+:root[data-deload="1"] {
+  --accent-rgb:   92,201,238;
+  --accent:       #5CC9EE;
+  --accent-press: #46B6DC;
+  --on-accent:    #04202E;
+  --rest-rgb:     136,148,196;
+  --rest:         #8894C4;
+  --ground:    #020407;
+  --surface-1: #11171E;
+  --surface-2: #19212A;
+  --surface-3: #232D37;
+  --breath: 1.6;
+}

@@ -6,7 +6,9 @@ import Scoreboard from '../components/streak/Scoreboard.jsx'
 import { xpProgress, getRank, planDayType } from '../utils.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
-import { countAr, todayStreak } from '../streak.js'
+import { countAr, todayStreak, fmtDayAr } from '../streak.js'
+import { IconButton } from '../components/kit/index.jsx'
+import { GearSix } from '../components/kit/icons.js'
 import { todayKey } from '../day.js'
 
 function PlanProgressCard({ plan, planIndex }) {
@@ -92,7 +94,7 @@ function PlanProgressCard({ plan, planIndex }) {
 
 
 export default function HomePage({ sessions, xp, streak, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, onScoreboardVisible, tickets = 0, creditProgress = 0, creditTarget = 5, daysToNextCredit = 5, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
-  onStartDeload, onDismissDeloadSuggestion, onOpenDeload }) {
+  onStartDeload, onDismissDeloadSuggestion, onOpenDeload, greeting = '', onOpenProfile, onOpenSettings }) {
   const { level, currentXP, neededXP, pct } = xpProgress(xp)
   const rank        = getRank(level)
   // Training vs recovery comes from the recovery engine — real completed
@@ -120,8 +122,30 @@ export default function HomePage({ sessions, xp, streak, profile, onStartWorkout
   const planDayNum   = schedule?.length ? ((planIndex ?? 0) % schedule.length) + 1 : 1
   const planTotal    = schedule?.length ?? 1
 
+  // The top of Home: today's date (and the plan week), the greeting
+  // — on Home only now, and two lines at most — the avatar for the
+  // profile and the gear for settings.
+  const planWeek = schedule?.length && plan
+    ? ` · الأسبوع ${Math.min(Math.floor((planIndex ?? 0) / schedule.length) + 1, plan.durationWeeks || 6)} من ${plan.durationWeeks || 6}`
+    : ''
+  const initial = (profile?.name || 'م').trim().charAt(0)
+  const unnamed = !profile?.name || profile.name === 'البطل'
+
   return (
-    <div style={{ paddingTop: 12, paddingBottom: 110 }}>
+    <div>
+      <div className="h-top">
+        <div className="h-top-text">
+          <span className="k-eyebrow">{fmtDayAr(streakToday || todayKey())}{planWeek}</span>
+          <p className="h-greet">{greeting}</p>
+          {unnamed && (
+            <button type="button" className="h-name-hint" onClick={onOpenSettings}>أضف اسمك</button>
+          )}
+        </div>
+        <div className="h-top-actions">
+          <button type="button" className="h-avatar" onClick={onOpenProfile} aria-label="الملف الشخصي">{initial}</button>
+          <IconButton icon={GearSix} label="الإعدادات" onClick={onOpenSettings} />
+        </div>
+      </div>
 
       {/* ── The streak, first ──────────────────────────────────
           The number, what today does to it, until when, at what cost,
