@@ -307,6 +307,19 @@ export default function App() {
     })
   }, [])
 
+  // Storage full: tell the user what did not save and what to do.
+  useEffect(() => {
+    let last = 0
+    const onFull = (e) => {
+      if (Date.now() - last < 15000) return
+      last = Date.now()
+      const what = e.detail?.key === 'hf_photos' ? 'الصورة' : e.detail?.key === 'hf_sessions' ? 'الجلسة' : 'آخر تعديل'
+      pushAlert('⚠️', `التخزين ممتلئ — ${what} ما انحفظت. احذف صور تقدم قديمة أو خذ نسخة احتياطية من الإعدادات.`)
+    }
+    window.addEventListener('meran:storage-full', onFull)
+    return () => window.removeEventListener('meran:storage-full', onFull)
+  }, [pushAlert])
+
   const removeAlert = useCallback(() => {
     setAlertQueue(prev => prev.slice(1))
   }, [])

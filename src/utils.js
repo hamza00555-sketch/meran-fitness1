@@ -78,7 +78,13 @@ export const ls = {
   },
   set: (key, val) => {
     try { localStorage.setItem(nsKey(key), JSON.stringify(val)) } catch (e) {
-      if (e && e.name === 'QuotaExceededError') console.warn('hf: storage full, could not save', key)
+      // A full store used to fail into the console only, so sessions
+      // could silently stop saving while photos filled the space
+      // (critique F59/F64). Say it where the user is.
+      if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+        console.warn('hf: storage full, could not save', key)
+        try { window.dispatchEvent(new CustomEvent('meran:storage-full', { detail: { key } })) } catch { /* no window */ }
+      }
     }
   },
   remove: (key) => {
