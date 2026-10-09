@@ -15,9 +15,14 @@
 .hm .h-top { position: relative; display: block; padding: 4px 0 12px; }
 .hm .h-top-actions { position: absolute; top: 4px; inset-inline-end: 0; }
 .hm .h-avatar { width: 44px; height: 44px; }
+/* The greeting is a side remark, not a headline: body size, medium
+   weight, second ink — the streak number and the day word stay the
+   loudest things on the screen (حمزة: «حجم خط العبارة التشجيعية مبالغ
+   فيه»). At this size the lines fit on one row, so one row is
+   reserved; a long one on a narrow phone still wraps to two. */
 .hm .h-greet {
-  font-size: clamp(17px, 4.9vw, 20px); font-weight: 700; line-height: 1.35;
-  min-height: 2.7em; text-wrap: pretty;
+  font-size: var(--t-body); font-weight: 500; line-height: 1.5; color: var(--ink-2);
+  min-height: 1.5em; text-wrap: pretty;
 }
 /* «أضف اسمك» rides at the end of the date line: a 44pt target whose
    extra height is taken back with negative margins, so the block is the
