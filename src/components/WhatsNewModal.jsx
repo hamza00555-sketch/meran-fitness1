@@ -1,145 +1,98 @@
+// ── «جديد في مران» ────────────────────────────────────────────
+//
+// Shown once after an update (App decides when: never on a fresh
+// install — critique F45), and never over a running session: it holds
+// until the player is closed. The kit's sheet: one scrim, top corners 16,
+// a real way in and a real way out. Every line is a Phosphor icon, a
+// title and one or two sentences in plain Saudi Arabic — no emoji, no
+// "اضغط <gear>", and no "3 أيام أسبوعياً": the plan is a rolling cycle.
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Sheet, Button, Num } from './kit/index.jsx'
+import { Palette, Flame, Ticket, ListChecks, Barbell, Timer, ArrowUp, Bell } from './kit/icons.js'
+import { useScreenClear } from './system/layers.js'
+import '../styles/screens/system.css'
+
 const FEATURES = [
   {
-    icon: '🤖',
-    title: 'خطة المبتدأ — ماشينات فقط',
-    desc: 'خطة جديدة 3 أيام أسبوعياً للمبتدئين بالماشينات فقط — ادخل الإعدادات ⚙️ → "الخطط" وفعّلها',
+    Icon: Palette,
+    title: 'شكل جديد بالكامل',
+    desc: 'أرقام أكبر تنقرأ من على البنش، وزر أخضر واحد في كل شاشة. تبي القديم؟ طفّ «التصميم الجديد» من الإعدادات وبياناتك نفسها.',
   },
   {
-    icon: '📋',
-    title: 'كيف تغير أو تبدأ خطة',
-    desc: 'اضغط ⚙️ من الرئيسية → مرر لقسم "الخطط" → اختر الخطة المناسبة واضغط "ابدأ هذه الخطة"',
+    Icon: Flame, tone: 'streak',
+    title: 'الستريك صار يعدّ التزامك',
+    desc: 'كل يوم تمرين أو راحة من خطتك ينحسب. اضغط على الرقم وتشوف وش انحسب ووش لا.',
   },
   {
-    icon: '🔆',
-    title: 'إضاءة التمرين النشط',
-    desc: 'لما تبدأ سيت في تمرين، التمارين الثانية تنطفي تلقائياً وترجع كلها لما تخلص',
+    Icon: Ticket, tone: 'rest',
+    title: 'تذاكر الراحة تحمي الستريك',
+    desc: 'كل كم يوم محسوب تكسب تذكرة. لو فاتك يوم تمرين تنصرف تذكرة، والستريك يوقف مكانه بدل ما يرجع صفر.',
   },
   {
-    icon: '⬆️',
-    title: 'تذكير رفع الوزن',
-    desc: 'بعد ما تخلص كل سيتات تمرين يظهر كارد ذهبي يذكرك تجرب ترفع الوزن المرة الجاية',
+    Icon: ListChecks,
+    title: 'ملخص بعد كل جلسة',
+    desc: 'تخلّص تمرينك وتشوف المدة والمجموعات والحجم وأرقامك القياسية مرة وحدة، بدل تنبيهات ورا بعض.',
   },
   {
-    icon: '⚡',
-    title: 'آخر وزن يتعبأ تلقائياً',
-    desc: 'لما تبدأ تمرين جديد خانات الوزن تتعبأ تلقائياً بآخر وزن استخدمته لكل تمرين',
+    Icon: Barbell,
+    title: 'الجلسة بملء الشاشة',
+    desc: 'وقت التمرين ما قدامك إلا تمرينك. صغّرها بالسهم وتصير شريط فوق التبويبات ترجع له بضغطة.',
   },
   {
-    icon: '👁️',
-    title: 'عرض تفاصيل اليوم قبل البداية',
-    desc: 'اضغط على كارد اليوم في الرئيسية لترى التمارين مع تاق العضلة ويوتيوب وآخر وزن — قبل ما تبدأ',
+    Icon: Timer, tone: 'rest',
+    title: 'الراحة داخل الجلسة',
+    desc: 'بعد كل مجموعة يبدأ عدّ الراحة في نفس الشاشة، وتزيد أو تنقص منه بضغطة.',
   },
   {
-    icon: '🔄',
-    title: 'نقل سيت بين التمارين',
-    desc: 'اضغط على رقم السيت وانقله لتمرين ثاني لو غلطت وحطيته في الخانة الغلط',
+    Icon: ArrowUp, tone: 'raise',
+    title: 'متى ترفع الوزن',
+    desc: 'لما توصل لأعلى عدد تكرارات، التطبيق يقترح الوزن الجديد بالذهبي. ولو ما تبي، خلّه على وزنك.',
   },
   {
-    icon: '🔔',
-    title: 'إشعار واحد في نفس الوقت',
-    desc: 'الإشعارات تنتظر في طابور بدل ما تكدّس على الشاشة',
+    Icon: Bell,
+    title: 'التنبيهات صارت تحت',
+    desc: 'تطلع فوق التبويبات وما تغطي شي. اضغطها أو اسحبها وتختفي.',
   },
 ]
 
 export default function WhatsNewModal({ version, onClose }) {
+  // Never over a session: a workout restored at launch opens the player
+  // as a cover, and the changelog must not land on top of it between
+  // sets. It waits — no sheet, nothing inert — until no full-screen
+  // layer is up, then opens and stays open.
+  const [started, setStarted] = useState(false)
+  const clear = useScreenClear(!started)
+  useEffect(() => { if (clear) setStarted(true) }, [clear])
+
+  // Closing plays the sheet's way out before the parent unmounts it.
+  const [closing, setClosing] = useState(false)
+  const done = useRef(false)
+  const close = useCallback(() => {
+    if (done.current) return
+    done.current = true
+    setClosing(true)
+    setTimeout(() => onClose?.(), 230)
+  }, [onClose])
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 800,
-      background: 'rgba(0,0,0,0.72)',
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-      backdropFilter: 'blur(4px)',
-      WebkitBackdropFilter: 'blur(4px)',
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 560,
-        background: 'var(--bg2)',
-        borderRadius: '24px 24px 0 0',
-        border: '1px solid var(--border2)',
-        borderBottom: 'none',
-        maxHeight: '88dvh',
-        display: 'flex', flexDirection: 'column',
-        animation: 'slideUp 0.32s cubic-bezier(0.34,1.56,0.64,1)',
-        boxShadow: '0 -8px 48px rgba(0,0,0,0.5)',
-      }}>
-
-        {/* Handle bar */}
-        <div style={{
-          width: 36, height: 4, borderRadius: 2,
-          background: 'var(--border2)',
-          margin: '12px auto 0',
-          flexShrink: 0,
-        }} />
-
-        {/* Header */}
-        <div style={{
-          padding: '16px 20px 12px',
-          flexShrink: 0,
-          borderBottom: '1px solid var(--border)',
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: 10,
-            color: 'var(--cyan)', letterSpacing: 2, marginBottom: 4,
-          }}>
-            WHAT&apos;S NEW · v{version}
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-ar)', fontSize: 20, fontWeight: 800,
-            color: 'var(--text)',
-          }}>
-            🎉 جديد في MERAN
-          </div>
-        </div>
-
-        {/* Feature list */}
-        <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0' }}>
-          {FEATURES.map((f, i) => (
-            <div key={i} style={{
-              display: 'flex', gap: 14, padding: '13px 20px',
-              borderBottom: i < FEATURES.length - 1 ? '1px solid var(--border)' : 'none',
-              animation: 'fadeUp 0.3s ease both',
-              animationDelay: `${i * 50}ms`,
-            }}>
-              <div style={{
-                width: 40, height: 40, flexShrink: 0,
-                background: i < 2 ? 'rgba(var(--cyan-rgb),0.12)' : 'var(--bg3)',
-                border: i < 2 ? '1px solid rgba(var(--cyan-rgb),0.3)' : '1px solid var(--border2)',
-                borderRadius: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 20,
-              }}>{f.icon}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700,
-                  color: i < 2 ? 'var(--cyan)' : 'var(--text)', marginBottom: 3,
-                }}>{f.title}</div>
-                <div style={{
-                  fontFamily: 'var(--font-ar)', fontSize: 12,
-                  color: 'var(--text3)', lineHeight: 1.55,
-                }}>{f.desc}</div>
-              </div>
+    <Sheet
+      open={started && !closing}
+      onClose={close}
+      title={<>جديد في مران <span className="sys-wn-ver">· الإصدار <Num>{version}</Num></span></>}
+      footer={<Button variant="primary" size="lg" full onClick={close}>تمام</Button>}
+    >
+      <ul className="sys-wn-list">
+        {FEATURES.map(({ Icon, tone, title, desc }) => (
+          <li key={title} className="sys-wn-item">
+            <Icon size={24} weight="regular" className={`sys-wn-icon${tone ? ` is-${tone}` : ''}`} aria-hidden="true" />
+            <div>
+              <h3 className="sys-wn-title">{title}</h3>
+              <p className="sys-wn-desc">{desc}</p>
             </div>
-          ))}
-        </div>
-
-        {/* CTA */}
-        <div style={{
-          padding: '12px 20px calc(var(--safe-bottom) + 12px)',
-          flexShrink: 0,
-        }}>
-          <button
-            onClick={onClose}
-            style={{
-              width: '100%', padding: '15px',
-              background: 'var(--grad-primary)',
-              border: 'none', borderRadius: 14,
-              color: '#fff', fontFamily: 'var(--font-ar)',
-              fontSize: 15, fontWeight: 800, cursor: 'pointer',
-              boxShadow: '0 4px 20px rgba(var(--cyan-rgb),0.35)',
-            }}
-          >تم الاطلاع 🚀</button>
-        </div>
-
-      </div>
-    </div>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
   )
 }
