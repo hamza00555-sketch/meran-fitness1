@@ -1,9 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { playBeep, ls } from '../utils.js'
 import { REST_PRESETS } from '../constants.js'
+import { IconButton, Button, Segmented, Num } from './kit/index.jsx'
+import { Timer, Pause, Play, X } from './kit/icons.js'
+import { chimeNow } from './player/sessionAudio.js'
+import { restClock } from './player/sessionWords.js'
+import '../styles/screens/session-sheets.css'
 
 const STORE = 'hf_rest_timer'
 
+// ── The rest, away from the player ────────────────────────────
+//
+// When the session is docked as the live bar and you wander to another
+// tab mid-rest, this is the same clock (the same hf_rest_timer the
+// player reads), docked above the live bar and the tabs — near the
+// thumb, never over the top of the page — in the rest blue, with a bar
+// draining from the start edge. Presets are a segmented control with
+// 44pt targets; pause and close are 44pt icon buttons.
+//
 // The countdown is driven by wall-clock time, not by counting interval
 // ticks: browsers suspend timers while the app is backgrounded, which
 // used to freeze the rest timer until you came back. `endsAt` is an
@@ -61,11 +75,11 @@ export default function RestTimer({ onClose }) {
   useEffect(() => {
     if (!done || beepedRef.current) return
     beepedRef.current = true
-    playBeep(4)
+    if (!chimeNow()) playBeep(4)
     if (document.hidden) {
       navigator.serviceWorker?.ready
-        .then(reg => reg.showNotification('⏱️ انتهت الراحة', {
-          body: 'ارجع للتمرين — السيت التالي جاهز.',
+        .then(reg => reg.showNotification('انتهت الراحة', {
+          body: 'ارجع للتمرين — المجموعة التالية جاهزة.',
           icon: '/icon-192.png', badge: '/icon-192.png',
           dir: 'rtl', lang: 'ar', tag: 'rest-done', vibrate: [180, 80, 180],
         }))
@@ -84,129 +98,31 @@ export default function RestTimer({ onClose }) {
   const resume = () => { setEndsAt(Date.now() + pausedLeft * 1000); setPausedLeft(null) }
   const close  = () => { ls.remove(STORE); onClose() }
 
-  const pct  = selected > 0 ? remaining / selected : 0
-  const R = 18, CX = 22, CY = 22
-  const circ = 2 * Math.PI * R
-  const dash = circ * pct
-  const mins = Math.floor(remaining / 60)
-  const secs = remaining % 60
+  const pct = selected > 0 ? Math.min(1, remaining / selected) : 0
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 'calc(var(--safe-top, 0px) + 74px)',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: 'calc(100% - 28px)',
-      maxWidth: 532,
-      zIndex: 150,
-      background: 'rgba(7,8,12,0.97)',
-      border: `1px solid ${done ? '#22C55E' : 'var(--cyan)'}`,
-      borderRadius: 16,
-      backdropFilter: 'blur(20px)',
-      padding: '10px 14px',
-      boxShadow: `0 4px 20px ${done ? 'rgba(34,197,94,0.18)' : 'rgba(0,210,255,0.14)'}`,
-      transition: 'border-color 0.3s, box-shadow 0.3s',
-    }}>
-      {/* Main row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        {/* Mini ring */}
-        <svg width={44} height={44} viewBox="0 0 44 44" style={{ flexShrink: 0 }}>
-          <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border2)" strokeWidth={4} />
-          <circle
-            cx={CX} cy={CY} r={R}
-            fill="none"
-            stroke={done ? '#22C55E' : 'var(--cyan)'}
-            strokeWidth={4}
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            strokeDashoffset={circ - dash}
-            transform={`rotate(-90 ${CX} ${CY})`}
-            style={{ transition: 'stroke-dashoffset 0.25s linear, stroke 0.3s' }}
-          />
-        </svg>
-
-        {/* Time */}
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 26, fontWeight: 800,
-          color: done ? '#22C55E' : 'var(--text)',
-          minWidth: 70, letterSpacing: 1,
-        }}>
-          {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
-        </div>
-
-        {/* Label */}
-        <div style={{ flex: 1, fontFamily: 'var(--font-ar)', fontSize: 12, color: done ? '#22C55E' : 'var(--text3)' }}>
-          {done ? '✓ انتهت الراحة!' : running ? 'استراحة' : 'موقوف'}
-        </div>
-
-        {/* Controls */}
-        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-          {running && (
-            <button
-              onClick={pause}
-              style={{
-                background: 'var(--bg2)', border: '1px solid var(--border)',
-                borderRadius: 8, width: 32, height: 32,
-                color: 'var(--text2)', cursor: 'pointer', fontSize: 13,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >⏸</button>
-          )}
-          {!running && !done && (
-            <button
-              onClick={resume}
-              style={{
-                background: 'var(--cyan-lo)', border: '1px solid var(--cyan)',
-                borderRadius: 8, width: 32, height: 32,
-                color: 'var(--cyan)', cursor: 'pointer', fontSize: 13,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >▶</button>
-          )}
-          {done && (
-            <button
-              onClick={close}
-              style={{
-                background: 'rgba(34,197,94,0.12)', border: '1px solid #22C55E50',
-                borderRadius: 8, padding: '0 12px', height: 32,
-                color: '#22C55E', cursor: 'pointer', fontSize: 12,
-                fontFamily: 'var(--font-ar)', fontWeight: 700,
-                display: 'flex', alignItems: 'center',
-              }}
-            >تمام ✓</button>
-          )}
-          <button
-            onClick={close}
-            style={{
-              background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 8, width: 32, height: 32,
-              color: 'var(--text3)', cursor: 'pointer', fontSize: 18,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              lineHeight: 1,
-            }}
-          >×</button>
+    <div className="rt-bar" role="timer" aria-label="مؤقت الراحة" data-done={done ? '1' : undefined}>
+      <div className="rt-row">
+        <span className="rt-label">
+          <Timer size={16} weight="bold" aria-hidden="true" />
+          {done ? 'انتهت الراحة' : running ? 'راحة' : 'موقوفة'}
+        </span>
+        <Num className="rt-time">{restClock(remaining)}</Num>
+        <div className="rt-actions">
+          {running && <IconButton icon={Pause} label="إيقاف مؤقت" weight="bold" onClick={pause} />}
+          {!running && !done && <IconButton icon={Play} label="استئناف" weight="bold" onClick={resume} />}
+          {done && <Button variant="plain" size="md" onClick={close}>تمام</Button>}
+          <IconButton icon={X} label="إغلاق المؤقت" weight="bold" onClick={close} />
         </div>
       </div>
-
-      {/* Preset row */}
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-        {REST_PRESETS.map(p => (
-          <button
-            key={p}
-            onClick={() => start(p)}
-            style={{
-              flex: 1,
-              background: selected === p && !done ? 'var(--cyan-lo)' : 'var(--bg2)',
-              border: `1px solid ${selected === p && !done ? 'var(--cyan)' : 'var(--border)'}`,
-              borderRadius: 8, padding: '5px 0',
-              color: selected === p && !done ? 'var(--cyan)' : 'var(--text3)',
-              fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >{p < 60 ? `${p}s` : `${p / 60}m`}</button>
-        ))}
-      </div>
+      <Segmented
+        className="rt-presets"
+        label="مدة الراحة"
+        value={done ? null : selected}
+        onChange={start}
+        options={REST_PRESETS.map(p => ({ value: p, label: <Num>{restClock(p)}</Num> }))}
+      />
+      <div className="rt-drain" aria-hidden="true"><i style={{ transform: `scaleX(${pct})` }} /></div>
     </div>
   )
 }

@@ -1,69 +1,47 @@
+import { useState } from 'react'
 import { ROUTINES, MUSCLE_GROUPS } from '../constants.js'
-import { Card, Overlay, CloseBtn, Badge } from './ui.jsx'
+import { Sheet, ListGroup, ListRow, Num } from './kit/index.jsx'
+import './../styles/screens/session-sheets.css'
+
+// ── Ready-made routines, as a sheet ───────────────────────────
+// The kit sheet (portal, scrim, grabber, Escape, focus return) with one
+// grouped list: the routine as a word — «دفع», not «Push Day» with an emoji — the
+// muscles it trains, and how much is in it. Same contract as before:
+// onSelect(routine) then onClose().
+
+const ROUTINE_WORDS = {
+  'chest day': 'صدر', 'pull day': 'سحب', 'push day': 'دفع', 'legs day': 'أرجل', 'leg day': 'أرجل',
+  'full body': 'جسم كامل', 'upper body': 'الجزء العلوي', 'lower body': 'الجزء السفلي',
+}
+
+export const routineName = (r) => {
+  const plain = String(r?.name || '').replace(/[^\p{L}\p{N}\s—-]/gu, '').trim()
+  return ROUTINE_WORDS[plain.toLowerCase()] || plain
+}
 
 export default function RoutinesModal({ onSelect, onClose }) {
-  return (
-    <Overlay onClose={onClose} align="bottom">
-      <Card style={{ padding: 0, maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
-        <div style={{ padding: '18px 18px 14px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-ar)', fontSize: 17, fontWeight: 800 }}>📋 روتينات جاهزة</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                اختر وابدأ مباشرة
-              </div>
-            </div>
-            <CloseBtn onClick={onClose} />
-          </div>
-        </div>
+  const [open, setOpen] = useState(true)
+  // Let the sheet slide away before the parent unmounts it.
+  const close = () => { setOpen(false); setTimeout(() => onClose?.(), 220) }
 
-        {/* Routines list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10, WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-          {ROUTINES.map(r => (
-            <button
+  return (
+    <Sheet open={open} onClose={close} title="روتين جاهز">
+      <p className="rt-intro">اختر روتين وتبدأ فيه على طول، وتقدر تعدّل التمارين بعدين.</p>
+      <ListGroup>
+        {ROUTINES.map(r => {
+          const sets = r.exercises.reduce((a, e) => a + (e.defaultSets || 3), 0)
+          const muscles = r.muscles.map(m => MUSCLE_GROUPS[m]?.label || m).join('، ')
+          return (
+            <ListRow
               key={r.name}
-              onClick={() => { onSelect(r); onClose() }}
-              style={{
-                background: 'var(--bg2)',
-                border: '1px solid var(--border)',
-                borderRadius: 14, padding: '16px 16px',
-                cursor: 'pointer', textAlign: 'right',
-                transition: 'border-color 0.2s, background 0.2s',
-                width: '100%',
-              }}
-              onMouseOver={e => {
-                e.currentTarget.style.borderColor = 'var(--cyan)'
-                e.currentTarget.style.background = 'var(--cyan-lo)'
-              }}
-              onMouseOut={e => {
-                e.currentTarget.style.borderColor = 'var(--border)'
-                e.currentTarget.style.background = 'var(--bg2)'
-              }}
-            >
-              <div style={{
-                fontFamily: 'var(--font-ar)', fontSize: 16,
-                fontWeight: 800, color: 'var(--text)', marginBottom: 8,
-              }}>
-                {r.name}
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                {r.muscles.map(m => (
-                  <Badge key={m} color={MUSCLE_GROUPS[m]?.color || 'var(--cyan)'}>
-                    {MUSCLE_GROUPS[m]?.emoji} {MUSCLE_GROUPS[m]?.label || m}
-                  </Badge>
-                ))}
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text3)',
-              }}>
-                {r.exercises.length} تمارين ·{' '}
-                {r.exercises.reduce((a, e) => a + (e.defaultSets || 3), 0)} sets
-              </div>
-            </button>
-          ))}
-        </div>
-      </Card>
-    </Overlay>
+              title={routineName(r)}
+              subtitle={<>{muscles} · <Num>{r.exercises.length}</Num> {r.exercises.length <= 10 ? 'تمارين' : 'تمرين'} · <Num>{sets}</Num> {sets >= 3 && sets <= 10 ? 'مجموعات' : 'مجموعة'}</>}
+              chevron
+              onClick={() => { onSelect?.(r); close() }}
+            />
+          )
+        })}
+      </ListGroup>
+    </Sheet>
   )
 }

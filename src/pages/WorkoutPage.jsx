@@ -1,48 +1,87 @@
-import { useState, useEffect, useRef } from 'react'
-import Art from '../assets/Art.jsx'
-import { EmptyState, Card, Badge, SectionTitle } from '../components/ui.jsx'
-import ExerciseCard, { PRFlash } from '../components/ExerciseCard.jsx'
+import { useState, useEffect, useMemo } from 'react'
+import { Button, ConfirmSheet, EmptyState, Num } from '../components/kit/index.jsx'
+import { Barbell, Plus, ListChecks } from '../components/kit/icons.js'
 import WorkoutPlayer from '../components/player/WorkoutPlayer.jsx'
+import SessionBar from '../components/player/SessionBar.jsx'
+import FinishSheet from '../components/player/FinishSheet.jsx'
+import { dayWord, previousSets, setsPhrase } from '../components/player/sessionWords.js'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, fmtDate, fmtDuration, sessionVolume, getHistoricalMax, getExerciseStats, resolveExerciseName, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, planDayType, ls } from '../utils.js'
+import { buildExercise, blankSet, getExerciseStats, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, resolveExerciseName } from '../utils.js'
 import { deloadWeight } from '../deload.js'
-import { MUSCLE_GROUPS, ROUTINES, EXERCISE_ALTERNATIVES } from '../constants.js'
+import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
 import { toWesternDigits } from '../day.js'
+import '../styles/screens/session.css'
 
-export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish, onShowRest, onCloseRest, addXP, onGoBack, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET, exerciseSubs = {}, onCycleSub, onUpdateSession, onDeleteSession }) {
+// ── Session mode ──────────────────────────────────────────────
+//
+// The running session, full screen, with no app chrome around it: a
+// 52pt bar (⌄ · «دفع · 07:42» · «إنهاء»), the player, and the one
+// docked action. The data rules are the ones this page always had —
+// the same handlers, the same stored shape — only the surface changed.
+//
+// While it is open the screen stays awake (Wake Lock, where the
+// platform has it), so the rest countdown and its tones keep running.
+
+export default function WorkoutPage({
+  active, sessions, onUpdateActive, onFinish, onShowRest, onCloseRest, addXP, onGoBack,
+  onMinimize, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET,
+  exerciseSubs = {}, onCycleSub,
+}) {
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
-  const [elapsed,       setElapsed]       = useState(0)
-  const [confirmBack,   setConfirmBack]   = useState(false)
-  const [showPR,        setShowPR]        = useState(null)
-  const [focusExId,     setFocusExId]     = useState(null)
-  const timerRef      = useRef(null)
-  const pausedMsRef   = useRef(0)
-  const pauseStartRef = useRef(null)
+  const [askFinish,     setAskFinish]     = useState(false)
+  const [askDiscard,    setAskDiscard]    = useState(false)
 
-  // pause timer when rest opens, resume when it closes
-  useEffect(() => {
-    if (!active) return
-    if (isResting) {
-      clearInterval(timerRef.current)
-      pauseStartRef.current = Date.now()
-    } else {
-      if (pauseStartRef.current) {
-        pausedMsRef.current += Date.now() - pauseStartRef.current
-        pauseStartRef.current = null
-      }
-      const tick = () => setElapsed(Math.floor((Date.now() - active.id - pausedMsRef.current) / 1000))
-      tick()
-      timerRef.current = setInterval(tick, 1000)
+  // The session clock lives in SessionBar (wall-clock since active.id,
+  // the same number finishSession saves), so this page — and the player
+  // under it — no longer re-render once a second.
+
+  // What the engines say about an exercise only changes when the history,
+  // the alias mapping or the rep target does, so it is worked out once
+  // per name instead of on every render of the player.
+  const engine = useMemo(() => {
+    const cache = new Map()
+    const memo = (kind, name, fn) => {
+      const key = `${kind}\u0000${name}`
+      if (!cache.has(key)) cache.set(key, fn())
+      return cache.get(key)
     }
-    return () => clearInterval(timerRef.current)
-  }, [active?.id, isResting])
+    return {
+      progression: (name) => memo('p', name, () => analyzeProgression(sessions, name, exerciseMapping, repTarget)),
+      stats:       (name) => memo('s', name, () => getExerciseStats(sessions, name, exerciseMapping)),
+      previous:    (name) => memo('v', name, () => previousSets(sessions, name, exerciseMapping)),
+    }
+  }, [sessions, exerciseMapping, repTarget])
 
-  // ── History View ─────────────────────────────────────────────
-  // The history is its own tab now (HistoryPage); this page only runs
-  // the session, inside the full-screen cover.
+  // Keep the screen on for the length of the session. Feature-detected;
+  // re-requested when the app comes back, since the system drops the
+  // lock whenever the page is hidden.
+  useEffect(() => {
+    if (!active || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return
+    let lock = null
+    let alive = true
+    const request = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        const l = await navigator.wakeLock.request('screen')
+        if (alive) lock = l
+        else l.release?.().catch(() => {})
+      } catch {}
+    }
+    request()
+    const onVis = () => { if (document.visibilityState === 'visible' && (!lock || lock.released)) request() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      alive = false
+      document.removeEventListener('visibilitychange', onVis)
+      lock?.release?.().catch(() => {})
+    }
+  }, [active?.id])
+
+  // The history is its own tab (HistoryPage); this page only runs the
+  // session, inside the full-screen cover.
   if (!active) return null
 
   // ── Helpers ──────────────────────────────────────────────────
@@ -58,23 +97,27 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
       sets: ex.sets.map((s, i) => i === si ? { ...s, [field]: toWesternDigits(val) } : s),
     }))
 
+  // A step reads the value it is stepping from inside the update, so a
+  // held stepper repeating every 100ms never steps from a stale number.
+  const handleStepSet = (exId, si, field, delta) =>
+    updateEx(exId, ex => ({
+      ...ex,
+      sets: ex.sets.map((s, i) => {
+        if (i !== si) return s
+        if (field === 'weight') {
+          const v = Math.max(0, Math.round(((parseFloat(s.weight) || 0) + delta) * 10) / 10)
+          return { ...s, weight: String(v) }
+        }
+        return { ...s, reps: String(Math.max(0, (parseInt(s.reps) || 0) + delta)) }
+      }),
+    }))
+
   const handleDoneSet = (exId, si, done) => {
     if (done) {
-      const ex  = exercises.find(e => e.id === exId)
-      const set = ex?.sets[si]
-      // The PR celebration used to be raised inside ExerciseCard; the
-      // player calls this handler directly, so the check lives here now
-      // and fires for both surfaces. Same rules: heavier than every
-      // recorded lift, and never during a deload.
-      if (ex && set && !active?.deload) {
-        const { maxWeight } = getExerciseStats(sessions, ex.name, exerciseMapping)
-        const w = parseFloat(set.weight) || 0
-        if (maxWeight != null && w > maxWeight) {
-          setShowPR({ weight: w, prev: maxWeight, name: ex.name })
-          setTimeout(() => setShowPR(null), 2200)
-        }
-      }
-      if (addXP) addXP(10, '✓ سيت مكتمل')
+      // XP still accrues per set, silently: no toast, no flying number.
+      // The set's own row says it is done; a personal best is said on
+      // that row in gold.
+      if (addXP) addXP(10)
       onShowRest()
     }
     // Marking done also carries the numbers into the blank sets that
@@ -121,16 +164,13 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   const getLastW = (name) =>
     suggestedWeightFor(name, { sessions, mapping: exerciseMapping, transform: lighten })
 
-  const getSuggestedReps = (name) =>
-    analyzeProgression(sessions, name, exerciseMapping, repTarget).suggestedReps
+  const getSuggestedReps = (name) => engine.progression(name).suggestedReps
 
   // Progression is frozen for the length of a deload. The weights are
   // deliberately low, so "add weight" would be wrong and "drop the
-  // weight" would be advice about a decline that was the plan. The
-  // engine still runs — its reading of the working weight is needed
-  // for the reps box — but it offers no verdict.
+  // weight" would be advice about a decline that was the plan.
   const progressionFor = (name) => {
-    const p = analyzeProgression(sessions, name, exerciseMapping, repTarget)
+    const p = engine.progression(name)
     return active?.deload ? { ...p, hint: null } : p
   }
 
@@ -168,81 +208,83 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
   }
 
   const exercises = active.exercises || []
-  const allSets   = exercises.flatMap(ex => ex.sets)
-  const doneSets  = allSets.filter(s => s.done).length
-  const totalSets = allSets.length
-
-  const fmtElapsed = (secs) => {
-    const h = Math.floor(secs / 3600)
-    const m = Math.floor((secs % 3600) / 60)
-    const s = secs % 60
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  }
-  const pct = totalSets > 0 ? (doneSets / totalSets) * 100 : 0
-
-  // Active exercise = the one the user last interacted with (typed a
-  // weight/rep, ticked a set, added a set). Others dim until either
-  // this one is fully done or the user taps/edits another card —
-  // supports jumping between machines when the gym is crowded.
-  const focusedEx = exercises.find(e => e.id === focusExId)
-  const focusStillActive = focusedEx && focusedEx.sets.length > 0 && !focusedEx.sets.every(s => s.done)
-  const activeExId = focusStillActive ? focusExId : null
+  const doneSets  = exercises.flatMap(ex => ex.sets).filter(s => s.done).length
 
   // What the ⋯ menu needs to know about swapping: allowed only while
-  // nothing is logged, exactly as before.
+  // nothing is logged, exactly as before. It names the machine the swap
+  // leads to (null: back to the original); the menu words it, Arabic first.
   const swapMeta = (ex) => {
     const origin = ex.originalName || ex.name
     const alts = EXERCISE_ALTERNATIVES[origin] || []
     const subIdx = exerciseSubs[origin] || 0
     return {
       canSwap: alts.length > 0 && !ex.sets.some(st => st.done),
-      title: subIdx < alts.length ? `التالي: ${alts[subIdx]}` : 'رجوع للتمرين الأصلي',
+      next: subIdx < alts.length ? alts[subIdx] : null,
+      origin,
     }
   }
 
   const ytUrlFor = (name) => {
+    const canon = resolveExerciseName(name, exerciseMapping)
     for (const group of Object.values(MUSCLE_GROUPS)) {
       const def = group.exercises?.find(e => e.name === name)
+        || group.exercises?.find(e => e.name.toLowerCase() === canon)
       if (def?.videoUrl) return def.videoUrl
     }
     return `https://www.youtube.com/results?search_query=${encodeURIComponent(name + ' proper form')}`
   }
 
+  const discard = () => {
+    setAskFinish(false)
+    setAskDiscard(false)
+    onCloseRest?.()
+    onGoBack?.()
+  }
+
+  const lost = setsPhrase(doneSets)
+
   return (
-    <div style={{ paddingBottom: 24 }}>
+    <div className="s-session" data-testid="session" data-own-bar={onMinimize ? '1' : undefined}>
+      <SessionBar
+        title={dayWord(active)}
+        startedAt={active.id}
+        onMinimize={onMinimize}
+        onFinish={() => setAskFinish(true)}
+      />
+
       {exercises.length === 0 ? (
-        <div style={{ paddingTop: 40 }}>
-          <EmptyState
-            art="empty_workout"
-            title="جلسة فارغة"
-            desc="أضف أول تمرين وابدأ التسجيل"
-          />
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button className="btn-cyan" style={{ flex: 1 }} onClick={() => setShowAdd(true)}>＋ أضف أول تمرين</button>
-            <button onClick={() => setShowRoutines(true)} style={{
-              padding: '0 16px', background: 'var(--bg2)', border: '1px solid var(--border)',
-              borderRadius: 12, color: 'var(--text2)', fontFamily: 'var(--font-ar)', fontSize: 13, cursor: 'pointer',
-            }}>📋 روتين جاهز</button>
+        <>
+          <div className="s-segs" aria-hidden="true"><span className="s-seg" /></div>
+          <div className="s-scroll s-empty">
+            <EmptyState
+              icon={Barbell}
+              title="جلسة فاضية"
+              action={(
+                <div className="s-empty-actions">
+                  <Button variant="primary" size="lg" full icon={Plus} onClick={() => setShowAdd(true)}>أضف أول تمرين</Button>
+                  <Button variant="secondary" size="lg" full icon={ListChecks} onClick={() => setShowRoutines(true)}>اختر روتين جاهز</Button>
+                </div>
+              )}
+            >
+              سجّل أول تمرين، والباقي تضيفه وأنت تتمرن.
+            </EmptyState>
           </div>
-        </div>
+        </>
       ) : (
         <WorkoutPlayer
+          sessionId={active.id}
           exercises={exercises}
-          sessionName={active.name || 'جلسة تمرين'}
-          elapsedLabel={fmtElapsed(elapsed)}
-          doneSets={doneSets}
-          totalSets={totalSets}
-          pct={pct}
           deloadPct={active?.deload?.pct || 0}
           isResting={isResting}
           getLastW={getLastW}
-          getSuggested={getLastW}
           progressionFor={progressionFor}
           ytUrlFor={ytUrlFor}
-          statsFor={(name) => getExerciseStats(sessions, name, exerciseMapping)}
+          mapping={exerciseMapping}
+          statsFor={engine.stats}
+          previousFor={engine.previous}
           swapMeta={swapMeta}
           onUpdateSet={handleUpdateSet}
+          onStepSet={handleStepSet}
           onDoneSet={handleDoneSet}
           onAddSet={handleAddSet}
           onRemoveSet={handleRemoveSet}
@@ -250,51 +292,36 @@ export default function WorkoutPage({ active, sessions, onUpdateActive, onFinish
           onMoveSet={handleMoveSet}
           onSwap={handleSwapLive}
           onAddExercise={() => setShowAdd(true)}
-          onFinish={onFinish}
-          onBack={() => setConfirmBack(true)}
+          onRequestFinish={() => setAskFinish(true)}
+          onDiscard={() => setAskDiscard(true)}
           onCloseRest={onCloseRest}
         />
       )}
 
-      {showPR && <PRFlash
-        color={MUSCLE_GROUPS[exercises.find(e => e.name === showPR.name)?.muscle]?.color || 'var(--cyan)'}
-        weight={showPR.weight} prev={showPR.prev} exerciseName={showPR.name}
-      />}
+      <FinishSheet
+        open={askFinish}
+        doneSets={doneSets}
+        startedAt={active.id}
+        onSave={() => { setAskFinish(false); onFinish() }}
+        onDiscard={discard}
+        onClose={() => setAskFinish(false)}
+      />
+
+      <ConfirmSheet
+        open={askDiscard}
+        onClose={() => setAskDiscard(false)}
+        title="إلغاء التمرين؟"
+        message={doneSets > 0
+          ? <>تنحذف الجلسة كاملة بدون حفظ، ومعها {lost.num != null && <><Num>{lost.num}</Num> </>}{lost.word} سجّلتها. ما يمديك ترجعها.</>
+          : 'تنحذف الجلسة كاملة بدون حفظ.'}
+        confirmLabel="احذف الجلسة"
+        cancelLabel="رجوع"
+        destructive
+        onConfirm={discard}
+      />
 
       {showAdd      && <AddExerciseModal onAdd={handleAddExercise} onClose={() => setShowAdd(false)} />}
       {showRoutines && <RoutinesModal onSelect={handleLoadRoutine} onClose={() => setShowRoutines(false)} />}
-
-      {confirmBack && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 24,
-        }} onClick={() => setConfirmBack(false)}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: 'var(--bg2)', borderRadius: 20, padding: 24, maxWidth: 320, width: '100%',
-            border: '1px solid var(--border)',
-          }}>
-            <p style={{ fontFamily: 'var(--font-ar)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 8, textAlign: 'center' }}>
-              تأكيد الخروج
-            </p>
-            <p style={{ fontFamily: 'var(--font-ar)', fontSize: 14, color: 'var(--text2)', textAlign: 'center', marginBottom: 20 }}>
-              سيتم فقدان التمرين الحالي. هل أنت متأكد؟
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmBack(false)} style={{
-                flex: 1, background: 'var(--bg3)', border: '1px solid var(--border)',
-                borderRadius: 12, padding: '12px', color: 'var(--text2)',
-                fontFamily: 'var(--font-ar)', fontSize: 14, cursor: 'pointer',
-              }}>إلغاء</button>
-              <button onClick={() => { setConfirmBack(false); onGoBack() }} style={{
-                flex: 1, background: '#EF4444', border: 'none',
-                borderRadius: 12, padding: '12px', color: 'white',
-                fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              }}>خروج</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

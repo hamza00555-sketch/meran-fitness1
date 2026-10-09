@@ -1,34 +1,30 @@
 import { useEffect, useState } from 'react'
 
-// ── The card says "add weight" with its edge ──────────────────
+// ── «Add weight», drawn on the number itself ──────────────────
 //
-// The advice to raise the weight used to be one chip among seven, in
-// the same gold as the best-weight chip beside it, and it went unseen
-// mid-set. Now the card itself carries it: a gold stroke starts at the
-// bottom centre, climbs both sides at once and meets at the top, holds
-// for half a second, and climbs again — for as long as the advice
-// stands. Repeated rather than drawn once, so an eye that was on the
-// bar for the first pass catches the next.
+// The ring used to circle the whole exercise card — the name and a
+// still picture — while the suggested weight underneath still said the
+// old number. Now it goes around the one thing the advice is about: the
+// weight field, which already shows the raised number in gold.
 //
-// Two mirrored paths rather than one loop, because two lines rising to
-// meet reads as "up" and a single line circling reads as "loading".
+// Drawn ONCE, then still. Two strokes start at the bottom centre and
+// climb both sides to meet at the top (two lines rising reads as "up";
+// one line circling reads as "loading"), and the ring stays. `draw`
+// false renders it already whole — the second set of the same exercise,
+// or reduced motion — so the motion happens once per exercise.
 //
-// Real pixels are needed for the corner arcs, so the host card is
-// measured. The radius is read from the card's computed style rather
-// than typed here, so the ring follows the deload mode's rounder
-// corners without knowing the mode exists.
+// Real pixels are needed for the corner arcs, so the host is measured,
+// and its radius read from computed style rather than typed here.
 
-const INSET = 1.5          // half the stroke, so the line sits fully inside
+const INSET = 1          // half the stroke, so the line sits fully inside
 
 /** One half of the ring: bottom centre up to top centre, on one side. */
 function half(w, h, r, dir) {
-  // dir = +1 draws the right-hand side, -1 the left. Everything is
-  // measured from the centre line so both halves are one formula.
   const cx = w / 2
-  const x  = cx + dir * (w / 2 - INSET)          // the side edge
-  const y0 = h - INSET, y1 = INSET                // bottom and top edges
+  const x  = cx + dir * (w / 2 - INSET)
+  const y0 = h - INSET, y1 = INSET
   const rr = Math.max(0, Math.min(r - INSET, (w / 2 - INSET), (h / 2 - INSET)))
-  const sweep = dir > 0 ? 0 : 1                   // arc direction flips with the side
+  const sweep = dir > 0 ? 0 : 1
   return [
     `M ${cx} ${y0}`,
     `L ${x - dir * rr} ${y0}`,
@@ -39,24 +35,16 @@ function half(w, h, r, dir) {
   ].join(' ')
 }
 
-export default function RaiseRing({ hostRef }) {
+export default function RaiseRing({ hostRef, draw = true }) {
   const [box, setBox] = useState(null)
 
   useEffect(() => {
     const el = hostRef.current
     if (!el) return
     const measure = () => {
-      // The padding box, not the border box. The SVG sits inside the
-      // card's 1px border (inset:0 is measured from it), so sizing it
-      // to the outer rectangle left it 2px too wide — and in an RTL
-      // document an over-constrained absolute box keeps its right edge,
-      // so the whole overflow landed on the left and was clipped there:
-      // a 0.7px stroke on one side, 2.5px on the other. Measure what
-      // the SVG actually fills, and take the border off the radius so
-      // the inner curve stays concentric with the outer one.
       const cs = getComputedStyle(el)
       const bw = parseFloat(cs.borderLeftWidth) || 0
-      const r = Math.max(0, (parseFloat(cs.borderRadius) || 0) - bw)
+      const r = Math.max(0, (parseFloat(cs.borderTopLeftRadius) || 0) - bw)
       setBox({ w: el.clientWidth, h: el.clientHeight, r })
     }
     measure()
@@ -65,29 +53,25 @@ export default function RaiseRing({ hostRef }) {
     return () => ro.disconnect()
   }, [hostRef])
 
-  if (!box || box.w < 40 || box.h < 40) return null
+  if (!box || box.w < 40 || box.h < 30) return null
   const { w, h, r } = box
 
   return (
     <svg
-      className="raise-ring"
+      className={`raise-ring s-raise-ring${draw ? ' s-raise-draw' : ''}`}
       data-testid="raise-ring"
       aria-hidden="true"
       width={w} height={h} viewBox={`0 0 ${w} ${h}`}
-      style={{
-        position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 1,
-        overflow: 'visible',
-      }}
     >
       {[1, -1].map(dir => (
         <path
           key={dir}
-          className="raise-ring-path"
+          className="s-raise-path"
           d={half(w, h, r, dir)}
           pathLength="100"
           fill="none"
-          stroke="var(--gold)"
-          strokeWidth="2.5"
+          stroke="var(--raise)"
+          strokeWidth="2"
           strokeLinecap="round"
         />
       ))}
