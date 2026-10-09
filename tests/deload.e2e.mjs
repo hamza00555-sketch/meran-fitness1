@@ -17,6 +17,7 @@ import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
+import { deloadWeight } from '../src/deload.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
@@ -54,9 +55,9 @@ const DELOAD = { from: '2026-07-06', plannedUntil: '2026-07-12', pct: 40 }
 const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso`, optionally mid-deload. */
-async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, recovery = null, plan = null } = {}) {
+async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, recovery = null, plan = null, device = 'iPhone 13', extra = null } = {}) {
   const ctx = await browser.newContext({
-    ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
+    ...devices[device], timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
   })
   const page = await ctx.newPage()
@@ -64,8 +65,9 @@ async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, 
   page.on('pageerror', e => errors.push(String(e)))
   await page.route('**/*.r2.dev/**', r => r.abort())
 
-  await page.addInitScript(([sessions, recovery, iso, unlocked, plan]) => {
+  await page.addInitScript(([sessions, recovery, iso, unlocked, plan, extra]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+    for (const [k, v] of Object.entries(extra || {})) localStorage.setItem(k, JSON.stringify(v))
     if (plan) { localStorage.setItem('hf_plan', JSON.stringify(plan)); localStorage.setItem('hf_plan_index', '0') }
     localStorage.setItem('hf_recovery', JSON.stringify(recovery))
     localStorage.setItem('hf_xp', '4200')
@@ -83,7 +85,7 @@ async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, 
       static now() { return fixed }
     }
     globalThis.Date = D
-  }, [sessions, recovery || { ...BASE_RECOVERY, deload }, iso, ACHIEVEMENTS.map(a => a.id), plan])
+  }, [sessions, recovery || { ...BASE_RECOVERY, deload }, iso, ACHIEVEMENTS.map(a => a.id), plan, extra])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
@@ -101,9 +103,12 @@ const accentOf = (page) => page.evaluate(() =>
   ok('mid-deload: the root carries data-deload', attr === '1', String(attr))
   const accent = await accentOf(page)
   ok('mid-deload: the accent is glacier blue', accent.toUpperCase() === '#5CC9EE', accent)
+  // Floodlight keeps one radius in every mode (a deload changes the
+  // load and the light, not the shapes), so a card is never mistaken for
+  // a different component.
   const radius = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--radius').trim())
-  ok('mid-deload: corners softened', radius === '22px', radius)
+  ok('mid-deload: corners stay on the one radius', radius === '16px', radius)
   ok('mid-deload: no page errors', errors.length === 0, errors.join('; '))
   await page.screenshot({ path: `${OUT}/home-deload.png`, fullPage: true })
   await page.screenshot({ path: `${OUT}/fold-deload.png` })
@@ -154,17 +159,18 @@ const accentOf = (page) => page.evaluate(() =>
   ok('mid-deload: the tempo dial is turned down', parseFloat(breath) > 1.2, breath)
   const glow = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue('--glow-mul').trim())
-  ok('mid-deload: the glow is dimmed', parseFloat(glow) < 1, glow)
-  // The dials have to reach a real rule, not just sit in :root.
+  ok('mid-deload: no glow, in this mode either', parseFloat(glow) === 0, glow)
+  // The dial has to reach a real rule, not just sit in :root: the one
+  // endless motion left — the live session's dot — breathes slower.
   const probe = await page.evaluate(() => {
-    const el = document.createElement('div')
-    el.className = 'glow-pulse'
+    const el = document.createElement('i')
+    el.className = 'hm-live-dot'
     document.body.appendChild(el)
     const d = getComputedStyle(el).animationDuration
     el.remove()
     return d
   })
-  ok('mid-deload: glowPulse actually runs slower', parseFloat(probe) > 3, probe)
+  ok('mid-deload: the live dot actually breathes slower', parseFloat(probe) > 3, probe)
   await ctx.close()
 }
 
@@ -381,8 +387,12 @@ for (const [iso, expect, label] of [
   await page.waitForTimeout(75000)
 
   const pointer = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
-  ok('pack: it installs', pointer?.count === 182, JSON.stringify(pointer))
-  ok('pack: every object came from the built pack', served >= 183, String(served))
+  // The pack this checkout built says how many objects it holds; the
+  // number grows as art is added, so it is read rather than pinned.
+  const builtManifest = JSON.parse(await readFile('pack/manifest.json', 'utf8').catch(() => 'null'))
+  const expected = builtManifest?.assets?.length ?? 182
+  ok('pack: it installs', pointer?.count === expected, `${JSON.stringify(pointer)} vs ${expected}`)
+  ok('pack: every object came from the built pack', served >= expected, String(served))
 
   const arts = await page.evaluate(() =>
     [...document.querySelectorAll('img[data-art]')].map(i => ({
@@ -496,6 +506,34 @@ for (const [iso, expect, label] of [
   await ctx.close()
 }
 
+// ══ The streak on Home is its number, nothing else ════════════
+//
+// حمزة: «انا اللي همني فقط رقم الستريك لا اكثر». Home shows the flame,
+// the number and «يوم/أيام» — filled once today counts, an outline while
+// it is owed — and none of the scoreboard around it. The status line,
+// the 03:00 deadline, the cost of a miss, the seven days and the tickets
+// live in «ليش N؟», which the number opens (App's sheet).
+
+const BOARD_IDS = ['streak-board', 'streak-status', 'streak-note', 'streak-detail', 'streak-tickets']
+
+/** What Home says about the streak: the number, whether today counts,
+ *  how many scoreboard pieces survived, and the column's text without
+ *  the greeting (App's line, which has a voice of its own). */
+const streakOnHome = (page) => page.evaluate((ids) => {
+  const btn = document.querySelector('[data-testid="streak-number"]')
+  const col = document.querySelector('.hm')?.cloneNode(true)
+  col?.querySelector('.h-greet')?.remove()
+  return {
+    count: document.querySelectorAll('[data-testid="streak-number"]').length,
+    number: btn?.querySelector('b')?.textContent.trim() ?? null,
+    counted: !!btn?.classList.contains('counted'),
+    firstInTop: document.querySelector('.h-top-text')?.firstElementChild === btn,
+    board: ids.map(id => document.querySelectorAll(`[data-testid="${id}"]`).length).reduce((a, b) => a + b, 0),
+    text: col?.innerText || '',
+    top: btn?.getBoundingClientRect().top ?? null,
+  }
+}, BOARD_IDS)
+
 // ══ The rest-day balance says what it spent ═══════════════════
 //
 // A credit is spent without a tap. The engine decides it while it
@@ -526,29 +564,27 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   })
   await page.waitForTimeout(300)
 
-  // The spend is said where the streak is, first thing on Home — not
-  // behind a fold, and with a Gregorian date.
-  const board = page.locator('[data-testid="streak-board"]')
-  ok('streak: the scoreboard is on Home', await board.count() === 1)
-  const note = (await page.locator('[data-testid="streak-note"]').count())
-    ? await page.locator('[data-testid="streak-note"]').innerText() : ''
-  ok('credit: it says a ticket covered yesterday', /تذكرة غطّت أمس/.test(note), note)
-  ok('credit: it says the streak held', /وقف على 10، ما زاد ولا انكسر/.test(note), note)
-  const status = await page.locator('[data-testid="streak-status"]').innerText()
-  ok('credit: today is still owed', /باقي تمرين اليوم/.test(status), status)
-  const detail = await page.locator('[data-testid="streak-detail"]').innerText()
-  ok('credit: it says what a miss today costs', /لو فاتك تنصرف آخر تذكرة/.test(detail), detail)
-  ok('credit: it gives the deadline', /لين 3 الفجر/.test(detail), detail)
-  const tix = await page.locator('[data-testid="streak-tickets"]').innerText()
-  ok('credit: the balance is shown', /تذكرة وحدة/.test(tix), tix)
+  // Home: the number, held at 10 by the ticket, the flame an outline
+  // because today is still owed — and nothing else about the streak.
+  const st = await streakOnHome(page)
+  ok('streak: the number is on Home, once', st.count === 1, String(st.count))
+  ok('streak: it is the first thing in the top bar', st.firstInTop)
+  ok('credit: the number held at 10', st.number === '10', String(st.number))
+  ok('credit: today still owed — the flame is an outline', !st.counted)
+  ok('streak: no scoreboard on Home (status, note, cost, tickets)', st.board === 0, String(st.board))
+  ok('streak: no deadline, cost or ticket line on Home',
+    !/3 الفجر|لو فاتك|تذكرة غطّت|تذاكر|باقي تمرين اليوم/.test(st.text), st.text.slice(0, 200))
+  // The flame's own label says what tapping it does.
+  const label = await page.locator('[data-testid="streak-number"]').getAttribute('aria-label')
+  ok('streak: the number is a button that says it opens the details', /الستريك 10 أيام — اضغط تشوف التفاصيل/.test(label || ''), label)
 
-  // The board comes before Today's card.
+  // The number comes before Today's button.
   const order = await page.evaluate(() => {
-    const b = document.querySelector('[data-testid="streak-board"]')?.getBoundingClientRect().top
+    const b = document.querySelector('[data-testid="streak-number"]')?.getBoundingClientRect().top
     const h = [...document.querySelectorAll('button')].find(x => /ابدأ التمرين/.test(x.textContent))?.getBoundingClientRect().top
     return { b, h }
   })
-  ok('streak: the board sits above the start button', order.b != null && order.h != null && order.b < order.h, JSON.stringify(order))
+  ok('streak: the number sits above the start button', order.b != null && order.h != null && order.b < order.h, JSON.stringify(order))
 
   // The toast the engine's spend raises: dated, with what is left.
   const toast = await page.evaluate(() => document.body.innerText)
@@ -577,10 +613,11 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   })
   await page.waitForTimeout(300)
 
-  const detail = await page.locator('[data-testid="streak-detail"]').innerText()
-  ok('credit: the break is stated before it happens', /خلصت تذاكرك — لو فاتك يرجع 10 إلى صفر/.test(detail), detail)
-  const tix = await page.locator('[data-testid="streak-tickets"]').innerText()
-  ok('credit: an empty balance says when the next one comes', /0 تذاكر · الجاية بعد/.test(tix), tix)
+  // No tickets left and the run at stake: Home still shows only the
+  // number (the cost is the sheet's to say), with the flame an outline.
+  const st = await streakOnHome(page)
+  ok('credit: an empty balance — Home still shows just the number', st.number === '10' && !st.counted, JSON.stringify({ n: st.number, c: st.counted }))
+  ok('credit: no scoreboard and no cost line on Home', st.board === 0 && !/يرجع 10 إلى صفر|خلصت تذاكرك/.test(st.text), st.text.slice(0, 200))
   ok('credit: the old folded warning is gone',
     await page.locator('[data-testid="credit-warning"]').count() === 0)
 
@@ -599,9 +636,25 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
     plan: BUILT_IN_PLANS[0],
   })
   await page.waitForTimeout(300)
-  const skip = page.locator('button', { hasText: 'تخطي اليوم' }).first()
-  ok('skip: the button is there with a plan', await skip.count() === 1)
-  await skip.click()
+  // «تخطي اليوم» is a rare decision: it sits behind ⋯ on the Today
+  // stage, not beside the start button.
+  ok('skip: not a button beside the start button any more',
+    await page.locator('.hm-today > .hm-dock button', { hasText: 'تخطي اليوم' }).count() === 0)
+  const more = page.getByRole('button', { name: 'خيارات اليوم' })
+  ok('skip: ⋯ is there with a plan', await more.count() === 1)
+  const openSkip = async () => {
+    await more.click()
+    await page.waitForTimeout(450)
+    await page.getByRole('button', { name: /تخطي اليوم/ }).first().click()
+    await page.waitForTimeout(450)
+  }
+  await more.click()
+  await page.waitForTimeout(450)
+  ok('skip: the menu offers it', await page.getByRole('button', { name: /تخطي اليوم/ }).count() === 1)
+  ok('skip: the menu offers the full list too', await page.getByRole('button', { name: /عرض التمارين/ }).count() === 1)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(400)
+  await openSkip()
   const sheet = page.locator('[data-testid="skip-sheet"]')
   ok('skip: a sheet asks first', await sheet.count() === 1)
   const st = (await sheet.count()) ? await sheet.innerText() : ''
@@ -612,7 +665,7 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   ok('skip: Escape closes it', await sheet.count() === 0)
   ok('skip: closing leaves the plan where it was',
     await page.evaluate(() => localStorage.getItem('hf_plan_index')) === '0')
-  await skip.click()
+  await openSkip()
   await page.locator('[data-testid="skip-confirm"]').click()
   await page.waitForTimeout(300)
   ok('skip: confirming moves the plan',
@@ -633,12 +686,247 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
     recovery: CLEAN_RECOVERY,
   })
   await page.waitForTimeout(300)
-  const status = await page.locator('[data-testid="streak-status"]').innerText()
-  ok('late: the status says tonight decides it', /بدون تمرين الليلة يرجع 10 إلى صفر/.test(status), status)
-  const detail = await page.locator('[data-testid="streak-detail"]').innerText()
-  ok('late: with the time left', /باقي 3 س 20 د على 3 الفجر/.test(detail), detail)
+  // The last hours: still the number alone — no countdown on Home.
+  const st = await streakOnHome(page)
+  ok('late: the number, owed', st.number === '10' && !st.counted, JSON.stringify({ n: st.number, c: st.counted }))
+  ok('late: no countdown on Home', st.board === 0 && !/باقي \d+ س|3 الفجر|الليلة/.test(st.text), st.text.slice(0, 200))
   await page.screenshot({ path: `${OUT}/credit-late.png`, fullPage: false })
   ok('late: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ Home, «تحت الأضواء» ═══════════════════════════════════════
+//
+// The Today stage says the day as one Arabic word, shows the first
+// three exercises and carries ONE green fill; the rare choices live
+// behind ⋯; nothing is drawn under 12px; and on the smallest phone the
+// start button is on screen above the tab bar from the first frame.
+
+/** Visible elements in the page column whose own background is the
+ *  accent fill — the screen's green actions. */
+const greenFills = (page) => page.evaluate(() => {
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().toLowerCase()
+  const hex = (rgb) => '#' + (rgb.match(/\d+/g) || []).slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('')
+  return [...document.querySelectorAll('main button, main a')].filter(el => {
+    const r = el.getBoundingClientRect()
+    return r.width && r.height && hex(getComputedStyle(el).backgroundColor) === accent
+  }).map(el => el.textContent.trim())
+})
+
+{
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { plan: BUILT_IN_PLANS[0] })
+  const word = page.locator('.hm-word').first()
+  const wordText = (await word.count()) ? (await word.innerText()).trim() : ''
+  ok('home: the day is one Arabic word', wordText === 'دفع', wordText)
+  const wordSize = await word.evaluate(el => parseFloat(getComputedStyle(el).fontSize))
+  ok('home: the day word is the display size', wordSize >= 44, String(wordSize))
+  const stage = await page.locator('.hm-stage').innerText()
+  ok('home: the muscles under it, in Arabic', /صدر/.test(stage), stage)
+  ok('home: the count and the length', /6 تمارين/.test(stage) && /≈\s?\d+\s?د/.test(stage), stage)
+  const art = await page.locator('.hm-stage img.k-stage-art').getAttribute('src')
+  ok('home: the stage lights the day\'s main muscle', /muscle_chest/.test(art || ''), String(art))
+
+  const main = await page.evaluate(() => document.querySelector('main').innerText)
+  ok('home: no English day label', !/Push Day|Pull Day|Legs Day/.test(main))
+  ok('home: no rank or XP strip', !/\bLv\s?\d|\bLVL\b|\d+%\s*$/m.test(main.split('تقدم البرنامج')[0]))
+  ok('home: no «sets»', !/\bsets?\b/i.test(main))
+
+  ok('home: the first three exercises are listed', await page.locator('.hm-row').count() === 3)
+  const firstRow = await page.locator('.hm-row').first().innerText()
+  ok('home: Arabic name first, English under it', /ضغط صدر/.test(firstRow) && /Hammer Strength/.test(firstRow), firstRow)
+  const moreRow = page.locator('.hm-more')
+  ok('home: the rest as «+N تمارين»', /\+3 تمارين/.test(await moreRow.innerText()), await moreRow.innerText())
+
+  const fills = await greenFills(page)
+  ok('home: one green fill, and it is «ابدأ التمرين»', fills.length === 1 && /ابدأ التمرين/.test(fills[0]), JSON.stringify(fills))
+  ok('home: no ⚡ on the button', !/⚡/.test(fills.join('')))
+
+  // Nothing readable under 12px anywhere in the column.
+  const small = await page.evaluate(() => {
+    const out = []
+    for (const el of document.querySelectorAll('main *')) {
+      const own = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())
+      if (!own) continue
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      const fs = parseFloat(getComputedStyle(el).fontSize)
+      if (fs < 12) out.push(`${fs}px «${el.textContent.trim().slice(0, 20)}»`)
+    }
+    return out
+  })
+  ok('home: no text under 12px', small.length === 0, small.slice(0, 5).join(' | '))
+
+  // «+N تمارين» opens the whole day on the kit sheet, start docked at its foot.
+  await moreRow.click()
+  await page.waitForTimeout(600)
+  const dialog = page.getByRole('dialog')
+  ok('preview: the day opens as a sheet', await dialog.count() === 1)
+  const dtext = (await dialog.count()) ? await dialog.innerText() : ''
+  ok('preview: every exercise is in it', /Triceps Pushdown/.test(dtext) && /Pec Deck/.test(dtext), dtext.slice(0, 200))
+  ok('preview: start is there', await dialog.getByRole('button', { name: /ابدأ التمرين/ }).count() === 1)
+  ok('preview: swap is a real button with a name', await dialog.getByRole('button', { name: /استبدال التمرين|رجوع للتمرين الأصلي/ }).count() > 0)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(500)
+  ok('preview: Escape closes it', await page.getByRole('dialog').count() === 0)
+
+  // Starting from the stage starts the planned day.
+  await page.getByRole('button', { name: 'ابدأ التمرين' }).click()
+  await page.waitForTimeout(700)
+  const activeName = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_active') || 'null')?.planDayName || '')
+  ok('home: «ابدأ التمرين» starts the planned day', /Push/.test(activeName), activeName)
+
+  ok('home: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/home-redesign.png` })
+  await ctx.close()
+}
+
+{
+  // The smallest phone the app supports, with a plan: the start button is
+  // on screen above the tab bar without scrolling.
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { plan: BUILT_IN_PLANS[0], device: 'iPhone SE' })
+  const pos = await page.evaluate(() => {
+    const b = [...document.querySelectorAll('main button')].find(x => /ابدأ التمرين/.test(x.textContent))?.getBoundingClientRect()
+    const t = document.querySelector('nav')?.getBoundingClientRect()
+    return b && t ? { top: b.top, bottom: b.bottom, tabs: t.top } : null
+  })
+  ok('SE: the start button is above the tab bar on the first frame',
+    pos && pos.top >= 0 && pos.bottom <= pos.tabs, JSON.stringify(pos))
+  const streakBox = await page.locator('[data-testid="streak-number"]').boundingBox()
+  ok('SE: the streak number is still first', streakBox && pos && streakBox.y < pos.top, JSON.stringify(streakBox))
+  // The first exercise is readable above the button, not under it.
+  const row1 = await page.locator('.hm-row').first().boundingBox()
+  ok('SE: the first exercise is fully above the start button', row1 && pos && row1.y + row1.height <= pos.top, JSON.stringify(row1))
+  ok('SE: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/home-se.png` })
+  await ctx.close()
+}
+
+{
+  // A scheduled rest day: no green anywhere in the column, the word in
+  // the rest blue, and a quiet way to train anyway.
+  const { ctx, page, errors } = await open('2026-07-10T09:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9), recovery: CLEAN_RECOVERY,
+  })
+  const word = page.locator('.hm-word-rest')
+  ok('rest: the day word is «راحة»', (await word.count()) && (await word.innerText()).trim() === 'راحة')
+  const colors = await page.evaluate(() => ({
+    word: getComputedStyle(document.querySelector('.hm-word-rest')).color,
+    rest: getComputedStyle(document.documentElement).getPropertyValue('--rest').trim(),
+  }))
+  const toHex = (rgb) => '#' + (rgb.match(/\d+/g) || []).slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('')
+  ok('rest: in the rest blue', toHex(colors.word).toLowerCase() === colors.rest.toLowerCase(), JSON.stringify(colors))
+  ok('rest: no green fill on a rest day', (await greenFills(page)).length === 0, JSON.stringify(await greenFills(page)))
+  ok('rest: «أبي أتمرّن» is there', await page.getByRole('button', { name: 'أبي أتمرّن' }).count() === 1)
+  ok('rest: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // The rest day with a plan: «تمارين بكرة» shows tomorrow's list and
+  // adds no green and no skip to the day; training anyway goes the
+  // stage's way (the override), after which the day is a training day.
+  const { ctx, page, errors } = await open('2026-07-10T09:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9), recovery: CLEAN_RECOVERY, plan: BUILT_IN_PLANS[0],
+  })
+  await page.getByRole('button', { name: 'تمارين بكرة' }).click()
+  await page.waitForTimeout(600)
+  const dialog = page.getByRole('dialog')
+  ok('rest sheet: it opens', await dialog.count() === 1)
+  const sheetGreen = await page.evaluate(() => {
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().toLowerCase()
+    const hex = (rgb) => '#' + (rgb.match(/\d+/g) || []).slice(0, 3).map(n => (+n).toString(16).padStart(2, '0')).join('')
+    return [...document.querySelectorAll('[role="dialog"] button')].filter(b => hex(getComputedStyle(b).backgroundColor) === accent).map(b => b.textContent.trim())
+  })
+  ok('rest sheet: no green fill', sheetGreen.length === 0, JSON.stringify(sheetGreen))
+  ok('rest sheet: no skip on a rest day', await dialog.getByRole('button', { name: /تخطي اليوم/ }).count() === 0)
+  const anyway = dialog.getByRole('button', { name: 'أبي أتمرّن' })
+  ok('rest sheet: «أبي أتمرّن» is the way to train', await anyway.count() === 1)
+  await anyway.click()
+  await page.waitForTimeout(900)
+  const overrides = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery') || '{}').overrides || [])
+  ok('rest sheet: it goes through the override', overrides.includes('2026-07-10'), JSON.stringify(overrides))
+  ok('rest sheet: the day is now a training day with its one green button',
+    (await greenFills(page)).join('') === 'ابدأ التمرين', JSON.stringify(await greenFills(page)))
+  ok('rest sheet: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // A deload over a history that has earned «ارفع الوزن»: the arrow is
+  // silenced on Home and in the day sheet, exactly as the player
+  // silences it, and the row shows the weight the session will load.
+  const at = (d) => new Date(2026, 6, d, 18)
+  const raiseSessions = [1, 3, 5].map(d => ({
+    id: at(d).getTime(), date: at(d).toISOString(), duration: 40,
+    exercises: [{
+      id: 'r' + d, muscle: 'Chest', name: 'Hammer Strength Machine Bench Press',
+      sets: [1, 2, 3, 4].map(() => ({ weight: '60', reps: '15', done: true })),
+    }],
+  }))
+  const sessions = [...SESSIONS, ...raiseSessions]
+
+  // Without a deload the same history does earn the arrow (so the check
+  // below is a real one).
+  {
+    const { ctx, page } = await open('2026-07-08T10:00:00+03:00', { sessions, plan: BUILT_IN_PLANS[0] })
+    ok('raise: the history earns «ارفع الوزن» on Home', await page.locator('.hm-row .hm-raise').count() === 1)
+    await ctx.close()
+  }
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { sessions, plan: BUILT_IN_PLANS[0], deload: DELOAD })
+  ok('deload: no gold raise arrow on Home', await page.locator('.hm-raise').count() === 0)
+  const w = await page.locator('.hm-row').first().locator('.hm-row-w').innerText()
+  ok('deload: the row shows the deload weight, not the last one',
+    w.includes(String(deloadWeight(60, DELOAD.pct))) && !/\b60\b/.test(w), w)
+  // The muscle art in the rows is cooled like the stage's: no lime.
+  const thumbs = await page.evaluate(() => [...document.querySelectorAll('.hm-row .hm-thumb:not(.is-still) img')]
+    .map(i => getComputedStyle(i).filter))
+  ok('deload: the row pictures are cooled', thumbs.length > 0 && thumbs.every(f => /hue-rotate/.test(f)), JSON.stringify(thumbs))
+  await page.locator('.hm-more').click()
+  await page.waitForTimeout(600)
+  ok('deload: no gold raise arrow in the day sheet', await page.locator('[role="dialog"] .hm-raise').count() === 0)
+  const first = await page.locator('.dp-row').first().innerText()
+  ok('deload: the sheet names the deload weight and the last one',
+    /ديلود/.test(first) && first.includes(String(deloadWeight(60, DELOAD.pct))) && /آخر مرة/.test(first), first)
+  ok('deload rows: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/deload-rows.png` })
+  await ctx.close()
+}
+
+for (const device of ['iPhone 13', 'iPhone SE']) {
+  // A session under way: the live bar at the foot is the way back; the
+  // stage offers «أكمل التمرين» quietly, never under the live bar, and
+  // Home carries no green button of its own.
+  const now = new Date('2026-07-08T10:00:00+03:00').getTime()
+  const active = {
+    id: now - 5 * 60000, date: new Date(now - 5 * 60000).toISOString(), name: 'Push — صدر، أكتاف، ترايسبس',
+    planDayName: 'Push — صدر، أكتاف، ترايسبس',
+    exercises: [
+      { id: 'a', muscle: 'Chest', name: 'Hammer Strength Machine Bench Press',
+        sets: [{ weight: '75', reps: '12', done: true }, { weight: '75', reps: '12', done: false }] },
+      { id: 'b', muscle: 'Chest', name: 'Pec Deck', sets: [{ weight: '50', reps: '12', done: false }] },
+    ],
+  }
+  const { ctx, page, errors } = await open('2026-07-08T10:00:00+03:00', { plan: BUILT_IN_PLANS[0], device, extra: { hf_active: active } })
+  const shrink = page.getByRole('button', { name: 'صغّر الجلسة' })
+  if (await shrink.count()) { await shrink.click(); await page.waitForTimeout(800) }
+  const geo = await page.evaluate(() => {
+    const r = (el) => el && el.getBoundingClientRect()
+    const btn = [...document.querySelectorAll('.hm-today button')].find(b => /أكمل التمرين/.test(b.textContent))
+    const bar = document.querySelector('.f-livebar')
+    const b = r(btn), l = r(bar)
+    return {
+      btn: b && [Math.round(b.top), Math.round(b.bottom)],
+      bar: l && [Math.round(l.top), Math.round(l.bottom)],
+      overlap: !!(b && l && b.bottom > l.top && b.top < l.bottom),
+    }
+  })
+  ok(`active (${device}): «أكمل التمرين» is on the stage`, !!geo.btn, JSON.stringify(geo))
+  ok(`active (${device}): it never sits under the live bar`, !geo.overlap, JSON.stringify(geo))
+  ok(`active (${device}): no green button on Home`, (await greenFills(page)).length === 0, JSON.stringify(await greenFills(page)))
+  await page.locator('.hm-today button', { hasText: 'أكمل التمرين' }).click()
+  await page.waitForTimeout(700)
+  ok(`active (${device}): it opens the session`, await page.getByRole('button', { name: 'صغّر الجلسة' }).count() === 1)
+  ok(`active (${device}): no page errors`, errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

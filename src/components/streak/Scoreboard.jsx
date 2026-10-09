@@ -3,19 +3,22 @@ import useMinute from './useMinute.js'
 import { streakView, unitAr } from '../../streak.js'
 import { MAX_REST_CREDITS } from '../../recovery.js'
 import { ls } from '../../utils.js'
+import { Num } from '../kit/index.jsx'
+import { withNums } from '../home/HomeBits.jsx'
 import { Flame, Ticket, Moon, Cross, BADGES } from './StreakIcons.jsx'
 
 // ── The streak, first thing on Home ───────────────────────────
 //
-// حمزة: «يهمني موضوع الستريك يكون واضح». The number used to sit in a
-// header pill that looked the same whether today was done, still owed
-// or one missed night from zero, and the only warning lived in a folded
-// row under the hero. Now the number is never shown alone: under it,
-// one line says what today does to it, the next says until when and at
-// what cost, and seven cells say what each recent day did.
+// حمزة: «يهمني موضوع الستريك يكون واضح». The number is never shown
+// alone: under it, one line says what today does to it, the next says
+// until when and at what cost, and seven cells say what each recent day
+// did. Every word comes from streakView(), the same source the header
+// chip, the skip sheet and the toasts read.
 //
-// Every word comes from streakView(), the same source the header chip,
-// the skip sheet and the toasts read.
+// Floodlight: no box and no glow — the number itself, 56/800 in the
+// numeric face and the streak's orange, is the board's one loud thing.
+// Every digit inside a sentence is an isolated LTR run (<Num>). The
+// look lives in src/styles/screens/home.css.
 
 function Cell({ c }) {
   let glyph = null
@@ -23,7 +26,7 @@ function Cell({ c }) {
   else if (c.kind === 'rest' || (c.kind === 'today-done' && c.rest)) glyph = <span className="sb-c-rest"><Moon size={14} /></span>
   else if (c.kind === 'credit') glyph = <span className="sb-c-rest"><Ticket size={14} /></span>
   else if (c.kind === 'missed') glyph = <span className="sb-c-miss"><Cross size={12} /></span>
-  else if (c.kind === 'idle') glyph = <span className="sb-c-idle"><Cross size={9} /></span>
+  else if (c.kind === 'idle') glyph = <span className="sb-c-idle"><Cross size={10} /></span>
   else if (c.kind === 'out') glyph = <i className="sb-dim" />
   const ring = c.kind === 'today-pending' ? ' ring' : c.kind === 'today-done' ? ' ring done' : c.kind === 'today-reset' ? ' ring reset' : ''
   const deltaCls = c.delta === '+1' ? ' up' : c.delta === '0' ? ' held' : c.delta ? ' broke' : ''
@@ -80,16 +83,16 @@ export default function Scoreboard({ recovery, config, active, deload, today, on
       <div className="sb-top">
         <span className="sb-eyebrow">الستريك</span>
         {v.deload && (
-          <span className="sb-deload">ديلود · اليوم {v.deload.day} من {v.deload.total}</span>
+          <span className="sb-deload">ديلود · اليوم <Num>{v.deload.day}</Num> من <Num>{v.deload.total}</Num></span>
         )}
         <span className={`sb-tix${v.tickets ? '' : ' empty'}`} data-testid="streak-tickets">
-          <Ticket size={15} />{v.ticketsText}
+          <Ticket size={16} /><span>{withNums(v.ticketsText)}</span>
         </span>
       </div>
 
       <div className="sb-num" ref={numRef}>
         <span className="sb-flame">
-          <Flame size={30} filled={v.counted} />
+          <Flame size={32} filled={v.counted} />
           {Badge && <span className={`sb-badge ${v.badgeTone}`}><Badge size={12} /></span>}
         </span>
         <b className={`sb-big${v.number === 0 ? ' zero' : ''}`} data-testid="streak-number">{v.number}</b>
@@ -97,19 +100,22 @@ export default function Scoreboard({ recovery, config, active, deload, today, on
         {v.next && (
           <span className="sb-ms">
             <span className="sb-ms-l">المحطة الجاية</span>
-            <span><b>{v.next}</b> · باقي {v.next - v.number}</span>
+            <span><b>{v.next}</b> · باقي <Num>{v.next - v.number}</Num></span>
           </span>
         )}
       </div>
 
-      <p className={`sb-status${v.statusWarn ? ' warn' : ''}`} data-testid="streak-status">{v.status}</p>
-      {note && <p className="sb-note" data-testid="streak-note">{note}</p>}
+      <p className={`sb-status${v.statusWarn ? ' warn' : ''}`} data-testid="streak-status">
+        {v.statusWarn && <span className="sb-status-icon"><Flame size={16} filled /></span>}
+        <span>{withNums(v.status)}</span>
+      </p>
+      {note && <p className="sb-note" data-testid="streak-note">{withNums(note)}</p>}
       <p className="sb-detail" data-testid="streak-detail">
         {v.countdown && v.lateTail ? (
-          <><b className="sb-cd late">باقي {v.countdown}</b> على 3 الفجر · {v.lateTail}</>
+          <><b className="sb-cd late">باقي {withNums(v.countdown)}</b> على <Num>3</Num> الفجر · {withNums(v.lateTail)}</>
         ) : v.countdown ? (
-          <>لين 3 الفجر · <b className="sb-cd">باقي {v.countdown}</b>{v.cost ? <> — {v.cost}</> : null}</>
-        ) : v.detail}
+          <>لين <Num>3</Num> الفجر · <b className="sb-cd">باقي {withNums(v.countdown)}</b>{v.cost ? <> — {withNums(v.cost)}</> : null}</>
+        ) : withNums(v.detail)}
       </p>
 
       <div className="sb-chain" role="img" aria-label="آخر 7 أيام">

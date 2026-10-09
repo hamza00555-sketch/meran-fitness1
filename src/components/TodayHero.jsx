@@ -1,31 +1,48 @@
-import { useMemo, useState } from 'react'
-import Art from '../assets/Art.jsx'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import Art, { useHasArt } from '../assets/Art.jsx'
 import DayPreviewSheet from './DayPreviewSheet.jsx'
-import { DropletIcon } from './Icons.jsx'
-import { toWesternDigits } from '../day.js'
-import { planDayTitle } from '../utils.js'
-import { countAr } from '../streak.js'
+import { Button, IconButton, Num, Weight, Sheet, ListGroup, ListRow } from './kit/index.jsx'
+import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop } from './kit/icons.js'
+import { EXERCISE_ALTERNATIVES } from '../constants.js'
+import { substitutedName, getExerciseStats, planDayTitle } from '../utils.js'
+import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { deloadWeight } from '../deload.js'
+import { countAr, unitAr } from '../streak.js'
+import { ExerciseThumb, exerciseNames, withNums } from './home/HomeBits.jsx'
+import { dayWord, musclesLine, mainMuscle, muscleArt, estimateMinutes } from './home/dayParts.js'
 
-// ── Today Hero — the one card that answers "what now?" ────────
+// ── Today — the one lit moment on Home ────────────────────────
 //
-// Layout after حمزة's reference mockup:
+// Floodlight («تحت الأضواء»): a full-bleed stage, neutral light, the
+// day's main muscle standing at the end edge, and the day said as ONE
+// Arabic word at 56/800 — «دفع», «سحب», «أرجل» — with the muscles under
+// it and «6 تمارين · ≈45 د». Then the first three exercises as open
+// rows (picture, Arabic name, last weight, a gold ↑ only when the
+// progression engine says raise), «+N تمارين ‹» for the rest, and ONE
+// green button, «ابدأ التمرين».
 //
-//   chips row      — day-kind pill · exercise count · deload / credits
-//   title          — the day's name, the biggest text on the page
-//   lower zone     — controls column at the inline-start, the big
-//                    visual at the inline-end, faded into the surface
-//   primary CTA    — ابدأ التمرين, strongest element on the page
-//   two quiet      — عرض التمارين · تخطي اليوم, paired under it
+// The button is the last thing in the section, and it docks above the
+// tab bar while its place is still below the fold, so on an iPhone SE
+// it is on screen from the first frame without the rows giving way.
 //
-// Everything a chip can say, a chip says: the count and the deload's
-// numbers used to be sentences, and sentences made the card tall
-// without making it clearer.
+// «عرض التمارين» and «تخطي اليوم» are rare decisions; they live behind
+// ⋯. Skipping still goes through onSkip → the skip sheet that states
+// the cost to the streak first.
 //
-// The visual never leaves the card: it is anchored fully inside and
-// its edges dissolve through a radial mask, so it reads as part of
-// the surface instead of a sticker cropped by the border.
+// Other states keep their meaning: a running session (the stage names
+// it and offers a quiet «أكمل التمرين» — the live bar at the foot of
+// the screen is the main way back, so no second green button sits
+// under it), a rest day (the word «راحة» in the rest blue, no green
+// anywhere, a quiet «أبي أتمرّن» — the day sheet offers the same and
+// nothing else), today already done (this block goes quiet), and no
+// plan (a free session).
+//
+// Under a deload the rows show the weight the session will actually
+// load (the last weight made lighter by the deload's percentage, as the
+// player does) and never the gold «raise» arrow: the week is meant to
+// be light, and Home must not say the opposite of the player.
 
-function sessionContext(active) {
+function sessionContext(active, mapping) {
   if (!active?.exercises?.length) return null
   const all = active.exercises.flatMap(ex => ex.sets)
   const done = all.filter(s => s.done).length
@@ -33,7 +50,7 @@ function sessionContext(active) {
     || active.exercises[active.exercises.length - 1]
   const exDone = current.sets.filter(s => s.done).length
   return {
-    name: current.name,
+    name: exerciseNames(current.name, mapping).ar,
     setNo: Math.min(exDone + 1, current.sets.length),
     setTotal: current.sets.length,
     done,
@@ -41,59 +58,66 @@ function sessionContext(active) {
   }
 }
 
-// The visual, given a column of its own.
-//
-// It is absolutely positioned *inside that column* and allowed to
-// overspill its box a little, so it renders generously without ever
-// pushing layout around — and because the column is a real flex
-// sibling of the controls, it can never sit under the button. The
-// radial mask dissolves its edges into the card instead of letting
-// the border crop them.
-function HeroVisual({ isTraining, deload }) {
-  const src = isTraining ? '/assets/hero_training.png' : '/assets/hero_rest.png'
-  const fade = 'radial-gradient(closest-side, #000 58%, rgba(0,0,0,0.7) 79%, transparent 100%)'
-  // The overspill lives on a wrapper, not on the image: an absolutely
-  // positioned <img> with width:auto takes its intrinsic size, not the
-  // inset box, and lands wherever that leaves it.
-  const style = {
-    display: 'block', width: '100%', height: '100%', objectFit: 'contain',
-    WebkitMaskImage: fade, maskImage: fade,
-  }
-  const plain = <img src={src} alt="" style={style} />
+/** «+3 تمارين», «+ تمرينين», «+ تمرين واحد». */
+const moreLabel = (n) => n <= 2
+  ? <>+ {countAr(n, 'workout')}</>
+  : <><Num>+{n}</Num> {unitAr(n, 'workout')}</>
+
+// The green button docks above the tab bar while its own place in the
+// column is still below the fold, and sits in the column again once you
+// scroll to it. position:sticky does the moving; a sentinel just under
+// it says when it is floating, which is the only time it casts a shadow.
+function Dock({ children }) {
+  const sentinel = useRef(null)
+  const [docked, setDocked] = useState(false)
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    // What the tab bar covers at the bottom, measured rather than
+    // assumed, so the safe area on a real phone is counted too.
+    const tabs = document.querySelector('.f-tabs')
+    const covered = tabs ? Math.max(0, Math.ceil(window.innerHeight - tabs.getBoundingClientRect().top)) : 64
+    const io = new IntersectionObserver(([e]) => {
+      setDocked(!e.isIntersecting && e.boundingClientRect.top > 0)
+    }, { threshold: 0, rootMargin: `0px 0px -${covered + 8}px 0px` })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
   return (
     <>
-      <div style={{
-        position: 'absolute', insetInlineEnd: -34, top: '50%',
-        transform: 'translateY(-50%)',
-        width: 210, height: 210, borderRadius: '50%',
-        background: `radial-gradient(circle, ${isTraining ? 'rgba(var(--cyan-rgb),0.13)' : 'rgba(var(--purple-rgb),0.12)'} 0%, transparent 68%)`,
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute', insetBlock: -16, insetInlineStart: -4, insetInlineEnd: -12,
-        pointerEvents: 'none',
-      }}>
-        {deload ? <Art id="deload_hero" style={style} fallback={plain} alt="" /> : plain}
-      </div>
+      <div className={`hm-dock is-sticky${docked ? ' is-docked' : ''}`}>{children}</div>
+      <i ref={sentinel} className="hm-dock-sentinel" aria-hidden="true" />
     </>
   )
 }
 
-const pill = {
-  display: 'inline-flex', alignItems: 'center', gap: 6,
-  padding: '4px 10px', borderRadius: 999,
-  fontFamily: 'var(--font-ar)', fontSize: 12, fontWeight: 800,
-  lineHeight: 1.4, whiteSpace: 'nowrap',
-}
-const titleStyle = {
-  fontFamily: 'var(--font-ar)', fontSize: 27, fontWeight: 900,
-  color: 'var(--text)', lineHeight: 1.25, textWrap: 'balance',
-}
-// --text2, not --text3: this line carries the day's actual numbers,
-// and muted grey on a near-black card is the one contrast failure
-// that makes a dark UI feel unreadable.
-const metaStyle = {
-  fontFamily: 'var(--font-ar)', fontSize: 13, color: 'var(--text2)', lineHeight: 1.7,
+function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, deload, onOpen }) {
+  const shownName = substitutedName(ex.name, exerciseSubs, EXERCISE_ALTERNATIVES)
+  const { ar, en } = exerciseNames(shownName, exerciseMapping)
+  const { lastWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
+  const onDeload = !!deload?.active
+  // Silenced during a deload, exactly as the player silences it.
+  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, repTarget).hint === 'raise'
+  const today = lastWeight != null && onDeload ? deloadWeight(lastWeight, deload.pct) : lastWeight
+  return (
+    <li>
+      <button type="button" className="hm-row" onClick={onOpen}>
+        <ExerciseThumb name={shownName} muscle={ex.muscle} />
+        <span className="hm-row-main">
+          <span className="hm-row-ar">{ar}</span>
+          {en && <span className="hm-row-en" dir="ltr">{en}</span>}
+        </span>
+        {today != null && (
+          <span className="hm-row-w"
+            title={onDeload ? `وزن الديلود — آخر مرة ${lastWeight} كجم` : undefined}>
+            {raise && <ArrowUp size={14} weight="bold" className="hm-raise" aria-label="ارفع الوزن" />}
+            {onDeload && <Drop size={14} weight="fill" className="hm-deload-mark" aria-label="وزن الديلود" />}
+            <Weight kg={today} />
+          </span>
+        )}
+      </button>
+    </li>
+  )
 }
 
 export default function TodayHero({
@@ -101,210 +125,235 @@ export default function TodayHero({
   isRecoveryDay, completedToday = false, streakKind = null, deload,
   sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
   onStartPlanned, onStartEmpty, onSkip, onGoToWorkout, onOverrideRecovery,
+  repTarget = DEFAULT_REP_TARGET,
 }) {
   const [showSheet, setShowSheet] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
+  // Each opening is a fresh sheet, so the kit's sheet reads the button
+  // that opened it (and hands focus back to it) at the moment it opens.
+  const [sheetKey, setSheetKey] = useState(0)
+  const [menuKey, setMenuKey] = useState(0)
+  const openSheet = () => { setSheetKey(k => k + 1); setShowSheet(true) }
+  const openMenu = () => { setMenuKey(k => k + 1); setShowMenu(true) }
   const onDeload = !!deload?.active
 
-  const ctx = useMemo(() => sessionContext(active), [active])
-  const exCount = currentPlanDay?.exercises?.length || 0
+  const ctx = useMemo(() => sessionContext(active, exerciseMapping), [active, exerciseMapping])
+  const exercises = currentPlanDay?.exercises || []
+  const exCount = exercises.length
 
   const resting = isRecoveryDay && !active
-  // Today already counts: the streak card says so, and this card must
-  // not keep asking for the workout that was just done.
+  // Today already counts (the flame by the number is filled), and this
+  // block must not keep asking for the workout that was just done.
   const done = completedToday && !active && !resting
   // A second plan change inside 30 days starts the streak again from
-  // tomorrow, so on that day a saved session is saved, not counted. The
-  // card must not say otherwise right under the streak card.
+  // tomorrow, so on that day a saved session is saved, not counted. Why
+  // is the sheet's to explain («ليش N؟»); the stage just says saved.
   const notCounting = streakKind === 'reset'
-  const tone = resting ? 'var(--purple)' : 'var(--cyan)'
-  const toneLo = resting ? 'var(--purple-lo)' : 'var(--cyan-lo)'
-  const toneMd = resting ? 'var(--purple-md)' : 'var(--cyan-md)'
+  const planned = !active && !resting && !done && !!currentPlanDay
+  const free = !active && !resting && !done && !currentPlanDay
 
-  const statusWord = active ? 'جلسة شغّالة'
-    : onDeload ? 'ديلود'
-    : resting ? 'يوم راحة'
-    : done && notCounting ? 'انحفظت'
-    : 'يوم تمرين'
+  // Menu choices run after the menu has slid away, so its sheet hands
+  // the page back (inert off, focus to ⋯) before the next one takes it.
+  const fromMenu = (fn) => () => { setShowMenu(false); setTimeout(fn, 240) }
 
-  // The day's name is its type — "Push Day" — not the muscles it
-  // trains; those are a tap away in the preview and far too long to
-  // be a heading.
-  const title = active ? (planDayTitle(active) || active.name || 'تمرين حر')
-    : resting ? 'اليوم للراحة'
-    : done ? 'تمرين اليوم خلص'
-    : currentPlanDay ? planDayTitle(currentPlanDay)
-    : 'جلسة حرة'
+  const start = () => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()
 
-  // The label sits in a column that is only ~150px wide on a 320px
-  // phone, so the size is fluid and the label never wraps: a
-  // two-line primary button reads as a mistake, not as emphasis.
-  const ctaStyle = {
-    padding: '14px 10px', fontSize: 'clamp(14px, 4.1vw, 16px)', whiteSpace: 'nowrap',
+  // ── What the stage says ──
+  const dayOf = active || currentPlanDay
+  const { word, variant, latin } = dayOf ? dayWord(dayOf) : { word: '', variant: '', latin: false }
+  const muscles = dayOf ? musclesLine(dayOf, word) : ''
+  const mins = currentPlanDay ? estimateMinutes(currentPlanDay) : 0
+  const muscle = dayOf ? mainMuscle(dayOf) : null
+  const art = muscleArt(muscle)
+
+  // The art: the day's main muscle. Under a deload the pack's glacier
+  // hero takes the stage when it is installed; without it the muscle
+  // art is cooled to the deload's blue so no lime survives the mode.
+  const hasDeloadArt = useHasArt('deload_hero')
+  let stageArt = null
+  let artShown = false
+  if (resting) {
+    artShown = true
+    stageArt = <img className="k-stage-art hm-art-rest" src="/assets/hero_rest.png" alt="" />
+  } else if ((planned || free || active) && onDeload) {
+    const cooled = art ? <img className="k-stage-art hm-art-cool" src={art} alt="" /> : null
+    stageArt = <Art id="deload_hero" className="k-stage-art hm-art-deload" alt="" fallback={cooled} />
+    artShown = hasDeloadArt || !!cooled
+  } else if ((planned || active) && art) {
+    stageArt = <img className="k-stage-art" src={art} alt="" />
+    artShown = true
   }
 
-  // The two secondary actions sit as a pair under the button. Real
-  // actions, so they stay readable: their quietness comes from having
-  // no fill beside a filled button, not from being dim. The size is
-  // fluid because this column is ~150px wide on a 320px phone.
-  const quietBtn = {
-    flex: 1, minWidth: 0, padding: '9px 2px',
-    background: 'none', border: '1px solid var(--border2)', borderRadius: 10,
-    color: 'var(--text2)', fontFamily: 'var(--font-ar)',
-    fontSize: 'clamp(10px, 3vw, 12.5px)', fontWeight: 700,
-    // No nowrap here, unlike the CTA: on a 320px phone this column
-    // leaves ~72px per button and the label would be cut. A secondary
-    // button on two lines is fine; a clipped label never is.
-    lineHeight: 1.35, cursor: 'pointer',
-  }
+  // How far into the deload, said where the day is.
+  const deloadChip = onDeload && !resting && !done ? (
+    <span className="hm-chip-deload">
+      <Art id="deload_badge" size={14} fallback={<Drop size={14} weight="fill" aria-hidden="true" />} />
+      <span>ديلود · اليوم <Num>{deload.day}</Num> من <Num>{deload.totalDays}</Num></span>
+    </span>
+  ) : null
+
+  const shown = exercises.slice(0, 3)
+  const more = exCount - shown.length
 
   return (
-    <div style={{
-      position: 'relative',
-      background: 'var(--bg1)',
-      border: '1px solid var(--border)',
-      borderRadius: 20,
-      padding: '13px 16px 12px',
-      marginBottom: 'var(--hp-card-mb)',
-      overflow: 'hidden',
-    }}>
+    <section className={`hm-today${done ? ' is-done' : ''}${resting ? ' is-rest' : ''}`} aria-label="تمرين اليوم">
+      <div className={`k-stage hm-stage${done ? ' hm-stage-quiet' : ''}${resting ? ' hm-stage-rest' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
+        {stageArt}
 
-      {/* ── Status row: one pill, one quiet detail ──
-          Two competing pills read as two competing statements. The
-          pill states the kind of day; the deload's numbers sit beside
-          it as plain text, which is what they are. */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        gap: 8, flexWrap: 'wrap', marginBottom: 9,
-      }}>
-        <span style={{ ...pill, background: toneLo, border: `1px solid ${toneMd}`, color: tone }}>
-          {active ? (
-            <span className="pulse-dot" style={{
-              display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: tone,
-            }} />
-          ) : onDeload ? (
-            <Art id="deload_badge" size={13} fallback={<DropletIcon size={11} color={tone} />} />
-          ) : null}
-          {statusWord}
-        </span>
-        {/* How many exercises — a count beside the day, where the kind
-            of day is already stated, instead of a sentence of its own. */}
-        {!active && !resting && !done && exCount > 0 && (
-          <span style={{
-            ...pill, background: 'var(--bg3)', border: '1px solid var(--border2)',
-            color: 'var(--text2)',
-          }}>{countAr(exCount, 'workout')}</span>
+        {planned && (
+          <IconButton icon={DotsThree} label="خيارات اليوم" weight="bold"
+            className="hm-more-btn" onClick={openMenu} />
         )}
-        {onDeload && (
-          <span style={{ fontFamily: 'var(--font-ar)', fontSize: 12, color: 'var(--text3)', fontWeight: 700 }}>
-            اليوم {toWesternDigits(deload.day)} من {toWesternDigits(deload.totalDays)}
-            {' · '}<span style={{ direction: 'ltr', display: 'inline-block' }}>−{toWesternDigits(deload.pct)}%</span>
+
+        <div className="k-stage-body hm-stage-body">
+          <span className="hm-eyebrow">
+            {active
+              ? <><i className="hm-live-dot" aria-hidden="true" />جلسة شغّالة</>
+              : 'اليوم'}
+            {deloadChip}
           </span>
-        )}
-        {/* Rest tickets live on the streak card now, with their real
-            balance and in the rest colour, not as a gold chip here. */}
-      </div>
 
-      <div style={titleStyle}>{title}</div>
-
-      {/* Only the states that have something to say say it. A planned
-          day's count is a chip above and its exercises are a button
-          below, so it needs no line of its own. */}
-      {(active && ctx) || resting || done || !currentPlanDay ? (
-        <div style={{ ...metaStyle, marginTop: 5 }}>
-          {active && ctx ? (
-            <>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text2)' }}>{ctx.name}</span>
-              {' · '}سيت {toWesternDigits(ctx.setNo)} من {toWesternDigits(ctx.setTotal)}
-              {' · '}أنجزت {toWesternDigits(ctx.done)}/{toWesternDigits(ctx.total)}
-            </>
-          ) : resting ? (
-            // What the rest day does to the streak is the streak card's
-            // to say; this card says what comes next.
-            currentPlanDay
-              ? <>بكرة: <b style={{ color: 'var(--text2)' }}>{planDayTitle(currentPlanDay)}</b></>
-              : 'استرح — بكرة يوم تمرين.'
-          ) : done ? (
-            notCounting
-              ? 'اليوم ما ينحسب بعد تغيير الخطة — العدّ يبدأ بكرة.'
-              : 'جلسة زيادة؟ ما تغيّر الستريك.'
-          ) : (
-            'بلا خطة — فعّل وحدة من الإعدادات.'
-          )}
-        </div>
-      ) : null}
-
-      {/* ── Lower zone ──
-          Two real columns, not a floating image over a button: the
-          controls and the visual are flex siblings, so nothing can
-          ever be printed on top of the primary action. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 11 }}>
-
-        <div style={{
-          flex: '1 1 auto', minWidth: 0,
-          display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8,
-        }}>
           {active ? (
-            <button className="btn-cyan btn-active-glow" onClick={onGoToWorkout}
-              style={ctaStyle}>
-              أكمل التمرين
-            </button>
+            <h2 className={`hm-word${latin ? ' is-latin' : ''}`}>
+              {word || 'تمرين حر'}{variant && <Num className="hm-word-variant">{variant}</Num>}
+            </h2>
           ) : resting ? (
-            <>
-              <button onClick={onOverrideRecovery} style={{
-                width: '100%', padding: '12px',
-                background: 'transparent', border: '1px dashed var(--border2)',
-                borderRadius: 12, color: 'var(--text2)',
-                fontFamily: 'var(--font-ar)', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              }}>أبي أتمرّن</button>
-              {currentPlanDay && (
-                <button onClick={() => setShowSheet(true)} style={quietBtn}>
-                  تمارين بكرة
-                </button>
-              )}
-            </>
+            <h2 className="hm-word hm-word-rest">راحة</h2>
           ) : done ? (
-            <button
-              onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}
-              style={{ ...quietBtn, flex: 'none', padding: '12px', fontSize: 14 }}
-            >جلسة زيادة</button>
+            <h2 className="hm-title">{notCounting ? 'انحفظت جلسة اليوم' : 'تمرين اليوم خلص'}</h2>
+          ) : planned ? (
+            <h2 className={`hm-word${latin ? ' is-latin' : ''}`}>
+              {word || planDayTitle(currentPlanDay)}{variant && <Num className="hm-word-variant">{variant}</Num>}
+            </h2>
           ) : (
-            <>
-              <button className="btn-cyan" style={ctaStyle}
-                onClick={() => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()}>
-                ⚡ ابدأ التمرين
-              </button>
-              {currentPlanDay && (
-                <div style={{ display: 'flex', gap: 7 }}>
-                  <button onClick={() => setShowSheet(true)} style={quietBtn}>عرض التمارين</button>
-                  <button onClick={onSkip} style={quietBtn}>تخطي اليوم</button>
-                </div>
-              )}
-            </>
+            <h2 className="hm-word">تمرين حر</h2>
           )}
-        </div>
 
-        {/* The visual's own column: fixed share of the row, matching
-            the controls' height, with the art overspilling inside it. */}
-        <div style={{
-          flex: '0 1 38%', maxWidth: 168, minWidth: 0, alignSelf: 'stretch',
-          minHeight: 116, position: 'relative',
-        }}>
-          <HeroVisual isTraining={!resting} deload={onDeload} />
+          {/* The second line: the muscles on a training day, what the
+              day means on the others. */}
+          {active && ctx ? (
+            <p className="hm-line">{ctx.name}</p>
+          ) : resting ? (
+            <p className="hm-line hm-line-sm">راحة مجدولة — عضلاتك تبني وانت مرتاح</p>
+          ) : done ? (
+            <p className="hm-line hm-line-sm">شغل اليوم انحفظ — ارتاح وكُل زين.</p>
+          ) : planned ? (
+            muscles && <p className="hm-line">{muscles}</p>
+          ) : (
+            <p className="hm-line hm-line-sm">بلا خطة — فعّل وحدة من الإعدادات، أو ابدأ جلسة حرة.</p>
+          )}
+
+          {active && ctx ? (
+            <p className="hm-meta">
+              المجموعة <Num>{ctx.setNo}</Num> من <Num>{ctx.setTotal}</Num> · أنجزت <Num>{ctx.done}</Num> من <Num>{ctx.total}</Num>
+            </p>
+          ) : resting && currentPlanDay ? (
+            <p className="hm-meta">بكرة: {dayWord(currentPlanDay).word || planDayTitle(currentPlanDay)} · {withNums(countAr(exCount, 'workout'))}</p>
+          ) : planned ? (
+            <p className="hm-meta">
+              {withNums(countAr(exCount, 'workout'))}
+              {mins > 0 && <> · <Num>≈{mins}</Num> د</>}
+              {onDeload && <> · أخف بـ<Num>{deload.pct}%</Num></>}
+            </p>
+          ) : null}
+
+          {/* A running session: the live bar at the foot of the screen
+              is the way back; the stage offers it too, quietly, where
+              nothing floats over it. */}
+          {active && (
+            <Button variant="secondary" size="md" className="hm-resume" onClick={onGoToWorkout}>
+              أكمل التمرين
+            </Button>
+          )}
         </div>
       </div>
 
-      {showSheet && currentPlanDay && (
+      {/* ── The first three exercises, open rows on the ground ── */}
+      {planned && shown.length > 0 && (
+        <ul className="hm-rows" aria-label="أول التمارين">
+          {shown.map((ex, i) => (
+            <ExerciseRow key={i} ex={ex} sessions={sessions} exerciseMapping={exerciseMapping}
+              exerciseSubs={exerciseSubs} repTarget={repTarget} deload={deload} onOpen={openSheet} />
+          ))}
+        </ul>
+      )}
+      {planned && more > 0 && (
+        <button type="button" className="hm-more" onClick={openSheet}>
+          <span>{moreLabel(more)}</span>
+          <CaretLeft size={16} weight="bold" aria-hidden="true" />
+        </button>
+      )}
+
+      {/* ── The one action ── */}
+      {active ? null : resting ? (
+        <div className="hm-quiet-actions">
+          <Button variant="secondary" size="lg" full onClick={onOverrideRecovery}>أبي أتمرّن</Button>
+          {currentPlanDay && (
+            <Button variant="plain" size="md" className="hm-plain" onClick={openSheet}>
+              تمارين بكرة
+            </Button>
+          )}
+        </div>
+      ) : done ? (
+        <div className="hm-quiet-actions">
+          <Button variant="secondary" size="lg" full onClick={start}>جلسة زيادة</Button>
+        </div>
+      ) : (
+        <Dock>
+          <Button variant="primary" size="lg" full onClick={start}>ابدأ التمرين</Button>
+        </Dock>
+      )}
+
+      {/* ── ⋯ — the rare decisions ── */}
+      {planned && (
+        <Sheet key={menuKey} open={showMenu} onClose={() => setShowMenu(false)} title="خيارات اليوم">
+          <ListGroup className="hm-menu">
+            <ListRow
+              leading={ListChecks}
+              title="عرض التمارين"
+              subtitle={<>كل تمارين اليوم، والاستبدال لو الجهاز مشغول</>}
+              chevron
+              onClick={fromMenu(openSheet)}
+            />
+            <ListRow
+              leading={<span className="k-row-icon"><SkipForward size={22} mirrored aria-hidden="true" /></span>}
+              title="تخطي اليوم"
+              subtitle="تنتقل الخطة لليوم الجاي"
+              chevron
+              onClick={fromMenu(() => onSkip?.())}
+            />
+          </ListGroup>
+        </Sheet>
+      )}
+
+      {currentPlanDay && (
         <DayPreviewSheet
+          key={sheetKey}
+          open={showSheet}
           day={currentPlanDay}
+          heading={resting ? 'تمارين بكرة' : 'تمارين اليوم'}
           sessions={sessions}
           exerciseMapping={exerciseMapping}
           exerciseSubs={exerciseSubs}
           onCycleSub={onCycleSub}
-          onStart={() => { setShowSheet(false); onStartPlanned(currentPlanDay) }}
-          onSkip={() => { setShowSheet(false); onSkip() }}
+          repTarget={repTarget}
+          deload={deload}
+          {...(resting ? {
+            // A rest day: no green, no skip (there is nothing owed to
+            // skip). Training anyway goes the stage's way — through the
+            // override — so the sheet and the stage never disagree.
+            startLabel: 'أبي أتمرّن',
+            startVariant: 'secondary',
+            onStart: onOverrideRecovery
+              ? () => { setShowSheet(false); setTimeout(() => onOverrideRecovery(), 240) }
+              : undefined,
+          } : {
+            onStart: () => { setShowSheet(false); onStartPlanned(currentPlanDay) },
+            onSkip: () => { setShowSheet(false); setTimeout(() => onSkip?.(), 240) },
+          })}
           onClose={() => setShowSheet(false)}
         />
       )}
-    </div>
+    </section>
   )
 }

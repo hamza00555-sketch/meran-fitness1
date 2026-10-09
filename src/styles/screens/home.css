@@ -1,0 +1,290 @@
+/* ══ Home — «تحت الأضواء» ═══════════════════════════════════════════
+   The top (the streak number, date, greeting), the Today stage and the
+   quiet lists under it. Written only against role tokens
+   (src/styles/tokens.css).
+
+   This file is imported by HomePage, which App imports before the
+   global sheets (tokens, index, kit), so it lands EARLIER in the bundle:
+   every rule that meets a kit or index.css rule is scoped one level
+   deeper (.hm …, or a doubled class) to win on specificity, not order. */
+
+/* ── The top ─────────────────────────────────────────────────────── */
+/* The streak number and the two buttons share the first line; the date
+   and the greeting under them take the full width (on a 320pt phone a
+   column beside the buttons broke the date in two). */
+.hm .h-top { position: relative; display: block; padding: 4px 0 12px; }
+.hm .h-top-actions { position: absolute; top: 4px; inset-inline-end: 0; }
+.hm .h-avatar { width: 44px; height: 44px; }
+.hm .h-greet {
+  font-size: clamp(17px, 4.9vw, 20px); font-weight: 700; line-height: 1.35;
+  min-height: 2.7em; text-wrap: pretty;
+}
+/* «أضف اسمك» rides at the end of the date line: a 44pt target whose
+   extra height is taken back with negative margins, so the block is the
+   same height with or without it. */
+.hm .h-eyebrow-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.hm .h-eyebrow-row .k-eyebrow { min-width: 0; }
+.hm .h-name-hint {
+  flex: none; min-height: 44px; margin-block: -13px; padding: 0 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+  /* Neutral, not the accent: a rest day carries no green at all, and the
+     screen's one green belongs to its one action. */
+  color: var(--ink-2);
+}
+
+/* ── Today ───────────────────────────────────────────────────────── */
+.hm-today { position: relative; margin-bottom: var(--space-7); }
+
+/* The stage: full bleed, neutral light at the art's side, the text on
+   the dark start side. Radius 0 — edge to edge is the signal. */
+.hm .hm-stage {
+  min-height: 196px; border-radius: var(--r-0);
+  padding-block: var(--space-6) var(--space-4);
+  background: radial-gradient(70% 85% at 24% 48%, var(--stage-light), var(--ground) 72%);
+}
+/* Anchored low, so the figure stands in the stage with head room and
+   the crop falls at the waist, not across the head. */
+.hm .hm-stage .k-stage-art {
+  top: auto; bottom: -12%; transform: none;
+  height: 112%; max-width: 62%; inset-inline-end: -24px;
+  /* The figure's inner edge dissolves into the dark the words stand on,
+     so a long muscles line never prints across an arm. */
+  -webkit-mask-image: linear-gradient(to right, #000 52%, transparent 96%);
+  mask-image: linear-gradient(to right, #000 52%, transparent 96%);
+}
+.hm .hm-stage-body { max-width: 66%; gap: 2px; }
+
+.hm-eyebrow {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-3);
+}
+.hm-live-dot {
+  width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent);
+  animation: pulseDot calc(2.5s * var(--breath)) ease-in-out infinite;
+}
+.hm-chip-deload {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 0 10px;
+  border-radius: var(--r-pill); background: var(--accent-wash); color: var(--accent);
+  font-size: var(--t-caption); font-weight: 700; line-height: 1.3;
+}
+
+.hm .hm-word {
+  margin: 0; font-size: clamp(44px, 14vw, 56px); font-weight: 800; line-height: 1.1;
+  color: var(--ink); white-space: nowrap;
+}
+.hm .hm-word.is-latin { font-size: clamp(32px, 10vw, 44px); white-space: normal; }
+.hm .hm-word-rest { color: var(--rest); }
+.hm-word-variant {
+  font-size: var(--t-title); font-weight: 700; color: var(--ink-3);
+  margin-inline-start: 8px;
+}
+.hm .hm-title { margin: 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; color: var(--ink); }
+.hm .hm-line {
+  margin: 0; font-size: clamp(18px, 5.6vw, 22px); font-weight: 700; line-height: 1.3;
+  color: var(--ink-2); text-wrap: balance;
+}
+.hm .hm-line-sm { font-size: var(--t-body); font-weight: 500; line-height: 1.6; text-wrap: pretty; }
+.hm .hm-meta { margin: 4px 0 0; font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-2); }
+
+/* The art. Rest: the moon, small, its rim light moved from lime to the
+   rest blue. Deload: the muscle cooled to the deload's glacier. */
+.hm .hm-stage .hm-art-rest {
+  top: 50%; bottom: auto; transform: translateY(-50%);
+  height: 64%; max-width: 42%; inset-inline-end: 4px;
+  -webkit-mask-image: none; mask-image: none;
+  filter: hue-rotate(105deg) saturate(0.85);
+}
+.hm .hm-stage .hm-art-cool { filter: hue-rotate(95deg) saturate(0.8); }
+
+/* Today already counts: the streak's number is the lit moment, so the
+   block goes quiet — no light, no art. */
+.hm .hm-stage.hm-stage-quiet {
+  min-height: 0; background: none;
+  padding-block: var(--space-2) 0;
+}
+.hm .hm-stage-quiet .hm-stage-body { max-width: 100%; }
+.hm .hm-stage.hm-stage-rest { min-height: 200px; }
+/* No art to stand in the light (no plan yet): the text takes the width. */
+.hm .hm-stage.hm-stage-noart:not(.hm-stage-quiet) { min-height: 176px; }
+.hm .hm-stage-noart .hm-stage-body { max-width: 100%; }
+.hm .hm-stage-rest .hm-stage-body { max-width: 64%; }
+
+/* ⋯ — top end corner of the stage, over the art's dark head room. */
+.hm .hm-more-btn {
+  position: absolute; z-index: 2; top: var(--space-3);
+  inset-inline-end: calc(var(--gutter) - 6px);
+  background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+/* ── The first exercises: open rows on the ground ── */
+.hm-rows { list-style: none; margin: var(--space-1) 0 0; padding: 0; }
+.hm-row {
+  position: relative; display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 56px; padding: 8px 0;
+  background: none; border: 0; color: var(--ink); text-align: start;
+  font-family: var(--font); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur-press);
+}
+.hm-row:active { background: var(--surface-1); }
+.hm-rows li + li .hm-row::before {
+  content: ""; position: absolute; top: 0; height: 1px;
+  inset-inline-start: 52px; inset-inline-end: 0; background: var(--hairline);
+}
+.hm-row-main { flex: 1; min-width: 0; display: grid; }
+.hm-row-ar {
+  font-size: var(--t-headline); font-weight: 600; line-height: 1.35;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hm-row-en {
+  font-size: var(--t-label); font-weight: 600; font-stretch: 85%; line-height: 1.35;
+  color: var(--ink-3); text-align: right;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hm-row-w {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--t-headline); font-weight: 700; color: var(--ink-2);
+}
+.hm-raise { color: var(--raise); flex: none; }
+/* A deload's weight: the deload's droplet (the accent is glacier blue
+   for the whole period), never the gold. */
+.hm-deload-mark { color: var(--accent); flex: none; }
+
+.hm-thumb {
+  flex: none; display: grid; place-items: center; overflow: hidden;
+  border-radius: var(--r-sm); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.hm-thumb img { width: 90%; height: 90%; object-fit: contain; }
+.hm-thumb.is-still img { width: 100%; height: 100%; object-fit: cover; }
+.hm-thumb-sm { width: 36px; height: 36px; }
+/* The shipped muscle art is lime; a deload cools it like the stage's,
+   on Home, in the muscles list and in the (portaled) day sheet alike.
+   The pack's photographic stills keep their colour. */
+:root[data-deload="1"] .hm-thumb:not(.is-still) img { filter: hue-rotate(95deg) saturate(0.8); }
+
+.hm-more {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px; padding: 0; margin-inline-start: 52px;
+  background: none; border: 0; color: var(--ink-2); cursor: pointer;
+  font-family: var(--font); font-size: var(--t-body); font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.hm-more:active { color: var(--ink); }
+
+/* ── The one action, docked above the tab bar while its place is below
+   the fold. Floating only while docked, so only then a shadow. ── */
+.hm-dock { margin-top: var(--space-3); }
+.hm-dock.is-sticky {
+  position: sticky; z-index: 3;
+  bottom: calc(var(--safe-bottom) + 64px);
+}
+/* Docked, the ground behind it starts at the button's own top edge, so
+   a row half under it is cut cleanly, never painted over. */
+.hm-dock.is-docked::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  inset-inline: calc(-1 * var(--gutter)); top: 50%; bottom: -64px;
+  background: var(--ground);
+}
+.hm-dock.is-docked .k-btn { box-shadow: 0 -4px 16px rgba(0,0,0,0.45); }
+.hm-dock-sentinel { display: block; height: 1px; }
+
+.hm-quiet-actions { display: grid; justify-items: center; gap: 4px; margin-top: var(--space-3); }
+/* A running session: the way back, quiet, inside the stage — the live
+   bar at the foot of the screen is the loud one. */
+.hm .k-btn.hm-resume { justify-self: start; margin-top: var(--space-3); }
+.hm .hm-plain { color: var(--ink-2); }
+
+/* ── Under the stage: quiet lists ────────────────────────────────── */
+.hm .hm-group { margin-bottom: var(--space-6); }
+.hm .hm-group .k-row-main { gap: 2px; }
+.hm-plan-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm .hm-gauge { margin-top: 8px; }
+.hm-pct { font-weight: 700; color: var(--ink); }
+.hm-rest-num { color: var(--rest); font-weight: 700; }
+.hm .hm-ic-rest { color: var(--rest); }
+.hm-unit { font-size: var(--t-label); color: var(--ink-3); }
+.hm-muscles .k-row-title { font-size: var(--t-body); }
+
+/* The deload suggestion, on the kit Banner: text, then its two answers
+   on their own line under it. */
+.hm .k-banner.hm-suggest { flex-wrap: wrap; margin-bottom: var(--space-6); }
+.hm .hm-suggest .k-banner-text { flex: 1 1 0; min-width: 0; }
+.hm-suggest-actions { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; padding-inline-start: 30px; }
+.hm .k-btn.hm-suggest-later { color: var(--ink-2); }
+.hm-banner-wrap { margin-bottom: var(--space-6); cursor: pointer; }
+.hm-deload-gauge { display: block; margin-top: 8px; }
+
+/* ── Day preview sheet (portaled, so not under .hm) ──────────────── */
+.dp-head { display: grid; gap: 2px; padding: 4px 0 var(--space-3); border-bottom: 1px solid var(--hairline); }
+.dp-word { font-size: var(--t-screen); font-weight: 800; line-height: 1.2; color: var(--ink); }
+.dp-word.is-latin { font-size: var(--t-title); }
+.dp-variant { font-size: var(--t-headline); font-weight: 700; color: var(--ink-3); margin-inline-start: 6px; }
+.dp-sub { font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); }
+.dp-list { list-style: none; margin: 0; padding: 0; }
+.dp-row { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; }
+.dp-row + .dp-row::before {
+  content: ""; position: absolute; top: 0; height: 1px;
+  inset-inline-start: 60px; inset-inline-end: 0; background: var(--hairline);
+}
+.dp-main { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.dp-ar { font-size: var(--t-headline); font-weight: 600; line-height: 1.35; color: var(--ink); }
+.dp-en {
+  font-size: var(--t-label); font-weight: 600; font-stretch: 85%; line-height: 1.35;
+  color: var(--ink-3); text-align: right; overflow-wrap: anywhere;
+}
+.dp-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 4px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
+}
+.dp-last { display: inline-flex; align-items: center; gap: 4px; }
+.dp-deload { color: var(--ink); }
+.dp-best .k-num { color: var(--raise); }
+.dp-from { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); }
+.dp-actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.dp-swap {
+  min-width: 44px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  background: var(--surface-3); color: var(--ink-2); cursor: pointer;
+  font-family: var(--font); font-size: var(--t-label); font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+.dp-swap.on { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+@media (max-width: 360px) { .dp-swap:not(.on) span { display: none; } .dp-swap { padding: 0; } }
+.dp-swap:active, .dp-video:active { transform: scale(0.94); }
+.dp-video {
+  width: 44px; height: 44px; border-radius: var(--r-pill); display: grid; place-items: center;
+  background: var(--surface-3); color: var(--ink); text-decoration: none;
+}
+.dp-foot { display: flex; gap: 8px; }
+.dp-foot .k-btn:not(.dp-skip) { flex: 1; }
+.dp-foot .k-btn.dp-skip { flex: none; padding-inline: 16px; }
+
+/* ── The skip sheet (portaled) ───────────────────────────────────── */
+.k-sheet.skip-sheet-k .k-sheet-h { padding: 8px var(--gutter) 0; }
+.k-sheet.skip-sheet-k .k-sheet-h h2 { padding-inline-start: 0; }
+.skip-sheet-msg { margin: 0; font-size: var(--t-body); line-height: 1.7; color: var(--ink-2); text-wrap: pretty; }
+.skip-sheet-msg.warn { color: var(--ink); }
+.skip-sheet-k-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ── Short screens ───────────────────────────────────────────────────
+   The start button has to be on screen above the tab bar, with the
+   first exercise readable above it. The stage tightens first. */
+@media (max-height: 700px) {
+  .hm .hm-stage { min-height: 176px; padding-block: var(--space-5) var(--space-3); }
+}
+@media (max-height: 620px) {
+  .hm .h-top { padding-bottom: 8px; }
+  .hm .hm-stage { min-height: 164px; padding-block: var(--space-4) var(--space-3); }
+  .hm .hm-word { font-size: 44px; }
+  .hm .hm-line:not(.hm-line-sm) { font-size: 18px; }
+}
+
+/* ── The streak on Home: flame + number ── */
+.h-streak {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--streak); font-family: var(--font);
+  min-height: 44px;
+}
+.h-streak-flame { display: grid; }
+.h-streak b { font-size: 40px; font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--streak); }
+.h-streak b.zero { color: var(--ink-3); }
+.h-streak-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 4px; }
