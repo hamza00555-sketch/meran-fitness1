@@ -1,0 +1,96 @@
+/* ══ Celebrations — مستوى جديد, خلص الديلود ═════════════════════════
+   components/LevelUpScreen.jsx · DeloadEndScreen.jsx.
+   A broadcast wipe in from the start edge (right, in RTL), beats about
+   a third of a second apart, then still. No glow, no shimmer, no loop.
+   Motion on transform/opacity/clip-path only. */
+
+@keyframes cel-wipe  { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+@keyframes cel-in    { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes cel-roll  { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes cel-crest { from { opacity: 0; transform: scale(0.6); } 70% { opacity: 1; transform: scale(1.03); } to { opacity: 1; transform: scale(1); } }
+@keyframes cel-thaw  { from { opacity: 1; } to { opacity: 0; } }
+
+.cel {
+  position: fixed; inset: 0; z-index: var(--z-cover);
+  display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+  padding: calc(var(--safe-top) + var(--space-6)) var(--gutter) 0;
+  background: radial-gradient(70% 42% at 50% 34%, var(--stage-light), var(--ground) 78%);
+  animation: cel-wipe 320ms var(--ease-wipe) both;
+}
+.cel:focus { outline: none; }
+.cel-body {
+  flex: 1; width: 100%; max-width: 420px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+  gap: var(--space-3); padding-block: var(--space-6);
+}
+.cel-beat { animation: cel-in var(--dur-base) var(--ease-out) both; animation-delay: calc(320ms + var(--b, 0) * 260ms); }
+
+.cel-eyebrow { font-size: var(--t-body); font-weight: 600; color: var(--accent); line-height: 1.4; }
+
+/* the level number, rolling */
+.cel-roll { margin-top: var(--space-1); }
+.cel-roll-n {
+  display: inline-flex; font-size: var(--t-poster); font-weight: 800; line-height: 1; font-stretch: 75%;
+  font-variant-numeric: tabular-nums lining-nums; color: var(--ink);
+}
+.cel-digit { display: inline-block; height: 1em; overflow: hidden; }
+.cel-strip { display: flex; flex-direction: column; animation: cel-roll 280ms var(--ease-out) both; animation-delay: calc(700ms + var(--d, 0) * 30ms); }
+.cel-strip > span { display: block; height: 1em; line-height: 1; }
+
+.cel-crest-row { display: inline-flex; align-items: center; gap: 12px; margin-top: var(--space-1); }
+.cel-crest-text { display: inline-flex; align-items: baseline; gap: 8px; font-size: var(--t-title); font-weight: 800; color: var(--ink); }
+.cel-crest-letter { font-stretch: 85%; color: var(--ink-2); }
+
+/* rank promotion: the crest is the hero */
+.cel-crest-hero { animation: cel-crest 380ms var(--ease-out) both; animation-delay: calc(320ms + 260ms); }
+.cel-rank { display: inline-flex; align-items: baseline; gap: 12px; }
+.cel-rank-letter { font-size: var(--t-display); font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--ink); }
+.cel-rank-name { font-size: var(--t-screen); font-weight: 800; color: var(--ink); }
+.cel-sub { margin: 0; font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); }
+
+.cel-ladder { --b: 3; width: 100%; max-width: 340px; margin-top: var(--space-5); }
+.cel-ladder .rl-cap { text-align: center; }
+
+.cel-foot {
+  position: sticky; bottom: 0; width: 100%; max-width: 420px; margin: 0 auto;
+  display: grid; gap: 8px; padding: var(--space-4) 0 calc(var(--safe-bottom) + var(--space-4));
+  background: linear-gradient(to top, var(--ground) 72%, transparent);
+}
+
+.cel-inline { display: grid; gap: 12px; justify-items: center; text-align: center; padding-bottom: 8px; }
+.cel-inline img { width: min(100%, 240px); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--edge); }
+.cel-inline p { margin: 0; font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; }
+
+/* ── The deload end ── */
+.cel-deload .cel-body { gap: var(--space-2); }
+.cel-art { margin-bottom: var(--space-2); }
+.cel-title { margin: 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; color: var(--ink); }
+.cel-text { margin: 0; font-size: var(--t-body); color: var(--ink-2); line-height: 1.7; max-width: 30ch; text-wrap: pretty; }
+.cel-thaw { display: inline-grid; }
+.cel-thaw > span { grid-area: 1 / 1; }
+/* The deload's ice — the accent it is leaving — fading into the green. */
+.cel-thaw-ice { color: #5CC9EE; animation: cel-thaw 600ms var(--ease-out) both; animation-delay: 900ms; }
+
+.cel-return { display: grid; justify-items: center; gap: 2px; margin-top: var(--space-6); }
+.cel-return-label { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.cel-return-n { display: inline-flex; align-items: baseline; gap: 8px; }
+.cel-return-w { font-size: 64px; font-weight: 800; line-height: 1; font-stretch: 75%; color: var(--ink); }
+.cel-return-u { font-size: var(--t-headline); font-weight: 600; color: var(--ink-3); }
+.cel-return-name { display: grid; gap: 0; font-size: var(--t-headline); font-weight: 600; color: var(--ink); margin-top: 4px; }
+.cel-return-en { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); font-stretch: 85%; }
+
+@media (max-height: 620px) {
+  .cel { padding-top: calc(var(--safe-top) + var(--space-3)); }
+  .cel-body { gap: var(--space-2); padding-block: var(--space-3); }
+  .cel-roll-n { font-size: 80px; }
+  .cel-ladder { margin-top: var(--space-3); }
+  .cel-return { margin-top: var(--space-3); }
+  .cel-return-w { font-size: 56px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cel { animation: k-fade-in 160ms linear both; }
+  .cel-beat, .cel-crest-hero, .cel-strip, .cel-thaw-ice { animation-duration: 1ms; animation-delay: 0ms; }
+  .cel-strip { transform: translateY(-50%); }
+  .cel-thaw-ice { opacity: 0; }
+}

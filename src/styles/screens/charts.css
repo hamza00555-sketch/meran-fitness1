@@ -1,0 +1,69 @@
+/* ══ Bar chart (components/BarChart.jsx) ═══════════════════════════
+   To scale from zero; one lit bar; text never under 12px. Time runs
+   with the reading direction: in RTL the flex row puts the oldest
+   column on the right, the newest on the left.
+
+   Two columns: the scale on the start edge (right), sized to its
+   widest label, then the plot; the week labels sit under the plot
+   only. The top padding is the room a full-height bar's value needs. */
+
+.bc {
+  margin: 0; padding-top: 22px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 6px;
+}
+.bc-empty { margin: 0; padding: var(--space-6) 0; text-align: center; font-size: var(--t-label); color: var(--ink-3); }
+
+/* Each tick is centred on its gridline: a 14px line box with -7px
+   margins has no height in the flow, so space-between puts the centres
+   exactly at the top and at the baseline. */
+.bc-scale {
+  grid-column: 1; grid-row: 1;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;
+}
+.bc-tick {
+  display: block; height: 14px; margin-block: -7px; line-height: 14px; white-space: nowrap;
+  font-size: var(--t-caption); font-weight: 600; color: var(--ink-3);
+}
+
+.bc-plot { grid-column: 2; grid-row: 1; position: relative; }
+.bc-grid {
+  position: absolute; inset-inline: 0; height: 0;
+  border-top: 1px dashed var(--hairline);
+}
+.bc-grid-mid { border-top-style: dotted; }
+.bc-target { position: absolute; inset-inline: 0; height: 0; border-top: 1.5px solid var(--ink-3); }
+.bc-target span {
+  position: absolute; bottom: 3px; inset-inline-start: 0;
+  font-size: var(--t-caption); font-weight: 600; color: var(--ink-2); white-space: nowrap;
+}
+
+.bc-bars {
+  position: absolute; inset: 0; display: flex; align-items: flex-end; gap: clamp(4px, 1.6vw, 8px);
+  border-bottom: 1px solid var(--hairline);
+}
+.bc-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; min-width: 0; }
+.bc-bar {
+  display: block; width: 100%; max-width: 28px;
+  border-radius: 4px 4px 0 0; background: var(--ink-4);
+}
+.bc-bar.zero { height: 2px; background: var(--surface-3); border-radius: 1px; }
+.bc-col.on .bc-bar { background: var(--accent); }
+.bc-rest .bc-col.on .bc-bar { background: var(--rest); }
+.bc-ink .bc-col.on .bc-bar { background: var(--ink); }
+.bc-val {
+  position: absolute; inset-inline: -8px; margin-bottom: 4px; text-align: center;
+  font-size: var(--t-caption); font-weight: 700; color: var(--ink-2); line-height: 1.2; white-space: nowrap;
+}
+.bc-col.on .bc-val { color: var(--ink); font-size: var(--t-label); }
+
+.bc-axis { grid-column: 2; grid-row: 2; display: flex; gap: clamp(4px, 1.6vw, 8px); min-height: 17px; }
+.bc-lab {
+  flex: 1; min-width: 0; display: flex; justify-content: center; overflow: visible; white-space: nowrap;
+  font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 1.4;
+}
+.bc-lab.first { justify-content: flex-start; }
+.bc-lab.last { justify-content: flex-end; color: var(--ink-2); }
+
+@keyframes bc-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.bc-anim .bc-bar { transform-origin: bottom; animation: bc-grow var(--dur-hero) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 30ms); }
+@media (prefers-reduced-motion: reduce) { .bc-anim .bc-bar { animation: none; } }
