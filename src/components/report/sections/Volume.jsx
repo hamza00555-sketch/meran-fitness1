@@ -11,6 +11,7 @@ import { arabicName } from '../../../exerciseMedia.js'
 import { prevMonth, monthLabel } from '../../../monthReport.js'
 import { Chapter, Figure, AR } from '../parts.jsx'
 import { durationParts } from '../../../utils.js'
+import { countAr } from '../../../streak.js'
 import TrendChart, { monthVerdict, DELOAD_INK } from '../TrendChart.jsx'
 
 const monthName = (m) => monthLabel(m).split(' ')[0]
@@ -48,8 +49,8 @@ function Lift({ pr, mapping, best }) {
           </div>
         </div>
         <p className="rp-best-sub">
-          كان <Num>{kg(pr.prevBest)}</Num> كجم · <Num>+{kg(gain)}</Num> كجم
-          {pr.steps > 1 && <> على <Num>{pr.steps}</Num> جلسات</>}
+          كان <Num>{kg(pr.prevBest)}</Num> كجم · <Num>{`+${kg(gain)}`}</Num> كجم
+          {pr.steps > 1 && <> على {countAr(pr.steps, 'session')}</>}
         </p>
       </div>
     )
@@ -62,7 +63,7 @@ function Lift({ pr, mapping, best }) {
       </span>
       <span className="rp-row-v">
         <b><Num>{kg(pr.weight)}</Num></b> كجم
-        <small><Num>+{kg(gain)}</Num></small>
+        <small><Num>{`+${kg(gain)}`}</Num></small>
       </span>
     </li>
   )

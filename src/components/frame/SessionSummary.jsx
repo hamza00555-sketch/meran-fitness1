@@ -68,7 +68,7 @@ export default function SessionSummary({ summary, xp, onDone }) {
         <section className="sum-sec sum-beat" style={b()}>
           <div className="sum-xp">
             <span>المستوى <Num>{level}</Num></span>
-            <span className="sum-xp-gain">+<Num>{s.xp}</Num> XP</span>
+            <span className="sum-xp-gain"><Num>{`+${s.xp} XP`}</Num></span>
           </div>
           <Gauge value={currentXP} max={neededXP} tone="accent" label="التقدم للمستوى الجاي" />
           {s.levelUp && <p className="sum-levelup">مستوى جديد · <Num>{s.levelUp}</Num></p>}

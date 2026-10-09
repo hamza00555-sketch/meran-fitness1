@@ -33,6 +33,7 @@ const NOUNS = {
   day:     { one: 'يوم واحد',   two: 'يومين',   few: 'أيام',   many: 'يوم' },
   ticket:  { one: 'تذكرة وحدة', two: 'تذكرتين', few: 'تذاكر',  many: 'تذكرة' },
   workout: { one: 'تمرين واحد', two: 'تمرينين', few: 'تمارين', many: 'تمرين' },
+  session: { one: 'جلسة وحدة',  two: 'جلستين',  few: 'جلسات',  many: 'جلسة' },
 }
 export const countAr = (n, noun) => {
   const f = NOUNS[noun]
