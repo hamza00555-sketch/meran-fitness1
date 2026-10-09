@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
-  scheduleNotificationsForToday, applySubsToDay, planDayTitle,
+  scheduleNotificationsForToday, applySubsToDay, planDayTitle, getHistoricalMax, sessionVolume,
 } from './utils.js'
 import {
   NAV_TABS, ACHIEVEMENTS,
@@ -51,6 +51,7 @@ import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import StreakChip       from './components/streak/StreakChip.jsx'
 import LiveBar          from './components/frame/LiveBar.jsx'
+import SessionSummary   from './components/frame/SessionSummary.jsx'
 import ProgressPage     from './pages/ProgressPage.jsx'
 import { LargeTitle, NavBar, IconButton } from './components/kit/index.jsx'
 import { House, ClockCounterClockwise, ChartLineUp, Books, GearSix, CaretDown } from './components/kit/icons.js'
@@ -210,6 +211,12 @@ export default function App() {
 
   const prevLevelRef  = useRef(levelFromXP(xp))
   const sessionXPRef  = useRef(0) // XP earned in the current live session (refunded on تراجع)
+  // While the end-of-workout summary is being composed, XP, a level-up
+  // and achievements are collected into it instead of firing toasts and
+  // full-screen interruptions one after another.
+  const collectRef      = useRef(false)
+  const pendingLevelRef = useRef(null)
+  const [summary, setSummary] = useState(null)
   const activeRef     = useRef(active)
   useEffect(() => { activeRef.current = active }, [active])
 
@@ -314,25 +321,36 @@ export default function App() {
   }, [])
 
   // ── Add XP ───────────────────────────────────────────────────
-  const addXP = useCallback((amount, label = '') => {
+  // quiet: no float, no toast, and a level-up waits for the summary —
+  // used for XP earned set by set, which used to interrupt every set.
+  const addXP = useCallback((amount, label = '', { quiet = false } = {}) => {
+    const deferred = quiet || collectRef.current
     setXP(prev => {
       const newXP      = prev + amount
       const oldLevel   = levelFromXP(prev)
       const newLevel   = levelFromXP(newXP)
       if (newLevel > oldLevel) {
         prevLevelRef.current = newLevel
-        setLevelUpNum(newLevel)
-        setShowLevelUp(true)
+        if (deferred) {
+          pendingLevelRef.current = newLevel
+          setSummary(sm => (sm ? { ...sm, levelUp: newLevel } : sm))
+        } else {
+          setLevelUpNum(newLevel)
+          setShowLevelUp(true)
+        }
       }
       return newXP
     })
+    if (collectRef.current) { setSummary(sm => (sm ? { ...sm, xp: sm.xp + amount } : sm)); return }
+    if (quiet) return
     showXPFloat(amount)
     if (label) pushAlert('⭐', `${label} +${amount} XP`)
   }, [showXPFloat, pushAlert])
 
-  // XP during a live workout — tracked so it can be refunded on تراجع
+  // XP during a live workout — tracked so it can be refunded on تراجع,
+  // and silent: the summary at the end says it once.
   const addWorkoutXP = useCallback((amount, label = '') => {
-    addXP(amount, label)
+    addXP(amount, label, { quiet: true })
     sessionXPRef.current += amount
   }, [addXP])
 
@@ -349,7 +367,8 @@ export default function App() {
             newUnlocked.push(a.id)
             stamps[a.id] = Date.now()
             gained += a.xp
-            pushAlert('🏆', `إنجاز: ${a.title}`)
+            if (collectRef.current) setSummary(sm => (sm ? { ...sm, achievements: [...sm.achievements, a] } : sm))
+            else pushAlert('🏆', `إنجاز: ${a.title}`)
           }
         } catch {}
       })
@@ -486,11 +505,33 @@ export default function App() {
     // (started before 03:00), or not counting after a plan reset.
     const dayNow = todayKey()
     const streakBefore = todayStreak(computeRecovery(sessions, recoveryCfg), { config: recoveryCfg, today: dayNow })
+    const recoveryAfter = computeRecovery([finished, ...sessions], recoveryCfg)
     const streakLine = finishToast({
       before: streakBefore,
-      after: computeRecovery([finished, ...sessions], recoveryCfg),
+      after: recoveryAfter,
       sessionDay: dayKey(finished.date),
       today: dayNow,
+    })
+
+    // The summary: what was done, any best weights, what it did to the
+    // streak; XP, a level-up and achievements arrive into it as they are
+    // awarded below.
+    const doneSets = (finished.exercises || []).flatMap(e => (e.sets || []).filter(setCounts))
+    const prs = (finished.exercises || []).map(ex => {
+      const top = Math.max(0, ...(ex.sets || []).filter(setCounts).map(x => parseFloat(x.weight) || 0))
+      const prev = getHistoricalMax(sessions, ex.name, exerciseMapping)
+      return top > 0 && prev > 0 && top > prev ? { name: ex.name, top, prev } : null
+    }).filter(Boolean)
+    collectRef.current = true
+    setSummary({
+      title: planDayTitle(finished) || finished.name || 'جلسة حرة',
+      duration, sets: doneSets.length, volume: sessionVolume(finished), prs,
+      streakLine,
+      streakBefore: computeRecovery(sessions, recoveryCfg).consistencyStreak,
+      streakAfter: recoveryAfter.consistencyStreak,
+      xp: sessionXPRef.current,
+      levelUp: pendingLevelRef.current,
+      achievements: [],
     })
 
     setSessions(prev => {
@@ -521,8 +562,13 @@ export default function App() {
     setSessionOpen(false)
     setPages([])
     setTab('home')
-    pushAlert('🔥', streakLine)
   }, [active, sessions, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
+
+  const closeSummary = useCallback(() => {
+    collectRef.current = false
+    pendingLevelRef.current = null
+    setSummary(null)
+  }, [])
 
   const updateActive = useCallback((updater) => {
     setActive(prev => prev ? updater(prev) : prev)
@@ -1068,7 +1114,8 @@ export default function App() {
       {showRest && !(sessionOpen && active) && (
         <RestTimer key={restKey} onClose={() => setShowRest(false)} />
       )}
-      {showLevelUp && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
+      {showLevelUp && !summary && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
+      {summary && <SessionSummary summary={summary} xp={xp} onDone={closeSummary} />}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
 
       <StreakSheet
