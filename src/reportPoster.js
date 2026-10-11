@@ -136,25 +136,27 @@ const MARK = { src: '/assets/app_logo_full_light.png', x: 10, y: 62, w: 172, h: 
 const monthName = (label) => String(label || '').split(' ')[0]
 const isMonthOver = (month, today = todayKey()) => String(today).slice(0, 7) > month
 
-/** What the poster says, decided apart from where it is drawn. */
+/** What the poster says, decided apart from where it is drawn.
+ *  «وزن جديد» is the one name for a weight that went past its best,
+ *  the same word the report uses; the «% of plan days» figure the
+ *  report dropped is the sessions attended out of the planned ones. */
 export function posterFigures(report, { liveStreak = null, today } = {}) {
   const c = report.consistency || {}
+  const a = report.attendance || {}
   const over = isMonthOver(report.month, today)
   const streak = over ? c.endStreak : liveStreak
-  const total = (c.calendar || []).length || 1
-  const pct = Math.round((((c.trainedDays || 0) + (c.scheduledRests || 0)) / total) * 100)
 
   const figs = [
-    { v: AR(report.sessionCount), l: 'جلسة' },
+    { v: AR(a.attended ?? report.sessionCount), l: 'جلسة حضرتها' },
     { v: AR(report.sets?.completed), l: 'مجموعة مكتملة' },
   ]
-  if (report.prs?.length) figs.push({ v: AR(report.prs.length), l: 'أعلى وزن', color: C.raise })
+  if (report.prs?.length) figs.push({ v: AR(report.prs.length), l: 'وزن جديد', color: C.raise })
   if (Number.isFinite(streak) && streak > 0) {
     figs.push({ v: AR(streak), l: over ? `ستريك آخر ${monthName(report.monthLabel)}` : 'ستريك لين اليوم', color: C.streak, flame: true })
   }
-  if (figs.length < 4) figs.push({ v: `${pct}%`, l: 'من أيام الخطة' })
+  if (figs.length < 4 && a.planned) figs.push({ v: AR(a.planned), l: 'جلسة في خطتك' })
   if (figs.length < 4) figs.push({ v: AR(report.reps?.total), l: 'تكرار' })
-  return { figs: figs.slice(0, 4), pct }
+  return { figs: figs.slice(0, 4), attended: a.attended ?? report.sessionCount, planned: a.planned || 0 }
 }
 
 // ── The poster ────────────────────────────────────────────────
@@ -208,7 +210,7 @@ export async function drawPoster(canvas, { report, profile = {}, mapping = {}, l
   text(ctx, 'كجم رفعتها', R, heroBase + 76, { size: 44, weight: 600, color: C.ink2 })
 
   // ── Four figures on hairlines, two by two ──
-  const { figs, pct } = posterFigures(report, { liveStreak, today })
+  const { figs, attended, planned } = posterFigures(report, { liveStreak, today })
   const gridTop = heroBase + 140
   const ROW = 212
   const CELL = COL / 2
@@ -229,14 +231,14 @@ export async function drawPoster(canvas, { report, profile = {}, mapping = {}, l
   const gridBottom = gridTop + Math.ceil(figs.length / 2) * ROW + 16
   hairline(ctx, gridBottom)
 
-  // ── The month's best lift — the one gold weight — or, without one,
-  //    how much of the month went as planned. ──
+  // ── The month's biggest jump — the one gold weight — or, without one,
+  //    the sessions he came to out of the ones planned. ──
   const best = report.prs?.[0]
   const blockTop = gridBottom + 72
   if (best) {
     const ar = arabicName(best.exercise, mapping)
     const kg = AR(Math.round(best.weight * 10) / 10)
-    text(ctx, 'أقوى رقم', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
+    text(ctx, 'أكبر قفزة · وزن جديد', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
     // The weight on the left, in gold; the name on the right.
     const wW = width(ctx, kg, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
     const unitW = width(ctx, 'كجم', { size: 38, weight: 600 })
@@ -247,10 +249,10 @@ export async function drawPoster(canvas, { report, profile = {}, mapping = {}, l
     if (ar) text(ctx, best.exercise, R, blockTop + 124, { size: 34, weight: 600, stretch: 85, color: C.ink3, maxWidth: nameW, dir: 'ltr' })
     const gain = Math.round((best.weight - best.prevBest) * 10) / 10
     text(ctx, `كان ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
-  } else if (!figs.some(f => f.l === 'من أيام الخطة')) {
-    text(ctx, 'الالتزام', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
-    text(ctx, `${pct}%`, R, blockTop + 140, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
-    text(ctx, 'من أيام الخطة', R, blockTop + 196, { size: 34, weight: 600, color: C.ink3 })
+  } else if (planned && !figs.some(f => f.l === 'جلسة في خطتك')) {
+    text(ctx, 'حضورك', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
+    text(ctx, `${AR(attended)} / ${AR(planned)}`, R, blockTop + 140, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
+    text(ctx, 'جلسة حضرتها من اللي في خطتك', R, blockTop + 196, { size: 34, weight: 600, color: C.ink3 })
   }
 
   // ── Who this is, and the mark ──

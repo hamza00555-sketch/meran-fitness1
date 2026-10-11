@@ -62,7 +62,7 @@ import StreakSheet      from './components/streak/StreakSheet.jsx'
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
-import { buildMonthReport, monthReportWindow } from './monthReport.js'
+import { buildMonthReport, monthReportWindow, monthsTrail, reportMonths, MONTH_GOAL_KEY } from './monthReport.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly
@@ -215,6 +215,9 @@ export default function App() {
   // Set by the boot reconciliation below, never by a stored flag alone.
   const [packOffer,  setPackOffer]  = useState(false)
   const [showReport, setShowReport] = useState(false)
+  // Another month opened from inside the report; null is the month the
+  // report window is offering.
+  const [reportPick, setReportPick] = useState(null)
   const [sharing,    setSharing]    = useState(false)
   // Set only when neither the share sheet nor a download is available.
   const [posterUrl,  setPosterUrl]  = useState(null)
@@ -829,25 +832,45 @@ export default function App() {
   // Built once per change rather than on every render: it replays the
   // whole history to find record events.
   const reportMonth = monthReportWindow(today)
+  // The month's goal lives under its own key, which the old design does
+  // not know and ignores. Read when the report opens, so a goal set in
+  // another tab is not missed.
+  const monthGoals = useMemo(() => (showReport ? ls.get(MONTH_GOAL_KEY, {}) : {}), [showReport])
+  const reportArgs = {
+    sessions, config: recoveryCfg, unlockedAt, xp,
+    mapping: exerciseMapping, repTarget, goals: monthGoals, today,
+  }
   const monthReport = useMemo(
-    () => (reportMonth
-      ? buildMonthReport({
-          sessions, config: recoveryCfg, unlockedAt, xp,
-          mapping: exerciseMapping, repTarget, month: reportMonth,
-        })
-      : null),
-    [reportMonth, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget],
+    () => (reportMonth ? buildMonthReport({ ...reportArgs, month: reportMonth }) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reportMonth, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget, monthGoals, today],
   )
+  // The month on screen: the offered one, or a past one picked inside it.
+  const shownReport = useMemo(
+    () => (reportPick && reportPick !== reportMonth
+      ? buildMonthReport({ ...reportArgs, month: reportPick })
+      : monthReport),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reportPick, reportMonth, monthReport, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget, monthGoals, today],
+  )
+  // The past-month picker: six months of bars ending at the offered one,
+  // and any older month with training in it.
+  const reportHistory = useMemo(() => {
+    if (!showReport || !reportMonth) return null
+    const trail = monthsTrail(sessions, reportMonth, 6)
+    const older = reportMonths(sessions, reportMonth).filter(m => m < trail[0].month)
+    return { trail, older }
+  }, [showReport, reportMonth, sessions])
 
   // The share button's whole job: draw the poster, then take whichever
   // route out of the app actually works on this device. The ladder
   // itself lives in reportPoster.js; this only decides what to say.
   const handleSharePoster = useCallback(async () => {
-    if (!monthReport || sharing) return
+    if (!shownReport?.hasData || sharing) return
     setSharing(true)
     try {
       const how = await sharePoster({
-        report: monthReport,
+        report: shownReport,
         profile,
         mapping: exerciseMapping,
         liveStreak: recovery.consistencyStreak,
@@ -864,7 +887,7 @@ export default function App() {
     } finally {
       setSharing(false)
     }
-  }, [monthReport, profile, sharing, pushAlert, exerciseMapping, recovery.consistencyStreak])
+  }, [shownReport, profile, sharing, pushAlert, exerciseMapping, recovery.consistencyStreak])
 
   // ── Changing frequency or plan ───────────────────────────────
   // Both keep the streak, because each past day is judged by the pattern
@@ -1204,14 +1227,17 @@ export default function App() {
       {showWhatsNew && !(active && sessionOpen) && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
       {/* Queued behind the version notice so the two never stack. */}
       {packOffer && !showWhatsNew && !onboarding && !(active && sessionOpen) && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
-      {showReport && monthReport && (
+      {showReport && shownReport && (
         <MonthReport
-          report={monthReport}
+          report={shownReport}
           mapping={exerciseMapping}
           liveStreak={recovery.consistencyStreak}
+          today={today}
           sharing={sharing}
           onShare={handleSharePoster}
-          onClose={() => setShowReport(false)}
+          months={reportHistory}
+          onPickMonth={(m) => setReportPick(m === reportMonth ? null : m)}
+          onClose={() => { setShowReport(false); setReportPick(null) }}
         />
       )}
       {posterUrl && (

@@ -32,7 +32,7 @@ const {
   liftGains, newWeights, muscleSets, musclesLine, nextMonthPlan, nextCopy,
   monthGoalOf, withMonthGoal, goalResult, goalLine, reportMonths, monthsTrail,
   deloadRangesIn, deloadLine, countWord, monthKey, WEEKLY_SETS, MAX_NEXT,
-  MONTH_GOAL_KEY, nextMonth, lastDayOf,
+  MONTH_GOAL_KEY, nextMonth, lastDayOf, calendarLine, strongerLine,
 } = R
 
 // ── Fixtures ──────────────────────────────────────────────────
@@ -127,6 +127,24 @@ test('the cover sentence says what happened in plain words', () => {
   assert.equal(line({ attended: 15, missed: 1, ahead: 2 }), 'من 18 جلسة في خطتك، فاتتك وحدة، وباقي جلستين.')
   assert.equal(line({ attended: 20, extra: 2 }), 'حضرت كل جلسات خطتك، وزدت عليها جلستين.')
   assert.equal(line({ planned: 0, attended: 3 }), 'حضرت 3 جلسات هالشهر.')
+})
+
+test('the calendar sentence names the days that went missing', () => {
+  const cal = (...kinds) => kinds.map((k, i) => day(`2026-03-${String(18 + i).padStart(2, '0')}`, k, k !== 'rest'))
+  assert.equal(calendarLine(cal('trained', 'rest', 'trained')), 'مشيت على خطتك الشهر كله.')
+  assert.equal(calendarLine(cal('trained', 'paid', 'trained')), 'مشيت على خطتك الشهر كله.', 'a ticket day held the plan')
+  assert.equal(calendarLine(cal('miss', 'rest', 'trained')), 'مشيت على خطتك، إلا الأربعاء 18.')
+  assert.equal(calendarLine(cal('miss', 'rest', 'miss')), 'مشيت على خطتك، إلا يومين: الأربعاء 18 والجمعة 20.')
+  assert.equal(calendarLine(cal('miss', 'miss', 'miss', 'miss')), 'فاتك 4 أيام من خطتك هالشهر.')
+  assert.equal(calendarLine(cal('trained', 'ahead')), 'مشيت على خطتك لين اليوم.')
+  assert.equal(calendarLine([]), '')
+})
+
+test('«صرت أقوى؟» in one line', () => {
+  assert.equal(strongerLine(0), 'ما تعدّيت أثقل وزن لك في ولا تمرين هالشهر.')
+  assert.equal(strongerLine(1), 'وزنك زاد في تمرين واحد.')
+  assert.equal(strongerLine(2), 'وزنك زاد في تمرينين.')
+  assert.equal(strongerLine(3), 'وزنك زاد في 3 تمارين.')
 })
 
 // ══ one lift, week by week ════════════════════════════════════

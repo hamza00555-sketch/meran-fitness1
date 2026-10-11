@@ -1,90 +1,61 @@
-// ── Chapter 04: where the work went ───────────────────────────
-// Each muscle's share of the month, drawn as exactly that: a bar whose
-// length IS the percentage beside it, on one track that stands for the
-// whole month. (The old bars were scaled to the top muscle, so the
-// leader always filled its track while its label said 45%.) Neutral
-// ink — orange belongs to the streak and green to the next action.
+// ── Where did the work go? ────────────────────────────────────
+// One bar per muscle: how many completed sets it got a week, on the
+// month's average. The lighter band is 10 to 20 — the range a muscle
+// grows in, the same one the plan builder uses. A muscle under the band
+// is drawn white with «أقل من اللازم» beside it; the rest stay grey.
+// Neutral ink only: orange belongs to the streak, green to the action.
 //
-// Then push against pull as a balance, not a progress ring: a scale on
-// log2 from «pull ×2» to «push ×2», the balanced band shaded, a marker
-// where the month landed. The band is the tips engine's own, so the
-// two can never disagree about whether a split is lopsided.
+// This replaces the share-of-tonnage bars, the «most/least» line under
+// them and the push/pull ratio: a number of sets is something you can
+// add to a plan, «45% of the volume» and «1.52 : 1» are not.
 
 import { Num } from '../../kit/index.jsx'
-import { formatRatio, describeRatio, PUSH_PULL_BAND } from '../../../monthReport.js'
-import { Chapter, AR } from '../parts.jsx'
+import { musclesLine, WEEKLY_SETS } from '../../../monthReport.js'
+import { Section } from '../parts.jsx'
 
-// 0.5 … 2 on log2, mapped to 0 … 1 from the LEFT edge, so push-heavy
-// (a ratio above 1) moves toward «دفع» on the right.
-const pos = (r) => {
-  const c = Math.min(2, Math.max(0.5, r))
-  return 0.5 + Math.log2(c) / 2
-}
+export default function Muscles({ report, id = 'rp-muscles' }) {
+  const rows = report.muscles || []
+  if (!rows.length) return null
 
-function Balance({ ratio }) {
-  const balanced = ratio >= PUSH_PULL_BAND[0] && ratio <= PUSH_PULL_BAND[1]
-  const at = pos(ratio)
-  const lo = pos(PUSH_PULL_BAND[0])
-  const hi = pos(PUSH_PULL_BAND[1])
-  const label = formatRatio(ratio)
-  const extreme = label.startsWith('×')
+  // One scale for every row, a little past the band so it reads as a
+  // band and not as the end of the track.
+  const top = Math.max(WEEKLY_SETS.max + 4, Math.ceil(Math.max(...rows.map(m => m.perWeek)) / 4) * 4)
+  const at = (v) => `${(Math.min(v, top) / top) * 100}%`
+  const band = { insetInlineStart: at(WEEKLY_SETS.min), width: `${((WEEKLY_SETS.max - WEEKLY_SETS.min) / top) * 100}%` }
+
   return (
-    <div className="rp-block rp-in" style={{ '--i': 3 }}>
-      <div className="rp-block-h">
-        <span className="rp-eyebrow">الدفع والسحب</span>
-        <span className={`rp-verdict${balanced ? '' : ' is-warn'}`}>
-          <Num>{extreme ? label : `${label} : 1`}</Num> · {balanced ? 'متوازن' : 'مايل'}
-        </span>
-      </div>
-      <div className="rp-scale" role="img"
-           aria-label={`${describeRatio(ratio)} — ${balanced ? 'متوازن' : 'مايل'}`}>
-        <div className="rp-scale-track">
-          <i className="rp-scale-band" style={{ left: `${lo * 100}%`, width: `${(hi - lo) * 100}%` }} />
-          <i className="rp-scale-mid" />
-          <i className="rp-scale-mark" style={{ left: `${at * 100}%` }} />
+    <Section id={id} q="وين راح شغلك؟" lead={musclesLine(rows)}>
+      <div className="rp-sets rp-in" style={{ '--i': 1 }}>
+        <div className="rp-sets-scale" aria-hidden="true">
+          <span />
+          <span className="rp-sets-ticks">
+            <i style={{ insetInlineStart: at(WEEKLY_SETS.min) }}><Num>{WEEKLY_SETS.min}</Num></i>
+            <i style={{ insetInlineStart: at(WEEKLY_SETS.max) }}><Num>{WEEKLY_SETS.max}</Num></i>
+          </span>
+          <span />
         </div>
-        <div className="rp-scale-ends" aria-hidden="true">
-          <span>دفع</span>
-          <span>سحب</span>
-        </div>
+        <ul>
+          {rows.map((m, i) => {
+            const low = m.status === 'low'
+            const n = Math.round(m.perWeek)
+            return (
+              <li key={m.key} className={`rp-sets-row${low ? ' is-low' : ''}`}
+                  aria-label={`${m.label}: ${n} مجموعة بالأسبوع${low ? '، أقل من اللازم' : ''}`}>
+                <span className="rp-sets-l">{m.label}</span>
+                <span className="rp-sets-track" aria-hidden="true">
+                  {m.status && <i className="rp-sets-band" style={band} />}
+                  <i className="rp-sets-fill" style={{ width: at(Math.max(m.perWeek, 0.4)), '--i': i }} />
+                </span>
+                <span className="rp-sets-v"><Num>{n}</Num></span>
+                {low && <span className="rp-sets-note">أقل من اللازم</span>}
+              </li>
+            )
+          })}
+        </ul>
       </div>
-      <p className="rp-caption">
-        {balanced
-          ? 'حجم الدفع والسحب متقارب — هذا اللي يحمي الأكتاف على المدى الطويل.'
-          : ratio > 1
-            ? 'الدفع (صدر · أكتاف · ترايسبس) غالب على السحب (ظهر · بايسبس) — زِد تمرين ظهر.'
-            : 'السحب غالب على الدفع — أضف تمرين صدر أو أكتاف لين يتقاربون.'}
+      <p className="rp-caption rp-in" style={{ '--i': 2 }}>
+        كم مجموعة كاملة أخذت كل عضلة بالأسبوع. المنطقة الفاتحة من <Num>{WEEKLY_SETS.min}</Num> إلى <Num>{WEEKLY_SETS.max}</Num>: المدى اللي تكبر فيه العضلة.
       </p>
-    </div>
-  )
-}
-
-export default function Muscles({ report, n = 4, id = 'rp-muscles' }) {
-  const { muscles, balance } = report
-  if (!muscles.length) return null
-  const ratio = balance.pushPull
-
-  return (
-    <Chapter id={id} n={n} title="العضلات" note="حصة كل عضلة من حجم الشهر.">
-      <ul className="rp-share rp-in" style={{ '--i': 1 }}>
-        {muscles.map((m, i) => (
-          <li key={m.key} className="rp-share-row">
-            <span className="rp-share-l">{m.label}</span>
-            <span className="rp-share-track" aria-hidden="true">
-              <i className="rp-share-fill" style={{ width: `${Math.max(1.5, Math.min(100, m.pct))}%`, '--i': i }} />
-            </span>
-            <span className="rp-share-v"><Num>{m.pct}%</Num></span>
-          </li>
-        ))}
-      </ul>
-
-      {balance.neglected && balance.dominant && balance.neglected.key !== balance.dominant.key && (
-        <p className="rp-caption rp-in" style={{ '--i': 2 }}>
-          الأكثر: <b>{balance.dominant.label}</b> (<Num>{AR(balance.dominant.volume)}</Num> كجم) · الأقل: <b>{balance.neglected.label}</b> (<Num>{AR(balance.neglected.volume)}</Num> كجم)
-        </p>
-      )}
-
-      {ratio !== null && <Balance ratio={ratio} />}
-    </Chapter>
+    </Section>
   )
 }

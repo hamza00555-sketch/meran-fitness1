@@ -282,6 +282,30 @@ export function attendanceLine(a) {
   return `${of}، ${parts.join('، و')}.`
 }
 
+const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+/** «الأربعاء 18» — the month is already on the screen. */
+const weekdayAndDay = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}`
+}
+
+/** The calendar's one sentence: did he keep to the plan, and where not. */
+export function calendarLine(calendar = []) {
+  const misses = calendar.filter(d => d.kind === 'miss').map(d => d.date)
+  const running = calendar.some(d => d.kind === 'ahead')
+  if (!calendar.some(d => d.planned || d.kind === 'trained')) return ''
+  if (!misses.length) return running ? 'مشيت على خطتك لين اليوم.' : 'مشيت على خطتك الشهر كله.'
+  if (misses.length === 1) return `مشيت على خطتك، إلا ${weekdayAndDay(misses[0])}.`
+  if (misses.length === 2) return `مشيت على خطتك، إلا يومين: ${weekdayAndDay(misses[0])} و${weekdayAndDay(misses[1])}.`
+  return `فاتك ${countAr(misses.length, 'day')} من خطتك هالشهر.`
+}
+
+/** «صرت أقوى؟» answered in one line. */
+export function strongerLine(newCount) {
+  if (!newCount) return 'ما تعدّيت أثقل وزن لك في ولا تمرين هالشهر.'
+  return `وزنك زاد في ${countAr(newCount, 'workout')}.`
+}
+
 // ── Deload, as the report says it ─────────────────────────────
 // From the stored history and from the sessions' own stamps, so a
 // deload is found even when only one of the two survived an import.

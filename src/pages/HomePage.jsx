@@ -208,8 +208,9 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
               leading={ChartBar}
               title={withNums(`تقرير ${monthReport.monthLabel}`)}
               subtitle={<>
-                <Num>{monthReport.sessionCount}</Num> جلسة · <Num>{Number(monthReport.volume?.total || 0).toLocaleString('en-US')}</Num> كجم
-                {monthReport.prs?.length ? <> · <Num>{monthReport.prs.length}</Num> رقم قياسي</> : null}
+                <Num>{monthReport.attendance?.attended ?? monthReport.sessionCount}</Num> جلسة حضرتها
+                {monthReport.attendance?.planned ? <> من <Num>{monthReport.attendance.planned}</Num></> : null}
+                {monthReport.prs?.length ? <> · <Num>{monthReport.prs.length}</Num> وزن جديد</> : null}
               </>}
               chevron
               onClick={onShowMonthReport}

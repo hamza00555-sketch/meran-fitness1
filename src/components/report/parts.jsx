@@ -1,10 +1,9 @@
 // ── Shared pieces of the report ───────────────────────────────
-// The building blocks the cover and the five chapters share, so a
-// number, a chapter heading and a line of engine text look the same
-// wherever they appear. Styles live in src/styles/screens/report.css.
+// The building blocks every section shares, so a number, a section and
+// a line of text look the same wherever they appear. Styles live in
+// src/styles/screens/report.css.
 
 import { useCountUp, useReveal } from '../../hooks/useMotion.js'
-import { EXERCISE_MEDIA } from '../../exerciseMedia.js'
 import { todayKey } from '../../day.js'
 import { Num } from '../kit/index.jsx'
 
@@ -12,38 +11,27 @@ export const AR = (n) => Number(n || 0).toLocaleString('en-US')
 
 const cx = (...a) => a.filter(Boolean).join(' ')
 
+// The deload blue, as a literal: the report is usually read after the
+// stretch ended, when the app's palette is back to normal, and this
+// colour has to mean «تخفيف» wherever it is seen.
+export const DELOAD_INK = '#5CC9EE'
+
 // ── A number that counts up once and then rests ────────────────
-// One beat: it climbs while its section arrives and stops. Under
-// reduced motion useCountUp hands back the final value immediately.
+// Under reduced motion useCountUp hands back the final value at once.
 export function Counted({ value, run = true, duration = 900 }) {
   const shown = useCountUp(value, { run, duration })
   return <Num>{AR(shown)}</Num>
 }
 
-// ── Engine text, made to read in Arabic ────────────────────────
-// The tips are written by monthReport.js, which knows exercises by
-// their English names and writes «٪12» with the Arabic percent sign.
-// Here, and only here, the line is made presentable: an exercise the
-// app has an Arabic name for is called by it, the percent goes after
-// a Western number, and every Latin or numeric run is isolated LTR so
-// «Leg Press, Squat» or «1.52» never reorders inside the Arabic.
-
-const NAMES = Object.keys(EXERCISE_MEDIA).sort((a, b) => b.length - a.length)
-const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const NAME_RE = new RegExp(`\\b(${NAMES.map(escape).join('|')})\\b`, 'g')
-
-export const arabize = (text) =>
-  String(text ?? '')
-    .replace(NAME_RE, (m) => EXERCISE_MEDIA[m]?.ar || m)
-    .replace(/٪\s?(\d+(?:\.\d+)?)/g, '$1%')
-    .replace(/\b(\d+) PR\b/g, (_, n) => (Number(n) === 0 ? 'ولا رقم قياسي' : `${n} ${Number(n) === 1 ? 'رقم قياسي' : 'أرقام قياسية'}`))
-    .replace(/رقم قياسي جديدة/g, 'رقم قياسي جديد')
-
+// ── Arabic text with its numbers kept the right way round ──────
+// Every number or Latin run — «+12.5», «Bench Press», «10 إلى 20» — is
+// isolated LTR inside <bdi dir="ltr">, so a sign never ends up on the
+// wrong side of its digits and a Latin name never reorders the words
+// around it.
 const RUN = /[+\-−]?[0-9A-Za-z][0-9A-Za-z.,:%×+\-−/'’ ]*[0-9A-Za-z%]|[+\-−]?[0-9A-Za-z]/g
 
-/** Arabic text with every number or Latin run wrapped in <Num>. */
-export function Bidi({ text, arabic = true }) {
-  const s = arabic ? arabize(text) : String(text ?? '')
+export function Bidi({ text }) {
+  const s = String(text ?? '')
   const out = []
   let last = 0
   for (const m of s.matchAll(RUN)) {
@@ -55,36 +43,35 @@ export function Bidi({ text, arabic = true }) {
   return <>{out}</>
 }
 
-// ── A chapter: hairline, number, title ─────────────────────────
-// No box. The number is the report's own index (01–05, Archivo) and
-// matches the button that jumps to it in the bottom bar.
-export function Chapter({ id, n, title, note, children, className }) {
+/** «+12.5» — a gain, its sign on the left of its digits in any context. */
+export function Gain({ kg, unit = 'كجم' }) {
+  const v = Math.round(Number(kg) * 10) / 10
+  return (
+    <span className="rp-gain">
+      <bdi dir="ltr" className="k-num">{`+${AR(v)}`}</bdi>
+      {unit && <span className="rp-gain-u"> {unit}</span>}
+    </span>
+  )
+}
+
+// ── A section: the small question, the one sentence that answers it ──
+// No numbers, no boxes, no notes explaining the code. Whatever needs
+// reading instructions gets one grey line under its picture instead.
+export function Section({ id, q, lead, children, className }) {
   const [ref, run] = useReveal({ threshold: 0.08 })
   return (
     <section
       ref={ref}
       id={id}
-      data-chapter={id}
       className={cx('rp-ch', 'mr-section', run ? 'rp-on' : 'rp-off', className)}
-      aria-labelledby={`${id}-t`}
+      aria-labelledby={`${id}-q`}
     >
       <header className="rp-ch-h rp-in">
-        <span className="rp-ch-n"><Num>{String(n).padStart(2, '0')}</Num></span>
-        <h2 className="rp-ch-title" id={`${id}-t`}>{title}</h2>
-        {note && <p className="rp-ch-note">{note}</p>}
+        <h2 className="rp-ch-q" id={`${id}-q`}>{q}</h2>
+        {lead && <p className="rp-ch-lead"><Bidi text={lead} /></p>}
       </header>
       {children}
     </section>
-  )
-}
-
-// ── A figure: a broadcast number with its label under it ───────
-export function Figure({ value, label, tone, i = 0, suffix }) {
-  return (
-    <div className={cx('rp-fig', 'rp-in', tone && `is-${tone}`)} style={{ '--i': i }}>
-      <b className="rp-fig-v"><Num>{typeof value === 'number' ? AR(value) : value}{suffix}</Num></b>
-      <span className="rp-fig-l">{label}</span>
-    </div>
   )
 }
 
