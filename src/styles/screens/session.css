@@ -377,6 +377,10 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   color: var(--ink); pointer-events: none; white-space: nowrap;
 }
 .s-field[data-raise="1"] .s-field-roll { color: var(--raise); }
+/* A number rolling narrower (− from 77.5 to 75) starts wider than the
+   box it lands in; it spills to the right, away from the unit beside it,
+   not over «كجم». (The rolling digits are LTR: flex-start is the left.) */
+.s-field-roll .k-roll-o { justify-content: flex-start; }
 .s-field-num[data-rolling="1"] input { opacity: 0; }
 .s-field input::placeholder { color: var(--ink-3); }
 .s-field-unit { flex: none; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
