@@ -290,6 +290,58 @@
   min-height: 44px;
 }
 .h-streak-flame { display: grid; }
+.h-streak-n { position: relative; display: inline-grid; }
 .h-streak b { font-size: 40px; font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--streak); }
 .h-streak b.zero { color: var(--ink-3); }
+/* The number rolling up after a workout: the digits roll over the
+   number, which keeps its place (and stays the button's text). */
+.h-streak b.h-streak-ghost { color: transparent; }
+.h-streak-roll {
+  position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  font-size: 40px; font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--streak);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ── The way in: the first Home after the app opens (TodayHero) ──────
+   The stage light comes up and the muscle rises into it; «اليوم», then
+   the day's word wipes in from the right, the muscles, the exercises one
+   by one, then «ابدأ التمرين» and one sheen across it. Under a second
+   and a half, once per app open — never on a tab switch. Every step
+   holds its first frame through its delay (backwards) and lets go after,
+   so :active presses and the dock work as before. */
+@keyframes hm-dark  { from { opacity: 1; } to { opacity: 0; } }
+@keyframes hm-art   { from { opacity: 0; translate: 0 16%; } to { opacity: 1; translate: 0 0; } }
+@keyframes hm-rise  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes hm-wipe  { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
+@keyframes hm-sheen { from { transform: translateX(110%); } to { transform: translateX(-110%); } }
+.hm-enter .hm-stage::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--ground); opacity: 0;
+  animation: hm-dark 560ms var(--ease-out) backwards;
+}
+.hm-enter .hm-stage .k-stage-art { animation: hm-art var(--spring-smooth-ms) var(--spring-smooth) 80ms backwards; }
+.hm-enter .hm-eyebrow { animation: hm-rise 240ms var(--ease-out) 100ms backwards; }
+.hm-enter .hm-word, .hm-enter .hm-title { animation: hm-wipe 360ms var(--ease-wipe) 180ms backwards; }
+.hm-enter .hm-line { animation: hm-rise 260ms var(--ease-out) 360ms backwards; }
+.hm-enter .hm-meta { animation: hm-rise 260ms var(--ease-out) 410ms backwards; }
+.hm-enter .hm-rows li:nth-child(1) .hm-row { animation: hm-rise 260ms var(--ease-out) 420ms backwards; }
+.hm-enter .hm-rows li:nth-child(2) .hm-row { animation: hm-rise 260ms var(--ease-out) 470ms backwards; }
+.hm-enter .hm-rows li:nth-child(3) .hm-row { animation: hm-rise 260ms var(--ease-out) 520ms backwards; }
+.hm-enter .hm-more { animation: hm-rise 260ms var(--ease-out) 550ms backwards; }
+.hm-enter .hm-dock .k-btn, .hm-enter .hm-quiet-actions .k-btn, .hm-enter .k-btn.hm-resume {
+  animation: hm-rise 280ms var(--ease-out) 560ms backwards;
+}
+.hm-enter .hm-dock .k-btn { position: relative; overflow: hidden; }
+.hm-enter .hm-dock .k-btn::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.32) 50%, transparent 70%);
+  transform: translateX(110%);
+  animation: hm-sheen 650ms var(--ease-io) 900ms backwards;
+}
+/* Back from a workout, the flame lighting: the stage, gone quiet, says so. */
+.hm-calm .hm-stage-quiet .hm-title { animation: hm-rise 320ms var(--ease-out) 120ms backwards; }
+.hm-calm .hm-stage-quiet .hm-line  { animation: hm-rise 320ms var(--ease-out) 220ms backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .hm-enter *, .hm-enter *::before, .hm-enter *::after, .hm-calm * { animation: none !important; }
+}
 .h-streak-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 4px; }

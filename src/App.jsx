@@ -200,6 +200,7 @@ export default function App() {
   })
   const [showLevelUp,setShowLevelUp]= useState(false)
   const [levelUpNum, setLevelUpNum] = useState(1)
+  const [levelUpFrom, setLevelUpFrom] = useState(null)
   const [alertQueue, setAlertQueue] = useState([])
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
@@ -227,6 +228,10 @@ export default function App() {
   const collectRef      = useRef(false)
   const pendingLevelRef = useRef(null)
   const [summary, setSummary] = useState(null)
+  const summaryRef = useRef(null)
+  summaryRef.current = summary
+  const xpRef = useRef(xp)
+  xpRef.current = xp
   const activeRef     = useRef(active)
   useEffect(() => { activeRef.current = active }, [active])
 
@@ -328,6 +333,7 @@ export default function App() {
   const showXPFloat = useCallback((amount) => {
     const el = document.createElement('div')
     el.className = 'xp-float'
+    el.dir = 'ltr'   // «+150 XP», the sign before the number, in an RTL page
     el.textContent = `+${amount} XP`
     el.style.left = '50%'
     el.style.top  = '35%'
@@ -579,9 +585,18 @@ export default function App() {
     setTab('home')
   }, [active, sessions, exerciseMapping, recoveryCfg, addXP, checkAchievements, pushAlert, xp])
 
+  // «تم». A level reached in the session was only a line in the summary;
+  // now that the workout is over it gets its own moment: the level-up
+  // screen, counting from the level the session started at.
   const closeSummary = useCallback(() => {
     collectRef.current = false
     pendingLevelRef.current = null
+    const sm = summaryRef.current
+    if (sm?.levelUp) {
+      setLevelUpNum(sm.levelUp)
+      setLevelUpFrom(levelFromXP(Math.max(0, xpRef.current - (sm.xp || 0))))
+      setShowLevelUp(true)
+    }
     setSummary(null)
   }, [])
 
@@ -951,6 +966,8 @@ export default function App() {
             onOpenProfile={() => pushPage('profile')}
             onOpenStreak={() => setShowStreak(true)}
             onOpenSettings={() => { setSettingsSection(null); pushPage('settings') }}
+            hold={!!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
+              || showDeloadEnd || showWhatsNew || packOffer}
             active={active}
             plan={plan}
             planIndex={planIndex}
@@ -1152,7 +1169,7 @@ export default function App() {
       {showRest && !(sessionOpen && active) && (
         <RestTimer key={restKey} onClose={() => setShowRest(false)} />
       )}
-      {showLevelUp && !summary && <LevelUpScreen level={levelUpNum} onDismiss={() => setShowLevelUp(false)} />}
+      {showLevelUp && !summary && <LevelUpScreen level={levelUpNum} from={levelUpFrom} onDismiss={() => { setShowLevelUp(false); setLevelUpFrom(null) }} />}
       {summary && <SessionSummary summary={summary} xp={xp} onDone={closeSummary} />}
       {onboarding && (
         <Onboarding

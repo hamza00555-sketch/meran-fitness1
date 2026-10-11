@@ -122,8 +122,36 @@ function instruments(audio = 'fake') {
   window.webkitAudioContext = FakeCtx
 }
 
+// WebGL, counted: contexts made and released (WEBGL_lose_context) — the
+// medal stage must give its context back. `noGL` makes the browser one
+// without WebGL (Lockdown Mode): getContext('webgl') answers null.
+function glInstruments(noGL) {
+  window.__gl = { made: 0, lost: 0 }
+  const gc = HTMLCanvasElement.prototype.getContext
+  HTMLCanvasElement.prototype.getContext = function (type, ...rest) {
+    if (/webgl/.test(type) && noGL) return null
+    const c = gc.call(this, type, ...rest)
+    if (c && /webgl/.test(type) && !c.__counted) {
+      c.__counted = true
+      window.__gl.made++
+      const ge = c.getExtension.bind(c)
+      c.getExtension = (n) => {
+        const e = ge(n)
+        if (e && n === 'WEBGL_lose_context' && !e.__counted) {
+          e.__counted = true
+          const lose = e.loseContext.bind(e)
+          e.loseContext = () => { window.__gl.lost++; lose() }
+        }
+        return e
+      }
+    }
+    return c
+  }
+}
+
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
-  sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false } = {}) {
+  sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false,
+  unlocked = null, noGL = false } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -136,11 +164,12 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   if (blockSounds) await page.route('**/sounds/**', r => r.abort())
 
   await page.addInitScript(instruments, audio)
+  await page.addInitScript(glInstruments, noGL)
   // Seeded history unlocks achievements on the first paint, each one
   // adds XP, and the level-up screen would cover the session — so a
   // context with history starts with them already unlocked.
   await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping]) => {
-    if (sessions) localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
+    if (sessions || unlocked.length < 40) localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
     localStorage.setItem('hf_seen_version', JSON.stringify(version))
@@ -150,7 +179,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
     if (sessions) localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     if (lastWeights) localStorage.setItem('hf_last_weights', JSON.stringify(lastWeights))
     if (mapping) localStorage.setItem('hf_exercise_mapping', JSON.stringify(mapping))
-  }, [active, sessions, APP_VERSION, lastWeights, ACHIEVEMENTS.map(a => a.id), mapping])
+  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   // A stored session opens the full-screen cover by itself.
@@ -1769,6 +1798,151 @@ for (const [label, opts] of [['no audio', { audio: 'none' }], ['no decoding', { 
     ok('sound/real audio: the browser decodes the format the app picks for it', typeof dec[dec.pick] === 'number' && dec[dec.pick] > 50, JSON.stringify(dec))
   }
   ok(`sound/${label}: no page errors`, errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 13. The end of a workout: medals that spin, numbers that count ══
+// (motion phases 2 and 4). A lifter whose best was 95kg puts up 140kg:
+// «أول 100 كجم» (common) and «140 كجم» (rare) are earned in one go.
+// The medal stage is WebGL; a headless browser may have it (SwiftShader)
+// or not, so every check below holds either way — the 3D stage or the
+// flat medal turning — and one run forces each fallback.
+const MEDAL_DAY = (n, w) => ({
+  id: 500 + n, date: new Date(2026, 8, n, 18).toISOString(), duration: 45,
+  exercises: [{ id: 'm', muscle: 'Chest', name: 'Bench Press',
+    sets: [{ weight: String(w), reps: '10', done: true }, { weight: String(w), reps: '10', done: true }] }],
+})
+const MEDAL_HISTORY = [MEDAL_DAY(2, 90), MEDAL_DAY(4, 95)]
+const HEAVY = {
+  ...ACTIVE,
+  exercises: [
+    { id: 'a', muscle: 'Chest', name: 'Bench Press',
+      sets: [{ weight: '140', reps: '5', done: true }, { weight: '140', reps: '5', done: true }] },
+    { id: 'b', muscle: 'Shoulders', name: 'Machine Shoulder Press', sets: [{ weight: '40', reps: '12', done: true }] },
+  ],
+}
+const allBut = (...ids) => ACHIEVEMENTS.map(a => a.id).filter(id => !ids.includes(id))
+const finishNow = async (page) => {
+  await page.getByRole('button', { name: /^إنهاء$/ }).click()
+  await page.waitForTimeout(400)
+  await page.locator('.k-sheet').last().getByRole('button', { name: 'احفظ وأنهِ' }).click()
+}
+const reveal = (page) => page.evaluate(() => {
+  const e = document.querySelector('[data-testid="medal-reveal"]')
+  if (!e) return null
+  return {
+    ...e.dataset, canvas: !!e.querySelector('canvas'), flat: e.querySelectorAll('.mr-flat .md').length,
+    broken: [...e.querySelectorAll('img')].filter(i => i.complete && !i.naturalWidth).length,
+  }
+})
+const waitLanded = (page, ms = 12000) => page.waitForFunction(
+  () => document.querySelector('[data-testid="medal-reveal"]')?.dataset.state === 'landed', null, { timeout: ms }).catch(() => {})
+const medalSounds = (page) => page.evaluate(() => window.__sounds.filter(s => /^medal/.test(s.name) && !s.stopped).map(s => s.name))
+const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-stats span:nth-child(2) b')?.textContent.trim())
+
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  const chunks = []
+  page.on('request', r => { if (/medal3d/.test(r.url())) chunks.push(r.url()) })
+  await page.evaluate(() => { window.__sounds = []; window.__vibes = [] })
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  const early = await setsShown(page)
+  await page.waitForSelector('[data-testid="medal-reveal"]', { timeout: 3000 }).catch(() => {})
+  const order = await page.evaluate(() => [...(document.querySelector('.sum-body')?.children || [])]
+    .map(e => e.classList.contains('sum-stats') ? 'stats' : e.classList.contains('sum-ach-sec') ? 'medals' : e.tagName.toLowerCase()))
+  ok('summary medals: «إنجازات جديدة» sits right under the numbers', order.indexOf('medals') === order.indexOf('stats') + 1, order.join(','))
+  const r0 = await reveal(page)
+  ok('summary medals: the rarer one first — «140 كجم» (نادر), then «أول 100 كجم»', r0?.order === 'b2,b1', JSON.stringify(r0))
+  const text = await page.getByTestId('session-summary').innerText()
+  ok('summary medals: both titles are in the text, however they are drawn', /140 كجم/.test(text) && /أول 100 كجم/.test(text), text.slice(0, 160))
+  ok('summary medals: «تم» is there from the first moment', await page.getByRole('button', { name: 'تم' }).count() === 1)
+  ok('summary count: the sets start from zero', early === '0', String(early))
+  await waitLanded(page)
+  const r1 = await reveal(page)
+  ok('summary count: and land on the number done', await setsShown(page) === '3', String(await setsShown(page)))
+  ok('summary medals: the medal module arrives as its own chunk', chunks.length >= 1, String(chunks.length))
+  ok('summary medals: both land', r1?.state === 'landed', JSON.stringify(r1))
+  ok(`summary medals: drawn (${r1?.mode}) — the 3D stage, or the flat medal — never a broken image`,
+    ((r1?.mode === 'gl' && r1.canvas) || (r1?.mode === 'flat' && r1.flat === 2)) && r1.broken === 0, JSON.stringify(r1))
+  const sounds = await medalSounds(page)
+  ok('summary medals: each landing has its sound — the bell for the rare one, then the clink', sounds.join(',') === 'medal-heavy,medal', sounds.join(','))
+  const buzz = await page.evaluate(() => window.__vibes.filter(v => v === 14).length)
+  ok('summary medals: and its buzz', buzz === 2, String(buzz))
+  // A tap on a landed medal turns it again — it is not the summary's tap-to-skip.
+  const box = await page.locator('[data-testid="medal-reveal"] .mr-stage').boundingBox()
+  if (r1?.mode === 'gl' && box) {
+    const U = Math.min(98, box.width * 0.25, box.height * 0.29)
+    await page.mouse.click(box.x + box.width / 2 + U, box.y + box.height * 0.41 + 0.16 * U)
+    await page.waitForTimeout(300)
+    ok('summary medals: a tap on a medal spins it, the summary stays as it is', await page.locator('.sum.sum-skip').count() === 0)
+  }
+  await page.getByRole('button', { name: 'تم' }).click()
+  await page.waitForTimeout(700)
+  const gl = await page.evaluate(() => ({ ...window.__gl, left: document.querySelectorAll('[data-testid="medal-reveal"]').length }))
+  ok('summary medals: closing gives the GL context back', gl.left === 0 && gl.lost >= gl.made, JSON.stringify(gl))
+  ok('summary medals: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// No medal earned: the module is never fetched.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY })
+  const chunks = []
+  page.on('request', r => { if (/medal3d/.test(r.url())) chunks.push(r.url()) })
+  await finishNow(page)
+  await page.waitForTimeout(3000)
+  ok('summary, no medal: no «إنجازات جديدة», and the medal module never loads',
+    await page.locator('[data-testid="medal-reveal"]').count() === 0 && chunks.length === 0, chunks.join(' '))
+  ok('summary, no medal: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// A tap on the summary before the medals come: they land at once, facing
+// front, with one sound — the heavier — and every number is final.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  await page.evaluate(() => { window.__sounds = [] })
+  await finishNow(page)
+  await page.waitForTimeout(450)
+  await page.locator('.sum-title').click()
+  await waitLanded(page, 6000)
+  const r = await reveal(page)
+  ok('summary skip: the medals are down', r?.state === 'landed', JSON.stringify(r))
+  ok('summary skip: the numbers are final', await setsShown(page) === '3')
+  await page.waitForTimeout(500)
+  const sounds = await medalSounds(page)
+  ok('summary skip: one landing sound, the heavier', sounds.join(',') === 'medal-heavy', sounds.join(','))
+  ok('summary skip: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// No WebGL (Lockdown Mode): the flat medal turns instead, and still lands.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), noGL: true })
+  await page.evaluate(() => { window.__sounds = [] })
+  await finishNow(page)
+  await waitLanded(page, 12000)
+  const r = await reveal(page)
+  ok('summary, no WebGL: the flat medals, turning', r?.mode === 'flat' && r.motion === 'flat' && r.flat === 2 && !r.canvas, JSON.stringify(r))
+  ok('summary, no WebGL: they land', r?.state === 'landed', JSON.stringify(r))
+  const sounds = await medalSounds(page)
+  ok('summary, no WebGL: with their sounds', sounds.join(',') === 'medal-heavy,medal', sounds.join(','))
+  ok('summary, no WebGL: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// Reduced motion: no spin, a fade; the numbers are there from the start.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), reduced: true })
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  const early = await setsShown(page)
+  await waitLanded(page, 12000)
+  const r = await reveal(page)
+  ok('summary, reduced: the numbers are final from the first frame', early === '3', String(early))
+  ok('summary, reduced: the medals fade in, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && r?.state === 'landed', JSON.stringify(r))
+  ok('summary, reduced: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

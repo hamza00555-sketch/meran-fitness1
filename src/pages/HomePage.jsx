@@ -1,12 +1,12 @@
 import '../styles/screens/home.css'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import StreakNumber from '../components/streak/StreakNumber.jsx'
+import StreakNumber, { useFlameIgnition } from '../components/streak/StreakNumber.jsx'
 import { IconButton, ListGroup, ListRow, Gauge, Num } from '../components/kit/index.jsx'
 import { GearSix, ChartBar, CalendarBlank, Moon, Plus } from '../components/kit/icons.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
-import { countAr, todayStreak, fmtDayAr } from '../streak.js'
+import { countAr, todayStreak, fmtDayAr, streakView } from '../streak.js'
 import { todayKey } from '../day.js'
 import { DEFAULT_REP_TARGET } from '../progression.js'
 import { withNums } from '../components/home/HomeBits.jsx'
@@ -112,7 +112,7 @@ function MuscleGroup({ entries }) {
 // in the sheet behind the number.
 export default function HomePage({ sessions, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
   onStartDeload, onDismissDeloadSuggestion, greeting = '', onOpenProfile, onOpenSettings, onOpenStreak,
-  repTarget = DEFAULT_REP_TARGET }) {
+  repTarget = DEFAULT_REP_TARGET, hold = false }) {
   // Training vs recovery comes from the recovery engine — real completed
   // workouts and the chosen frequency — never from the weekday.
   const isRecoveryDay = recovery?.status === DAY_STATUS.RECOVERY
@@ -146,6 +146,11 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
   const planWeek = schedule?.length && plan
     ? ` · الأسبوع ${Math.min(Math.floor((planIndex ?? 0) / schedule.length) + 1, plan.durationWeeks || 6)} من ${plan.durationWeeks || 6}`
     : ''
+  // The flame lights once a day, when today counts — kept while the
+  // summary or the level-up screen is still over Home (`hold`).
+  const ignite = useFlameIgnition(
+    streakView({ recovery, config: recoveryConfig, active, deload, today: streakToday }), hold)
+
   const initial = (profile?.name || 'م').trim().charAt(0)
   const unnamed = !profile?.name || profile.name === 'البطل'
 
@@ -154,7 +159,7 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
       <div className="h-top">
         <div className="h-top-text">
           <StreakNumber recovery={recovery} config={recoveryConfig} active={active} deload={deload}
-            today={streakToday} onOpen={onOpenStreak} />
+            today={streakToday} onOpen={onOpenStreak} ignite={ignite} />
           <div className="h-eyebrow-row">
             <span className="k-eyebrow">{withNums(`${fmtDayAr(streakToday || todayKey())}${planWeek}`)}</span>
             {unnamed && (
@@ -191,6 +196,7 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
         onSkip={onSkipPlanDay}
         onGoToWorkout={onGoToWorkout}
         onOverrideRecovery={onOverrideRecovery}
+        calm={!!ignite?.on}
       />
 
       <div className="hm-below">
