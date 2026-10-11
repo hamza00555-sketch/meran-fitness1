@@ -2123,6 +2123,8 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
   }, [ACTIVE, APP_VERSION])
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.locator('.s-stage img').first().waitFor({ timeout: 8000 })
+  // The light comes on once the picture is clearly not quick (120ms).
+  await page.waitForFunction(() => document.querySelector('.s-stage img')?.dataset.wait === '1', null, { timeout: 500 }).catch(() => {})
   const waiting = await page.evaluate(() => {
     const i = document.querySelector('.s-stage img')
     return { wait: i.dataset.wait ?? null, anim: getComputedStyle(i).animationName, bg: getComputedStyle(i).backgroundImage.slice(0, 15) }
