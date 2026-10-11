@@ -1,28 +1,41 @@
 // ── Monthly report ────────────────────────────────────────────
 // One month of training, derived in one pass and handed to the UI as
 // plain data. No React, no DOM, no storage — so it runs under
-// `node --test` and the numbers can be checked without a browser.
+// `node --test` and every number can be checked without a browser.
 //
 // Everything here reuses the engines that already decide these facts
-// elsewhere in the app: sessionVolume for tonnage, computeRecovery for
-// the day-by-day calendar, analyzeProgression for whether a lift is
-// stalling. The report must never disagree with the screen that shows
-// the same number.
+// elsewhere in the app: computeRecovery for the day-by-day plan,
+// analyzeProgression for whether a lift is ready to go up, the deload
+// stamps for which sessions were light on purpose. The report must
+// never disagree with the screen that shows the same thing.
+//
+// What the report says, and nothing else (حمزة approved the list):
+//   · how many sessions the plan asked for and how many he came to
+//   · the month on a calendar, each day lit by how heavy it was
+//   · the streak, as one number — the same one Home shows
+//   · which lifts went up, against the best before the month
+//   · completed sets per muscle per week, against the 10–20 range
+//   · up to three things to do next month
+// The tonnage headline, the verdict word, the daily volume bars, the
+// push/pull ratio and the generic tips are gone on purpose.
 
-import { dayKey } from './day.js'
+import { dayKey, todayKey } from './day.js'
 import {
-  sessionVolume, setVolume, resolveExerciseName, getWeightsResetAt,
-  xpProgress, getRank, fmtDuration,
+  sessionVolume, resolveExerciseName, getWeightsResetAt,
+  xpProgress, getRank,
 } from './utils.js'
+import { setCounts } from './sets.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
-import { computeRecovery } from './recovery.js'
-import { countAr } from './streak.js'
+import { computeRecovery, addDays, dayDiff } from './recovery.js'
+import { countAr, fmtDayAr } from './streak.js'
 import { isDeloadSession, wasDeloadDay } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
+import { arabicName } from './exerciseMedia.js'
 
 // ── Calendar arithmetic ───────────────────────────────────────
 
-/** 'YYYY-MM' for anything date-like, on the user's own midnight. */
+/** 'YYYY-MM' for anything date-like, on the user's own training day
+ *  (which turns at 03:00, not midnight — see day.js). */
 export const monthKey = (dateLike) => dayKey(dateLike).slice(0, 7)
 
 export const daysInMonth = (month) => {
@@ -35,6 +48,15 @@ export const prevMonth = (month) => {
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
 }
 
+export const nextMonth = (month) => {
+  const [y, m] = month.split('-').map(Number)
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+}
+
+/** First and last day keys of a month. */
+export const firstDayOf = (month) => `${month}-01`
+export const lastDayOf = (month) => `${month}-${String(daysInMonth(month)).padStart(2, '0')}`
+
 const MONTH_NAMES = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
@@ -45,6 +67,9 @@ export const monthLabel = (month) => {
   return `${MONTH_NAMES[m - 1]} ${y}`
 }
 
+/** The month's name alone: «مارس». */
+export const monthName = (month) => MONTH_NAMES[Number(month.slice(5, 7)) - 1]
+
 /** The cover slot for a month — one piece of art per calendar month. */
 export const coverSlot = (month) => `cover_${month.slice(5, 7)}`
 
@@ -52,9 +77,6 @@ export const coverSlot = (month) => `cover_${month.slice(5, 7)}`
 // The report is about a month that has finished, so it appears while
 // that is still fresh: the last two days of the month (the result is
 // settled by then) and the first week of the next one.
-//
-// Pure on purpose — the date window is the one piece of this feature
-// that is painful to test through a browser clock.
 export const REPORT_WINDOW_TAIL = 2   // last N days of the month itself
 export const REPORT_WINDOW_HEAD = 7   // first N days of the month after
 
@@ -69,15 +91,36 @@ export function monthReportWindow(today) {
   return null
 }
 
-// ── Volume, split the same way sessionVolume splits it ────────
-// Per-muscle volume uses the one shared rule (src/sets.js: a set counts
-// once it is ticked) or the slices would not add up to the total.
+// ── Counting in Arabic ────────────────────────────────────────
+// streak.js owns day/ticket/workout/session; these are the report's
+// own nouns, on the same rule: 1 and 2 are words, 3–10 the plural,
+// 11 and up the singular.
+const NOUNS = {
+  set:    { one: 'مجموعة وحدة', two: 'مجموعتين', few: 'مجموعات', many: 'مجموعة' },
+  rep:    { one: 'عدّة وحدة',   two: 'عدّتين',   few: 'عدّات',   many: 'عدّة' },
+  muscle: { one: 'عضلة وحدة',   two: 'عضلتين',   few: 'عضلات',   many: 'عضلة' },
+  thing:  { one: 'شي واحد',     two: 'شيئين',    few: 'أشياء',   many: 'شي' },
+}
+export const countWord = (n, noun) => {
+  if (!NOUNS[noun]) return countAr(n, noun)
+  const f = NOUNS[noun]
+  const k = Math.max(0, Math.round(Number(n) || 0))
+  if (k === 1) return f.one
+  if (k === 2) return f.two
+  const r = k % 100
+  return `${k} ${k === 0 || (r >= 3 && r <= 10) ? f.few : f.many}`
+}
 
-const exerciseVolume = (ex) => (ex.sets || []).reduce((n, s) => n + setVolume(s), 0)
+/** «60» or «62.5» — a weight as a person writes it. */
+export const kgText = (n) => String(Math.round(Number(n) * 10) / 10)
+
+const nameOf = (exercise, mapping) => arabicName(exercise, mapping) || exercise
+
+// ── Muscles ───────────────────────────────────────────────────
 
 // A plan the user imported can carry any muscle string it likes. The
 // home screen drops unknown ones on the floor; a report that quietly
-// loses tonnage is worse than one that says "other".
+// loses sets is worse than one that says "other".
 const OTHER = { key: 'Other', label: 'أخرى', color: '#6B7280' }
 
 const groupOf = (muscle) => {
@@ -86,212 +129,505 @@ const groupOf = (muscle) => {
   return { key: muscle, label: g.label, color: g.color }
 }
 
-// ── Personal records inside a date range ──────────────────────
-// getHistoricalMax only knows the all-time best. A record is an event:
-// the moment a weight beat everything before it. That needs a forward
-// walk over the whole history, with the month used only as a filter on
-// which events to report.
-// One entry per exercise, not one per improvement. Adding 2kg every
-// session is the whole point of the programme, and reporting each step
-// as its own record buries the two lifts that actually moved under
-// thirteen rows of the same squat. What a month's records mean is:
-// this lift ended higher than it has ever been, and here is the jump.
-function personalRecordsIn(sessions, month, mapping, resetAt) {
-  const best = new Map()          // resolved name → heaviest before this month
-  const gains = new Map()         // resolved name → the month's own high point
+/** The heaviest ticked set of one exercise entry, or 0. */
+const topOf = (ex) => {
+  let top = 0
+  for (const s of ex?.sets || []) {
+    if (!isCompleted(s)) continue          // a weight has to be lifted, not typed
+    top = Math.max(top, parseFloat(s.weight))
+  }
+  return top
+}
 
-  const chronological = [...(sessions || [])]
-    .filter(s => (s.id || 0) >= resetAt)
-    .sort((a, b) => (a.id || 0) - (b.id || 0))
+// ── Each day, as light ────────────────────────────────────────
+// The calendar lights a trained day by how many kilos it moved, in five
+// steps from the month's lightest day to its heaviest. Deload days are
+// left out of the scale: they are light on purpose, and letting them
+// set the bottom would make every ordinary day look heavy — or, put at
+// the bottom themselves, would read as slacking.
 
-  for (const session of chronological) {
-    const key = monthKey(session.date)
-    if (key > month) break                   // the future cannot set this month's records
-    const inMonth = key === month
+export const DAY_LEVELS = 5
 
-    for (const ex of session.exercises || []) {
-      const name = resolveExerciseName(ex.name, mapping)
-      let top = 0
-      for (const s of ex.sets || []) {
-        if (!isCompleted(s)) continue        // a record has to be lifted, not typed
-        top = Math.max(top, parseFloat(s.weight))
+/** { 'YYYY-MM-DD': 1…5 } for ordinary days, null for deload days. */
+export function dayLevels(series = [], bins = DAY_LEVELS) {
+  const scale = series.filter(p => !p.deload)
+  const out = {}
+  if (!scale.length) {
+    for (const p of series) out[p.date] = null
+    return out
+  }
+  const lo = Math.min(...scale.map(p => p.value))
+  const hi = Math.max(...scale.map(p => p.value))
+  for (const p of series) {
+    if (p.deload) { out[p.date] = null; continue }
+    // One day, or every day the same: they are all the month's heaviest.
+    out[p.date] = hi === lo
+      ? bins
+      : 1 + Math.min(bins - 1, Math.floor(((p.value - lo) / (hi - lo)) * bins))
+  }
+  return out
+}
+
+// ── The month, day by day, read off the recovery ledger ───────
+// computeRecovery already decides whether each day was meant for
+// training and whether it was kept, and the streak on Home trusts that
+// decision. The report filters it rather than re-deriving it.
+//
+// For a month that has finished the replay runs to the day after it, so
+// its last day is judged like any other (the replay's own "today" is
+// never called a miss). For the month still running it stops at today,
+// and the days after it are «ahead» — not misses, not rests.
+function consistencyIn(sessions, config, month, today) {
+  const first = firstDayOf(month)
+  const last = lastDayOf(month)
+  const running = today <= last
+  const until = running ? today : addDays(last, 1)
+  const recovery = computeRecovery(sessions, config, until)
+  const rows = new Map((recovery.ledger || []).filter(r => r.date.startsWith(month)).map(r => [r.date, r]))
+  const trainedOn = new Set(sessions.map(s => dayKey(s.date)))
+
+  const calendar = []
+  for (let d = first; d <= last; d = addDays(d, 1)) {
+    const r = rows.get(d)
+    const deload = wasDeloadDay(config, d)
+    if (!r) {
+      // After today: the plan for tomorrow is known, beyond it is not.
+      if (running && d > today) {
+        const planned = d === addDays(today, 1) && recovery.tomorrowExpected === 'workout'
+        calendar.push({ date: d, kind: 'ahead', planned, deload })
+      } else if (trainedOn.has(d)) {
+        // Older than the replay reaches (it is capped at 400 days): the
+        // session is still a session, only the plan around it is unknown.
+        calendar.push({ date: d, kind: 'trained', planned: false, deload })
+      } else {
+        // Before the first session ever logged: not a day of the plan.
+        calendar.push({ date: d, kind: 'none', planned: false, deload })
       }
-      if (!top) continue
-
-      if (!inMonth) {
-        best.set(name, Math.max(best.get(name) || 0, top))
-        continue
-      }
-
-      const bar = best.get(name) || 0
-      // The first weight ever logged is a starting point, not a record.
-      if (bar <= 0) { best.set(name, top); continue }
-
-      const held = gains.get(name)
-      if (top > bar && (!held || top > held.weight)) {
-        gains.set(name, {
-          exercise: ex.name,
-          weight: top,
-          prevBest: bar,
-          date: dayKey(session.date),
-          steps: (held?.steps || 0) + 1,
-        })
-      } else if (top > bar && held) {
-        held.steps += 1
-      }
+      continue
     }
+    const planned = r.scheduled === 'workout'
+    const kind =
+      r.completed ? 'trained' :
+      r.kind === 'paid' ? 'paid' :
+      r.pending ? 'ahead' :                // today, still unfolding
+      r.kind === 'miss' ? 'miss' :
+      'rest'
+    calendar.push({ date: d, kind, planned, deload })
   }
 
-  return [...gains.values()].sort((a, b) => (b.weight - b.prevBest) - (a.weight - a.prevBest))
-}
-
-// ── Streak runs, over the whole ledger ────────────────────────
-//
-// A run is a maximal stretch of days with no miss in it: a scheduled
-// rest and a paid rest both hold it together, and only a day you were
-// meant to train and did not breaks it.
-//
-// What the run is WORTH is its training days, and nothing else. That
-// is the number the flame on the home screen counts, so it is the
-// number in your head — «I never had an 18-day streak» is right when
-// eighteen was the eligible days and fifteen were sessions. Rest days
-// keep a streak alive; they were never part of its length.
-//
-// Read across the FULL history, never within one month. Counting runs
-// inside a month-filtered ledger restarts the counter on the 1st, so a
-// streak that began in the previous month was reported at whatever
-// fraction of it happened to land after the boundary.
-export function streakRuns(ledger = []) {
-  const runs = []
-  let current = null
-  for (const r of ledger) {
-    // Today, before you have trained, is not yet a miss.
-    if (r.pending) continue
-    if (r.kind === 'miss') { current = null; continue }
-    if (!current) {
-      current = { start: r.date, end: r.date, days: 0, span: 0 }
-      runs.push(current)
-    }
-    current.span++
-    // Only a training day lengthens a streak. A rest day inside it is
-    // why the run is still alive, not a day of it — so it moves `end`
-    // no further than the last session did.
-    if (r.completed) { current.days++; current.end = r.date }
-  }
-  return runs.filter(r => r.days > 0)
-}
-
-const monthOf = (date) => String(date).slice(0, 7)
-const longest = (runs) => runs.reduce((best, r) => (!best || r.days > best.days ? r : best), null)
-const shape = (run, month) => run && {
-  days: run.days, span: run.span, start: run.start, end: run.end,
-  // Still going when the month ended — it belongs here, but it has not
-  // finished, and a report that shows it without saying so is claiming
-  // a completed streak that is actually still being written.
-  ongoing: !!month && monthOf(run.end) > month,
-}
-
-// A run belongs to the month it ENDED in — the month you completed it.
-//
-// Attributing it to every month it touched instead made one long
-// streak the answer to all three questions at once: this month 18,
-// last month 18, all time 18, which tells you nothing and reads as a
-// bug. A streak has one home.
-
-const prevMonthOf = (month) => {
-  const [y, m] = month.split('-').map(Number)
-  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
-}
-
-// ── Consistency, read off the recovery ledger ─────────────────
-// computeRecovery already classifies every day as eligible / paid /
-// miss and we trust that classification everywhere else, so the report
-// filters it rather than re-deriving it.
-function consistencyIn(sessions, config, month) {
-  const lastDay = `${month}-${String(daysInMonth(month)).padStart(2, '0')}`
-  const recovery = computeRecovery(sessions, config, lastDay)
-  const rows = (recovery.ledger || []).filter(r => r.date.startsWith(month))
-
-  // Streaks are read from a ledger that runs to TODAY, not to the end
-  // of the month being reported.
-  //
-  // The month's own figures — days trained, missed, the calendar —
-  // belong to the month and stop at its last day. A streak does not:
-  // a run that began in late August and continued into September is
-  // fifteen sessions long whichever month's report you happen to be
-  // reading, and «الأطول على الإطلاق» has to mean all time or it means
-  // nothing. Reading it off the month-bounded ledger cut every streak
-  // that was still going when the month ended.
-  const all = computeRecovery(sessions, config).ledger || []
-
-  let trainedDays = 0, scheduledRests = 0, paidRests = 0
-  const missedDays = []
-
-  for (const r of rows) {
-    if (r.kind === 'miss') { missedDays.push(r.date); continue }
-    if (r.kind === 'paid') { paidRests++; continue }          // holds the run, adds nothing
-    if (r.completed) trainedDays++
-    else scheduledRests++
-  }
-
-  // Three answers to "how long did I keep it up", because one number
-  // cannot say whether this month beat the last one or your own record.
-  const runs      = streakRuns(all)
-  const prev      = prevMonthOf(month)
-  const endedIn = (m) => longest(runs.filter(r => monthOf(r.end) === m))
-  // The month's own row falls back to a run that was still going when
-  // the month closed, so a report is never blank about a month you
-  // plainly trained through. The fallback cannot collide with the
-  // previous month's row, which stays strictly "ended here": a run
-  // that outlives this month ended after it, not in the one before.
-  const overlapping = (m) =>
-    longest(runs.filter(r => monthOf(r.start) <= m && monthOf(r.end) >= m))
-  const thisMonth = endedIn(month) || overlapping(month)
-  const lastMonth = endedIn(prev)
-  const allTime   = longest(runs)
-  // This month's streak began before the 1st: the one you carried in.
-  const carried   = thisMonth && monthOf(thisMonth.start) < month ? thisMonth : null
+  const count = (k) => calendar.filter(d => d.kind === k).length
+  // The streak when the month closed: the ledger's own running figure on
+  // its last day. While the month is running it is today's.
+  const endStreak = running
+    ? recovery.consistencyStreak
+    : (rows.get(last)?.streak ?? 0)
 
   return {
-    trainedDays, scheduledRests, paidRests,
-    missedDays,
-    // The month's longest run, at its true length. Kept under the old
-    // name so every existing reader — the ring, the poster — is
-    // corrected rather than left showing the truncated figure.
-    bestStreak: thisMonth?.days ?? 0,
-    streaks: {
-      month:     shape(thisMonth, month),
-      prevMonth: shape(lastMonth, prev),
-      allTime:   shape(allTime),
-      carried:   shape(carried, month),
-    },
-    endStreak: recovery.consistencyStreak,
-    // The real balance — the one a miss is charged against. The clamped
-    // restCredits stopped at 5 and told people a full balance was being
-    // «wasted», which the engine never did.
-    restCredits: recovery.usableCredits ?? recovery.restCredits,
-    // A deload day keeps its own kind — trained, rest, missed — and
-    // carries the flag alongside. It is a modifier on the day, not a
-    // fourth kind of day: a missed day inside a deload is still a
-    // missed day, because a deload lightens the load and changes
-    // nothing about showing up.
-    calendar: rows.map(r => ({
-      date: r.date,
-      kind: r.completed ? 'trained' : r.kind === 'paid' ? 'paid' : r.kind === 'miss' ? 'miss' : 'rest',
-      deload: wasDeloadDay(config, r.date),
-    })),
-    // Which weekday gets skipped most — 0 is Sunday, matching Date.getDay.
-    weakestWeekday: (() => {
-      if (missedDays.length < 2) return null
-      const tally = new Array(7).fill(0)
-      for (const d of missedDays) {
-        const [y, m, dd] = d.split('-').map(Number)
-        tally[new Date(y, m - 1, dd).getDay()]++
-      }
-      const top = Math.max(...tally)
-      return top >= 2 ? { day: tally.indexOf(top), count: top } : null
-    })(),
+    trainedDays: count('trained'),
+    scheduledRests: count('rest'),
+    paidRests: count('paid'),
+    missedDays: calendar.filter(d => d.kind === 'miss').map(d => d.date),
+    endStreak,
+    running,
+    calendar,
   }
+}
+
+// ── Planned against attended ──────────────────────────────────
+// One slot for every session the plan asked for, plus any session done
+// on a day it did not. A deload session is still a session: it counts
+// as attended, its slot is only marked so it can be drawn blue.
+
+export function attendanceOf(calendar = []) {
+  const slots = calendar
+    .filter(d => d.planned || d.kind === 'trained')
+    .map(d => ({
+      date: d.date,
+      state: d.kind === 'trained' ? 'done'
+        : d.kind === 'paid' ? 'ticket'
+        : d.kind === 'ahead' ? 'ahead'
+        : 'missed',
+      planned: !!d.planned,
+      deload: !!d.deload,
+    }))
+  const planned = calendar.filter(d => d.planned).length
+  return {
+    planned,
+    attended: slots.filter(s => s.state === 'done').length,
+    extra: slots.filter(s => s.state === 'done' && !s.planned).length,
+    missed: slots.filter(s => s.state === 'missed').length,
+    tickets: slots.filter(s => s.state === 'ticket').length,
+    ahead: slots.filter(s => s.state === 'ahead').length,
+    deload: slots.filter(s => s.deload).length,
+    slots,
+  }
+}
+
+/** The cover's one sentence about showing up. */
+export function attendanceLine(a) {
+  if (!a) return ''
+  const skipped = a.missed + a.tickets
+  if (!a.planned) return `حضرت ${countAr(a.attended, 'session')} هالشهر.`
+  const of = `من ${countAr(a.planned, 'session')} في خطتك`
+  const parts = []
+  if (skipped) parts.push(`فاتتك ${skipped === 1 ? 'وحدة' : countAr(skipped, 'session')}`)
+  if (a.ahead) parts.push(`باقي ${a.ahead === 1 ? 'وحدة' : countAr(a.ahead, 'session')}`)
+  if (!parts.length) {
+    return a.extra
+      ? `حضرت كل جلسات خطتك، وزدت عليها ${a.extra === 1 ? 'وحدة' : countAr(a.extra, 'session')}.`
+      : 'حضرت كل جلسات خطتك هالشهر.'
+  }
+  // «فاتتك وحدة بس» reads as the good month it was.
+  if (parts.length === 1 && skipped === 1) return `${of}، فاتتك وحدة بس.`
+  return `${of}، ${parts.join('، و')}.`
+}
+
+// ── Deload, as the report says it ─────────────────────────────
+// From the stored history and from the sessions' own stamps, so a
+// deload is found even when only one of the two survived an import.
+
+export function deloadRangesIn(config = {}, month, sessions = []) {
+  const first = firstDayOf(month)
+  const last = lastDayOf(month)
+  const found = new Map()
+  const add = (from, to) => {
+    if (!from || !to || from > last || to < first) return
+    const prev = found.get(from)
+    if (!prev || to > prev.to) found.set(from, { from, to })
+  }
+  for (const h of config?.deloadHistory || []) add(h?.from, h?.until || h?.plannedUntil)
+  if (config?.deload?.from) add(config.deload.from, config.deload.plannedUntil)
+  for (const s of sessions) {
+    if (!isDeloadSession(s) || monthKey(s.date) !== month) continue
+    add(s.deload.from, s.deload.until)
+  }
+  return [...found.values()].sort((a, b) => (a.from < b.from ? -1 : 1))
+}
+
+/** «فيه أسبوع تخفيف من 25 إلى 31. خفيف عن قصد، وما ينحسب ضدك.» */
+export function deloadLine(ranges = [], month) {
+  if (!ranges.length) return ''
+  const inMonth = (d) => d.slice(0, 7) === month
+  const spans = ranges.map(({ from, to }) => {
+    const both = inMonth(from) && inMonth(to)
+    const a = both ? String(Number(from.slice(8))) : fmtDayAr(from, { weekday: false })
+    const b = both ? String(Number(to.slice(8))) : fmtDayAr(to, { weekday: false })
+    return from === to ? `يوم ${a}` : `من ${a} إلى ${b}`
+  })
+  const days = dayDiff(ranges[0].from, ranges[0].to) + 1
+  const word = ranges.length === 1 && days >= 6 && days <= 8 ? 'أسبوع تخفيف' : 'تخفيف'
+  return `فيه ${word} ${spans.join('، و')}. خفيف عن قصد، وما ينحسب ضدك.`
+}
+
+// ── Lifts: what went up ───────────────────────────────────────
+// Per lift trained in the month: the heaviest ticked set inside it,
+// against the heaviest before it. Deload sessions are left out of both
+// sides — a planned taper is neither a new weight nor a step back.
+//
+// The first weight ever logged is a starting point, not a gain: a lift
+// first done this month uses its first session as the bar, and only a
+// later session above it counts.
+//
+// «وزن جديد» means one thing in the whole report: heavier than any
+// weight lifted in that exercise before. Not an estimated max, not more
+// reps at the same weight.
+
+export function liftGains(sessions = [], month, { mapping = {}, resetAt = 0 } = {}) {
+  const last = lastDayOf(month)
+  const ordered = sessions
+    .filter(s => (s.id || 0) >= resetAt && !isDeloadSession(s))
+    .map(s => ({ s, day: dayKey(s.date) }))
+    .filter(x => x.day <= last)                          // the future cannot move this month
+    .sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : (a.s.id || 0) - (b.s.id || 0)))
+
+  const before = new Map()      // lift → heaviest before the month
+  const visits = new Map()      // lift → [{ day, top, name }] inside it
+
+  for (const { s, day } of ordered) {
+    const inMonth = day.slice(0, 7) === month
+    for (const ex of s.exercises || []) {
+      const lift = resolveExerciseName(ex.name, mapping)
+      const top = topOf(ex)
+      if (!lift || !top) continue
+      if (!inMonth) { before.set(lift, Math.max(before.get(lift) || 0, top)); continue }
+      if (!visits.has(lift)) visits.set(lift, [])
+      visits.get(lift).push({ day, top, name: ex.name })
+    }
+  }
+
+  const rows = []
+  for (const [lift, list] of visits) {
+    const prior = before.get(lift) || 0
+    const firstTime = prior <= 0
+    const bar = firstTime ? list[0].top : prior
+    const rest = firstTime ? list.slice(1) : list
+    let top = bar, at = null
+    for (const v of rest) if (v.top > top) { top = v.top; at = v }
+    const gain = top > bar ? Math.round((top - bar) * 10) / 10 : 0
+    rows.push({
+      lift,
+      exercise: (at || list[list.length - 1]).name,
+      before: bar,
+      top: gain ? top : Math.max(...list.map(v => v.top)),
+      gain,
+      date: at ? at.day : null,
+      steps: rest.filter(v => v.top > bar).length,
+      sessions: list.length,
+      firstTime,
+    })
+  }
+  return rows.sort((a, b) => b.gain - a.gain || b.sessions - a.sessions)
+}
+
+/** The new weights only, biggest jump first — the report's «وزن جديد». */
+export const newWeights = (gains = []) => gains
+  .filter(g => g.gain > 0)
+  .map(g => ({
+    exercise: g.exercise, lift: g.lift, weight: g.top, prevBest: g.before,
+    gain: g.gain, date: g.date, steps: g.steps,
+  }))
+
+// ── One lift, week by week ────────────────────────────────────
+// The heaviest ticked set of a lift in each of the last `weeks` weeks,
+// oldest first, the last one ending on `end`. Weeks are seven days
+// counted back from `end`, so the last week is always a whole week of
+// this month. A deload session never sets a week's top; its own weight
+// is kept apart (deloadTop) so a chart can draw it hollow and unjoined.
+
+export function weeklyTop(sessions = [], liftId, weeks = 9, { end, mapping = {}, resetAt = 0 } = {}) {
+  const target = resolveExerciseName(liftId, mapping)
+  const stop = dayKey(end || todayKey())
+  const out = []
+  for (let k = weeks - 1; k >= 0; k--) {
+    const to = addDays(stop, -7 * k)
+    out.push({ from: addDays(to, -6), to, top: null, deloadTop: null, deload: false })
+  }
+  const start = out[0].from
+  for (const s of sessions) {
+    if ((s.id || 0) < resetAt) continue
+    const day = dayKey(s.date)
+    if (day < start || day > stop) continue
+    const week = out[Math.floor(dayDiff(start, day) / 7)]
+    const light = isDeloadSession(s)
+    if (light) week.deload = true
+    for (const ex of s.exercises || []) {
+      if (resolveExerciseName(ex.name, mapping) !== target) continue
+      const t = topOf(ex)
+      if (!t) continue
+      if (light) week.deloadTop = Math.max(week.deloadTop || 0, t)
+      else week.top = Math.max(week.top || 0, t)
+    }
+  }
+  return out
+}
+
+// ── Sets per muscle per week ──────────────────────────────────
+// Completed sets, by muscle group, averaged over the weeks the month
+// actually covered — from its first day (or the first session ever, in
+// the month someone started) to its last day (or today, while it runs).
+// The range is the plan builder's: 10–20 sets a week is where a muscle
+// grows. Cardio has no sets in that sense and is left out; an unknown
+// muscle is shown but not judged.
+
+export const WEEKLY_SETS = { min: 10, max: 20 }
+
+export function muscleSets(sessions = [], month, { today = todayKey(), firstEver = null } = {}) {
+  const first = firstDayOf(month)
+  const last = lastDayOf(month)
+  const from = firstEver && firstEver > first ? firstEver : first
+  const to = today < last ? today : last
+  const weeks = Math.max(1, (dayDiff(from, to) + 1) / 7)
+
+  const by = new Map()
+  for (const s of sessions) {
+    if (monthKey(s.date) !== month) continue
+    for (const ex of s.exercises || []) {
+      if (ex.muscle === 'Cardio') continue
+      const n = (ex.sets || []).filter(setCounts).length
+      if (!n) continue
+      const g = groupOf(ex.muscle)
+      const row = by.get(g.key) || { ...g, sets: 0 }
+      row.sets += n
+      by.set(g.key, row)
+    }
+  }
+  return [...by.values()]
+    .map(m => {
+      const perWeek = Math.round((m.sets / weeks) * 10) / 10
+      const status = m.key === OTHER.key ? null
+        : perWeek < WEEKLY_SETS.min ? 'low'
+        : perWeek > WEEKLY_SETS.max ? 'high'
+        : 'ok'
+      return { ...m, perWeek, status }
+    })
+    .sort((a, b) => b.perWeek - a.perWeek)
+}
+
+/** «الظهر أخذ أقل من حقه.» */
+export function musclesLine(muscles = []) {
+  const judged = muscles.filter(m => m.status)
+  if (!judged.length) return ''
+  const low = judged.filter(m => m.status === 'low').sort((a, b) => a.perWeek - b.perWeek)
+  if (!low.length) return 'كل عضلاتك أخذت حقها.'
+  if (low.length === 1) return `${low[0].label} أخذ أقل من حقه.`
+  if (low.length === 2) return `${low[0].label} و${low[1].label} أخذوا أقل من حقهم.`
+  return `${countWord(low.length, 'muscle')} أخذت أقل من حقها.`
+}
+
+// ── Next month: three things at most ──────────────────────────
+// Straight from the progression engine — the same verdict the session
+// screen shows — plus the muscles that sat under the range:
+//   raise  — held the reps at this weight, time for more
+//   sets   — a muscle under 10 sets a week
+//   lower  — missed the bottom of the range twice in a row
+// One of each kind first, so three raises can never bury the muscle
+// that is being skipped. Read as of the month's last day, so an old
+// report gives the advice it would have given then.
+
+export const MAX_NEXT = 3
+
+export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = DEFAULT_REP_TARGET, muscles = [] } = {}) {
+  const last = lastDayOf(month)
+  const upTo = sessions.filter(s => dayKey(s.date) <= last)
+
+  const trained = new Map()   // lift → { name, n }
+  for (const s of upTo) {
+    if (monthKey(s.date) !== month) continue
+    for (const ex of s.exercises || []) {
+      const lift = resolveExerciseName(ex.name, mapping)
+      if (!lift) continue
+      const row = trained.get(lift) || { name: ex.name, n: 0 }
+      row.n++
+      row.name = ex.name
+      trained.set(lift, row)
+    }
+  }
+
+  const raise = [], lower = []
+  for (const { name, n } of trained.values()) {
+    const a = analyzeProgression(upTo, name, mapping, repTarget)
+    if (a.hint === 'raise') {
+      raise.push({ kind: 'raise', exercise: name, weight: a.workingWeight, reps: a.target.top, n })
+    } else if (a.hint === 'lower') {
+      lower.push({ kind: 'lower', exercise: name, weight: a.workingWeight, to: a.suggestedWeight, reps: a.target.base, n: a.failedAtWeight })
+    }
+  }
+  raise.sort((a, b) => b.n - a.n)
+  lower.sort((a, b) => b.n - a.n)
+  const sets = muscles
+    .filter(m => m.status === 'low')
+    .sort((a, b) => a.perWeek - b.perWeek)
+    .map(m => ({ kind: 'sets', muscle: m.key, label: m.label, perWeek: m.perWeek, min: WEEKLY_SETS.min, max: WEEKLY_SETS.max }))
+
+  const out = []
+  const queues = [raise, sets, lower]
+  while (out.length < MAX_NEXT && queues.some(q => q.length)) {
+    for (const q of queues) {
+      if (out.length < MAX_NEXT && q.length) out.push(q.shift())
+    }
+  }
+  return out
+}
+
+/** One suggestion as a title and its one plain reason. */
+export function nextCopy(item, mapping = {}) {
+  if (!item) return null
+  if (item.kind === 'raise') {
+    return {
+      title: `ارفع وزن ${nameOf(item.exercise, mapping)}`,
+      reason: `وصلت ${countWord(item.reps, 'rep')} على ${kgText(item.weight)} كجم، فالوزن صار خفيف عليك.`,
+    }
+  }
+  if (item.kind === 'lower') {
+    return {
+      title: `نزّل ${nameOf(item.exercise, mapping)} إلى ${kgText(item.to)} كجم`,
+      reason: `ما وصلت ${countWord(item.reps, 'rep')} على ${kgText(item.weight)} كجم مرتين ورا بعض.`,
+    }
+  }
+  if (item.kind === 'sets') {
+    const per = Math.round(item.perWeek)
+    const took = per < 1 ? 'أقل من مجموعة' : countWord(per, 'set')
+    return {
+      title: `زِد مجموعات ${item.label}`,
+      reason: `${item.label} أخذ ${took} بالأسبوع، والمناسب من ${item.min} إلى ${item.max}.`,
+    }
+  }
+  return null
+}
+
+// ── The month's goal ──────────────────────────────────────────
+// Stored under its own new key, so the old design never sees it:
+//   hf_month_goal = { 'YYYY-MM': { kind: 'sessions', target } }
+// Only the sessions kind exists today. Anything else stored there is
+// ignored rather than guessed at.
+
+export const MONTH_GOAL_KEY = 'hf_month_goal'
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+
+export function monthGoalOf(goals, month) {
+  const g = goals && typeof goals === 'object' ? goals[month] : null
+  if (!g || g.kind !== 'sessions') return null
+  const target = Math.round(Number(g.target))
+  return target > 0 ? { kind: 'sessions', target } : null
+}
+
+/** A new goals object with this month's goal set (or removed with null). */
+export function withMonthGoal(goals, month, goal) {
+  const next = { ...(goals && typeof goals === 'object' ? goals : {}) }
+  if (!MONTH_RE.test(String(month))) return next
+  const target = Math.round(Number(goal?.target))
+  if (!goal || !(target > 0)) { delete next[month]; return next }
+  next[month] = { kind: 'sessions', target }
+  return next
+}
+
+/** How the month went against its goal: reached, on which day, or how many short. */
+export function goalResult(goal, calendar = []) {
+  if (!goal) return null
+  const days = calendar.filter(d => d.kind === 'trained').map(d => d.date).sort()
+  const done = days.length
+  const reached = done >= goal.target
+  return {
+    kind: goal.kind,
+    target: goal.target,
+    done,
+    reached,
+    reachedOn: reached ? days[goal.target - 1] : null,
+    left: Math.max(0, goal.target - done),
+  }
+}
+
+export function goalLine(result, { over = true } = {}) {
+  if (!result) return ''
+  const target = countAr(result.target, 'session')
+  if (result.reached) return `هدفك ${target}، ووصلته يوم ${fmtDayAr(result.reachedOn, { weekday: false })}.`
+  return over
+    ? `هدفك كان ${target}، وناقصك ${countAr(result.left, 'session')}.`
+    : `هدفك ${target}، باقي لك ${countAr(result.left, 'session')}.`
+}
+
+// ── Past months ───────────────────────────────────────────────
+
+/** Every month with a session in it, up to `upTo`, newest first. */
+export function reportMonths(sessions = [], upTo) {
+  const set = new Set()
+  for (const s of sessions) {
+    const m = monthKey(s.date)
+    if (!upTo || m <= upTo) set.add(m)
+  }
+  return [...set].sort().reverse()
+}
+
+/** Training days in each of the `n` months ending at `end`, oldest first. */
+export function monthsTrail(sessions = [], end, n = 6) {
+  const months = [end]
+  while (months.length < n) months.unshift(prevMonth(months[0]))
+  const days = new Map(months.map(m => [m, new Set()]))
+  for (const s of sessions) {
+    const k = dayKey(s.date)
+    days.get(k.slice(0, 7))?.add(k)
+  }
+  return months.map(m => ({ month: m, attended: days.get(m).size }))
 }
 
 // ── The report ────────────────────────────────────────────────
@@ -303,9 +639,12 @@ export function buildMonthReport({
   xp = 0,
   mapping = {},
   repTarget = DEFAULT_REP_TARGET,
+  goals = {},
   month,
+  today = todayKey(),
 } = {}) {
   const resetAt = getWeightsResetAt()
+  const day = dayKey(today)
   const inMonth = sessions.filter(s => monthKey(s.date) === month)
   const label = monthLabel(month)
 
@@ -313,33 +652,8 @@ export function buildMonthReport({
     return { month, monthLabel: label, cover: coverSlot(month), hasData: false, sessionCount: 0 }
   }
 
-  // ── Volume, sets, reps, time ──
+  // ── Sets, reps, time ──
   const total = inMonth.reduce((n, s) => n + sessionVolume(s), 0)
-  const prev = sessions.filter(s => monthKey(s.date) === prevMonth(month))
-  const prevTotal = prev.reduce((n, s) => n + sessionVolume(s), 0)
-
-  // The same comparison with the deload weeks taken out of both sides.
-  //
-  // `total` itself stays untouched — it is a statement of how much was
-  // lifted, and that does not change because some of it was deliberate
-  // taper.
-  //
-  // Sums are the wrong thing to compare here. A deload week does not
-  // add light days on top of a normal month, it *replaces* heavy ones:
-  // eight heavy days plus four light ones against twelve heavy ones
-  // still totals less, even though nothing got weaker. So the fair
-  // question is per-day — setting the taper aside, was the ordinary
-  // work lighter than last month's? — and that is what this answers.
-  const exDeloadAvg = (list) => {
-    const kept = list.filter(s => !isDeloadSession(s))
-    if (!kept.length) return null
-    const days = new Set(kept.map(s => dayKey(s.date)))
-    return kept.reduce((n, s) => n + sessionVolume(s), 0) / days.size
-  }
-  const perDayExDeload     = exDeloadAvg(inMonth)
-  const prevPerDayExDeload = exDeloadAvg(prev)
-  const deloadSessions     = inMonth.filter(isDeloadSession).length
-
   let setsTotal = 0, setsCompleted = 0, repsTotal = 0
   for (const s of inMonth) {
     for (const ex of s.exercises || []) {
@@ -351,73 +665,54 @@ export function buildMonthReport({
       }
     }
   }
-
   const timed = inMonth.filter(s => s.duration > 0)
   const totalMinutes = timed.reduce((n, s) => n + s.duration, 0)
 
-  // ── The month's shape ──
-  // One point per training day, oldest first, so the chart traces the
-  // month as it was actually lived. Days are merged rather than
-  // sessions listed: two sessions on one day is one day's work, and
-  // plotting them as two points would draw a spike that never
-  // happened.
+  // ── Each training day's kilos ──
+  // Days are merged rather than sessions listed: two sessions on one
+  // day is one day's work. A day is a deload day if the work done on it
+  // was — read off the session's own stamp, never today's settings.
   const byDay = new Map()
   for (const s of inMonth) {
     const key = dayKey(s.date)
     const row = byDay.get(key) || { value: 0, deload: false }
     row.value += sessionVolume(s)
-    // Read off the session's own stamp, not off today's config: a day
-    // is a deload day if the work done on it was, which is decided when
-    // the session starts and never revisited.
     if (isDeloadSession(s)) row.deload = true
     byDay.set(key, row)
   }
   const series = [...byDay.entries()]
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([date, r]) => ({ date, value: Math.round(r.value), deload: r.deload }))
+  const levels = dayLevels(series)
 
-  // The direction the month moved, as the slope of a least-squares fit
-  // through those points. A first-to-last comparison would call a month
-  // that dipped once at the end a decline; the fit answers for every
-  // session, which is what "trending up or down" actually means.
-  //
-  // Deload days are dropped from the fit. They are light on purpose, so
-  // leaving them in makes the engine report a planned taper as a slide
-  // — arithmetically correct and completely misleading. They stay in
-  // `series` and stay drawn; only the fit skips them.
-  const fitPoints = series.filter(p => !p.deload)
-  const slope = (() => {
-    const n = fitPoints.length
-    if (n < 3) return 0
-    const meanX = (n - 1) / 2
-    const meanY = fitPoints.reduce((a, p) => a + p.value, 0) / n
-    let num = 0, den = 0
-    for (let i = 0; i < n; i++) {
-      num += (i - meanX) * (fitPoints[i].value - meanY)
-      den += (i - meanX) ** 2
-    }
-    return den ? num / den : 0
-  })()
+  // ── The plan, the calendar, the streak ──
+  const consistency = consistencyIn(sessions, config, month, day)
+  const kgOn = new Map(series.map(p => [p.date, p]))
+  for (const d of consistency.calendar) {
+    const p = kgOn.get(d.date)
+    d.kg = p ? p.value : 0
+    d.level = d.kind === 'trained' && p ? levels[p.date] : null
+    // A day trained under a deload is a deload day even without the
+    // stored stretch (an imported history keeps only the stamp).
+    if (p?.deload) d.deload = true
+  }
+  const attendance = attendanceOf(consistency.calendar)
+  const deloadRanges = deloadRangesIn(config, month, inMonth)
+
+  // ── Lifts ──
+  const gains = liftGains(sessions, month, { mapping, resetAt })
+  const prs = newWeights(gains)
+  const jump = prs[0]
+    ? { ...prs[0], weekly: weeklyTop(sessions, prs[0].lift, 9, { end: lastDayOf(month), mapping, resetAt }) }
+    : null
 
   // ── Muscles ──
-  const byMuscle = new Map()
-  for (const s of inMonth) {
-    for (const ex of s.exercises || []) {
-      const v = exerciseVolume(ex)
-      if (!v) continue
-      const g = groupOf(ex.muscle)
-      const row = byMuscle.get(g.key) || { ...g, volume: 0, sessions: 0 }
-      row.volume += v
-      byMuscle.set(g.key, row)
-    }
+  let firstEver = null
+  for (const s of sessions) {
+    const k = dayKey(s.date)
+    if (!firstEver || k < firstEver) firstEver = k
   }
-  const muscles = [...byMuscle.values()]
-    .map(m => ({ ...m, pct: total ? Math.round((m.volume / total) * 100) : 0 }))
-    .sort((a, b) => b.volume - a.volume)
-
-  const volumeOf = (...keys) => keys.reduce((n, k) => n + (byMuscle.get(k)?.volume || 0), 0)
-  const push = volumeOf('Chest', 'Shoulders', 'Triceps')
-  const pull = volumeOf('Back', 'Biceps')
+  const muscles = muscleSets(sessions, month, { today: day, firstEver })
 
   // ── Progress ──
   const { level } = xpProgress(xp)
@@ -427,39 +722,21 @@ export function buildMonthReport({
     .filter(Boolean)
     .map(a => ({ id: a.id, title: a.title, rarity: a.rarity, icon: a.icon, xp: a.xp }))
 
-  const report = {
+  return {
     month,
     monthLabel: label,
     cover: coverSlot(month),
     hasData: true,
     sessionCount: inMonth.length,
-
+    attendance,
+    deload: deloadRanges.length ? { ranges: deloadRanges, days: consistency.calendar.filter(d => d.deload).length } : null,
     volume: {
+      // Kept for the share poster; the report itself no longer leads
+      // with kilos.
       total: Math.round(total),
-      perSession: Math.round(total / inMonth.length),
-      prevTotal: Math.round(prevTotal),
-      // No previous month to compare against is not a 0% change.
-      trendPct: prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null,
-      // The month day by day, and which way it leaned overall.
       series,
-      slope: Math.round(slope),
-      direction: slope > 0 ? 'up' : slope < 0 ? 'down' : 'flat',
-
-      // ── Deload ──
-      // How much of this month was deliberately light, and the same
-      // comparison with that removed from both months. Null when
-      // neither month had a deload, so a reader can tell "no deload"
-      // from "no difference".
-      deloadSessions,
       deloadDays: series.filter(p => p.deload).length,
-      slopeExcludesDeload: deloadSessions > 0,
-      // Per training day, deload days excluded from both months. Null
-      // when either month has no ordinary day left to average, so a
-      // reader can tell "no answer" from "no change".
-      trendPctExDeload:
-        perDayExDeload !== null && prevPerDayExDeload > 0
-          ? Math.round(((perDayExDeload - prevPerDayExDeload) / prevPerDayExDeload) * 100)
-          : null,
+      deloadSessions: inMonth.filter(isDeloadSession).length,
     },
     sets: {
       total: setsTotal,
@@ -470,240 +747,23 @@ export function buildMonthReport({
     time: {
       // duration is absent on imported and in-progress sessions, so the
       // averages are only offered when at least two thirds of the month
-      // has it. Compared as integers: ceil(3 * 0.67) is 3, which would
-      // have failed two-timed-out-of-three.
+      // has it.
       known: timed.length * 3 >= inMonth.length * 2,
       totalMinutes,
       avgMinutes: timed.length ? Math.round(totalMinutes / timed.length) : 0,
       sessionsTimed: timed.length,
     },
-    prs: personalRecordsIn(sessions, month, mapping, resetAt),
+    gains,
+    prs,
+    jump,
     muscles,
-    balance: {
-      pushPull: pull > 0 ? Math.round((push / pull) * 100) / 100 : null,
-      dominant: muscles[0] || null,
-      neglected: muscles.length > 1 ? muscles[muscles.length - 1] : null,
-    },
-    consistency: consistencyIn(sessions, config, month),
+    consistency,
+    next: nextMonthPlan({ sessions, month, mapping, repTarget, muscles }),
+    goal: goalResult(monthGoalOf(goals, month), consistency.calendar),
     progress: {
       level,
       rank: getRank(level),
       achievements,
     },
   }
-
-  report.tips = buildTips(report, { sessions, mapping, repTarget, month })
-  return report
-}
-
-// ── Tips ──────────────────────────────────────────────────────
-// Rule-based and computed from the month that just happened, so the
-// report works offline and every line can point at the number that
-// produced it. `evidence` is that number: advice without it is just
-// an opinion.
-//
-// Severity orders the list; only the strongest few are shown, because
-// a report that lists eleven faults is a scolding, not a report.
-const SEV = { alert: 3, nudge: 2, praise: 1, info: 0 }
-
-// ── Talking about a ratio without sounding absurd ─────────────
-// A month with one back session and twelve chest sessions produces a
-// push/pull figure like 79.63, which is arithmetically correct and
-// completely useless to read. Past a few times over, the ratio stops
-// being a ratio and becomes "one of these barely happened".
-export const PUSH_PULL_BAND = [0.7, 1.4]
-
-export const formatRatio = (r) =>
-  r >= 10 || r <= 0.1 ? `×${Math.round(r >= 1 ? r : 1 / r)}` : String(Math.round(r * 100) / 100)
-
-export function describeRatio(r) {
-  if (r >= 10) return `حجم الدفع يقارب ${Math.round(r)} أضعاف السحب`
-  if (r <= 0.1) return `حجم السحب يقارب ${Math.round(1 / r)} أضعاف الدفع`
-  if (r > 1) return `نسبة الدفع إلى السحب ${Math.round(r * 100) / 100}`
-  return `نسبة السحب إلى الدفع ${Math.round((1 / r) * 100) / 100}`
-}
-
-// A split that lopsided is no longer a nudge — one side is missing.
-const pushPullSeverity = (r) => (r >= 4 || r <= 0.25 ? 'alert' : 'nudge')
-
-const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
-
-export const MAX_TIPS = 4
-
-export function buildTips(report, { sessions = [], mapping = {}, repTarget, month } = {}) {
-  const tips = []
-  const add = (id, severity, title, body, evidence) =>
-    tips.push({ id, severity, weight: SEV[severity] ?? 0, title, body, evidence })
-
-  const { muscles, balance, sets, volume, consistency, prs, time } = report
-
-  // Neglected muscle — only when the split is genuinely lopsided.
-  if (muscles.length >= 3 && balance.neglected && balance.dominant) {
-    const lo = balance.neglected, hi = balance.dominant
-    if (lo.pct <= 8 && hi.pct >= 30) {
-      add('neglected', 'alert',
-        `${lo.label} شبه غائب`,
-        `${lo.label} أخذ ٪${lo.pct} من حجمك هذا الشهر مقابل ٪${hi.pct} لـ${hi.label}. أضف له تمريناً أو صفّاً إضافياً.`,
-        `٪${lo.pct} / ٪${hi.pct}`)
-    }
-  }
-
-  // Push/pull balance. Anything outside this band pulls the shoulders forward.
-  if (balance.pushPull !== null && (balance.pushPull < 0.7 || balance.pushPull > 1.4)) {
-    const pushHeavy = balance.pushPull > 1.4
-    const heavy = pushHeavy ? 'الدفع' : 'السحب'
-    const light = pushHeavy ? 'السحب' : 'الدفع'
-    add('pushpull', pushPullSeverity(balance.pushPull),
-      'توازن الدفع والسحب مائل',
-      `${describeRatio(balance.pushPull)} — ${heavy} يغلب على ${light}. وازنها حتى لا تتقدّم الأكتاف.`,
-      formatRatio(balance.pushPull))
-  }
-
-  // Untracked sets: the engine cannot progress a set that was never ticked.
-  if (sets.untrackedPct >= 15) {
-    add('untracked', 'alert',
-      'مجموعات لم تؤكّدها',
-      `٪${sets.untrackedPct} من مجموعاتك هذا الشهر بلا علامة إكمال. نظام التقدم يحتسب المؤكَّد فقط، فهذه المجموعات لا ترفع أوزانك.`,
-      `${sets.total - sets.completed}/${sets.total}`)
-  }
-
-  // Stalled and ready-to-raise lifts, straight from the progression engine.
-  const trained = new Set()
-  for (const s of sessions) {
-    if (monthKey(s.date) !== month) continue
-    for (const ex of s.exercises || []) trained.add(ex.name)
-  }
-  const stalled = [], ready = []
-  for (const name of trained) {
-    const a = analyzeProgression(sessions, name, mapping, repTarget)
-    if (a.hint === 'raise') ready.push(name)
-    else if (a.hint === 'lower' || a.failedAtWeight >= 2) stalled.push(name)
-  }
-  if (ready.length) {
-    add('ready', 'praise',
-      `${ready.length === 1 ? 'تمرين جاهز' : `${ready.length} تمارين جاهزة`} لزيادة الوزن`,
-      `${ready.slice(0, 3).join(' · ')} — أتممت شرط الزيادة عليها. ارفع الوزن في الجلسة القادمة.`,
-      ready.join(', '))
-  }
-  if (stalled.length) {
-    add('stalled', 'nudge',
-      `${stalled.length === 1 ? 'تمرين متعثّر' : `${stalled.length} تمارين متعثّرة`}`,
-      `${stalled.slice(0, 3).join(' · ')} — لم تصل العدد المطلوب مرتين متتاليتين. خفّف الوزن قليلاً وابنِ منه.`,
-      stalled.join(', '))
-  }
-
-  // Volume trend, but only against a month that actually had data.
-  //
-  // A month containing a deload will read as a drop, and the honest
-  // answer is neither to report that as a decline nor to go quiet about
-  // it. The comparison is re-asked with the deload weeks removed from
-  // both months, and whatever that says is what gets said — including
-  // "still down", which is a real finding and the one worth hearing.
-  // Silencing it because a deload happened would hide exactly the case
-  // the user needs to know about.
-  const hasDeload = volume.deloadSessions > 0
-  const trend = hasDeload && volume.trendPctExDeload !== null
-    ? volume.trendPctExDeload
-    : volume.trendPct
-
-  if (trend !== null && Math.abs(trend) >= 15) {
-    const up = trend > 0
-    const note = hasDeload && volume.trendPctExDeload !== null
-      ? ' الحساب قارن متوسط اليوم الواحد بعد استثناء أيام الديلود من الشهرين.'
-      : ''
-    add('trend', up ? 'praise' : 'nudge',
-      up ? `حجمك ارتفع ٪${trend}` : `حجمك نزل ٪${Math.abs(trend)}`,
-      up
-        ? `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق.${note} حافظ على الوتيرة.`
-        : `${volume.total.toLocaleString('en')} كجم هذا الشهر مقابل ${volume.prevTotal.toLocaleString('en')} في السابق.${note} راجع عدد الجلسات قبل الأوزان.`,
-      `٪${trend}`)
-  } else if (hasDeload && volume.trendPct !== null && volume.trendPct <= -15) {
-    // The drop was the deload and nothing else. Worth a line, because
-    // the big number at the top of the report is still down and the
-    // reader deserves to know why rather than wonder.
-    add('deload', 'info',
-      'النزول كان ديلوداً مخططاً',
-      `${volume.deloadDays} ${volume.deloadDays === 1 ? 'يوم' : 'أيام'} بأوزان مخفّضة عمداً هذا الشهر. باستثنائها، متوسط يومك ثابت — الانخفاض في الرقم الكلي متوقع ولا يحتاج تصحيحاً.`,
-      `${volume.deloadDays} يوم`)
-  }
-
-  // The weekday that keeps getting skipped.
-  if (consistency.weakestWeekday) {
-    const { day, count } = consistency.weakestWeekday
-    add('weekday', 'nudge',
-      `${WEEKDAYS[day]} هو يومك الضعيف`,
-      `غبت ${count} مرات في ${WEEKDAYS[day]} هذا الشهر. إما تنقل تمرينه ليوم آخر، أو تجعله يوم راحة مجدولاً.`,
-      `${count}× ${WEEKDAYS[day]}`)
-  }
-
-  // Rest tickets earned and never spent. They are spent automatically
-  // at 03:00 on a missed workout day — never by choice — so the tip says
-  // what they do, not when to use them.
-  if (consistency.restCredits >= 3) {
-    add('credits', 'info',
-      `عندك ${countAr(consistency.restCredits, 'ticket')} راحة`,
-      'كسبتها بالتزامك. لو فاتك يوم تمرين تنصرف وحدة لحالها، والستريك يوقف بدل ما ينكسر.',
-      String(consistency.restCredits))
-  }
-
-  // No new record all month.
-  if (!prs.length && report.sessionCount >= 6) {
-    add('prdrought', 'nudge',
-      'لا رقم قياسي هذا الشهر',
-      `${report.sessionCount} جلسة بلا وزن جديد. جرّب زيادة صغيرة على تمرين واحد تشعر أنك تسيطر عليه.`,
-      '0 PR')
-  } else if (prs.length) {
-    add('prs', 'praise',
-      `${prs.length} ${prs.length === 1 ? 'رقم قياسي' : 'أرقام قياسية'} جديدة`,
-      `أثقلها ${prs[0].exercise} على ${prs[0].weight} كجم، بعد ${prs[0].prevBest} كجم.`,
-      `${prs.length} PR`)
-  }
-
-  // Session length drift — the weakest signal here, and it is skipped
-  // outright when duration is missing from too much of the month.
-  if (time.known && time.avgMinutes > 0) {
-    if (time.avgMinutes < 25) {
-      add('short', 'info',
-        'جلساتك قصيرة',
-        `متوسط جلستك ${fmtDuration(time.avgMinutes)}. إن كان هذا مقصوداً فلا مشكلة، وإلا فقد تكون تتخطى مجموعات.`,
-        `${time.avgMinutes} د`)
-    } else if (time.avgMinutes > 100) {
-      add('long', 'info',
-        'جلساتك طويلة',
-        `متوسط جلستك ${fmtDuration(time.avgMinutes)}. راحات أقصر بين المجموعات ترفع الكثافة وتقصّر الوقت.`,
-        `${time.avgMinutes} د`)
-    }
-  }
-
-  // A curated form tip for the exercise he trained most — real content
-  // from constants.js, not invented advice.
-  const formTip = pickFormTip(sessions, month, muscles)
-  if (formTip) add('form', 'info', `نصيحة أداء — ${formTip.exercise}`, formTip.tip, formTip.exercise)
-
-  return tips
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, MAX_TIPS)
-    .map(({ weight, ...t }) => t)
-}
-
-// The most-trained exercise this month, paired with one of its own
-// coaching notes. Seeded by the month so it is stable on re-render but
-// differs month to month.
-function pickFormTip(sessions, month, muscles) {
-  const count = new Map()
-  for (const s of sessions) {
-    if (monthKey(s.date) !== month) continue
-    for (const ex of s.exercises || []) count.set(ex.name, (count.get(ex.name) || 0) + 1)
-  }
-  if (!count.size) return null
-  const [top] = [...count.entries()].sort((a, b) => b[1] - a[1])[0]
-
-  for (const g of Object.values(MUSCLE_GROUPS)) {
-    const found = (g.exercises || []).find(e => e.name === top)
-    if (found?.tips?.length) {
-      const seed = Number(month.slice(5, 7))
-      return { exercise: top, tip: found.tips[seed % found.tips.length] }
-    }
-  }
-  return null
 }
