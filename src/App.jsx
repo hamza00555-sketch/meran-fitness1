@@ -966,7 +966,8 @@ export default function App() {
             onOpenProfile={() => pushPage('profile')}
             onOpenStreak={() => setShowStreak(true)}
             onOpenSettings={() => { setSettingsSection(null); pushPage('settings') }}
-            hold={!!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding}
+            hold={!!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
+              || showDeloadEnd || showWhatsNew || packOffer}
             active={active}
             plan={plan}
             planIndex={planIndex}

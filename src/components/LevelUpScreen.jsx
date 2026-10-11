@@ -43,8 +43,10 @@ const CONFETTI_AT = 1200
 
 export default function LevelUpScreen({ level, from, onDismiss, onShare }) {
   const rank = getRank(level)
-  const promoted = level > 1 && rank.minLevel === level
   const before = from != null && from < level ? from : Math.max(0, level - 1)
+  // A new rank reached on the way here — also when a session jumped more
+  // than one level and went past the rank's first level (4 → 6 opens D).
+  const promoted = level > 1 && getRank(Math.max(1, before)).tier !== rank.tier
   const [inline, setInline] = useState(null)
   const [sharing, setSharing] = useState(false)
   const [skipped, setSkipped] = useState(false)

@@ -92,6 +92,13 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
   useEffect(() => {
     let alive = true
     const flat = () => { if (alive) setMode('flat') }
+    // The phone turned, the sheet changed width: the stage re-measures, so
+    // the medals and their titles stay centred on it.
+    let ro = null
+    try {
+      ro = new ResizeObserver(() => { try { stage.current?.resize() } catch {} })
+      ro.observe(host.current)
+    } catch { ro = null }
     loadStage().then((MedalStage) => {
       if (!alive || !host.current) return
       let s = null
@@ -113,6 +120,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
     }, flat)
     return () => {
       alive = false
+      try { ro?.disconnect() } catch {}
       st.current.anims.forEach(a => { try { a.cancel() } catch {} })
       const s = stage.current
       stage.current = null

@@ -143,6 +143,10 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const gaugeAnim = useRef(null)
   useEffect(() => {
     if (reducedMotion() || !s) return
+    // Set up as the line starts to come in (still transparent), holding
+    // the old fill through the 120ms delay: the bar never shows its final
+    // length first and then jumps back. The XP of the finish and of the
+    // medals has all arrived by then.
     const t = setTimeout(() => {
       const fillEl = gauge.current?.querySelector('.k-gauge-fill')
       if (!fillEl) return
@@ -150,8 +154,9 @@ export default function SessionSummary({ summary, xp, onDone }) {
       const before = xpProgress(Math.max(0, xpNow.current - (summaryRef.current?.xp || 0)))
       const r0 = before.level < now.level ? 0 : before.currentXP / Math.max(1, before.neededXP)
       const r1 = now.currentXP / Math.max(1, now.neededXP)
-      gaugeAnim.current = animate(fillEl, [{ transform: `scaleX(${r0})` }, { transform: `scaleX(${r1})` }], { d: 800, e: EASE.out })
-    }, Math.max(0, t0 + at('xp') + 120 - performance.now()))
+      gaugeAnim.current = animate(fillEl, [{ transform: `scaleX(${r0})` }, { transform: `scaleX(${r1})` }],
+        { d: 800, delay: Math.max(0, t0 + at('xp') + 120 - performance.now()), e: EASE.out })
+    }, Math.max(0, t0 + at('xp') - performance.now()))
     return () => { clearTimeout(t); try { gaugeAnim.current?.cancel() } catch {} }
   }, [B.xp]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (skipped) { try { gaugeAnim.current?.finish() } catch {} } }, [skipped])
