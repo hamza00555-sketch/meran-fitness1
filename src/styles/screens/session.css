@@ -677,7 +677,9 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 @media (prefers-reduced-motion: reduce) {
   .s-stage, .s-exrow, .s-rest, .s-done-line, .s-done-line[data-fresh="1"], .s-next-line, .s-raise-chip-w[data-enter="1"] { animation: none; }
   .s-trow[data-state="done"][data-fresh="1"], .s-ready-title { animation: none; }
-  .s-ready-face { animation: s-fade 160ms linear both; }
+  /* A real fade: the blanket 0.01ms (index.css) would paint its first
+     frame at opacity 0, a blink in the dock. */
+  .s-ready-face { animation: s-fade 160ms linear both; animation-duration: 160ms !important; }
   .s-tick[data-fresh="1"] path, .s-raise-draw .s-raise-path, .s-raise-quick .s-raise-path { animation: none; stroke-dashoffset: 0; }
   .s-raise-breathe { animation: none; opacity: 1; }
   .s-seg i { transition: none; }

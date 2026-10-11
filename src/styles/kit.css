@@ -302,6 +302,12 @@ html[data-tabnav="fwd"]::view-transition-old(root)  { animation: f-page-out-fwd 
 html[data-tabnav="back"]::view-transition-old(root) { animation: f-page-out-back 150ms var(--ease-out) both; }
 html[data-tabnav="fwd"]::view-transition-new(root)  { animation: f-page-in-fwd 220ms var(--ease-out) 70ms both; }
 html[data-tabnav="back"]::view-transition-new(root) { animation: f-page-in-back 220ms var(--ease-out) 70ms both; }
+/* Reduced motion (no view transition): the new page fades in. A real
+   fade — the blanket 0.01ms (index.css) would paint its first frame at
+   opacity 0 and blink the whole page black on every tab. */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation-duration: var(--dur-fast) !important; }
+}
 @keyframes f-page-out-fwd  { to { opacity: 0; transform: translateX(14px); } }
 @keyframes f-page-out-back { to { opacity: 0; transform: translateX(-14px); } }
 @keyframes f-page-in-fwd   { from { opacity: 0; transform: translateX(-14px); } }
