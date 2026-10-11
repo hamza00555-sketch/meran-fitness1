@@ -35,10 +35,17 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 //    2400ms  the ring starts to breathe, and keeps on until the number
 //            is touched — the field, its steppers or «خلّها»
 //
-// Coming back to the exercise before starting it: only the sheen.
+// Coming back to the exercise before starting it: only the sheen. Once a
+// set is done, nothing: the next set's block simply has the gold, the
+// ring and the chip. Whether the intro has played belongs to the
+// exercise (WorkoutPlayer keeps it, `claimIntro`), not to this block,
+// which mounts again for every set and after «حفظ التعديل».
 // «خلّها 75» runs it backwards: the number rolls down, the gold goes,
-// the ring withdraws and the chip leaves. Reduced motion: gold from the
-// first frame, the ring whole and still, nothing breathing.
+// the ring withdraws and the chip leaves. Stepping the weight rolls it
+// (180ms), and a press on a stepper or the field ends any moving copy at
+// once, so what is shown is always what will be logged. Reduced motion:
+// gold from the first frame, the ring whole and still, nothing
+// breathing; the «raise» sound still plays.
 
 // Hold to repeat: after 400ms every 150ms, stepping up to 100ms after
 // 1.5s — never faster. Stops on release, cancel or losing the pointer.
@@ -182,7 +189,7 @@ function NumberOverlay({ show, onGone }) {
     <span className="s-field-roll" ref={ref} aria-hidden="true">
       {show.from != null
         ? <RollNumber from={show.from} to={show.to} delay={Math.max(0, show.rollAt - performance.now())}
-            stagger={show.stagger ?? 40} up={show.up}
+            stagger={show.stagger ?? 40} up={show.up} duration={show.duration ?? null}
             onDone={show.until == null ? () => gone.current?.() : undefined} />
         : <span className="k-roll">{show.to}</span>}
     </span>
@@ -201,9 +208,12 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, onTouch, rais
   // only steps down when a digit is added. (--len still sizes the box.)
   const whole = String(value ?? '').split(/[.,]/)[0].length
   const fit = field === 'weight' && whole >= 3 ? Math.max(len, whole + 1.5) : len
+  // A press on a stepper ends a moving copy of the number at once: the
+  // step then lands on the input in sight, never under a stale overlay.
+  const press = () => { onTouch?.(); onOverlayGone?.() }
   return (
     <div className="s-step" data-field={field}>
-      <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)} onPress={onTouch}>
+      <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)} onPress={press}>
         <Minus size={24} weight="bold" aria-hidden="true" />
       </HoldButton>
       <label className="s-field" ref={fieldRef} data-raise={raise ? '1' : undefined}
@@ -223,7 +233,7 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, onTouch, rais
         <span className="s-field-unit">{unit}</span>
         {ring && <RaiseRing hostRef={fieldRef} {...ring} />}
       </label>
-      <HoldButton label={`زد ${unitLabel}`} onStep={() => onStep(1)} onPress={onTouch}>
+      <HoldButton label={`زد ${unitLabel}`} onStep={() => onStep(1)} onPress={press}>
         <Plus size={24} weight="bold" aria-hidden="true" />
       </HoldButton>
     </div>
@@ -234,7 +244,8 @@ export default function WorkingArea({
   ex, setIndex, editing = false,
   prevSet = null, coach = null,
   // When the engine says raise: { base, raised, intro: 'full' | 'sheen' | null,
-  // introAt (performance.now() the intro counts from), breathe, onTouch }.
+  // introAt (performance.now() the intro counts from), breathe, onTouch,
+  // claimIntro() — true once per showing, for the block that plays it }.
   raise = null,
   deloadPct = 0,           // a deload week: last time's numbers are the heavy ones
   onUpdateSet, onStepSet, onKeepBase,
@@ -246,6 +257,14 @@ export default function WorkingArea({
   const chipRef = useRef(null)
   const coachRef = useRef(null)
   const introRan = useRef(null)
+  const introCur = useRef(null)     // the intro this render asks for (the sound checks it)
+  const alive = useRef(true)
+  const stepAt = useRef(0)          // when a stepper last changed the weight
+  const lastW = useRef(set?.weight)
+  useEffect(() => {
+    alive.current = true
+    return () => { alive.current = false }
+  }, [])
   // What the raise looked like on the last render of this exercise.
   const track = useRef({ ex: null, raised: null, delta: 0, leavingUntil: 0, quickUntil: 0 })
 
@@ -279,18 +298,46 @@ export default function WorkingArea({
   // A moving number belongs to the set it started on.
   useLayoutEffect(() => { setOverlay(null) }, [ex.id, setIndex])
 
-  // The intro, once per showing that asks for it.
+  // A moving copy of the number only ever shows the number the input
+  // holds: when the weight changes under it, it goes (and in this render
+  // already — `shown` — so not even one frame shows a stale number). A
+  // stepper's change rolls the new number in instead (180ms), while the
+  // raise reminder is on this exercise.
+  const wNow = kg(set?.weight)
+  const shown = overlay && overlay.to === wNow ? overlay : null
+  useLayoutEffect(() => {
+    const before = lastW.current
+    lastW.current = set?.weight
+    if (before === set?.weight) return
+    const a = kg(before)
+    if (raise && !reduce && performance.now() - stepAt.current < 400 && a && wNow && a !== wNow) {
+      const t = performance.now()
+      setOverlay({ id: `step-${t}`, from: a, to: wNow, rollAt: t, stagger: 30, duration: 180 })
+      return
+    }
+    setOverlay(o => (o && o.to !== wNow ? null : o))
+  }, [set?.weight]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The intro, once per showing that asks for it — and only in the first
+  // block to claim it, so a block that mounts again replays nothing.
   const introKey = raise?.intro && raised && !editing ? `${ex.id}|${raise.intro}|${raise.introAt}` : null
+  introCur.current = introKey
   useLayoutEffect(() => {
     if (!introKey || introRan.current === introKey) return
     introRan.current = introKey
-    if (reduce) return
+    if (raise.claimIntro && !raise.claimIntro()) return
     const at = raise.introAt
     const t = performance.now()
     if (raise.intro === 'full') {
+      // The sound is not motion: it plays under reduced motion too. Not
+      // cancelled by a re-run of this effect (StrictMode), only by the
+      // block going or the intro being withdrawn (a set done first).
+      setTimeout(() => {
+        if (alive.current && introCur.current === introKey) play('raise')
+      }, Math.max(0, at + T.roll - t))
+      if (reduce) return
       setOverlay({ id: introKey, from: kg(raise.base), to: kg(set.weight), rollAt: at + T.roll, stagger: 45,
         color: [INK, GOLD], colorAt: at + T.roll, sheenAt: at + T.sheen, until: at + T.done })
-      const sound = setTimeout(() => play('raise'), Math.max(0, at + T.roll - t))
       const chip = chipRef.current
       animate(chip, [{ opacity: 0, transform: 'translateX(-12px) scale(.96)' }, { opacity: 1, transform: 'none' }], { d: 260, delay: Math.max(0, at + T.chip - t) })
       animate(chip?.querySelector('svg'), [{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' }, { transform: 'translateY(0)' }], { d: 320, delay: Math.max(0, at + T.hop - t), fill: 'none' })
@@ -302,9 +349,9 @@ export default function WorkingArea({
         { boxShadow: '0 0 26px 3px rgba(251,191,36,0.38)', offset: 0.45 },
         { boxShadow: '0 0 12px 0 rgba(251,191,36,0.16)' },
       ], { d: 600, delay: Math.max(0, at + T.flare - t), fill: 'backwards' })
-      return () => clearTimeout(sound)
+      return
     }
-    if (raise.intro === 'sheen') {
+    if (raise.intro === 'sheen' && !reduce) {
       setOverlay({ id: introKey, from: null, to: kg(set.weight), sheenAt: t + 150, until: t + 800 })
     }
   }, [introKey]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -337,6 +384,9 @@ export default function WorkingArea({
     breatheDelay: raise.intro === 'full' ? raise.introAt + T.breathe - now : 0,
   } : retracting ? { retract: true } : null
   const chipDelta = raised ? delta : retracting ? track.current.delta : 0
+  // Raised by hand: the chip slides in with the quick ring. (In the intro
+  // the intro moves it; on a new set's block it is simply there.)
+  const chipEnter = raised && !inIntro && now < track.current.quickUntil
 
   return (
     <div className="s-live" data-testid="live-block" data-editing={editing ? '1' : undefined} ref={liveRef}>
@@ -353,7 +403,8 @@ export default function WorkingArea({
           </span>
         )}
         {(raised || retracting) && chipDelta > 0 ? (
-          <span ref={chipRef} className="s-raise-chip-w" data-leaving={retracting ? '1' : undefined}>
+          <span ref={chipRef} className="s-raise-chip-w" data-leaving={retracting ? '1' : undefined}
+            data-enter={chipEnter ? '1' : undefined}>
             <Chip tone="raise" icon={ArrowUp} className="s-raise-chip">
               <Num>+{kg(chipDelta)}</Num> كجم عن آخر مرة
             </Chip>
@@ -379,10 +430,10 @@ export default function WorkingArea({
         field="weight" value={set.weight} unit="كجم" unitLabel="الوزن"
         inputTestId="weight-input"
         raise={raised} ring={ring}
-        overlay={overlay} onOverlayGone={() => setOverlay(null)}
+        overlay={shown} onOverlayGone={() => setOverlay(null)}
         onTouch={raise ? touch : undefined}
         onInput={v => onUpdateSet(setIndex, 'weight', v)}
-        onStep={dir => onStepSet(setIndex, 'weight', dir * 2.5)}
+        onStep={dir => { stepAt.current = performance.now(); onStepSet(setIndex, 'weight', dir * 2.5) }}
       />
       <Stepper
         field="reps" value={set.reps} unit={repsWord(parseInt(set.reps))} unitLabel="العدّات"

@@ -42,7 +42,9 @@ export default function RollNumber({
     const el = box.current
     if (!el || reducedMotion()) { setLanded(key); done.current?.(); return }
     const goingUp = up != null ? up : !(num(b) < num(a))
-    const opts = duration != null ? { d: duration, e: easing || undefined } : { spring }
+    // 'both': each strip holds its landed digit until the plain text
+    // replaces the strips, so no frame shows the old digit in between.
+    const opts = duration != null ? { d: duration, e: easing || undefined, fill: 'both' } : { spring, fill: 'both' }
     const windows = [...el.querySelectorAll('.k-roll-w')]
     const n = windows.length
     const anims = []

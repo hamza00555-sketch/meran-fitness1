@@ -195,6 +195,27 @@ const centre = async (locator) => {
   const b = await locator.boundingBox()
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 }
 }
+// Where each part of the middle is drawn, sideways (px): the computed
+// transform, which a leftover animation would hold at 0 whatever the
+// inline style says.
+const drawnShift = (page) => page.evaluate(() => [...document.querySelector('.s-scroll').children]
+  .map(c => Math.round(new DOMMatrixReadOnly(getComputedStyle(c).transform === 'none' ? undefined : getComputedStyle(c).transform).m41 * 10) / 10))
+// A mouse drag on the exercise head that stops mid-way: returns what is
+// drawn, then lets go (short of the line, so it springs back).
+async function dragHead(page, dx = 40) {
+  const b = await page.locator('[data-testid="exercise-stage"], [data-testid="exercise-row"]').first().boundingBox()
+  const x = b.x + b.width / 2, y = b.y + Math.min(b.height / 2, 60)
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx / 2, y, { steps: 3 })
+  await page.mouse.move(x + dx, y, { steps: 3 })
+  const drawn = await drawnShift(page)
+  drawn.kids = await page.evaluate(() => [...document.querySelector('.s-scroll').children].map(c => c.className.split(' ')[0]))
+  await page.waitForTimeout(250)
+  await page.mouse.up()
+  await page.waitForTimeout(700)
+  return drawn
+}
 
 // ══ 1. The core loop: set → rest → «جاهز» → set → done → next ════
 {
@@ -284,12 +305,26 @@ const centre = async (locator) => {
   ok('rest: skip brings the docked button back', await completeBtn(page).count() === 1 && await page.getByTestId('rest-bar').count() === 0)
   ok('rest: skip cleared the stored timer', await page.evaluate(() => localStorage.getItem('hf_rest_timer') === null))
 
-  // Second set, then let the clock run out.
+  // Second set, then let the clock run out. Every frame after the tap is
+  // sampled: the first one without the live block must already name the
+  // exercise and hold «التالي»'s place (no frame of the generic line).
   const vt0 = await page.evaluate(() => window.__vt)
+  await page.evaluate(() => {
+    window.__frames = []
+    const tick = () => {
+      const d = document.querySelector('.s-done-line')
+      if (d) window.__frames.push({ text: d.querySelector('strong')?.textContent, fresh: d.dataset.fresh || null, next: !!document.querySelector('.s-next-line') })
+      if (window.__frames.length < 12) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
   await completeBtn(page).click()
   const tapAt = Date.now()
   await page.waitForTimeout(500)
   ok('completion: the last set names the finished exercise', /اكتمل/.test(await text(page)))
+  const frames = await page.evaluate(() => window.__frames)
+  ok('completion: from its first frame the line names the exercise, rising, with «التالي» in place',
+    frames.length > 0 && frames.every(f => f.text === 'اكتمل ضغط صدر جهاز هامر' && f.fresh === '1' && f.next), JSON.stringify(frames.slice(0, 3)))
   const nextLine = await page.getByTestId('exercise-next').innerText().catch(() => '')
   ok('handoff: «التالي» names the next exercise, under «اكتمل»', /التالي/.test(nextLine) && /تفتيح جهاز/.test(nextLine), nextLine)
   await page.evaluate(() => { window.__anims = [] })
@@ -433,8 +468,12 @@ const centre = async (locator) => {
   ok('swipe: dragging left goes back', (await page.locator('.s-name-en').first().textContent()) === 'Hammer Strength Machine Bench Press')
   ok('swipe: navigation never touches the data', JSON.stringify((await activeStored(page)).exercises) === JSON.stringify(ACTIVE.exercises))
 
-  // The screen follows the finger; short of the line it springs back; at
-  // the first exercise, dragging towards «before» resists.
+  // The screen follows the finger — what is drawn, not just the inline
+  // style: this exercise was reached by two swipes, and a finished
+  // entrance animation must not pin it in place. The 10px of slop that
+  // tell a drag from a tap are not a jump: a 40px drag moves it 30px.
+  // Short of the line it springs back; at the first exercise, dragging
+  // towards «before» resists.
   const box = await page.locator('[data-testid="exercise-stage"]').boundingBox()
   const hx = box.x + box.width / 2, hy = box.y + box.height / 2
   const shift = () => page.evaluate(() => [...document.querySelector('.s-scroll').children].map(c => c.style.transform))
@@ -443,14 +482,16 @@ const centre = async (locator) => {
   await page.mouse.move(hx + 20, hy, { steps: 3 })
   await page.mouse.move(hx + 40, hy, { steps: 3 })
   const following = await shift()
-  ok('swipe: mid-drag, the whole middle moves with the finger', following.length >= 3 && following.every(t => t === 'translateX(40px)'), JSON.stringify(following))
+  const drawn = await drawnShift(page)
+  ok('swipe: mid-drag, the whole middle moves with the finger', following.length >= 3 && following.every(t => t === 'translateX(30px)'), JSON.stringify(following))
+  ok('swipe: and it is drawn there, after moves between exercises', drawn.length >= 3 && drawn.every(x => x === 30), JSON.stringify(drawn))
   await page.waitForTimeout(250)   // let go slowly: no flick
   await page.evaluate(() => { window.__anims = [] })
   await page.mouse.up()
   await page.waitForTimeout(100)
   const back = await page.evaluate(() => ({
     t: [...document.querySelector('.s-scroll').children].map(c => c.style.transform),
-    spring: window.__anims.filter(a => /translateX\(40px\)/.test(a.kf) && /"none"/.test(a.kf)).length,
+    spring: window.__anims.filter(a => /translateX\(30px\)/.test(a.kf) && /"none"/.test(a.kf)).length,
   }))
   ok('swipe: let go short of 56px, it springs back and stays on the exercise',
     back.t.every(t => t === '') && back.spring >= 3 && (await page.locator('.s-name-en').first().textContent()) === 'Hammer Strength Machine Bench Press', JSON.stringify(back))
@@ -460,12 +501,44 @@ const centre = async (locator) => {
   await page.mouse.move(hx - 50, hy, { steps: 3 })
   await page.mouse.move(hx - 100, hy, { steps: 3 })
   const edge = await shift()
-  ok('swipe: past the first exercise it resists (0.35×)', edge.every(t => t === 'translateX(-35px)'), JSON.stringify(edge))
+  ok('swipe: past the first exercise it resists (0.35×)', edge.every(t => t === 'translateX(-31.5px)'), JSON.stringify(edge))
   await page.mouse.up()
   await page.waitForTimeout(600)
   ok('swipe: and lands back where it was', (await page.locator('.s-name-en').first().textContent()) === 'Hammer Strength Machine Bench Press'
     && (await shift()).every(t => t === ''))
   ok('swipe: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 2b′. The swipe still follows after any move ════════════════
+// Every way of arriving at an exercise — a tap in the list, the move
+// that comes by itself after the last set — leaves it free to be dragged
+// (an entrance that kept its last frame pinned the screen in place), and
+// on an exercise just finished «اكتمل» and «التالي» move with the rest.
+{
+  const { ctx, page, errors } = await open()
+  await page.getByRole('button', { name: /Pec Deck/ }).last().click()
+  await page.waitForTimeout(900)
+  const afterTap = await dragHead(page)
+  ok('swipe/after a list tap: mid-drag, everything is drawn 30px along',
+    afterTap.length >= 3 && afterTap.every(x => x === 30), JSON.stringify(afterTap))
+  ok('swipe/after a list tap: and it stays on the exercise', (await page.locator('.s-name-en').first().textContent()) === 'Pec Deck')
+
+  // The last exercise has one set: finish it, drag while «اكتمل» is up.
+  await page.getByRole('button', { name: /Machine Shoulder Press/ }).last().click()
+  await page.waitForTimeout(900)
+  await completeBtn(page).click()
+  await page.waitForTimeout(800)
+  const done = await dragHead(page, -40)   // back towards the one before (the last has no «next» to resist into)
+  ok('swipe/just finished: «اكتمل» and «التالي» move with the rest of the screen',
+    done.kids.includes('s-done-line') && done.kids.includes('s-next-line') && done.every(x => x === -30), JSON.stringify({ kids: done.kids, done }))
+  // …then the next unfinished exercise (the first) comes on by itself.
+  await page.waitForFunction(() => document.querySelector('.s-name-en')?.textContent === 'Hammer Strength Machine Bench Press', null, { timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(900)
+  const afterAuto = await dragHead(page)
+  ok('swipe/after the move that comes by itself: mid-drag, everything is drawn 30px along',
+    afterAuto.length >= 3 && afterAuto.every(x => x === 30), JSON.stringify(afterAuto))
+  ok('swipe/after moves: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -1081,6 +1154,124 @@ const RAISE_SESSIONS = [
 }
 
 {
+  // Once a set is done, nothing: the next set's block simply has the gold,
+  // the ring and the chip — no «raise» sound again, no chip sliding in, no
+  // flare, no number rolling — and the same after «حفظ التعديل». (An older
+  // heavier session keeps 77.5 from being a record, so only the raise
+  // reminder is on screen.) The tap unlocks the audio, so a replayed intro
+  // would be heard here.
+  const OLD = { ...raiseDay(1, [[90, 5]]), id: 0.5, date: new Date(2026, 5, 1, 18).toISOString() }
+  const active = { ...ACTIVE, exercises: [{ ...ACTIVE.exercises[0], sets: [0, 1, 2].map(() => ({ weight: '75', reps: '12', done: false })) }, ...ACTIVE.exercises.slice(1)] }
+  const { ctx, page, errors } = await open({ sessions: [OLD, ...RAISE_SESSIONS], active })
+  await page.waitForTimeout(2600)
+  const quiet = () => page.evaluate(() => ({
+    raise: window.__sounds.filter(s => s.name === 'raise').length,
+    setDone: window.__sounds.filter(s => s.name === 'set-done').length,
+    chip: window.__anims.filter(a => /s-raise-chip-w/.test(a.cls)).length
+      + [...document.querySelectorAll('.s-raise-chip-w')].flatMap(c => c.getAnimations()).length,
+    flare: window.__anims.filter(a => /s-field/.test(a.cls) && /boxShadow/.test(a.kf)).length,
+    roll: window.__anims.filter(a => /k-roll-s/.test(a.cls)).length,
+    ring: document.querySelector('[data-testid="raise-ring"]')?.getAttribute('data-state') ?? null,
+    chipShown: !!document.querySelector('.s-raise-chip'),
+  }))
+  await page.evaluate(() => {
+    window.__sounds = []; window.__anims = []; window.__ringFrames = []
+    const tick = () => {
+      if (/المجموعة\s*2/.test(document.querySelector('.s-live-set')?.textContent || '')) {
+        window.__ringFrames.push(!!document.querySelector('[data-testid="raise-ring"]'))
+      }
+      if (window.__ringFrames.length < 3) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+  await completeBtn(page).click()
+  await page.waitForTimeout(900)
+  const afterSet = await quiet()
+  ok('raise/after a set: the set made its sound, and the raise did not play again',
+    afterSet.setDone === 1 && afterSet.raise === 0, JSON.stringify(afterSet))
+  ok('raise/after a set: no chip sliding in, no flare, no number rolling',
+    afterSet.chip === 0 && afterSet.flare === 0 && afterSet.roll === 0, JSON.stringify(afterSet))
+  ok('raise/after a set: the ring and the chip are simply there, the ring still', afterSet.ring === 'still' && afterSet.chipShown, JSON.stringify(afterSet))
+  const ringFrames = await page.evaluate(() => window.__ringFrames)
+  ok('raise/after a set: the ring is there from the next set\'s first frame', ringFrames.length > 0 && ringFrames.every(Boolean), JSON.stringify(ringFrames))
+
+  await page.getByRole('button', { name: 'تخطي' }).click()
+  await page.waitForTimeout(600)
+  await page.locator('.s-trow[data-state="done"]').first().click()
+  await page.waitForTimeout(400)
+  await page.evaluate(() => { window.__sounds = []; window.__anims = [] })
+  await page.getByRole('button', { name: 'حفظ التعديل' }).click()
+  await page.waitForTimeout(900)
+  const afterEdit = await quiet()
+  ok('raise/after «حفظ التعديل»: nothing replays either',
+    afterEdit.raise === 0 && afterEdit.chip === 0 && afterEdit.flare === 0 && afterEdit.roll === 0 && afterEdit.ring === 'still', JSON.stringify(afterEdit))
+
+  // Raised by hand with +, the number rolls (and the gold, the ring and
+  // the chip come with it).
+  await page.getByRole('button', { name: /خلّها\s*75/ }).click()
+  await page.waitForTimeout(700)
+  await page.evaluate(() => { window.__anims = [] })
+  await page.getByRole('button', { name: 'زد الوزن' }).click()
+  await page.waitForTimeout(40)
+  const byHand = await page.evaluate(() => ({
+    roll: !!document.querySelector('.s-field-roll .k-roll-on'),
+    ghost: document.querySelector('.s-field-roll .k-roll-ghost')?.textContent,
+    input: document.querySelector('[data-testid="weight-input"]').value,
+    ring: document.querySelector('[data-testid="raise-ring"]')?.getAttribute('class'),
+    chip: document.querySelector('.s-raise-chip-w')?.dataset.enter,
+  }))
+  ok('raise/by hand: + rolls the number up to the raised weight, with the quick ring and the chip',
+    byHand.roll && byHand.ghost === '77.5' && byHand.input === '77.5' && /s-raise-quick/.test(byHand.ring || '') && byHand.chip === '1', JSON.stringify(byHand))
+  await page.waitForTimeout(500)
+  ok('raise/by hand: then the input holds it again', await page.locator('.s-field-roll').count() === 0
+    && await page.getByTestId('weight-input').evaluate(el => getComputedStyle(el).opacity) === '1')
+  ok('raise/no replay: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // The intro draws a copy of the number over the input. A press on + or
+  // − during it must not change a number nobody can see: what is shown is
+  // always what «تمّت المجموعة» will log.
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(250)
+  await page.getByRole('button', { name: 'زد الوزن' }).click()
+  await page.getByRole('button', { name: 'زد الوزن' }).click()
+  const seen = await page.evaluate(async () => {
+    const out = []
+    for (let i = 0; i < 20; i++) {
+      const o = document.querySelector('.s-field-roll')
+      const inp = document.querySelector('[data-testid="weight-input"]')
+      const shown = o ? (o.querySelector('.k-roll-ghost') || o.querySelector('.k-roll') || o).textContent : null
+      out.push({ input: inp.value, shown, inputVisible: getComputedStyle(inp).opacity === '1' })
+      await new Promise(r => setTimeout(r, 100))
+    }
+    return out
+  })
+  ok('raise/steppers in the intro: the number on screen is always the one in the field',
+    seen.every(s => (s.shown == null && s.inputVisible) || s.shown === s.input) && seen.at(-1).input === '82.5', JSON.stringify(seen.slice(0, 4)))
+  ok('raise/steppers in the intro: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // In the session list, the gold arrow sits right after the exercise's
+  // name, not out by its «0/2» count.
+  const { ctx, page } = await open({ sessions: RAISE_SESSIONS })
+  const place = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="queue-raise"]')
+    const row = a.closest('.s-qrow')
+    const name = row.querySelector('.s-qrow-ar').getBoundingClientRect()
+    const count = row.querySelector('.s-qrow-count').getBoundingClientRect()
+    const r = a.getBoundingClientRect()
+    return { gapToName: Math.round(name.left - r.right), gapToCount: Math.round(r.left - count.right), sameLine: Math.abs((r.top + r.bottom) / 2 - (name.top + name.bottom) / 2) < 6 }
+  })
+  ok('raise/list: the arrow is beside the name (RTL: just left of it), well clear of the count',
+    place.gapToName >= 0 && place.gapToName <= 10 && place.gapToCount > 40 && place.sameLine, JSON.stringify(place))
+  await ctx.close()
+}
+
+{
   // A set heavier than anything on record: the full celebration
   // («كاملة بالقصاصات»), then its trophy lands on the row, which wears
   // gold — the weight, and a trophy where its check would be.
@@ -1147,6 +1338,7 @@ const RAISE_SESSIONS = [
   await page.getByTestId('weight-input').fill('80')
   await page.evaluate(() => { window.__vibes = []; window.__sounds = []; window.__anims = [] })
   await completeBtn(page).click()
+  const lastTapAt = Date.now()
   await page.waitForTimeout(400)
   const small = await page.evaluate(() => ({
     moment: !!document.querySelector('[data-testid="pr-moment"]'),
@@ -1159,7 +1351,73 @@ const RAISE_SESSIONS = [
   ok('record: a second record in the same exercise is the small flash, not the full moment',
     !small.moment && small.pop && small.flash && small.gold === 1, JSON.stringify(small))
   ok('record: still felt and heard', small.vibes === '[[12,70,28]]' && small.sound, JSON.stringify(small))
+  // That was the exercise's last set, and no big moment held it: the next
+  // exercise comes on after the usual 1.5s (the shorter wait is only for
+  // a completion a record's moment held, not for one set earlier).
+  await page.waitForFunction(() => document.querySelector('.s-name-en')?.textContent === 'Pec Deck', null, { timeout: 4000, polling: 50 }).catch(() => {})
+  const nextMs = Date.now() - lastTapAt
+  ok('record: a record on an earlier set doesn\'t shorten the move on (~1.5s)', nextMs >= 1400 && nextMs <= 2300, `${nextMs}ms`)
   ok('record: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // A double tap never reaches the session under the moment: the first
+  // tap sends the trophy home, the second (still on the moment, or just
+  // after it) must not skip the rest that is counting under it. And the
+  // second tap of a double tap on «تمّت المجموعة» lands on the moment as
+  // it opens — it must not skip it unseen.
+  for (const gap of [120, 300]) {
+    const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+    await page.waitForTimeout(300)
+    await completeBtn(page).click()
+    await page.waitForTimeout(700)
+    const skip = await centre(page.getByRole('button', { name: 'تخطي' }))
+    await page.touchscreen.tap(skip.x, skip.y)
+    await page.waitForTimeout(gap)
+    await page.touchscreen.tap(skip.x, skip.y)
+    await page.waitForTimeout(700)
+    const r = await page.evaluate(() => ({ moment: !!document.querySelector('[data-testid="pr-moment"]'),
+      rest: !!document.querySelector('[data-testid="rest-bar"]'), timer: !!localStorage.getItem('hf_rest_timer') }))
+    ok(`record/double tap ${gap}ms over «تخطي»: the moment goes, the rest stays`, !r.moment && r.rest && r.timer, JSON.stringify(r))
+    ok(`record/double tap ${gap}ms: no page errors`, errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(300)
+  const btn = await centre(completeBtn(page))
+  await page.touchscreen.tap(btn.x, btn.y)
+  await page.waitForTimeout(150)
+  await page.touchscreen.tap(btn.x, btn.y)
+  await page.waitForTimeout(500)
+  ok('record/double tap on «تمّت المجموعة»: the moment stays up to be seen',
+    await page.getByTestId('pr-moment').count() === 1 && (await activeStored(page)).exercises[0].sets.filter(s => s.done).length === 1)
+  ok('record/double tap on «تمّت المجموعة»: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // ⌄ and back mounts the player again; the session's motion memory comes
+  // with it: a second record in the same exercise is still the small flash.
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(300)
+  await completeBtn(page).click()
+  await page.waitForTimeout(500)
+  const first = await page.getByTestId('pr-moment').count()
+  await page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 5000 }).catch(() => {})
+  await page.getByRole('button', { name: 'تخطي' }).click()
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: 'صغّر الجلسة' }).filter({ visible: true }).click()
+  await page.waitForTimeout(600)
+  await page.getByTestId('live-bar').click()
+  await page.locator('[data-testid="session"]').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(600)
+  await page.getByTestId('weight-input').fill('80')
+  await completeBtn(page).click()
+  await page.waitForTimeout(500)
+  ok('record/after ⌄ and back: a second record in the exercise is still the small flash',
+    first === 1 && await page.getByTestId('pr-moment').count() === 0 && await page.locator('.s-pr-icon').count() === 1)
+  ok('record/after ⌄ and back: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -1200,6 +1458,17 @@ const RAISE_SESSIONS = [
       moving: window.__anims.filter(a => /pr-shock|pr-tro|pr-fly/.test(a.cls)).length, vibes: JSON.stringify(window.__vibes) }
   })
   ok('record/reduced: the card is there, the number already 77.5', calm.moment && calm.number === '77.5', JSON.stringify(calm))
+  // The fade-in is on the scrim and the card's parts, and gone once done:
+  // an animation left on an element around the scrim would cut its blur
+  // off from the session, and the card's text would sit on sharp numbers.
+  const around = await page.evaluate(() => ({
+    root: document.querySelector('.pr').getAnimations().length,
+    stage: document.querySelector('.pr-stage').getAnimations().length,
+    scrim: document.querySelector('.pr-scrim').getAnimations().length,
+    blur: getComputedStyle(document.querySelector('.pr-scrim')).backdropFilter,
+  }))
+  ok('record/reduced: nothing left animating around the blurred scrim', around.root === 0 && around.stage === 0 && around.scrim === 0
+    && /blur\(10px\)/.test(around.blur), JSON.stringify(around))
   ok('record/reduced: no confetti, no shock ring, no trophy spring', calm.drawn === 0 && calm.moving === 0, JSON.stringify(calm))
   ok('record/reduced: the buzz stays', calm.vibes === '[[12,70,28]]', calm.vibes)
   await page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 4000 }).catch(() => {})
@@ -1242,6 +1511,25 @@ const RAISE_SESSIONS = [
   ok('raise/reduced: gold from the first frame — no roll, no breathing', !calm.roll && calm.breathe === 'still' && calm.color === GOLD, JSON.stringify(calm))
   ok('raise/reduced: no page errors', errors.length === 0)
   await ctx.close()
+}
+
+{
+  // The «raise» sound is not motion: under reduced motion it still plays,
+  // once, when the exercise comes on. (The raise exercise second, so a tap
+  // has unlocked the audio by the time it shows.)
+  const active = { ...ACTIVE, exercises: [ACTIVE.exercises[1], ACTIVE.exercises[0], ACTIVE.exercises[2]] }
+  for (const reduced of [true, false]) {
+    const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS, active, reduced })
+    await page.getByTestId('session-title').click()
+    await page.waitForTimeout(300)
+    await page.evaluate(() => { window.__sounds = [] })
+    await page.getByRole('button', { name: /Hammer Strength/ }).last().click()
+    await page.waitForTimeout(1500)
+    const sounds = await page.evaluate(() => window.__sounds.filter(s => s.name === 'raise').length)
+    ok(`raise/${reduced ? 'reduced' : 'full'}: the «raise» sound plays once as the exercise comes on`, sounds === 1, String(sounds))
+    ok(`raise/${reduced ? 'reduced' : 'full'} sound: no page errors`, errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
 }
 
 // ══ 7. Finishing asks; throwing away lives in ⋯ ═══════════════

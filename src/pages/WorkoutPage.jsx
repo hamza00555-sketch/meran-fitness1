@@ -272,6 +272,7 @@ export default function WorkoutPage({
         </>
       ) : (
         <WorkoutPlayer
+          key={active.id}
           sessionId={active.id}
           exercises={exercises}
           deloadPct={active?.deload?.pct || 0}

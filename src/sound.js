@@ -23,7 +23,7 @@
 
 export const SOUNDS = {
   'set-done':    { gain: 0.6 },    // every set: very short, subtle
-  'pr':          { gain: 0.85 },   // the personal record
+  'pr':          { gain: 0.65 },   // the personal record — under the rest's chime, not over it
   'raise':       { gain: 0.55 },   // «ارفع الوزن», soft
   'rest-tick':   { gain: 0.75 },   // rest −3 / −2 / −1
   'rest-end':    { gain: 0.9 },    // rest at zero

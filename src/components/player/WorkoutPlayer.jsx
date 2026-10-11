@@ -69,6 +69,29 @@ const markRaiseSeen = (key) => {
   } catch {}
 }
 
+// What the motion has already said in this session, beside it and for
+// the same reasons: the exercises whose raise intro has played in full,
+// and those whose raised weight was touched (so the ring has stopped
+// breathing). ⌄ and back mounts the player again, and a reload starts it
+// from scratch; neither should replay the intro or wake the ring.
+const MOTION_KEY = 'meran_session_motion'
+const readMotion = (sid) => {
+  try {
+    const m = JSON.parse(sessionStorage.getItem(MOTION_KEY) || 'null')
+    if (m && m.sid === sid) return { intro: m.intro || [], touched: m.touched || [] }
+  } catch {}
+  return { intro: [], touched: [] }
+}
+const writeMotion = (sid, part) => {
+  try {
+    const m = { ...readMotion(sid), ...part }
+    sessionStorage.setItem(MOTION_KEY, JSON.stringify({ sid, intro: m.intro.slice(-60), touched: m.touched.slice(-60) }))
+  } catch {}
+}
+// How long a showing's intro stays on offer: the full one to the ring's
+// first breath (WorkingArea's T.breathe), the sheen a little past its end.
+const INTRO_LIFE_MS = { full: 2400, sheen: 900 }
+
 const firstUnfinished = (list, from = 0) => {
   const n = list.length
   for (let k = 0; k < n; k++) {
@@ -144,12 +167,26 @@ export default function WorkoutPlayer({
   const [peek, setPeek] = useState(null)               // ex id whose stage was reopened
   const [fresh, setFresh] = useState(null)             // { exId, si } — the check to draw
   const [pr, setPr] = useState(null)                   // the record on screen: { exId, si, from, to, name }
-  const [prLanded, setPrLanded] = useState(null)       // exId whose trophy just landed
-  const [touched, setTouched] = useState(() => new Set())   // exercises whose raised weight was touched
-  const celebratedRef = useRef(new Set())
-  const prShown = useRef(new Set())                    // exercises that had their big record moment
+  // Exercises whose raised weight was touched; kept for the session (above).
+  const [touched, setTouched] = useState(() => new Set(readMotion(sessionId).touched))
+  // What the player finds when it mounts (a reload, ⌄ and back) already
+  // happened: an exercise already complete is not celebrated again (nor
+  // moved on from by itself), and one that already holds a record has had
+  // its big moment — a new one there is the small flash.
+  const celebratedRef = useRef(null)
+  if (!celebratedRef.current) {
+    celebratedRef.current = new Set(exercises.filter(e => e.sets.length && e.sets.every(s => s.done)).map(e => e.id))
+  }
+  const prShown = useRef(null)                         // exercises that had their big record moment
+  if (!prShown.current) {
+    prShown.current = new Set(exercises
+      .filter(e => prIndexOf(e.sets, statsFor(e.name)?.maxWeight ?? null, deloadPct) != null).map(e => e.id))
+  }
+  const introPlayed = useRef(null)                     // exercises whose raise intro played in full
+  if (!introPlayed.current) introPlayed.current = new Set(readMotion(sessionId).intro)
+  const prHeld = useRef(null)                          // the exercise whose completion a record's moment held
   const flash = useRef({ token: 0, done: 0, exId: null, si: null, kind: null })
-  const intro = useRef(new Map())                      // exId → { kind, at } — the raise reminder's showings
+  const intro = useRef(new Map())                      // exId → { kind, at, showing, ran } — this showing's raise reminder
   const scrollRef = useRef(null)
   const dockRef = useRef(null)
   const restClosedAt = useRef(0)
@@ -223,7 +260,8 @@ export default function WorkoutPlayer({
 
   // The swipe carries the whole middle with the finger; past either end
   // of the session it resists (0.35×). Let go short of the line and it
-  // springs back.
+  // springs back. The finger takes over at once: an entrance or a spring
+  // back still running on a part would hold it where it is, so they end.
   const drag = (phase, dx = 0) => {
     const sc = scrollRef.current
     if (!sc) return
@@ -231,7 +269,10 @@ export default function WorkoutPlayer({
     if (phase === 'move') {
       const target = indexRef.current + (dx > 0 ? 1 : -1)
       const x = target < 0 || target >= exercises.length ? dx * 0.35 : dx
-      kids.forEach(k => { k.style.transform = `translateX(${x}px)` })
+      kids.forEach(k => {
+        try { k.getAnimations?.().forEach(a => a.cancel()) } catch {}
+        k.style.transform = `translateX(${x}px)`
+      })
       return
     }
     kids.forEach(k => {
@@ -256,7 +297,11 @@ export default function WorkoutPlayer({
   // Completing an exercise's last set earns a short line — what was
   // done, whether it beat last time, what's next — then the next
   // unfinished exercise comes on screen by itself. Once per exercise.
-  useEffect(() => {
+  // Decided before the first paint (a layout effect), so the first frame
+  // without the live block already names the exercise, holds «التالي»'s
+  // place and starts the rise — no frame of «اكتمل هذا التمرين», no list
+  // jumping up and back.
+  useLayoutEffect(() => {
     if (!ex || !exComplete || celebratedRef.current.has(ex.id)) return
     celebratedRef.current.add(ex.id)
     setCelebrating({ exId: ex.id })
@@ -272,18 +317,21 @@ export default function WorkoutPlayer({
   // takes the screen (jump clears it in the same commit, so the outgoing
   // snapshot still carries «اكتمل» and «التالي»); with nothing left to
   // move to, it simply stays. Moving away by hand clears it too. A
-  // record's moment holds the move until its trophy has landed.
+  // record's moment holds the move until its trophy has landed, and then
+  // the wait is the shorter one — only when that moment held this
+  // completion, not for a record set earlier in the exercise.
   const exercisesRef = useRef(exercises)
   exercisesRef.current = exercises
   const prBusy = !!pr && pr.exId === celebrating?.exId
   useEffect(() => {
-    if (!celebrating || prBusy) return
+    if (!celebrating) return
+    if (prBusy) { prHeld.current = celebrating.exId; return }
     const t = setTimeout(() => {
       const list = exercisesRef.current
       const at = list.findIndex(e => e.id === celebrating.exId)
       const next = firstUnfinished(list, at + 1)
       if (next !== -1 && list[indexRef.current]?.id === celebrating.exId) jump(next)
-    }, prLanded === celebrating.exId ? AUTO_NEXT_AFTER_PR_MS : AUTO_NEXT_MS)
+    }, prHeld.current === celebrating.exId ? AUTO_NEXT_AFTER_PR_MS : AUTO_NEXT_MS)
     return () => clearTimeout(t)
   }, [celebrating?.exId, prBusy]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -357,6 +405,7 @@ export default function WorkoutPlayer({
   }, [ex?.id, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const touchRaise = (exId) => setTouched(t => (t.has(exId) ? t : new Set(t).add(exId)))
+  useEffect(() => { writeMotion(sessionId, { touched: [...touched] }) }, [touched]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const keepBase = () => {
     if (!ex || base == null) return
@@ -368,23 +417,38 @@ export default function WorkoutPlayer({
   // The reminder plays in full the first time an exercise shows it (after
   // the handoff has brought the set in, when it arrived by one); coming
   // back to it before the first set, only a sheen; once a set is done,
-  // nothing — the ring is simply there.
+  // nothing — the ring is simply there. A showing is one stay on the
+  // exercise (a move away and back is a new one). Whether its intro has
+  // played lives here, with the exercise: the live block mounts again for
+  // every set and after «حفظ التعديل», and must find nothing to replay.
   const liveSet = ex && liveIndex >= 0 ? ex.sets[liveIndex] : null
   const liveRaised = raiseOn && base != null && liveSet && parseFloat(liveSet.weight) > base
-  const shownRef = useRef(null)
   const started = !!ex && ex.sets.some(s => s.done)
   if (ex && liveRaised && editing == null) {
     const showing = `${ex.id}|${handoff.current.token}`
-    if (!intro.current.has(ex.id)) {
+    const cur = intro.current.get(ex.id)
+    if (!cur || cur.showing !== showing) {
+      const kind = started ? null
+        : !introPlayed.current.has(ex.id) ? 'full'
+        : touched.has(ex.id) ? null : 'sheen'
       const arriving = performance.now() - handoff.current.at < 600
-      intro.current.set(ex.id, { kind: started ? null : 'full', at: performance.now() + (arriving ? 450 : 0), showing })
-    } else if (shownRef.current !== showing && intro.current.get(ex.id).showing !== showing) {
-      const sheen = !started && !touched.has(ex.id)
-      intro.current.set(ex.id, { kind: sheen ? 'sheen' : null, at: performance.now(), showing })
+      intro.current.set(ex.id, { kind, at: performance.now() + (kind === 'full' && arriving ? 450 : 0), showing, ran: false })
     }
-    shownRef.current = showing
   }
   const introNow = ex ? intro.current.get(ex.id) : null
+  // Over once a set is done, or once it has had its time.
+  if (introNow?.kind && (started || performance.now() > introNow.at + INTRO_LIFE_MS[introNow.kind])) introNow.kind = null
+  // The first live block to ask plays it; any later one (or a re-run) is told no.
+  const claimIntro = (exId) => () => {
+    const e = intro.current.get(exId)
+    if (!e || !e.kind || e.ran) return false
+    e.ran = true
+    if (e.kind === 'full' && !introPlayed.current.has(exId)) {
+      introPlayed.current.add(exId)
+      writeMotion(sessionId, { intro: [...introPlayed.current] })
+    }
+    return true
+  }
   // The ring breathes until the weight is touched — or a set is done on it.
   const breathing = !!ex && !started && !touched.has(ex.id)
 
@@ -468,7 +532,6 @@ export default function WorkoutPlayer({
     const p = pr
     setPr(null)
     if (!p) return
-    setPrLanded(p.exId)
     flash.current = { ...flash.current, token: flash.current.token + 1, exId: p.exId, si: p.si, kind: 'land' }
   }
   // The row's trophy, if it is on screen and clear of the dock.
@@ -500,6 +563,7 @@ export default function WorkoutPlayer({
       raise={raiseOn && base != null && editing == null ? {
         base, raised: raisedW,
         intro: introNow?.kind || null, introAt: introNow?.at || 0,
+        claimIntro: claimIntro(ex.id),
         breathe: breathing,
         onTouch: () => touchRaise(ex.id),
       } : null}

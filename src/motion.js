@@ -83,6 +83,14 @@ export function reducedMotion() {
 /**
  * element.animate(), never throwing: returns the Animation or null.
  * `o.spring` names a spring (its curve and settle time win over `o.d`/`o.e`).
+ *
+ * The fill is 'backwards' unless asked otherwise: an entrance holds its
+ * first frame through its delay, and once it has played the element is
+ * its own again. A finished animation that kept its last frame ('both',
+ * 'forwards') would sit on top of everything set later — the swipe's
+ * inline transform, a :active press, a CSS exit — so only something that
+ * must stay where it ended (a card fading out before it unmounts) asks
+ * for 'forwards' or 'both'.
  */
 export function animate(el, keyframes, o = {}) {
   if (!el || typeof el.animate !== 'function') return null
@@ -92,7 +100,7 @@ export function animate(el, keyframes, o = {}) {
       duration: sp ? sp.ms : (o.d ?? 240),
       delay: o.delay || 0,
       easing: sp ? sp.easing : (o.e || EASE.out),
-      fill: o.fill || 'both',
+      fill: o.fill || 'backwards',
       iterations: o.iterations || 1,
     })
   } catch { return null }

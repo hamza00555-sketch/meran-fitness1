@@ -96,8 +96,10 @@ function NameAr({ name, mapping }) {
 // The swipe follows the finger: once a press has moved 10px more sideways
 // than down, it is a drag — the pointer is captured (so a drag that wanders
 // off the head still ends here) and `onDrag('move', dx)` carries the
-// screen along. On release it goes through past 56px, or on a flick
+// screen along, from where the drag was recognised (the 10px of slop are
+// not a jump). On release it goes through past 56px, or on a flick
 // faster than 0.4px/ms; otherwise `onDrag('cancel')` springs it back.
+const SWIPE_SLOP = 10
 const SWIPE_DIST = 56
 const SWIPE_SPEED = 0.4
 
@@ -119,14 +121,15 @@ function useSwipe(onSwipe, onDrag) {
       const dx = e.clientX - s.x
       const dy = e.clientY - s.y
       if (!s.dragging) {
-        if (Math.abs(dx) <= 10 || Math.abs(dx) <= Math.abs(dy) * 1.5) return
+        if (Math.abs(dx) <= SWIPE_SLOP || Math.abs(dx) <= Math.abs(dy) * 1.5) return
         s.dragging = true
+        s.from = s.x + Math.sign(dx) * SWIPE_SLOP
         try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
       }
       const t = performance.now()
       s.samples.push({ x: e.clientX, t })
       while (s.samples.length > 2 && t - s.samples[0].t > 90) s.samples.shift()
-      onDrag?.('move', dx)
+      onDrag?.('move', e.clientX - s.from)
     },
     onPointerUp: (e) => {
       const s = start.current

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Trophy } from '../kit/icons.js'
 import { Num } from '../kit/index.jsx'
@@ -25,27 +25,50 @@ import '../../styles/screens/pr.css'
 //             row flashes gold (WorkoutPlayer does the landing)
 //
 // It never stops the session: the rest is already counting underneath,
-// and one tap anywhere jumps to the landing. It holds the touch only for
-// that. Big once per exercise per session — a second record in the same
-// exercise is the small flash on the row, decided by WorkoutPlayer.
+// and one tap anywhere jumps to the landing. Until it is gone it holds
+// every touch — a tap during the flight lands on it, not on «تخطي» under
+// it — and when a tap sent it away, the session ignores taps for a
+// moment after the landing (the second tap of a double tap). Its first
+// third of a second ignores taps too, so a double tap on «تمّت المجموعة»
+// doesn't skip it before it is seen. Big once per exercise per session —
+// a second record in the same exercise is the small flash on the row,
+// decided by WorkoutPlayer.
 //
 // Reduced motion (the phone's setting): no confetti, no shock ring, no
 // flight; the card fades in with the numbers already there, and fades out.
-// The buzz and the sound stay.
+// The buzz and the sound stay. The fades are on the scrim and the card's
+// parts, never on an element around the scrim: one there would cut the
+// scrim's blur off from the session under it.
 //
 // The confetti is canvas-confetti, loaded only when a record happens.
 
 const GOLDS = ['#FBBF24', '#FDE68A', '#F59E0B', '#FFFFFF']
 const FLY_AT = 2300
+const OPEN_GUARD_MS = 350     // taps this soon after it opens are the tap that opened it, again
+const LAND_GUARD_MS = 400     // the session's own REST_CLOSE_GUARD_MS
+
+/** For `ms`, a tap anywhere does nothing (the second tap of a double tap). */
+function swallowTaps(ms) {
+  if (typeof window === 'undefined') return
+  const until = performance.now() + ms
+  const types = ['pointerdown', 'mousedown', 'click']
+  const off = () => types.forEach(t => window.removeEventListener(t, stop, true))
+  function stop(e) {
+    if (performance.now() > until) { off(); return }
+    e.stopPropagation()
+    if (e.type === 'click') e.preventDefault()
+  }
+  types.forEach(t => window.addEventListener(t, stop, true))
+  setTimeout(off, ms + 50)
+}
 
 export default function PRMoment({ from, to, name, findTarget, onLand }) {
   const rootRef = useRef(null)
-  const stageRef = useRef(null)
   const troRef = useRef(null)
   const flyRef = useRef(null)
   const numRef = useRef(null)
   const canvasRef = useRef(null)
-  const state = useRef({ landed: false, timers: [], conf: null, alive: true })
+  const state = useRef({ landed: false, timers: [], conf: null, alive: false, run: 0, openedAt: 0, tappedAt: -Infinity })
   const land = useRef(onLand)
   land.current = onLand
   const find = useRef(findTarget)
@@ -55,15 +78,23 @@ export default function PRMoment({ from, to, name, findTarget, onLand }) {
 
   const finish = (skip) => {
     const st = state.current
-    if (st.landed) return
+    if (st.landed || !st.alive) return
     st.landed = true
     st.timers.forEach(clearTimeout)
     try { if (skip) st.conf?.reset?.() } catch {}
     const root = rootRef.current
-    if (root) root.style.pointerEvents = 'none'
-    const done = () => { if (state.current.alive) land.current?.() }
-    const fade = animate(stageRef.current, [{ opacity: 1 }, { opacity: 0 }], { d: 300, e: EASE.exit, fill: 'forwards' })
-    animate(canvasRef.current, [{ opacity: 1 }, { opacity: 0 }], { d: 300, e: EASE.exit, fill: 'forwards' })
+    const done = () => {
+      if (!state.current.alive) return
+      if (performance.now() - state.current.tappedAt < 1000) swallowTaps(LAND_GUARD_MS)
+      land.current?.()
+    }
+    // Each layer fades on its own (from wherever it is): the scrim keeps
+    // its blur to the end, and a line not yet in stays out.
+    const out = { d: 300, e: EASE.exit, fill: 'forwards' }
+    const q = (s) => root?.querySelector(s)
+    const fade = animate(q('.pr-scrim'), [{ opacity: 0 }], out)
+    ;['.pr-shock', '.pr-body', '.pr-hint'].forEach(s => animate(q(s), [{ opacity: 0 }], out))
+    animate(canvasRef.current, [{ opacity: 0 }], out)
 
     const tro = troRef.current, fly = flyRef.current
     const target = reducedMotion() ? null : find.current?.()
@@ -85,30 +116,53 @@ export default function PRMoment({ from, to, name, findTarget, onLand }) {
     else done()
   }
 
+  // One effect, its cleanup the inverse of its setup — so StrictMode's
+  // rehearsal unmount (dev) leaves it running, and a real one stops it all.
   useLayoutEffect(() => {
     const st = state.current
-    const at = (ms, fn) => st.timers.push(setTimeout(() => { if (st.alive && !st.landed) fn() }, ms))
-    const reduce = reducedMotion()
+    const run = ++st.run
+    st.alive = true
+    st.landed = false
+    st.timers = []
+    st.openedAt = performance.now()
+    const anims = []
+    const at = (ms, fn) => st.timers.push(setTimeout(() => { if (st.alive && !st.landed && st.run === run) fn() }, ms))
+    const add = (a) => { if (a) anims.push(a) }
+    const onKey = (e) => {
+      if (e.key !== 'Escape' && e.key !== 'Enter' && e.key !== ' ') return
+      e.preventDefault()
+      if (performance.now() - st.openedAt >= OPEN_GUARD_MS) finish(true)
+    }
+    window.addEventListener('keydown', onKey)
+    const cleanup = () => {
+      window.removeEventListener('keydown', onKey)
+      st.alive = false
+      st.timers.forEach(clearTimeout)
+      st.timers = []
+      anims.forEach(a => { try { a.cancel() } catch {} })
+      try { st.conf?.reset?.() } catch {}
+      st.conf = null
+    }
+    const q = (s) => rootRef.current.querySelector(s)
 
-    if (reduce) {
-      animate(rootRef.current, fadeIn, { d: 200, e: 'linear' })
+    if (reducedMotion()) {
+      ;['.pr-scrim', '.pr-body', '.pr-hint'].forEach(s => add(animate(q(s), fadeIn, { d: 200, e: 'linear' })))
       at(1800, () => finish(false))
-      return
+      return cleanup
     }
 
-    animate(rootRef.current.querySelector('.pr-scrim'), fadeIn, { d: 200 })
-    animate(rootRef.current.querySelector('.pr-shock'),
+    add(animate(q('.pr-scrim'), fadeIn, { d: 200 }))
+    add(animate(q('.pr-shock'),
       [{ opacity: 0.9, transform: 'scale(.3)' }, { opacity: 0, transform: 'scale(2.6)' }],
-      { d: 700, delay: 60, e: 'cubic-bezier(.2,.8,.3,1)' })
-    animate(troRef.current,
+      { d: 700, delay: 60, e: 'cubic-bezier(.2,.8,.3,1)' }))
+    add(animate(troRef.current,
       [{ opacity: 0, transform: 'translateY(-24px) scale(.4) rotate(-10deg)' }, { opacity: 1, transform: 'none' }],
-      { spring: 'bouncy', delay: 100 })
-    const q = (s) => rootRef.current.querySelector(s)
-    animate(q('.pr-eb'), rise(8), { d: 240, delay: 260 })
-    animate(q('.pr-w'), fadeIn, { d: 180, delay: 300 })
-    animate(q('.pr-sub'), rise(6), { d: 240, delay: 760 })
-    animate(q('.pr-name'), fadeIn, { d: 240, delay: 820 })
-    animate(q('.pr-hint'), fadeIn, { d: 300, delay: 1300 })
+      { spring: 'bouncy', delay: 100 }))
+    add(animate(q('.pr-eb'), rise(8), { d: 240, delay: 260 }))
+    add(animate(q('.pr-w'), fadeIn, { d: 180, delay: 300 }))
+    add(animate(q('.pr-sub'), rise(6), { d: 240, delay: 760 }))
+    add(animate(q('.pr-name'), fadeIn, { d: 240, delay: 820 }))
+    add(animate(q('.pr-hint'), fadeIn, { d: 300, delay: 1300 }))
     at(1000, () => {
       // On the number's own text (background-clip: text skips the text of
       // positioned children, and the rolled number is one).
@@ -140,7 +194,7 @@ export default function PRMoment({ from, to, name, findTarget, onLand }) {
       }
     }
     import('canvas-confetti').then((m) => {
-      if (!st.alive || st.landed || !canvasRef.current) return
+      if (!st.alive || st.landed || st.run !== run || !canvasRef.current) return
       try {
         st.conf = m.default.create(canvasRef.current, { resize: true, useWorker: false, disableForReducedMotion: true })
       } catch { return }
@@ -150,24 +204,20 @@ export default function PRMoment({ from, to, name, findTarget, onLand }) {
     at(180, () => { bursts.push('sides'); fire() })
     at(420, () => { bursts.push('centre'); fire() })
     at(FLY_AT, () => finish(false))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const st = state.current
-    const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); finish(true) } }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      st.alive = false
-      st.timers.forEach(clearTimeout)
-      try { st.conf?.reset?.() } catch {}
-    }
+    return cleanup
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return createPortal(
     <div className="pr" ref={rootRef} data-testid="pr-moment" role="status" aria-live="assertive"
-      onClick={(e) => { e.stopPropagation(); finish(true) }}>
-      <div className="pr-stage" ref={stageRef}>
+      onClick={(e) => {
+        e.stopPropagation()
+        const st = state.current
+        const t = performance.now()
+        st.tappedAt = t
+        if (t - st.openedAt < OPEN_GUARD_MS) return
+        finish(true)
+      }}>
+      <div className="pr-stage">
         <div className="pr-scrim" />
         <div className="pr-shock" />
         <div className="pr-body">

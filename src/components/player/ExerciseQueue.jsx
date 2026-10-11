@@ -10,8 +10,9 @@ import { arabicName } from '../../exerciseMedia.js'
 // card only ever showed «ck / تفت» at the edge.
 //
 // An exercise whose weight should go up today carries a small gold
-// arrow beside its name — still, no motion — so the raise is known
-// before it comes on screen. Not once it's done.
+// arrow right after its name — still, no motion — so the raise is known
+// before it comes on screen. Beside the name, not the count: at the far
+// edge it read as part of «0/2». Not once it's done.
 
 export default function ExerciseQueue({ exercises, mapping = {}, activeIndex, onJump, onAdd, raiseFor = () => false }) {
   return (
@@ -39,12 +40,14 @@ export default function ExerciseQueue({ exercises, mapping = {}, activeIndex, on
                   : <Num>{i + 1}</Num>}
               </span>
               <span className="s-qrow-names">
-                <span className="s-qrow-ar">{ar || ex.name}</span>
+                <span className="s-qrow-line">
+                  <span className="s-qrow-ar">{ar || ex.name}</span>
+                  {!complete && raiseFor(ex) && (
+                    <ArrowUp size={16} weight="bold" className="s-raise-arrow" role="img" aria-label="ارفع الوزن" data-testid="queue-raise" />
+                  )}
+                </span>
                 {ar && <span className="s-qrow-en" dir="ltr">{ex.name}</span>}
               </span>
-              {!complete && raiseFor(ex) && (
-                <ArrowUp size={16} weight="bold" className="s-raise-arrow" role="img" aria-label="ارفع الوزن" data-testid="queue-raise" />
-              )}
               <Num className="s-qrow-count">{done}/{ex.sets.length}</Num>
             </button>
           )

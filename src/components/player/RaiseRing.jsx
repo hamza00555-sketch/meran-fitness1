@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 
 // ── «Add weight», drawn on the number itself ──────────────────
 //
@@ -17,7 +17,9 @@ import { useEffect, useState } from 'react'
 // Reduced motion: whole and still, from the first frame (the CSS).
 //
 // Real pixels are needed for the corner arcs, so the host is measured,
-// and its radius read from computed style rather than typed here.
+// and its radius read from computed style rather than typed here — before
+// the first paint, so a new set's live block never shows a frame without
+// its ring.
 
 const INSET = 1          // half the stroke, so the line sits fully inside
 
@@ -44,33 +46,43 @@ function half(w, h, r, dir) {
  * breathe: dim-and-back until touched, starting `breatheDelay` ms from now.
  * retract: withdraw (300ms) — the ring is on its way out.
  */
-export default function RaiseRing({ hostRef, draw = null, drawDelay = 0, breathe = false, breatheDelay = 0, retract = false }) {
+export default function RaiseRing({ hostRef = null, draw = null, drawDelay = 0, breathe = false, breatheDelay = 0, retract = false }) {
   const [box, setBox] = useState(null)
+  const svgRef = useRef(null)
   // The delays are fixed when the ring appears: a CSS animation whose
   // delay changes mid-run jumps, and the ring re-renders with every step.
   const [delays] = useState(() => ({ draw: Math.max(0, Math.round(drawDelay)), breathe: Math.round(breatheDelay) }))
 
-  useEffect(() => {
-    const el = hostRef.current
+  // The host is the element the ring sits in. Read from the DOM, not from
+  // the host's ref: when the host and the ring mount together (a new
+  // set's live block) this runs before the host's ref is attached.
+  useLayoutEffect(() => {
+    const el = svgRef.current?.parentElement || hostRef?.current
     if (!el) return
     const measure = () => {
       const cs = getComputedStyle(el)
       const bw = parseFloat(cs.borderLeftWidth) || 0
       const r = Math.max(0, (parseFloat(cs.borderTopLeftRadius) || 0) - bw)
-      setBox({ w: el.clientWidth, h: el.clientHeight, r })
+      setBox(b => (b && b.w === el.clientWidth && b.h === el.clientHeight && b.r === r ? b : { w: el.clientWidth, h: el.clientHeight, r }))
     }
     measure()
+    if (typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [hostRef])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!box || box.w < 40 || box.h < 30) return null
+  // Unmeasured (or too small to draw on): an empty stand-in, there only
+  // to find the host by.
+  if (!box || box.w < 40 || box.h < 30) {
+    return <svg ref={svgRef} className="s-raise-ring" aria-hidden="true" width="0" height="0" />
+  }
   const { w, h, r } = box
   const mode = retract ? ' s-raise-retract' : draw === 'full' ? ' s-raise-draw' : draw === 'quick' ? ' s-raise-quick' : ''
 
   return (
     <svg
+      ref={svgRef}
       className={`raise-ring s-raise-ring${mode}${breathe && !retract ? ' s-raise-breathe' : ''}`}
       data-testid="raise-ring"
       data-state={retract ? 'retract' : breathe ? 'breathe' : 'still'}

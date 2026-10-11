@@ -24,7 +24,7 @@ inside the zips above.
 | File | Plays on | Source file(s) | Pack | Licence | What was done to it |
 |---|---|---|---|---|---|
 | `set-done` | every completed set | `Audio/drop_003.ogg` | Interface Sounds | CC0 1.0 | tuned up 1.2 semitones (731 → 784 Hz, G5), 120 Hz high-pass, cut to 0.11 s, fades |
-| `pr` | personal-record celebration | `Audio/confirmation_001.ogg` (first 0.197 s) + `Audio/confirmation_002.ogg` (from 0.197 s, −7 dB) | Interface Sounds | CC0 1.0 | joined into one rising arpeggio G4 → D8 (0.73 s); 150 Hz high-pass; −2 dB shelf above 6 kHz; fades |
+| `pr` | personal-record celebration | `Audio/confirmation_001.ogg` (first 0.197 s) + `Audio/confirmation_002.ogg` (from 0.197 s, −7 dB) | Interface Sounds | CC0 1.0 | joined into one rising arpeggio G4 → D8 (0.73 s); 150 Hz high-pass; 24 dB/octave low-pass at 2.9 kHz, so the top steps (A7, D8) sit back instead of ringing shrill on a phone speaker; fades |
 | `raise` | «ارفع الوزن» reminder | `Audio/maximize_009.ogg` | Interface Sounds | CC0 1.0 | lead silence trimmed, 150 Hz high-pass, fades (0.21 s) |
 | `rest-tick` | rest countdown, last 3 s (−3, −2, −1) | `Audio/glass_006.ogg` | Interface Sounds | CC0 1.0 | 200 Hz high-pass, cut to 0.08 s, fades |
 | `rest-end` | rest over (0 s) | `Audio/glass_001.ogg` | Interface Sounds | CC0 1.0 | 200 Hz high-pass, cut to 0.26 s, fades |
