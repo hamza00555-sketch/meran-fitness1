@@ -3,59 +3,123 @@
 //
 //   npm run build && npx vite preview --port 4173 &
 //   node tests/report.e2e.mjs
+//   SHOTS=/some/dir node tests/report.e2e.mjs   # also save screenshots
 //
 // What is worth testing through a browser rather than in Node: the
 // date window as the app's own clock actually sees it, whether the
-// report renders without throwing, whether its chrome stays off the
-// text and its index really navigates, whether motion is entrances
-// only (and none at all under reduced motion), and whether the
-// poster's Arabic survives canvas inside the Stories safe area.
+// report renders without throwing, whether what حمزة asked to remove is
+// really gone from the screen, whether a gain's sign is drawn on the
+// right side of its digits, whether a past month opens in place, whether
+// a deload month says so in blue, whether motion is entrances only (and
+// none at all under reduced motion), and whether the poster's Arabic
+// survives canvas inside the Stories safe area.
 //
-// The last one is the reason this file writes a PNG to /tmp: shaping
-// cannot be asserted, it has to be looked at.
+// The poster is written as a PNG to look at: shaping cannot be asserted.
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { APP_VERSION } from '../src/constants.js'
+import { APP_VERSION, ACHIEVEMENTS } from '../src/constants.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-report-e2e'
+const SHOTS = process.env.SHOTS || null
 mkdirSync(OUT, { recursive: true })
+if (SHOTS) mkdirSync(SHOTS, { recursive: true })
 
 const results = []
 const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
 
-// ── A month worth reporting on ────────────────────────────────
-// March 2026: trained every other day, one optional rest paid for on
-// the 15th, a squat that climbs, and a back that barely appears.
-let seq = 0
-const mk = (n, muscle, name, sets) => ({
-  id: Date.UTC(2026, 2, n) + (++seq),
-  date: new Date(2026, 2, n, 18).toISOString(),
-  duration: 45,
-  exercises: [{
-    id: 'e' + seq, muscle, name,
-    sets: sets.map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })),
-  }],
-})
-const SESSIONS = []
-for (const [i, n] of [1, 3, 5, 7, 9, 11, 13, 16, 18, 20, 22, 24, 26, 28, 30].entries()) {
-  SESSIONS.push(mk(n, 'Chest', 'Bench Press', [[60 + i * 1.5, 12], [60 + i * 1.5, 10]]))
-  if (i % 2 === 0) SESSIONS.push(mk(n, 'Legs', 'Squat', [[100 + i * 2, 8]]))
-  if (i % 3 === 0) SESSIONS.push(mk(n, 'Back', 'Barbell Row', [[50, 10]]))
+// ── Three months of push / pull / legs ────────────────────────
+// Four days a week (train, train, rest), January to March 2026. The
+// weights climb; in March the lateral raise has held its reps and is
+// ready to go up, the squat has stalled twice at 110, and biceps get a
+// couple of sets a week. One workout day in March is skipped (the 18th).
+// With { deloadEnd: true } the last week of March is a 40% deload.
+
+const ROT = {
+  push: [
+    ['Chest', 'Bench Press', 60, 0.6],
+    ['Chest', 'Incline Dumbbell Press', 22, 0.25],
+    ['Shoulders', 'Lateral Raise', 10, 0],
+    ['Triceps', 'Triceps Pushdown', 25, 0.25],
+  ],
+  pull: [
+    ['Back', 'Lat Pulldown', 50, 0.4],
+    ['Back', 'Barbell Row', 50, 0.4],
+    ['Back', 'Seated Cable Row', 45, 0.3],
+    ['Biceps', 'Barbell Curl', 25, 0.15],
+  ],
+  legs: [
+    ['Legs', 'Barbell Squat', 90, 0.5],
+    ['Legs', 'Leg Press', 140, 1],
+    ['Legs', 'Romanian Deadlift', 70, 0.5],
+    ['Legs', 'Leg Extension', 40, 0.3],
+  ],
+}
+const ORDER = ['push', 'pull', 'legs']
+const plate = (w) => Math.round(w / 2.5) * 2.5
+
+function buildHistory({ deloadEnd = false } = {}) {
+  const out = []
+  let seq = 0, k = 0, consecutive = 0
+  const skip = new Set(['2026-03-18'])
+  const DL = { pct: 40, from: '2026-03-25', until: '2026-03-31' }
+  const lateral = [[12, 12, 12], [12, 12, 12], [15, 15, 15]]
+  let lat = 0
+  for (let t = Date.UTC(2026, 0, 1); t <= Date.UTC(2026, 2, 31); t += 86400000) {
+    const d = new Date(t)
+    const iso = d.toISOString().slice(0, 10)
+    if (consecutive >= 2) { consecutive = 0; continue }           // the cycle's rest day
+    if (skip.has(iso)) { consecutive = 0; continue }               // a miss restarts the cycle
+    consecutive++
+    const day = ORDER[k++ % 3]
+    const week = Math.floor((t - Date.UTC(2026, 0, 1)) / (7 * 86400000))
+    const deload = deloadEnd && iso >= DL.from
+    const [y, m, dd] = iso.split('-').map(Number)
+    const when = new Date(y, m - 1, dd, 19, 0, 0)
+    const exercises = ROT[day].map(([muscle, name, base, step]) => {
+      let w = plate(base + step * week * 2.5)
+      // Holding the bottom of the range: the engine's verdict is «push»,
+      // never «raise» or «lower», unless one of the two cases below.
+      let reps = [12, 12, 12]
+      if (name === 'Lateral Raise' && iso >= '2026-03-01') { reps = lateral[Math.min(lat++, 2)]; w = 12.5 }
+      // The month's last squat sessions all fall short at 110.
+      if (name === 'Barbell Squat' && iso >= '2026-03-22' && !deloadEnd) { w = 110; reps = [8, 7, 7] }
+      if (deload) w = plate(w * 0.6)
+      const sets = (muscle === 'Biceps' ? [reps[0], reps[1]] : reps).map(r => ({ weight: String(w), reps: String(r), done: true }))
+      return { id: `e${++seq}`, muscle, name, sets }
+    })
+    out.push({
+      id: when.getTime() + seq,
+      date: when.toISOString(),
+      duration: 55 + (k % 4) * 5,
+      ...(deload ? { deload: DL } : {}),
+      exercises,
+    })
+  }
+  return out
 }
 
+const SESSIONS = buildHistory()
 const RECOVERY = {
-  daysPerWeek: 3, overrides: [], restDays: ['2026-03-15'],
+  daysPerWeek: 4, overrides: [], restDays: [],
   patternHistory: [], streakResetAt: null, autoSpendFrom: null,
+  deload: null, deloadHistory: [],
+}
+const DELOAD_SESSIONS = buildHistory({ deloadEnd: true })
+const DELOAD_RECOVERY = {
+  ...RECOVERY,
+  deloadHistory: [{ from: '2026-03-25', plannedUntil: '2026-03-31', until: '2026-03-31', pct: 40, endedEarly: false }],
+  deloadEndSeenAt: '2026-03-31',
 }
 
 const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso` and a seeded history. */
-async function open(iso, { sessions = SESSIONS, reduced = false } = {}) {
+async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = false, goals = null } = {}) {
   const ctx = await browser.newContext({
-    ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
+    ...devices['iPhone 13'], viewport: { width: 390, height: 844 },
+    timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
   })
   const page = await ctx.newPage()
@@ -65,8 +129,16 @@ async function open(iso, { sessions = SESSIONS, reduced = false } = {}) {
   // than let the pack download hang the page.
   await page.route('**/*.r2.dev/**', r => r.abort())
 
-  await page.addInitScript(([sessions, recovery, iso, version]) => {
+  await page.addInitScript(([sessions, recovery, iso, version, goals, unlocked]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
+    // Every achievement already held, so no medal or level-up
+    // celebration lands on top of the report mid-test; two of them
+    // dated inside March for «كل الأرقام».
+    localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
+    localStorage.setItem('hf_unlocked_at', JSON.stringify({
+      [unlocked[0]]: new Date(2026, 2, 5, 20).getTime(),
+      [unlocked[1]]: new Date(2026, 2, 21, 20).getTime(),
+    }))
     localStorage.setItem('hf_recovery', JSON.stringify(recovery))
     localStorage.setItem('hf_xp', '4200')
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
@@ -75,8 +147,9 @@ async function open(iso, { sessions = SESSIONS, reduced = false } = {}) {
     localStorage.setItem('hf_onboarded', 'true')
     // The app stamps a weights-reset watermark on first run for anyone
     // with history, which would put the whole seeded month behind the
-    // cutoff and hide every record.
+    // cutoff and hide every new weight.
     localStorage.setItem('hf_weights_reset_v2', 'true')
+    if (goals) localStorage.setItem('hf_month_goal', JSON.stringify(goals))
 
     const real = Date
     const fixed = new real(iso).getTime()
@@ -85,7 +158,7 @@ async function open(iso, { sessions = SESSIONS, reduced = false } = {}) {
       static now() { return fixed }
     }
     globalThis.Date = D
-  }, [sessions, RECOVERY, iso, APP_VERSION])
+  }, [sessions, recovery, iso, APP_VERSION, goals, ACHIEVEMENTS.map(a => a.id)])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1400)
@@ -117,11 +190,10 @@ for (const [iso, expect, label] of WINDOW) {
 
 // The turn of the year is where month arithmetic usually breaks.
 {
+  const shift = 90 * 86400000
   const { ctx, page } = await open('2026-01-03T18:00:00+03:00', {
-    sessions: SESSIONS.map(s => ({
-      ...s,
-      id: s.id - 7776000000,
-      date: new Date(new Date(s.date).getTime() - 7776000000).toISOString(),
+    sessions: SESSIONS.filter(s => s.date >= '2026-03-01').map(s => ({
+      ...s, id: s.id - shift, date: new Date(new Date(s.date).getTime() - shift).toISOString(),
     })),
   })
   const text = await page.evaluate(() => document.body.innerText)
@@ -137,31 +209,40 @@ for (const [iso, expect, label] of WINDOW) {
   await ctx.close()
 }
 
-// ══ 2. The report renders ═════════════════════════════════════
-// The cover, then five numbered chapters, each with its own heading.
+// The row on Home says sessions, not kilos.
+{
+  const { ctx, page } = await open('2026-04-02T18:00:00+03:00')
+  const row = await page.evaluate(() =>
+    [...document.querySelectorAll('.k-row')].find(e => /تقرير مارس 2026/.test(e.textContent || ''))?.innerText || '')
+  ok('home: the report row counts sessions, not kilos', /جلسة حضرتها/.test(row) && !/كجم/.test(row), row)
+  await ctx.close()
+}
 
-const CHAPTERS = ['نصائح هذا الشهر', 'الحجم', 'الالتزام', 'العضلات', 'التقدم']
+// ══ 2. The report ═════════════════════════════════════════════
+
+const QUESTIONS = ['متى تمرّنت؟', 'صرت أقوى؟', 'وين راح شغلك؟', 'خطة أبريل', 'كل الأرقام', 'الشهور اللي فاتت']
 
 async function openReport(page) {
   await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
   // No opening sequence to skip: the cover is the first frame.
-  await page.waitForTimeout(900)
+  await page.waitForTimeout(1200)
 }
 
-// Walk the whole report so every chapter has had its entrance.
+// Walk the whole report so every section has had its entrance.
 async function scrollThrough(page) {
   const scroller = page.locator('.rp-scroll')
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= 10; i++) {
     await scroller.evaluate((el, i) => { el.scrollTop = el.clientHeight * i * 0.8 }, i)
-    await page.waitForTimeout(350)
+    await page.waitForTimeout(300)
   }
+  await scroller.evaluate(el => { el.scrollTop = 0 })
+  await page.waitForTimeout(300)
 }
 
-// Headings of the chapters that are actually laid out.
-const chapterTitles = (page) => page.evaluate(() =>
+const questions = (page) => page.evaluate(() =>
   [...document.querySelectorAll('.rp .rp-ch')]
     .filter(c => c.getBoundingClientRect().height > 40)
-    .map(c => c.querySelector('.rp-ch-title')?.textContent.trim()))
+    .map(c => c.querySelector('.rp-ch-q')?.textContent.trim()))
 
 // Animations inside the report layer: [how many, how many loop].
 const motion = (page) => page.evaluate(() => {
@@ -172,57 +253,220 @@ const motion = (page) => page.evaluate(() => {
   return [anims.length, anims.filter(cs => cs.animationIterationCount === 'infinite').length]
 })
 
+/** The whole report as one tall picture, plus its first screen. */
+async function shoot(page, name) {
+  if (!SHOTS) return
+  await page.waitForTimeout(1600)
+  await page.screenshot({ path: `${SHOTS}/${name}-screen.png` })
+  const h = await page.evaluate(() => {
+    const rp = document.querySelector('.rp'), sc = document.querySelector('.rp-scroll')
+    const full = sc.scrollHeight + document.querySelector('.rp-bar').offsetHeight
+    rp.style.position = 'absolute'; rp.style.height = `${full}px`
+    sc.style.overflow = 'visible'
+    document.documentElement.style.height = `${full}px`
+    document.body.style.height = `${full}px`
+    document.body.style.overflow = 'visible'
+    return full
+  })
+  await page.setViewportSize({ width: 390, height: Math.min(h, 16000) })
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: `${SHOTS}/${name}-full.png`, fullPage: true })
+  // Put the phone back exactly as it was, or every check after this one
+  // would run against the stretched page.
+  await page.evaluate(() => {
+    for (const el of [document.querySelector('.rp'), document.querySelector('.rp-scroll'), document.documentElement, document.body]) {
+      el.style.position = ''; el.style.height = ''; el.style.overflow = ''
+    }
+    window.scrollTo(0, 0)
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForTimeout(300)
+}
+
 {
-  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00')
+  const goals = { '2026-03': { kind: 'sessions', target: 20 } }
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { goals })
   await openReport(page)
 
-  // The cover: the month's total is the headline, not a caption.
+  // The cover: the sessions he came to, inside one dash per planned one.
   const cover = await page.evaluate(() => {
     const hero = document.querySelector('.rp-hero')
-    return hero ? { text: hero.textContent.trim(), size: parseFloat(getComputedStyle(hero).fontSize) } : null
-  })
-  ok('cover: the month total is the headline number',
-    !!cover && cover.size >= 72 && /^\d{1,3}(,\d{3})+$/.test(cover.text), JSON.stringify(cover))
-
-  // The chrome is solid and never sits on the text: bar, scroller and
-  // index are stacked, and both bar buttons are real 44pt targets.
-  const chrome = await page.evaluate(() => {
-    const r = (s) => document.querySelector(s)?.getBoundingClientRect()
-    const bar = r('.rp-bar'), scroll = r('.rp-scroll'), index = r('.rp-index')
-    const btns = [...document.querySelectorAll('.rp-bar button')].map(b => b.getBoundingClientRect())
+    const arcs = [...document.querySelectorAll('.rp-ring .rp-arc')]
     return {
-      stacked: !!(bar && scroll && index) && bar.bottom <= scroll.top + 0.5 && scroll.bottom <= index.top + 0.5,
-      targets: btns.length === 2 && btns.every(b => b.width >= 44 && b.height >= 44),
+      text: hero?.textContent.trim(),
+      size: hero ? parseFloat(getComputedStyle(hero).fontSize) : 0,
+      arcs: arcs.length,
+      lit: arcs.filter(a => a.classList.contains('is-done')).length,
+      missed: arcs.filter(a => a.classList.contains('is-missed') || a.classList.contains('is-ticket')).length,
+      line: document.querySelector('.rp-cover-line')?.textContent.trim(),
+      goal: [...document.querySelectorAll('.rp-cover-note')].map(n => n.textContent.trim()).join(' | '),
+      label: document.querySelector('.rp-ring')?.getAttribute('aria-label'),
     }
   })
-  ok('chrome: bar, report and index never overlap', chrome.stacked, JSON.stringify(chrome))
-  ok('chrome: close and share are 44pt buttons', chrome.targets, JSON.stringify(chrome))
+  ok('cover: the headline is the sessions attended', /^\d{1,2}$/.test(cover.text) && cover.size >= 72, JSON.stringify(cover))
+  ok('cover: one dash per session, the attended ones lit', cover.arcs >= 18 && cover.lit === Number(cover.text), JSON.stringify(cover))
+  ok('cover: the skipped day is a dark dash', cover.missed === 1, JSON.stringify(cover))
+  ok('cover: one plain sentence of planned against attended', /من \d+ جلسة في خطتك، فاتتك/.test(cover.line || ''), cover.line)
+  ok('cover: the goal from hf_month_goal is answered', /هدفك/.test(cover.goal), cover.goal)
 
-  // The index is a control, not a picture of one: a tap brings its
-  // chapter to the top and marks it current.
-  await page.locator('.rp-index button', { hasText: 'العضلات' }).click()
-  await page.waitForTimeout(1200)
-  const jumped = await page.evaluate(() => {
-    const ch = document.getElementById('rp-muscles')
-    const top = document.querySelector('.rp-scroll').getBoundingClientRect().top
-    const cur = document.querySelector('.rp-index [aria-current="true"]')?.textContent.trim()
-    return { offset: Math.round(ch.getBoundingClientRect().top - top), cur }
+  // The chrome is solid and never sits on the text, and the index bar
+  // is gone: bar and scroller stacked, both bar buttons 44pt.
+  const chrome = await page.evaluate(() => {
+    const r = (s) => document.querySelector(s)?.getBoundingClientRect()
+    const bar = r('.rp-bar'), scroll = r('.rp-scroll')
+    const btns = [...document.querySelectorAll('.rp-bar button')].map(b => b.getBoundingClientRect())
+    return {
+      stacked: !!(bar && scroll) && bar.bottom <= scroll.top + 0.5,
+      targets: btns.length === 2 && btns.every(b => b.width >= 44 && b.height >= 44),
+      index: !!document.querySelector('.rp-index'),
+      numbers: [...document.querySelectorAll('.rp-ch-n')].length,
+    }
   })
-  ok('index: a tap jumps to its chapter and marks it current',
-    Math.abs(jumped.offset) <= 4 && jumped.cur === 'العضلات', JSON.stringify(jumped))
+  ok('chrome: the bar never overlaps the report', chrome.stacked, JSON.stringify(chrome))
+  ok('chrome: close and share are 44pt buttons', chrome.targets, JSON.stringify(chrome))
+  ok('removed: the numbered chapters and their index bar', !chrome.index && chrome.numbers === 0, JSON.stringify(chrome))
 
   await scrollThrough(page)
-  const titles = await chapterTitles(page)
-  for (const s of CHAPTERS) ok(`chapter rendered: ${s}`, titles.includes(s), titles.join(' | '))
+  const qs = await questions(page)
+  ok('sections: in the order the month is told', JSON.stringify(qs) === JSON.stringify(QUESTIONS), qs.join(' | '))
+
+  // Everything in the removals table is gone from the screen.
+  const text = await page.evaluate(() => document.querySelector('.rp').innerText)
+  const GONE = [
+    ['the tonnage headline', /كجم رفعتها|\bطن\b|\d{1,3},\d{3},?\d* ?كجم/],
+    ['«الدليل:» lines', /الدليل:/],
+    ['code-ish notes', /المحرك|الوزن × التكرار|من قوالب عامة/],
+    ['the daily bars and their extremes', /أعلى يوم|أدنى يوم|حجم كل يوم/],
+    ['the average session in kilos', /لكل جلسة/],
+    ['the verdict word', /خلال الشهر|صاعد|نازل/],
+    ['the push/pull ratio', /الدفع والسحب|نسبة الدفع|: 1/],
+    ['«100% of plan days» and its four counts', /من أيام الخطة|راحة مجدولة|يوم غياب/],
+    ['the session-run rows', /أطول تتابع/],
+    ['the ticket balance', /رصيدك/],
+    ['the generic form tip', /نصيحة أداء/],
+    ['the three names for one thing', /رقم قياسي|أقوى رقم|أعلى وزن/],
+  ]
+  for (const [what, re] of GONE) ok(`removed: ${what}`, !re.test(text), (text.match(re) || [])[0])
+
+  // The streak is one number, the same flame and unit as Home.
+  const streak = await page.evaluate(() => [...document.querySelectorAll('.rp-streak')].map(s => s.innerText.replace(/\s+/g, ' ').trim()))
+  ok('streak: one number, nothing around it', streak.length === 1 && /^\d+ (يوم|أيام)$/.test(streak[0]), streak.join(' | '))
+
+  // Each trained day is lit by its kilos, in more than one step.
+  const levels = await page.evaluate(() => [...new Set([...document.querySelectorAll('.rp-cal .rp-lit[data-level]')].map(e => e.dataset.level))].sort())
+  ok('calendar: trained days lit in steps', levels.length >= 3 && levels.every(l => /^[1-5]$/.test(l)), levels.join(','))
+  const key = await page.evaluate(() => document.querySelector('.rp-key')?.innerText.replace(/\s+/g, ' ').trim())
+  ok('calendar: one line of key, no «اضغط على يوم»', !!key && !/اضغط على يوم/.test(text), key)
+  // The 18th was skipped and a ticket paid for it: the calendar and the
+  // cover tell the same story about it.
+  const when = await page.evaluate(() => document.querySelector('#rp-when .rp-ch-lead')?.textContent.trim())
+  ok('calendar: its sentence agrees with the cover about the skipped day', when === 'مشيت على خطتك، إلا الأربعاء 18.', when)
+  const lit = await page.evaluate(() => [...document.querySelectorAll('.rp-cal-cell.k-trained')].every(c => c.dataset.level))
+  ok('calendar: every ordinary trained day is lit', lit)
+
+  // «+12.5», never «12.5+»: the plus is drawn left of its digits.
+  const signs = await page.evaluate(() => [...document.querySelectorAll('.rp-gain .k-num')].map(el => {
+    const t = el.firstChild
+    if (!t || !/^\+\d/.test(t.textContent)) return { text: el.textContent, ok: false }
+    const at = (i) => { const r = document.createRange(); r.setStart(t, i); r.setEnd(t, i + 1); return r.getBoundingClientRect().left }
+    return { text: el.textContent, ok: at(0) < at(1) }
+  }))
+  ok('stronger: gains are shown', signs.length >= 3, JSON.stringify(signs))
+  ok('stronger: every «+» sits left of its digits', signs.length > 0 && signs.every(s => s.ok), JSON.stringify(signs))
+  const jump = await page.evaluate(() => document.querySelector('.rp-best')?.innerText.replace(/\s+/g, ' '))
+  ok('stronger: the biggest jump leads, called «وزن جديد»', /أكبر قفزة · وزن جديد/.test(jump || ''), jump)
+
+  // Muscles: sets a week against the 10–20 band; biceps fall short.
+  const sets = await page.evaluate(() => [...document.querySelectorAll('.rp-sets-row')].map(r => ({
+    label: r.querySelector('.rp-sets-l')?.textContent, band: !!r.querySelector('.rp-sets-band'),
+    low: r.classList.contains('is-low'), note: r.querySelector('.rp-sets-note')?.textContent || '',
+  })))
+  ok('muscles: every judged row draws the 10–20 band', sets.length >= 5 && sets.every(s => s.band), JSON.stringify(sets))
+  ok('muscles: the one under the band says «أقل من اللازم»',
+    sets.some(s => s.low && s.label === 'البايسبس' && s.note === 'أقل من اللازم'), JSON.stringify(sets))
+
+  // Next month: at the end, three things at most, each with a reason.
+  const next = await page.evaluate(() => [...document.querySelectorAll('.rp-next-item')].map(li => ({
+    kind: li.dataset.kind, title: li.querySelector('strong')?.textContent, why: li.querySelector('.rp-next-main > span')?.textContent,
+  })))
+  ok('next month: three things at most, each with one reason', next.length >= 1 && next.length <= 3 && next.every(n => n.title && n.why), JSON.stringify(next))
+  ok('next month: from the progression engine', next.some(n => n.kind === 'raise') && next.some(n => n.kind === 'lower') && next.some(n => n.kind === 'sets'), JSON.stringify(next))
+
   ok('report: no page errors', errors.length === 0, errors.join('; '))
 
   const [ran, loops] = await motion(page)
   ok('motion: the entrances run', ran > 10, `${ran} animated elements`)
   ok('motion: nothing loops — one beat, then still', loops === 0, `${loops} infinite animations`)
+
+  await shoot(page, 'march')
+
+  // ══ 3. A past month opens in place ═══════════════════════════
+  await page.locator('.rp-scroll').evaluate(el => { el.scrollTop = el.scrollHeight })
+  await page.waitForTimeout(500)
+  const bars = await page.evaluate(() => [...document.querySelectorAll('.rp-month')].map(b => ({
+    label: b.getAttribute('aria-label'), on: b.classList.contains('is-on'), disabled: b.disabled,
+  })))
+  // He started in January: three bars, not three empty months first.
+  ok('months: one bar a month since he started, this one marked',
+    bars.length === 3 && bars[2].on && /مارس/.test(bars[2].label) && /يناير/.test(bars[0].label), JSON.stringify(bars))
+  await page.locator('.rp-month', { hasText: 'فبراير' }).click()
+  await page.waitForTimeout(1400)
+  const feb = await page.evaluate(() => ({
+    eyebrow: document.querySelector('.rp-cover .rp-eyebrow')?.textContent,
+    top: document.querySelector('.rp-scroll').scrollTop,
+    hero: document.querySelector('.rp-hero')?.textContent.trim(),
+    q: document.querySelector('#rp-next .rp-ch-q')?.textContent,
+    goal: !!document.querySelector('.rp-cover-note:not(.is-deload)'),
+  }))
+  ok('months: a past month opens at its own cover', /فبراير 2026/.test(feb.eyebrow || '') && feb.top === 0, JSON.stringify(feb))
+  ok('months: its plan is for the month after it', feb.q === 'خطة مارس', JSON.stringify(feb))
+  ok('months: March\'s goal is not February\'s', !feb.goal, JSON.stringify(feb))
+  await shoot(page, 'february')
+
+  await page.locator('.rp-scroll').evaluate(el => { el.scrollTop = el.scrollHeight })
+  await page.waitForTimeout(400)
+  await page.locator('.rp-month', { hasText: 'مارس' }).click()
+  await page.waitForTimeout(900)
+  const back = await page.evaluate(() => document.querySelector('.rp-cover .rp-eyebrow')?.textContent)
+  ok('months: and back again', /مارس 2026/.test(back || ''), back)
+  ok('months: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
-// ══ 3. Reduced motion means none ══════════════════════════════
+// ══ 4. A month that ends in a deload week ═════════════════════
+// Said once, in the deload blue, and never counted against him.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { sessions: DELOAD_SESSIONS, recovery: DELOAD_RECOVERY })
+  await openReport(page)
+  await scrollThrough(page)
+  const dl = await page.evaluate(() => {
+    const note = document.querySelector('.rp-cover-note.is-deload')
+    const arcs = [...document.querySelectorAll('.rp-ring .rp-arc.is-deload')]
+    return {
+      note: note?.textContent.trim(),
+      noteColor: note ? getComputedStyle(note).color : '',
+      blueArcs: arcs.length,
+      arcColor: arcs[0] ? getComputedStyle(arcs[0]).stroke : '',
+      rimmed: [...document.querySelectorAll('.rp-cal-cell.is-deload')].length,
+      litDeload: [...document.querySelectorAll('.rp-cal-cell.is-deload .rp-lit[data-level]')].length,
+      caption: document.querySelector('#rp-stronger .rp-caption')?.textContent || '',
+      next: [...document.querySelectorAll('.rp-next-item')].map(li => li.dataset.kind),
+      gains: [...document.querySelectorAll('#rp-stronger .rp-row-v')].map(v => v.textContent.trim()),
+    }
+  })
+  ok('deload: one line on the cover, in the deload blue',
+    /فيه أسبوع تخفيف من 25 إلى 31\. خفيف عن قصد، وما ينحسب ضدك\./.test(dl.note || '') && dl.noteColor === 'rgb(92, 201, 238)', JSON.stringify(dl))
+  ok('deload: its sessions are blue dashes, still attended', dl.blueArcs >= 4 && dl.arcColor === 'rgb(92, 201, 238)', JSON.stringify(dl))
+  ok('deload: the calendar rims the whole week', dl.rimmed === 7, String(dl.rimmed))
+  ok('deload: its days are not on the light scale', dl.litDeload === 0, String(dl.litDeload))
+  ok('deload: «صرت أقوى؟» says the taper is not counted', /جلسات التخفيف ما تنحسب هنا/.test(dl.caption), dl.caption)
+  ok('deload: the light week does not read as a step back', !dl.next.includes('lower'), dl.next.join(','))
+  ok('deload: no page errors', errors.length === 0, errors.join('; '))
+  await shoot(page, 'deload-march')
+  await ctx.close()
+}
+
+// ══ 5. Reduced motion means none ══════════════════════════════
 
 {
   const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { reduced: true })
@@ -231,15 +475,14 @@ const motion = (page) => page.evaluate(() => {
   const [still] = await motion(page)
   ok('reduced motion: nothing animates', still === 0, `${still} still moving`)
 
-  const titles = await chapterTitles(page)
+  const qs = await questions(page)
   ok('reduced motion: the report still renders in full',
-    CHAPTERS.every(s => titles.includes(s)),
-    CHAPTERS.filter(s => !titles.includes(s)).join(', '))
+    QUESTIONS.every(s => qs.includes(s)), QUESTIONS.filter(s => !qs.includes(s)).join(', '))
   ok('reduced motion: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
-// ══ 4. The poster ═════════════════════════════════════════════
+// ══ 6. The poster ═════════════════════════════════════════════
 // Arabic inside a canvas is the one thing here that cannot be
 // asserted — the PNG is written out to be looked at. Where the ink
 // sits can be: everything between y 250 and y 1600, clear of the
@@ -305,6 +548,7 @@ const motion = (page) => page.evaluate(() => {
     ok('poster: all of it sits between y 250 and y 1600',
       shot.first >= 250 && shot.last <= 1600, `ink from y ${shot.first} to y ${shot.last}`)
     writeFileSync(`${OUT}/poster.png`, buf)
+    if (SHOTS) writeFileSync(`${SHOTS}/poster.png`, buf)
     console.log(`\n  poster written to ${OUT}/poster.png — open it and check the Arabic is joined up\n`)
   }
   ok('poster: no page errors', errors.length === 0, errors.join('; '))

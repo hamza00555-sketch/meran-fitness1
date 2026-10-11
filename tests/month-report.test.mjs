@@ -22,8 +22,7 @@ globalThis.localStorage = {
 
 const {
   buildMonthReport, monthReportWindow, monthKey, prevMonth,
-  daysInMonth, monthLabel, coverSlot, MAX_TIPS,
-  formatRatio, describeRatio,
+  daysInMonth, monthLabel, coverSlot,
 } = await import('../src/monthReport.js')
 const { calc1RM, sessionVolume } = await import('../src/utils.js')
 
@@ -132,20 +131,17 @@ test('tonnage matches sessionVolume summed by hand', () => {
   assert.equal(r.volume.total, sessionVolume(a) + sessionVolume(b))
   assert.equal(r.volume.total, 60 * 12 + 60 * 10 + 100 * 5)
   assert.equal(r.sessionCount, 2)
-  assert.equal(r.volume.perSession, Math.round(r.volume.total / 2))
 })
 
-test('the muscle slices add up to the total', () => {
+test('every ticked set lands in its muscle, cardio aside', () => {
   const r = build([
-    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
+    session(1, 'Bench Press', [[60, 10], [60, 10], [60, 8, false]], { muscle: 'Chest' }),
     session(3, 'Barbell Row', [[50, 10]], { muscle: 'Back' }),
-    session(5, 'Squat', [[100, 5]], { muscle: 'Legs' }),
+    session(5, 'Squat', [[100, 5], [100, 5], [100, 5]], { muscle: 'Legs' }),
+    session(7, 'Treadmill Run', [[0, 20]], { muscle: 'Cardio' }),
   ])
-  const sum = r.muscles.reduce((n, m) => n + m.volume, 0)
-  assert.equal(sum, r.volume.total, 'no tonnage is lost between the slices')
-  // Chest 60×10 = 600 beats Legs 100×5 = 500 and Back 50×10 = 500.
-  assert.equal(r.muscles[0].key, 'Chest', 'sorted heaviest first')
-  assert.deepEqual(r.muscles.map(m => m.volume), [600, 500, 500])
+  assert.deepEqual(r.muscles.map(m => [m.key, m.sets]), [['Legs', 3], ['Chest', 2], ['Back', 1]],
+    'sorted most sets first; the unticked set and the treadmill are not sets')
 })
 
 test('an unknown muscle lands in "other" rather than vanishing', () => {
@@ -156,7 +152,7 @@ test('an unknown muscle lands in "other" rather than vanishing', () => {
   const other = r.muscles.find(m => m.key === 'Other')
   assert.ok(other, 'the unknown group is reported')
   assert.equal(other.label, 'أخرى')
-  assert.equal(r.muscles.reduce((n, m) => n + m.volume, 0), r.volume.total)
+  assert.equal(other.status, null, 'shown, but not judged against a range it may not have')
 })
 
 test('an unticked set counts for tonnage but not for completion', () => {
@@ -167,20 +163,6 @@ test('an unticked set counts for tonnage but not for completion', () => {
   assert.equal(r.sets.completed, 1)
   assert.equal(r.sets.untrackedPct, 50)
   assert.equal(r.reps.total, 12, 'only the ticked set contributes reps')
-})
-
-test('a month with no previous month has no trend, not a 0% trend', () => {
-  const r = build([session(1, 'Bench Press', [[60, 10]])])
-  assert.equal(r.volume.trendPct, null)
-  assert.equal(r.volume.prevTotal, 0)
-})
-
-test('the trend compares against the month before', () => {
-  const feb = { ...session(1, 'Bench Press', [[50, 10]]), date: new Date(2026, 1, 10, 10).toISOString() }
-  const r = build([feb, session(1, 'Bench Press', [[60, 10]])])
-  assert.equal(r.volume.prevTotal, 500)
-  assert.equal(r.volume.total, 600)
-  assert.equal(r.volume.trendPct, 20)
 })
 
 test('missing durations withhold the time averages instead of guessing', () => {
@@ -313,11 +295,10 @@ test('a perfect month counts every day as trained or scheduled rest', () => {
   assert.equal(r.consistency.scheduledRests, 15)
   assert.deepEqual(r.consistency.missedDays, [], 'nothing was skipped')
   assert.equal(r.consistency.trainedDays + r.consistency.scheduledRests, 31)
-  // The streak is worth its sessions. Every day of March was either a
-  // session or the cycle's own rest, so nothing broke — but sixteen of
-  // them were training, and that is the length. Counting the rest days
-  // in was what made the report claim streaks its owner never had.
-  assert.equal(r.consistency.bestStreak, 16, 'sixteen sessions, unbroken')
+  // Sixteen sessions planned, sixteen attended: the cover's ring is full.
+  assert.equal(r.attendance.planned, 16)
+  assert.equal(r.attendance.attended, 16)
+  assert.equal(r.attendance.missed, 0)
 })
 
 test('a skipped workout day is a miss and cuts the best streak', () => {
@@ -326,7 +307,8 @@ test('a skipped workout day is a miss and cuts the best streak', () => {
   // rest is two of the five a credit costs. So it is a real miss.
   const r = build(trainOn(...ODD_MARCH.filter(n => n !== 3)))
   assert.ok(r.consistency.missedDays.includes('2026-03-03'), r.consistency.missedDays.join(','))
-  assert.ok(r.consistency.bestStreak < 31, `got ${r.consistency.bestStreak}`)
+  assert.equal(r.attendance.missed, r.consistency.missedDays.length, 'every miss is a dark slot on the ring')
+  assert.ok(r.attendance.attended < r.attendance.planned)
 })
 
 test('a miss the balance can cover is absorbed, not counted', () => {
@@ -353,7 +335,11 @@ test('a paid rest day holds the streak without counting as a day', () => {
   assert.deepEqual(r.consistency.missedDays, [], 'it was paid for, so not a miss')
   assert.equal(r.consistency.trainedDays, 15)
   assert.equal(r.consistency.trainedDays + r.consistency.scheduledRests + r.consistency.paidRests, 31)
-  assert.equal(r.consistency.bestStreak, 15, 'the paid day holds the run but is not a session')
+  // A ticket day was a planned session that did not happen: not
+  // attended, but not a miss either.
+  assert.equal(r.attendance.tickets, 1)
+  assert.equal(r.attendance.missed, 0)
+  assert.equal(r.attendance.attended, 15)
 })
 
 // ══ achievements ══════════════════════════════════════════════
@@ -367,107 +353,6 @@ test('only achievements unlocked inside the month are listed', () => {
     },
   })
   assert.deepEqual(r.progress.achievements.map(a => a.id), ['a1'])
-})
-
-// ══ tips ══════════════════════════════════════════════════════
-
-const tipIds = (r) => r.tips.map(t => t.id)
-
-test('never more than a handful of tips, and each carries its evidence', () => {
-  const r = build([1, 3, 5, 7, 9].map(n => session(n, 'Bench Press', [[60, 12, n !== 1]])))
-  assert.ok(r.tips.length <= MAX_TIPS, `got ${r.tips.length}`)
-  for (const t of r.tips) {
-    assert.ok(t.id && t.title && t.body, 'a tip is never blank')
-    assert.ok(t.evidence, `"${t.id}" states the number behind it`)
-    assert.ok(!('weight' in t), 'the internal sort key does not leak out')
-  }
-})
-
-test('a lopsided split raises the neglected-muscle tip', () => {
-  const r = build([
-    session(1, 'Bench Press', [[60, 12]], { muscle: 'Chest' }),
-    session(3, 'Squat', [[120, 10]], { muscle: 'Legs' }),
-    session(5, 'Shoulder Press', [[40, 12]], { muscle: 'Shoulders' }),
-    session(7, 'Barbell Curl', [[10, 8]], { muscle: 'Biceps' }),
-  ])
-  assert.ok(tipIds(r).includes('neglected'), tipIds(r).join(','))
-})
-
-test('an even split does not raise it', () => {
-  const r = build([
-    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
-    session(3, 'Barbell Row', [[60, 10]], { muscle: 'Back' }),
-    session(5, 'Squat', [[60, 10]], { muscle: 'Legs' }),
-  ])
-  assert.ok(!tipIds(r).includes('neglected'))
-})
-
-test('unticked sets raise the untracked tip and name the count', () => {
-  const r = build([session(1, 'Bench Press', [[60, 12, true], [60, 12, false], [60, 12, false]])])
-  const tip = r.tips.find(t => t.id === 'untracked')
-  assert.ok(tip, tipIds(r).join(','))
-  assert.equal(tip.evidence, '2/3')
-})
-
-test('a fully ticked month does not raise it', () => {
-  const r = build([session(1, 'Bench Press', [[60, 12], [60, 12]])])
-  assert.ok(!tipIds(r).includes('untracked'))
-})
-
-test('a new record is reported as a win', () => {
-  const r = build([
-    session(1, 'Bench Press', [[60, 10]]),
-    session(3, 'Bench Press', [[65, 8]]),
-  ])
-  const tip = r.tips.find(t => t.id === 'prs')
-  assert.ok(tip, tipIds(r).join(','))
-  assert.match(tip.body, /65/)
-})
-
-test('a long month with no record raises the drought tip', () => {
-  const r = build([1, 3, 5, 7, 9, 11, 13].map(n => session(n, 'Bench Press', [[60, 12]])))
-  assert.ok(tipIds(r).includes('prdrought'), tipIds(r).join(','))
-})
-
-test('a short month does not get scolded for having no record', () => {
-  const r = build([session(1, 'Bench Press', [[60, 12]])])
-  assert.ok(!tipIds(r).includes('prdrought'))
-})
-
-test('the time tips stay silent when duration is missing', () => {
-  const r = build([
-    session(1, 'Bench Press', [[60, 10]], { duration: 5 }),
-    session(3, 'Bench Press', [[60, 10]], { duration: null }),
-    session(5, 'Bench Press', [[60, 10]], { duration: null }),
-  ])
-  assert.equal(r.time.known, false)
-  assert.ok(!tipIds(r).includes('short'), 'no advice from one timed session')
-  assert.ok(!tipIds(r).includes('long'))
-})
-
-test('a real volume drop is reported, a small wobble is not', () => {
-  const feb = (n, w) => ({
-    ...session(n, 'Bench Press', [[w, 10]]),
-    date: new Date(2026, 1, n, 10).toISOString(),
-  })
-  const dropped = buildMonthReport({
-    sessions: [feb(1, 100), feb(3, 100), session(1, 'Bench Press', [[50, 10]])],
-    config: CFG, month: '2026-03',
-  })
-  assert.ok(tipIds(dropped).includes('trend'), tipIds(dropped).join(','))
-
-  const steady = buildMonthReport({
-    sessions: [feb(1, 100), session(1, 'Bench Press', [[95, 10]])],
-    config: CFG, month: '2026-03',
-  })
-  assert.ok(!tipIds(steady).includes('trend'), '5% is noise, not a trend')
-})
-
-test('tips are ordered with the most serious first', () => {
-  const r = build([session(1, 'Bench Press', [[60, 12, false]], { muscle: 'Chest' })])
-  const sevRank = { alert: 3, nudge: 2, praise: 1, info: 0 }
-  const ranks = r.tips.map(t => sevRank[t.severity])
-  assert.deepEqual(ranks, [...ranks].sort((a, b) => b - a))
 })
 
 // ══ the month's shape ═════════════════════════════════════════
@@ -493,75 +378,11 @@ test('the series adds up to the month total', () => {
   assert.equal(r.volume.series.reduce((n, p) => n + p.value, 0), r.volume.total)
 })
 
-test('a climbing month is trending up', () => {
-  const r = build([100, 120, 140, 160, 180].map((w, i) =>
-    session(1 + i * 2, 'Bench Press', [[w, 10]])))
-  assert.equal(r.volume.direction, 'up')
-  assert.ok(r.volume.slope > 0)
-})
-
-test('a fading month is trending down', () => {
-  const r = build([180, 160, 140, 120, 100].map((w, i) =>
-    session(1 + i * 2, 'Bench Press', [[w, 10]])))
-  assert.equal(r.volume.direction, 'down')
-  assert.ok(r.volume.slope < 0)
-})
-
-test('one heavy day at the end does not make a falling month rise', () => {
-  // A first-to-last comparison would call this an increase. The fit
-  // answers for every session, which is the point of using one.
-  const r = build([200, 180, 160, 140, 120, 205].map((w, i) =>
-    session(1 + i * 2, 'Bench Press', [[w, 10]])))
-  assert.equal(r.volume.direction, 'down', `slope ${r.volume.slope}`)
-})
-
-test('too few days to have a direction is flat, not a guess', () => {
-  const r = build(trainOn(1, 3))
-  assert.equal(r.volume.slope, 0)
-  assert.equal(r.volume.direction, 'flat')
-})
-
 test('an unticked set still shapes the day it was typed on', () => {
   // The series uses sessionVolume, the same rule the total uses, so
   // the chart and the headline can never disagree.
   const r = build([session(1, 'Bench Press', [[60, 10, false]])])
   assert.equal(r.volume.series[0].value, r.volume.total)
-})
-
-// ══ talking about a ratio ═════════════════════════════════════
-
-test('an ordinary ratio is shown as a ratio', () => {
-  assert.equal(formatRatio(1.62), '1.62')
-  assert.match(describeRatio(1.62), /1\.62/)
-  assert.equal(formatRatio(0.5), '0.5')
-})
-
-test('a lopsided ratio is shown as a multiple, not a decimal', () => {
-  // 79.63 is arithmetically right and useless to read.
-  assert.equal(formatRatio(79.63), '×80')
-  assert.match(describeRatio(79.63), /80 أضعاف/)
-  assert.equal(formatRatio(0.02), '×50')
-  assert.match(describeRatio(0.02), /50 أضعاف/)
-})
-
-test('a split with one side barely trained is an alert, not a nudge', () => {
-  const r = build([
-    session(1, 'Bench Press', [[60, 12]], { muscle: 'Chest' }),
-    session(3, 'Bench Press', [[60, 12]], { muscle: 'Chest' }),
-    session(5, 'Barbell Row', [[20, 5]], { muscle: 'Back' }),
-  ])
-  const tip = r.tips.find(t => t.id === 'pushpull')
-  assert.ok(tip, tipIds(r).join(','))
-  assert.equal(tip.severity, 'alert')
-  assert.match(tip.evidence, /^×/, 'stated as a multiple')
-})
-
-test('a balanced split raises no push-pull tip at all', () => {
-  const r = build([
-    session(1, 'Bench Press', [[60, 10]], { muscle: 'Chest' }),
-    session(3, 'Barbell Row', [[60, 10]], { muscle: 'Back' }),
-  ])
-  assert.ok(!tipIds(r).includes('pushpull'))
 })
 
 // ══ estimated 1RM ═════════════════════════════════════════════
@@ -601,14 +422,12 @@ const DELOAD_CFG = {
   }],
 }
 
-// The taper caps the block, which is both how deloads are actually run
-// and the arrangement that a least-squares fit is fooled by: a dip in
-// the middle of a month is symmetric and tilts the line not at all.
+// The taper caps the block, which is how deloads are actually run.
 const HEAVY_DAYS = [1, 3, 5, 7, 9, 11]
 const TAPER_DAYS = [20, 22, 24, 26]
 
-test('deload days are marked in the series but left out of the fit', () => {
-  const heavy = HEAVY_DAYS.map(n => session(n, 'Bench Press', [[100, 10]]))
+test('deload days are marked in the series and kept off the light scale', () => {
+  const heavy = HEAVY_DAYS.map((n, i) => session(n, 'Bench Press', [[100 + i * 5, 10]]))
   const light = TAPER_DAYS.map(n => deloaded(session(n, 'Bench Press', [[40, 10]])))
   const r = build([...heavy, ...light], { config: DELOAD_CFG })
 
@@ -616,27 +435,28 @@ test('deload days are marked in the series but left out of the fit', () => {
   assert.deepEqual(marked, ['2026-03-20', '2026-03-22', '2026-03-24', '2026-03-26'])
   assert.equal(r.volume.deloadDays, 4)
   assert.equal(r.volume.deloadSessions, 4)
-  assert.equal(r.volume.slopeExcludesDeload, true)
 
-  // Every remaining day is identical, so the fit through them is flat.
-  assert.equal(r.volume.slope, 0, `slope was ${r.volume.slope}`)
-  assert.equal(r.volume.direction, 'flat')
+  // The lightest ORDINARY day is the bottom of the scale, not the taper.
+  const lit = (d) => r.consistency.calendar.find(c => c.date === `2026-03-${String(d).padStart(2, '0')}`).level
+  assert.equal(lit(1), 1, 'the lightest ordinary day')
+  assert.equal(lit(11), 5, 'the heaviest day')
+  for (const d of TAPER_DAYS) assert.equal(lit(d), null, `day ${d} is drawn by its blue rim, not its light`)
 })
 
-test('the same month without the stamps does read as a decline', () => {
+test('the same month without the stamps puts the light days at the bottom', () => {
   // The control: identical numbers, no deload stamps. Without this the
-  // test above would pass on a month that was flat anyway, and prove
-  // nothing about the exclusion.
-  const heavy = HEAVY_DAYS.map(n => session(n, 'Bench Press', [[100, 10]]))
+  // test above would pass for a reason that has nothing to do with the
+  // exclusion.
+  const heavy = HEAVY_DAYS.map((n, i) => session(n, 'Bench Press', [[100 + i * 5, 10]]))
   const light = TAPER_DAYS.map(n => session(n, 'Bench Press', [[40, 10]]))
   const r = build([...heavy, ...light])
   assert.equal(r.volume.deloadDays, 0)
-  assert.equal(r.volume.slopeExcludesDeload, false)
-  assert.equal(r.volume.direction, 'down')
-  assert.ok(r.volume.slope < 0, `slope was ${r.volume.slope}`)
+  const lit = (d) => r.consistency.calendar.find(c => c.date === `2026-03-${String(d).padStart(2, '0')}`).level
+  assert.equal(lit(20), 1)
+  assert.ok(lit(1) > 1, 'with the taper counted, the first heavy day is no longer the lightest')
 })
 
-test('the headline volume still counts the deload, because it was lifted', () => {
+test('the poster total still counts the deload, because it was lifted', () => {
   const r = build(
     [session(1, 'Bench Press', [[100, 10]]), deloaded(session(3, 'Bench Press', [[60, 10]]))],
     { config: DELOAD_CFG },
@@ -645,54 +465,15 @@ test('the headline volume still counts the deload, because it was lifted', () =>
   assert.equal(r.volume.total, 1600)
 })
 
-const feb = (n, w) => ({
-  ...session(n, 'Bench Press', [[w, 10]]),
-  date: new Date(2026, 1, n, 10).toISOString(),
-})
-
-test('a drop that was only the deload is explained, not alarmed about', () => {
-  // Six heavy days in February. March runs three heavy days at the same
-  // weight and then tapers — which is what a deload block looks like,
-  // and which drags the month TOTAL well under February's without a
-  // single session having got weaker.
-  const r = buildMonthReport({
-    sessions: [
-      ...[1, 3, 5, 7, 9, 11].map(n => feb(n, 100)),
-      ...[1, 3, 5].map(n => session(n, 'Bench Press', [[100, 10]])),
-      ...[20, 22, 24].map(n => deloaded(session(n, 'Bench Press', [[20, 5]]))),
-    ],
-    config: DELOAD_CFG, month: '2026-03',
-  })
-
-  assert.ok(r.volume.trendPct <= -15, `raw trend was ${r.volume.trendPct}`)
-  // Per ordinary day the two months are identical, which is the whole
-  // point: nothing got lighter, there were simply fewer heavy days.
-  assert.equal(r.volume.trendPctExDeload, 0, `ex-deload was ${r.volume.trendPctExDeload}`)
-
-  const ids = tipIds(r)
-  assert.ok(!ids.includes('trend'), 'the decline tip should not fire on a planned taper')
-  assert.ok(ids.includes('deload'), `expected the explaining note, got ${ids.join(',')}`)
-})
-
-test('a decline that survives the exclusion is still reported', () => {
-  // The case a blanket suppression would have buried: the ordinary days
-  // themselves got lighter, in a month that also contained a deload.
-  // The advice has to come through, and has to say what it excluded.
-  const r = buildMonthReport({
-    sessions: [
-      ...[1, 3, 5, 7, 9, 11].map(n => feb(n, 100)),
-      ...[1, 3, 5].map(n => session(n, 'Bench Press', [[60, 10]])),
-      ...[20, 22].map(n => deloaded(session(n, 'Bench Press', [[30, 10]]))),
-    ],
-    config: DELOAD_CFG, month: '2026-03',
-  })
-
-  assert.ok(r.volume.trendPctExDeload <= -15,
-    `ex-deload trend was ${r.volume.trendPctExDeload}`)
-  const trend = r.tips.find(t => t.id === 'trend')
-  assert.ok(trend, `expected the decline tip, got ${tipIds(r).join(',')}`)
-  assert.match(trend.body, /استثناء أيام الديلود/,
-    'the wording has to say the calculation excluded the deload')
+test('a deload session is attended, and its slot says so', () => {
+  const r = build(
+    [session(1, 'Bench Press', [[100, 10]]), deloaded(session(11, 'Bench Press', [[60, 10]]))],
+    { config: DELOAD_CFG },
+  )
+  const slot = r.attendance.slots.find(s => s.date === '2026-03-11')
+  assert.equal(slot.state, 'done')
+  assert.equal(slot.deload, true)
+  assert.deepEqual(r.deload.ranges, [{ from: '2026-03-10', to: '2026-03-16' }])
 })
 
 test('the calendar rims deload days without changing what they were', () => {
@@ -715,26 +496,13 @@ test('the calendar rims deload days without changing what they were', () => {
   assert.ok(!kinds.has('deload'), 'deload is a modifier, never a kind')
 })
 
-// ══ streaks ═══════════════════════════════════════════════════
-//
-// Two reports from the app, one after the other:
-//
-//   «it says 12 and I am sure it was 15» — runs were counted after the
-//   ledger had been filtered to the month, so the counter restarted on
-//   the 1st and a streak beginning in the previous month was reported
-//   at whatever fraction of it landed after the boundary.
-//
-//   «it says 18 and I never reached 18, and all three rows say 18» —
-//   the length counted every day that held the run together, rest days
-//   included, and each run was offered as the answer for every month it
-//   touched. A streak is worth its sessions, and it belongs to the
-//   month it ended in.
+// ══ the streak: one number ═══════════════════════════════════
+// The report shows the streak as Home does: one number. For a month
+// that has finished it is the number on its last day; while the month
+// runs it is today's. The three rows of session runs are gone.
 //
 // A custom pattern of one very long block makes every day a scheduled
-// training day, so nothing but a real miss can end a run. (There is no
-// daysPerWeek: 7 — asking for one silently falls back to the five-day
-// pattern, whose scheduled rests would hold a "broken" run together and
-// make a test pass for the wrong reason.)
+// training day, so nothing but a real miss can end a run.
 const EVERY_DAY = { daysPerWeek: 'custom', customPattern: [365], overrides: [], restDays: [] }
 
 /** A trained day, given as "YYYY-MM-DD". */
@@ -752,130 +520,33 @@ const range = (month, from, to) => {
   return out
 }
 
-// Streak runs are read from a ledger that walks up to TODAY, so these
-// fixtures need a today of their own — otherwise dates the suite treats
-// as history sit in the future and the ledger never reaches them.
-// October 5th is past every session written below.
-const withClock = (iso, fn) => {
-  const real = Date
-  const fixed = new real(`${iso}T10:00:00Z`).getTime()
-  globalThis.Date = class extends real {
-    constructor(...a) { super(...(a.length ? a : [fixed])) }
-    static now() { return fixed }
-  }
-  try { return fn() } finally { globalThis.Date = real }
-}
-
 const reportFor = (days, month, today = '2026-10-05') =>
-  withClock(today, () =>
-    buildMonthReport({ sessions: days.map(dayS), config: EVERY_DAY, month }))
+  buildMonthReport({ sessions: days.map(dayS), config: EVERY_DAY, month, today })
 
-test('a streak that began last month is not cut off at the 1st', () => {
-  // 25 Aug → 8 Sep: fifteen sessions, only twelve of them in September.
-  const r = reportFor([...range('2026-08', 25, 31), ...range('2026-09', 1, 8)], '2026-09')
-  const s = r.consistency.streaks.month
-  assert.equal(s.days, 15, 'the whole run, not the part inside the month')
-  assert.equal(s.start, '2026-08-25', 'reported from where it actually started')
-  assert.equal(r.consistency.bestStreak, 15, 'the ring and the poster show the same figure')
+test('a finished month reports the streak on its last day', () => {
+  // 25 Aug → 30 Sep, then nothing: on 30 September the streak was 37.
+  const r = reportFor([...range('2026-08', 25, 31), ...range('2026-09', 1, 30)], '2026-09')
+  assert.equal(r.consistency.endStreak, 37, 'carried in from August, unbroken to the 30th')
 })
 
-test('a streak is worth its sessions, not the rest days that held it up', async () => {
-  const { streakRuns } = await import('../src/monthReport.js')
-  // 10 calendar days: 7 sessions, 2 scheduled rests, 1 optional rest.
-  const led = [...'ttrtptrttt'].map((ch, i) => ({
-    date: `2026-08-${String(i + 1).padStart(2, '0')}`,
-    kind: ch === 'p' ? 'paid' : 'eligible',
-    completed: ch === 't',
-    pending: false,
-  }))
-  const [run] = streakRuns(led)
-  assert.equal(run.days, 7, 'sessions')
-  assert.equal(run.span, 10, 'calendar days it covered')
-  assert.equal(run.end, '2026-08-10', 'ends on the last session')
+test('the last day of a finished month is judged, not left pending', () => {
+  // Trained every day but the 30th. The 30th is the month's last day,
+  // which a replay ending on it would call "today" and never a miss.
+  const r = reportFor(range('2026-09', 1, 29), '2026-09')
+  const last = r.consistency.calendar.find(d => d.date === '2026-09-30')
+  assert.notEqual(last.kind, 'ahead', 'the month is over; nothing about it is still to come')
+  assert.ok(['miss', 'paid'].includes(last.kind), last.kind)
 })
 
-test('a streak belongs to the month it ended in, and only that one', () => {
-  // One run, 25 Aug → 8 Sep. It ended in September, so September owns
-  // it and August is left with nothing that ended there.
-  const r = reportFor([...range('2026-08', 25, 31), ...range('2026-09', 1, 8)], '2026-09')
-  const { month, prevMonth } = r.consistency.streaks
-  assert.equal(month.days, 15)
-  assert.equal(prevMonth, null, 'no run ended in August')
-})
-
-test('the three categories answer separately', () => {
-  // Twenty sessions ending in July, four ending in August, seven
-  // ending in September — no two can agree by accident.
-  const r = reportFor([
-    ...range('2026-07', 1, 20),
-    ...range('2026-08', 5, 8),
-    ...range('2026-09', 10, 16),
-  ], '2026-09')
-  const { month, prevMonth, allTime } = r.consistency.streaks
-  assert.equal(month.days, 7, 'this month')
-  assert.equal(prevMonth.days, 4, 'the month before it')
-  assert.equal(allTime.days, 20, 'the record, wherever it happened')
-})
-
-test('a streak carried in from last month is flagged, one wholly inside is not', () => {
-  const carriedIn = reportFor([...range('2026-08', 25, 31), ...range('2026-09', 1, 8)], '2026-09')
-  assert.equal(carriedIn.consistency.streaks.carried.start, '2026-08-25')
-
-  const inside = reportFor(range('2026-09', 3, 12), '2026-09')
-  assert.equal(inside.consistency.streaks.carried, null)
-  assert.equal(inside.consistency.streaks.month.days, 10)
-})
-
-test('a real miss breaks the run and the longer half wins', () => {
-  // Four days, then a gap nothing can pay for — four eligible days
-  // earn no rest credit — then eight days.
-  const r = reportFor([...range('2026-09', 1, 4), ...range('2026-09', 6, 13)], '2026-09')
-  assert.ok(r.consistency.missedDays.includes('2026-09-05'), 'the gap is a miss')
-  assert.equal(r.consistency.streaks.month.days, 8)
-  assert.equal(r.consistency.streaks.month.start, '2026-09-06')
-})
-
-test('a month with no history answers with nothing rather than zero', () => {
-  const r = reportFor(range('2026-09', 1, 3), '2026-09')
-  assert.equal(r.consistency.streaks.prevMonth, null, 'August never happened')
-  assert.equal(r.consistency.streaks.carried, null)
-})
-
-test('streakRuns breaks on a miss and survives an empty ledger', async () => {
-  const { streakRuns } = await import('../src/monthReport.js')
-  const led = (spec) => [...spec].map((ch, i) => ({
-    date: `2026-08-${String(i + 1).padStart(2, '0')}`,
-    kind: ch === 'x' ? 'miss' : ch === 'p' ? 'paid' : 'eligible',
-    completed: ch === 't', pending: false,
-  }))
-  assert.deepEqual(streakRuns(led('tttxttpttt')).map(r => r.days), [3, 5])
-  assert.deepEqual(streakRuns([]), [])
-  // today, before you have trained, is not yet a miss
-  assert.equal(
-    streakRuns([...led('ttt'), { date: '2026-08-04', kind: 'miss', pending: true }])[0].days,
-    3,
-  )
-  // a stretch of rest days with no session in it is not a streak
-  assert.deepEqual(streakRuns(led('ppp')), [])
-})
-
-test('a streak still running past the month end is seen in full', () => {
-  // The reported case: two sessions at the end of August and thirteen
-  // in September — read from AUGUST's report, which is the one the
-  // window offers in early September. The streak ledger used to stop
-  // at the last day of the month being reported, so the September half
-  // was invisible and «الأطول على الإطلاق» could not be all time.
-  const r = reportFor([...range('2026-08', 30, 31), ...range('2026-09', 1, 13)], '2026-08')
-  assert.equal(r.consistency.streaks.allTime.days, 15, 'two in August plus thirteen in September')
-  // August's own row falls back to the run that was still going, so the
-  // month you plainly trained through is not left blank.
-  assert.equal(r.consistency.streaks.month.days, 15)
-  assert.equal(r.consistency.streaks.month.ongoing, true, 'and it says the streak had not finished')
-})
-
-test('a finished streak is not marked as ongoing', () => {
-  const r = reportFor(range('2026-09', 3, 12), '2026-09')
-  assert.equal(r.consistency.streaks.month.ongoing, false)
+test('a month still running uses today, and the rest of it is ahead', () => {
+  // Today is the 29th of September and he has trained every day.
+  const r = reportFor(range('2026-09', 1, 28), '2026-09', '2026-09-29')
+  const day = (d) => r.consistency.calendar.find(c => c.date === `2026-09-${d}`)
+  assert.equal(day('29').kind, 'ahead', 'today is still unfolding')
+  assert.equal(day('30').kind, 'ahead')
+  assert.equal(r.consistency.endStreak, 28, 'the live number, as Home has it')
+  assert.equal(r.attendance.missed, 0, 'nothing ahead is counted as missed')
+  assert.equal(r.attendance.ahead, 2)
 })
 
 test('an unticked set with a pre-filled weight adds nothing to the month', () => {

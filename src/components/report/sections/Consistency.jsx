@@ -1,184 +1,110 @@
-// ── Chapter 03: whether you showed up ─────────────────────────
-// One number and what it is made of: the share of the month's days that
-// went as the plan said (a session on a training day, or a planned
-// rest), then the streak — in the same unit and colour as the flame on
-// Home — then the month on a calendar drawn with Home's own glyphs.
-// Every day is classified by the recovery engine, not by this file.
+// ── When did you train? ───────────────────────────────────────
+// The streak as one number — the flame, the number, «يوم/أيام», exactly
+// as Home shows it — then the month on a calendar. A trained day is lit,
+// and lit brighter the more kilos it moved (five steps, the month's
+// lightest ordinary day to its heaviest). A rest day is empty, a missed
+// workout day has a ✕, a deload day has the blue rim and stays out of
+// the light scale. One line of key instead of four symbols explained.
 //
-// The session-only run the report used to call «أطول سلسلة» is still
-// here, renamed «أطول تتابع جلسات» and kept grey: it counts something
-// else, and giving it the flame's name and colour is how the same month
-// came to read 31 on Home and 16 here.
+// Every day is classified by the recovery engine, not by this file. The
+// session-run rows, the 100% «of plan days», the four counts and the
+// ticket balance are gone: three of them said the same thing as the
+// streak, and the balance is a figure for today, not for this month.
 
-import { useState } from 'react'
-import { Gauge, Num } from '../../kit/index.jsx'
-import { Flame, Moon, Ticket, Cross } from '../../streak/StreakIcons.jsx'
-import { unitAr, fmtDayAr } from '../../../streak.js'
-import { monthLabel } from '../../../monthReport.js'
-import { Chapter, Figure, monthOver } from '../parts.jsx'
-import { DELOAD_INK } from '../TrendChart.jsx'
-
-const KIND = {
-  trained: 'تمرّنت',
-  rest:    'راحة مجدولة',
-  paid:    'راحة بتذكرة',
-  miss:    'غياب',
-}
+import { Num } from '../../kit/index.jsx'
+import { Flame, Ticket, Cross } from '../../streak/StreakIcons.jsx'
+import { unitAr, countAr, fmtDayAr } from '../../../streak.js'
+import { calendarLine, monthLabel, monthName } from '../../../monthReport.js'
+import { Section, Bidi, DELOAD_INK, monthOver } from '../parts.jsx'
 
 const WEEK = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] // Sunday first
 
-function Glyph({ kind }) {
-  if (kind === 'trained') return <i className="rp-dot" />
-  if (kind === 'rest') return <span className="is-rest"><Moon size={14} /></span>
-  if (kind === 'paid') return <span className="is-rest"><Ticket size={14} /></span>
-  return <span className="is-miss"><Cross size={11} /></span>
+const KIND = {
+  trained: 'تمرّنت',
+  rest:    'راحة',
+  paid:    'راحة بتذكرة',
+  miss:    'فاتك',
+  ahead:   'لسا ما جا',
+  none:    'قبل ما تبدأ',
 }
 
-// «3 جلسات», «12 جلسة» — the plural only for 3–10, like countAr.
-const sessionsWord = (n) => { const r = n % 100; return n === 0 || (r >= 3 && r <= 10) ? 'جلسات' : 'جلسة' }
+// Words for the light step, for anyone who cannot see it.
+const LIGHT = ['', 'أخف يوم', 'خفيف', 'متوسط', 'ثقيل', 'أثقل يوم']
 
-const span = (s) =>`${fmtDayAr(s.start, { weekday: false })} — ${fmtDayAr(s.end, { weekday: false })}`
-
-function Runs({ streaks }) {
-  if (!streaks?.month && !streaks?.prevMonth && !streaks?.allTime) return null
-  const rows = [
-    ['هذا الشهر', streaks.month],
-    ['الشهر الماضي', streaks.prevMonth],
-    ['الأطول لك', streaks.allTime],
-  ]
-  const isRecord = streaks.month && streaks.allTime && streaks.month.days === streaks.allTime.days
-  return (
-    <div className="rp-block rp-in" style={{ '--i': 5 }}>
-      <span className="rp-eyebrow">أطول تتابع جلسات</span>
-      <ul className="rp-rows">
-        {rows.map(([label, s]) => (
-          <li key={label} className="rp-row">
-            <span className="rp-row-main">
-              <span className="rp-row-t">{label}</span>
-              {s && (
-                <span className="rp-row-s">
-                  {span(s)}{s.ongoing ? ' · مستمر' : ''}
-                </span>
-              )}
-            </span>
-            <span className="rp-row-v">
-              {s ? <><b><Num>{s.days}</Num></b> {sessionsWord(s.days)}</> : <span className="rp-muted">—</span>}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="rp-caption">
-        جلسات ورا بعض بدون غياب — يوم الراحة ما يقطعها وما ينحسب منها.
-        {isRecord && ' وهذا الشهر وصلت أطول تتابع لك.'}
-      </p>
-      {streaks.carried && (
-        <p className="rp-caption">
-          بدأ هالتتابع الشهر اللي قبله في {fmtDayAr(streaks.carried.start, { weekday: false })} واستمر <Num>{streaks.carried.span}</Num> يوم على التقويم.
-        </p>
-      )}
-    </div>
-  )
+function cellLabel(day) {
+  const parts = [fmtDayAr(day.date), KIND[day.kind] || '']
+  if (day.kind === 'trained' && day.level) parts.push(LIGHT[day.level])
+  if (day.deload) parts.push('تخفيف')
+  return parts.filter(Boolean).join(' · ')
 }
 
-export default function Consistency({ report, n = 3, id = 'rp-consistency', liveStreak = null, today }) {
+export default function Consistency({ report, id = 'rp-when', liveStreak = null, today }) {
   const c = report.consistency
-  const total = c.calendar.length || 1
-  const onPlan = c.trainedDays + c.scheduledRests
-  const pct = Math.round((onPlan / total) * 100)
-  const [picked, setPicked] = useState(null)
-
   // The streak at the end of the month, or — while the month is still
-  // running — the live number, if the app passed it in. Never a guess.
+  // running — the live number Home shows. Never a guess.
   const over = monthOver(report.month, today)
-  const streak = over ? c.endStreak : liveStreak
-  const monthName = monthLabel(report.month).split(' ')[0]
+  const streak = over ? c.endStreak : (liveStreak ?? c.endStreak)
+  const hasDeload = c.calendar.some(d => d.deload)
 
   // The first of the month may not be a Sunday; pad so the columns line
   // up with their weekday headings.
-  const firstDay = c.calendar.length
-    ? (() => { const [y, m, d] = c.calendar[0].date.split('-').map(Number); return new Date(y, m - 1, d).getDay() })()
-    : 0
-  const pickedDay = picked && c.calendar.find(d => d.date === picked)
+  const [y, m] = report.month.split('-').map(Number)
+  const pad = new Date(y, m - 1, 1).getDay()
 
   return (
-    <Chapter id={id} n={n} title="الالتزام" note="كل يوم مصنّف بنفس المحرك اللي يحسب الستريك.">
-      <div className="rp-commit rp-in" style={{ '--i': 1 }}>
-        <div className="rp-commit-n">
-          <b><Num>{pct}%</Num></b>
-          <span>من أيام الخطة</span>
-        </div>
-        <Gauge value={onPlan} max={total} tone="accent" label={`${pct}% من أيام الخطة`} />
-        <p className="rp-caption">
-          <Num>{onPlan}</Num> من <Num>{total}</Num> يوم مشت مثل ما تقول الخطة: تمرين في يومه، أو راحة مجدولة.
-        </p>
-      </div>
-
-      <div className="rp-figs is-four">
-        <Figure value={c.trainedDays} label="يوم تمرين" i={2} />
-        <Figure value={c.scheduledRests} label="راحة مجدولة" i={2} />
-        <Figure value={c.paidRests} label="راحة بتذكرة" tone={c.paidRests ? 'rest' : undefined} i={2} />
-        <Figure value={c.missedDays.length} label="يوم غياب" i={2} />
-      </div>
-
+    <Section id={id} q="متى تمرّنت؟" lead={calendarLine(c.calendar)}>
       {Number.isFinite(streak) && (
-        <div className="rp-block rp-in" style={{ '--i': 3 }}>
-          <span className="rp-eyebrow">الستريك {over ? `آخر ${monthName}` : 'لين اليوم'}</span>
-          <div className="rp-streak">
+        <div className="rp-block rp-in" style={{ '--i': 1 }}>
+          <span className="rp-eyebrow">الستريك {over ? `آخر ${monthName(report.month)}` : 'اليوم'}</span>
+          <div className="rp-streak" aria-label={`الستريك ${streak} ${unitAr(streak, 'day')}`}>
             <span className="rp-streak-flame"><Flame size={30} filled={streak > 0} /></span>
             <b className={streak === 0 ? 'zero' : undefined}><Num>{streak}</Num></b>
             <span className="rp-streak-unit">{unitAr(streak, 'day')}</span>
           </div>
-          <p className="rp-caption">أيام التزامك بالخطة — تمرين أو راحة مجدولة. التذكرة توقفه وما تزيده.</p>
         </div>
       )}
 
-      <div className="rp-block rp-in" style={{ '--i': 4 }}>
-        <span className="rp-eyebrow">الشهر يوم بيوم</span>
-        <div className="rp-cal" role="grid" aria-label={`أيام ${monthLabel(report.month)}`}>
+      <div className="rp-block rp-in" style={{ '--i': 2 }}>
+        <div className="rp-cal" role="list" aria-label={`أيام ${monthLabel(report.month)}`}>
           {WEEK.map(w => <span key={w} className="rp-cal-wd" aria-hidden="true">{w}</span>)}
-          {Array.from({ length: firstDay }, (_, i) => <span key={`pad${i}`} aria-hidden="true" />)}
-          {c.calendar.map(day => {
-            const label = `${day.date} — ${KIND[day.kind] || KIND.miss}${day.deload ? ' · ديلود' : ''}`
-            return (
-              <button
-                key={day.date}
-                type="button"
-                title={label}
-                aria-label={`${fmtDayAr(day.date)} — ${KIND[day.kind] || KIND.miss}${day.deload ? ' · ديلود' : ''}`}
-                aria-pressed={picked === day.date}
-                className={`rp-cal-cell k-${day.kind}${day.deload ? ' is-deload' : ''}${picked === day.date ? ' picked' : ''}`}
-                onClick={() => setPicked(p => (p === day.date ? null : day.date))}
-              >
-                <span className="rp-cal-n"><Num>{Number(day.date.slice(8))}</Num></span>
-                <span className="rp-cal-g"><Glyph kind={day.kind} /></span>
-              </button>
-            )
-          })}
+          {Array.from({ length: pad }, (_, i) => <span key={`pad${i}`} aria-hidden="true" />)}
+          {c.calendar.map((day, i) => (
+            <span
+              key={day.date}
+              role="listitem"
+              title={cellLabel(day)}
+              aria-label={cellLabel(day)}
+              className={`rp-cal-cell k-${day.kind}${day.deload ? ' is-deload' : ''}`}
+              data-level={day.kind === 'trained' && day.level ? day.level : undefined}
+              style={{ '--i': i }}
+            >
+              <span className="rp-cal-n"><Num>{Number(day.date.slice(8))}</Num></span>
+              <span className="rp-cal-g">
+                {day.kind === 'trained' && (
+                  <i className={`rp-lit${day.level ? '' : ' is-deload'}`} data-level={day.level || undefined}
+                     style={day.level ? undefined : { background: DELOAD_INK }} />
+                )}
+                {day.kind === 'miss' && <span className="is-miss"><Cross size={11} /></span>}
+              </span>
+            </span>
+          ))}
         </div>
-        <p className="rp-cal-picked" aria-live="polite">
-          {pickedDay
-            ? <>{fmtDayAr(pickedDay.date)} — {KIND[pickedDay.kind] || KIND.miss}{pickedDay.deload ? ' · أسبوع ديلود' : ''}</>
-            : 'اضغط على يوم تشوف وش صار فيه.'}
-        </p>
         <p className="rp-key">
-          <span><i className="rp-dot" /> تمرين</span>
-          <span><span className="is-rest"><Moon size={12} /></span> راحة مجدولة</span>
-          <span><span className="is-rest"><Ticket size={12} /></span> تذكرة</span>
-          <span><span className="is-miss"><Cross size={10} /></span> غياب</span>
-          {c.calendar.some(d => d.deload) && (
-            <span><i className="rp-key-deload" style={{ borderColor: DELOAD_INK }} /> ديلود</span>
-          )}
+          <span><i className="rp-lit" data-level="3" /> تمرّنت، وكل ما نوّر أكثر كان أثقل</span>
+          <span><i className="rp-key-empty" /> راحة</span>
+          <span><span className="is-miss"><Cross size={10} /></span> فاتك</span>
+          {hasDeload && <span><i className="rp-key-deload" style={{ borderColor: DELOAD_INK }} /> تخفيف</span>}
         </p>
       </div>
 
-      <Runs streaks={c.streaks} />
-
-      {c.restCredits > 0 && (
-        <p className="rp-tickets rp-in" style={{ '--i': 6 }}>
+      {c.paidRests > 0 && (
+        <p className="rp-tickets rp-in" style={{ '--i': 3 }}>
           <Ticket size={18} />
-          <span>{over ? 'رصيدك آخر الشهر' : 'رصيدك الحين'}: <b><Num>{c.restCredits}</Num> {unitAr(c.restCredits, 'ticket')}</b></span>
+          <span><Bidi text={c.paidRests === 1
+            ? 'انصرفت تذكرة وحدة هالشهر بدل يوم فاتك، والستريك ما انكسر.'
+            : `انصرفت ${countAr(c.paidRests, 'ticket')} هالشهر بدل أيام فاتتك، والستريك ما انكسر.`} /></span>
         </p>
       )}
-    </Chapter>
+    </Section>
   )
 }
