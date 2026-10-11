@@ -15,12 +15,18 @@
 //   pr     — a personal record: two pulses
 //   swipe  — moving to the next exercise by swiping: the lightest tick
 //   rest   — the rest is over (Android only; it never comes from a tap)
+//   medal       — a medal lands in the session summary: one light pulse
+//   medal-heavy — an epic or legendary one lands heavy: a firmer double
+//                 (both are timed by the reveal, not a tap, so on an iPhone
+//                 they are felt only when the landing is a tap's — a skip)
 
 const PATTERNS = {
   set:   { vibrate: 12,             ticks: 1 },
   pr:    { vibrate: [12, 70, 28],   ticks: 2 },
   swipe: { vibrate: 8,              ticks: 1 },
   rest:  { vibrate: [180, 80, 180], ticks: 0 },
+  medal: { vibrate: 14,             ticks: 1 },
+  'medal-heavy': { vibrate: [24, 60, 40], ticks: 2 },
 }
 
 const hasVibrate = () => {

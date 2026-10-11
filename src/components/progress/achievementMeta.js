@@ -221,6 +221,11 @@ export function fmtDay(dateLike, { weekday = false } = {}) {
   } catch { return '' }
 }
 
+/** A date with its year, for the back of a medal: «8 يوليو 2026». */
+export function fmtDate(ms) {
+  try { return new Date(ms).toLocaleDateString(LOCALE, { year: 'numeric', month: 'long', day: 'numeric' }) } catch { return '' }
+}
+
 /** Earned date and time: «8 يوليو 2026 · 6:40 م». */
 export function fmtEarned(ms) {
   try {

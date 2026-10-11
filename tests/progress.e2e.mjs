@@ -54,9 +54,9 @@ function init([seed, clock]) {
 
 const browser = await chromium.launch()
 const SE = { ...devices['iPhone SE'], viewport: { width: 320, height: 568 } }
-async function open(fixture, extra = {}, { device = devices['iPhone 13'], photos = 0 } = {}) {
+async function open(fixture, extra = {}, { device = devices['iPhone 13'], photos = 0, reduced = false, init: initExtra = null } = {}) {
   const f = resolve(fixture)
-  const ctx = await browser.newContext({ ...device, timezoneId: 'Asia/Riyadh', locale: 'ar' })
+  const ctx = await browser.newContext({ ...device, timezoneId: 'Asia/Riyadh', locale: 'ar', reducedMotion: reduced ? 'reduce' : 'no-preference' })
   await ctx.route('**/*.r2.dev/**', r => r.abort())
   const page = await ctx.newPage()
   const errors = []
@@ -64,6 +64,7 @@ async function open(fixture, extra = {}, { device = devices['iPhone 13'], photos
   const seed = { hf_onboarded: true, ...f.seed, ...extra }
   if (photos) { await page.goto('about:blank'); seed.hf_photos = await makePhotos(page, photos) }
   await ctx.addInitScript(init, [seed, f.clock])
+  if (initExtra) await ctx.addInitScript(initExtra)
   await page.goto(APP, { waitUntil: 'networkidle' })
   return { ctx, page, errors }
 }
@@ -392,6 +393,174 @@ const toProgress = async (page, view) => {
   await page.waitForTimeout(400)
   ok('photos full + old: the notice clears once space is freed', await page.locator('.ph-alert').count() === 0)
   ok('photos full + old: no errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ Motion phases 2 and 4 ═════════════════════════════════════
+// The medal stage is WebGL; headless Chromium may have it (SwiftShader)
+// or not, so each check holds for the 3D stage and the flat fallback.
+const sheetReveal = (page) => page.evaluate(() => {
+  const e = document.querySelector('.k-sheet [data-testid="medal-reveal"]')
+  return e ? { ...e.dataset, canvas: !!e.querySelector('canvas'), flat: e.querySelectorAll('.mr-flat .md').length } : null
+})
+const states = async (page, ms) => {
+  const seen = []
+  const end = Date.now() + ms
+  while (Date.now() < end) {
+    const r = await sheetReveal(page)
+    const s = r ? r.state : 'none'
+    if (seen[seen.length - 1] !== s) seen.push(s)
+    if (s === 'landed') break
+    await page.waitForTimeout(80)
+  }
+  return seen
+}
+
+// 7. Achievements: an earned medal spins in its sheet, every time it opens
+{
+  const { ctx, page, errors } = await open('veteran', { hf_unlocked: ['a1', 'a2', 'c7'], hf_xp: 9100 })
+  await page.waitForTimeout(2500)
+  const b = page.getByRole('button', { name: 'كمّل' })
+  if (await b.count()) { await b.click(); await page.waitForTimeout(300) }
+  await toProgress(page, 'الإنجازات')
+  const earned = page.locator('.pg-tile.on').first()
+  await earned.click()
+  const first = await states(page, 8000)
+  const r = await sheetReveal(page)
+  ok('ach spin: an earned medal opens on the stage', !!r && (r.mode === 'gl' ? r.canvas : r.flat === 1), JSON.stringify(r))
+  ok('ach spin: it spins as the sheet opens, and lands', first.includes('playing') && first[first.length - 1] === 'landed' && r?.motion !== 'fade', first.join(' → '))
+  await page.getByRole('button', { name: 'إغلاق' }).click()
+  await page.waitForTimeout(500)
+  ok('ach spin: closing the sheet removes the stage and its canvas',
+    await page.evaluate(() => !document.querySelector('[data-testid="medal-reveal"]') && !document.querySelector('.k-sheet canvas')))
+  await earned.click()
+  const again = await states(page, 8000)
+  ok('ach spin: it spins again every time it opens', again.includes('playing') && again[again.length - 1] === 'landed', again.join(' → '))
+  await page.getByRole('button', { name: 'إغلاق' }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.pg-tile:not(.on)').first().click()
+  await page.waitForTimeout(600)
+  ok('ach spin: a locked medal stays flat', await page.locator('.k-sheet [data-testid="medal-reveal"]').count() === 0
+    && await page.locator('.k-sheet .md-off').count() === 1)
+  await page.getByRole('button', { name: 'إغلاق' }).click()
+  await page.waitForTimeout(400)
+  ok('ach spin: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 7b. …and under reduced motion it fades in instead of spinning
+{
+  const { ctx, page, errors } = await open('veteran', { hf_unlocked: ['a1', 'a2', 'c7'], hf_xp: 9100 }, { reduced: true })
+  await page.waitForTimeout(2500)
+  const b = page.getByRole('button', { name: 'كمّل' })
+  if (await b.count()) { await b.click(); await page.waitForTimeout(300) }
+  await toProgress(page, 'الإنجازات')
+  await page.locator('.pg-tile.on').first().click()
+  const seen = await states(page, 8000)
+  const r = await sheetReveal(page)
+  ok('ach spin, reduced: a fade, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && seen[seen.length - 1] === 'landed', `${JSON.stringify(r)} ${seen.join(' → ')}`)
+  ok('ach spin, reduced: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 8. The level-up screen, stronger: a new rank (level 5) — the crest
+//    drops, one sheen, one ring, the ladder climbs, confetti in the rank's
+//    colour; a tap jumps to the end.
+{
+  const one = [{ id: 1, date: '2026-07-07T15:00:00.000Z', duration: 45, exercises: [{ id: 'x', muscle: 'Chest', name: 'Bench Press', sets: [{ weight: '80', reps: '12', done: true }, { weight: '80', reps: '12', done: true }] }] }]
+  const { ctx, page, errors } = await open('fresh', { hf_xp: 8900, hf_sessions: one })
+  await page.waitForSelector('[data-testid="level-up"]', { timeout: 6000 }).catch(() => {})
+  await page.waitForTimeout(250)
+  const early = await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="level-up"]')
+    const anim = (sel) => (document.querySelector(sel)?.getAnimations?.() || []).length
+    return {
+      eyebrow: root?.querySelector('.cel-eyebrow')?.textContent,
+      crest: anim('.cel-crest-wrap'), sheen: anim('.cel-sheen'), wave: anim('.cel-wave'), ladder: anim('.rl-line b'),
+      confetti: !!root?.querySelector('canvas.cel-conf'),
+    }
+  })
+  ok('level up, new rank: says رتبة جديدة', early.eyebrow === 'رتبة جديدة', JSON.stringify(early))
+  ok('level up, new rank: the crest drops, gets one sheen and one ring', early.crest > 0 && early.sheen > 0 && early.wave > 0, JSON.stringify(early))
+  ok('level up, new rank: the ladder climbs from the old level', early.ladder > 0, JSON.stringify(early))
+  ok('level up, new rank: confetti, only for a new rank', early.confetti, JSON.stringify(early))
+  await page.locator('.cel-body').click({ position: { x: 20, y: 20 } })
+  await page.waitForTimeout(150)
+  const after = await page.evaluate(() => ({
+    running: document.querySelector('[data-testid="level-up"]')?.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length,
+    still: !!document.querySelector('[data-testid="level-up"]'),
+  }))
+  ok('level up: a tap jumps to the end and keeps the screen', after.running === 0 && after.still, JSON.stringify(after))
+  await page.getByRole('button', { name: 'كمّل' }).click()
+  await page.waitForTimeout(400)
+  ok('level up, new rank: dismissed', await page.locator('[data-testid="level-up"]').count() === 0)
+  ok('level up, new rank: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 9. Home: the way in, once per app open; the flame always moving gently;
+//    the flame lighting once a day, the number staying the number.
+//    What appears and goes is watched from the first frame.
+const watch = () => {
+  window.__seen = []
+  const mark = (k) => { if (!window.__seen.includes(k)) window.__seen.push(k) }
+  new MutationObserver(() => {
+    if (document.querySelector('.hm-today.hm-enter')) mark('enter')
+    if (document.querySelector('.h-streak-roll')) mark('roll')
+    if (document.querySelector('.h-streak .lf-ember')) mark('embers')
+    const b = document.querySelector('[data-testid="streak-number"] b')
+    if (b && !/^\d+$/.test(b.textContent.trim())) mark('number-garbled')
+  }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] })
+}
+{
+  const { ctx, page, errors } = await open('veteran', {}, { init: watch })
+  const t = await page.evaluate(() => ({
+    enter: window.__seen.includes('enter'),
+    sway: getComputedStyle(document.querySelector('.h-streak .lf-a') || document.body).animationName,
+  }))
+  ok('home: the way in plays on the first Home', t.enter, JSON.stringify(t))
+  ok('home: the streak\'s flame moves gently, always', t.sway === 'lf-sway', JSON.stringify(t))
+  await page.waitForTimeout(2000)
+  ok('home: the way in is done after it played', await page.locator('.hm-enter').count() === 0)
+  await page.locator('nav > button').nth(1).click()
+  await page.waitForTimeout(400)
+  await page.locator('nav > button').nth(0).click()
+  await page.waitForTimeout(100)
+  ok('home: not again on a tab switch', await page.locator('.hm-enter').count() === 0)
+  ok('home way in: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+{
+  const { ctx, page, errors } = await open('veteran', {}, { reduced: true })
+  const t = await page.evaluate(() => ({
+    sway: getComputedStyle(document.querySelector('.h-streak .lf-a')).animationName,
+    moving: [...document.querySelectorAll('.hm-today *')].flatMap(e => e.getAnimations()).filter(a => a.playState === 'running' && a.animationName).length,
+  }))
+  ok('home, reduced: the flame is still', t.sway === 'none', JSON.stringify(t))
+  ok('home, reduced: the way in is one fade, nothing sliding', t.moving === 0, JSON.stringify(t))
+  ok('home, reduced: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+{
+  const { ctx, page, errors } = await open('trained-today', {}, { init: watch })
+  await page.waitForTimeout(1500)
+  const lit = await page.evaluate(() => ({
+    key: localStorage.getItem('meran_flame_lit'),
+    counted: document.querySelector('[data-testid="streak-number"]')?.classList.contains('counted'),
+    seen: window.__seen,
+  }))
+  ok('flame: today counted lights the flame, with its embers, remembered for the day',
+    lit.counted && lit.key === '2026-07-09' && lit.seen.includes('embers'), JSON.stringify(lit))
+  ok('flame: the number rolls up over the number, which stays the button\'s text',
+    lit.seen.includes('roll') && !lit.seen.includes('number-garbled'), JSON.stringify(lit))
+  ok('flame: then it is just the number', await page.locator('.h-streak-roll').count() === 0)
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.waitForTimeout(600)
+  const again = await page.evaluate(() => window.__seen)
+  ok('flame: once a day — opening again does not light it again', !again.includes('roll') && !again.includes('embers'), JSON.stringify(again))
+  const home = await page.evaluate(() => document.querySelector('.h-top-text')?.firstElementChild?.innerText.replace(/\s+/g, ' ').trim())
+  ok('flame: Home still says the number and nothing else', /^\d+ (يوم|أيام)$/.test(home || ''), home)
+  ok('flame: no page errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
 

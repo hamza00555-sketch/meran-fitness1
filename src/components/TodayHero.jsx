@@ -10,6 +10,7 @@ import { deloadWeight } from '../deload.js'
 import { countAr, unitAr } from '../streak.js'
 import { ExerciseThumb, exerciseNames, withNums } from './home/HomeBits.jsx'
 import { dayWord, musclesLine, mainMuscle, muscleArt, estimateMinutes } from './home/dayParts.js'
+import { animate, reducedMotion } from '../motion.js'
 
 // ── Today — the one lit moment on Home ────────────────────────
 //
@@ -41,6 +42,16 @@ import { dayWord, musclesLine, mainMuscle, muscleArt, estimateMinutes } from './
 // load (the last weight made lighter by the deload's percentage, as the
 // player does) and never the gold «raise» arrow: the week is meant to
 // be light, and Home must not say the opposite of the player.
+//
+// The way in (home.css, .hm-enter): the first time Home shows after the
+// app opens, the stage light comes up, the muscle rises into it, the day's
+// word wipes in, the exercises follow one by one and the button gets one
+// sheen. Once per app open — remembered in memory, not storage — never on
+// a tab switch. Reduced motion: one fade. Back from a workout (`calm`,
+// the moment the streak's flame lights) the quiet stage rises in.
+
+// The first Home of this app run gets the entrance.
+let firstHome = true
 
 function sessionContext(active, mapping) {
   if (!active?.exercises?.length) return null
@@ -125,8 +136,21 @@ export default function TodayHero({
   isRecoveryDay, completedToday = false, streakKind = null, deload,
   sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
   onStartPlanned, onStartEmpty, onSkip, onGoToWorkout, onOverrideRecovery,
-  repTarget = DEFAULT_REP_TARGET,
+  repTarget = DEFAULT_REP_TARGET, calm = false,
 }) {
+  const [enter, setEnter] = useState(firstHome)
+  const section = useRef(null)
+  useEffect(() => {
+    firstHome = false
+    if (!enter) return
+    if (reducedMotion()) {
+      const a = animate(section.current, [{ opacity: 0 }, { opacity: 1 }], { d: 300, e: 'linear' })
+      return () => { try { a?.cancel() } catch {} }
+    }
+    // Off once it has played, so nothing later re-runs it.
+    const t = setTimeout(() => setEnter(false), 1700)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [showSheet, setShowSheet] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   // Each opening is a fresh sheet, so the kit's sheet reads the button
@@ -196,7 +220,7 @@ export default function TodayHero({
   const more = exCount - shown.length
 
   return (
-    <section className={`hm-today${done ? ' is-done' : ''}${resting ? ' is-rest' : ''}`} aria-label="تمرين اليوم">
+    <section ref={section} className={`hm-today${done ? ' is-done' : ''}${resting ? ' is-rest' : ''}${enter ? ' hm-enter' : ''}${calm ? ' hm-calm' : ''}`} aria-label="تمرين اليوم">
       <div className={`k-stage hm-stage${done ? ' hm-stage-quiet' : ''}${resting ? ' hm-stage-rest' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
         {stageArt}
 

@@ -26,7 +26,19 @@
 .sum-xp { display: flex; justify-content: space-between; font-size: var(--t-body); color: var(--ink-2); font-weight: 600; }
 .sum-xp-gain { color: var(--accent); font-weight: 700; }
 .sum-levelup { margin: 0; font-size: var(--t-headline); font-weight: 800; color: var(--accent); }
-.sum-ach { font-size: var(--t-body); font-weight: 600; padding: 6px 0; }
+/* «إنجازات جديدة»: the stage the medals land on (MedalReveal.jsx), full
+   width; a third medal and beyond in a quiet row under it. */
+.sum-ach-sec { gap: 0; }
+.sum-ach-sec h2 { margin-bottom: -8px; position: relative; z-index: 1; }
+.sum-ach-rest {
+  list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px;
+  opacity: 0; transition: opacity 400ms var(--ease-out);
+}
+.sum-ach-rest.on { opacity: 1; }
+.sum-ach-rest li { display: inline-flex; align-items: center; gap: 8px; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); }
+.sum-trophy { display: inline-grid; }
+/* the rolling digits (RollNumber) at the line's own height */
+.sum-roll { --roll-h: 1.1em; }
 .sum-foot {
   position: sticky; bottom: 0; padding: var(--space-4) 0 calc(var(--safe-bottom) + var(--space-4));
   background: linear-gradient(to top, var(--ground) 70%, transparent);

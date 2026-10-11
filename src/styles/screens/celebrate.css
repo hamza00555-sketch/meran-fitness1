@@ -1,12 +1,13 @@
 /* ══ Celebrations — مستوى جديد, خلص الديلود ═════════════════════════
    components/LevelUpScreen.jsx · DeloadEndScreen.jsx.
    A broadcast wipe in from the start edge (right, in RTL), beats about
-   a third of a second apart, then still. No glow, no shimmer, no loop.
-   Motion on transform/opacity/clip-path only. */
+   a third of a second apart, then still. No glow and no loop; on the
+   level-up screen the crest drops in on a spring and gets one sheen and
+   one ring (LevelUpScreen.jsx drives those, once). Motion on
+   transform/opacity/clip-path only. */
 
 @keyframes cel-wipe  { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
 @keyframes cel-in    { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@keyframes cel-crest { from { opacity: 0; transform: scale(0.6); } 70% { opacity: 1; transform: scale(1.03); } to { opacity: 1; transform: scale(1); } }
 @keyframes cel-thaw  { from { opacity: 1; } to { opacity: 0; } }
 
 .cel {
@@ -38,8 +39,22 @@
 .cel-crest-text { display: inline-flex; align-items: baseline; gap: 8px; font-size: var(--t-title); font-weight: 800; color: var(--ink); }
 .cel-crest-letter { font-stretch: 85%; color: var(--ink-2); }
 
-/* rank promotion: the crest is the hero */
-.cel-crest-hero { animation: cel-crest 380ms var(--ease-out) both; animation-delay: calc(320ms + 260ms); }
+/* The crest, with what passes over it once: a sheen cut to the crest's
+   own shape (masked by its image) and a ring leaving from behind it. */
+.cel-crest-wrap { position: relative; flex: none; display: inline-grid; place-items: center; width: var(--cs); height: var(--cs); }
+.cel-crest-wrap > * { grid-area: 1 / 1; }
+.cel-wave {
+  width: 100%; height: 100%; border-radius: var(--r-pill); pointer-events: none; opacity: 0;
+  box-shadow: inset 0 0 0 2px rgba(244,246,248,0.55);
+}
+.cel-sheen {
+  width: 100%; height: 100%; pointer-events: none; opacity: 0;
+  background: linear-gradient(110deg, transparent 38%, rgba(255,255,255,0.7) 50%, transparent 62%) 100% 0 / 300% 100% no-repeat;
+  -webkit-mask: var(--crest) center / contain no-repeat; mask: var(--crest) center / contain no-repeat;
+}
+.cel-conf { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+/* a tap jumped to the end */
+.cel-skip .cel-beat { animation: none; }
 .cel-rank { display: inline-flex; align-items: baseline; gap: 12px; }
 .cel-rank-letter { font-size: var(--t-display); font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--ink); }
 .cel-rank-name { font-size: var(--t-screen); font-weight: 800; color: var(--ink); }
@@ -87,6 +102,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cel { animation: k-fade-in 160ms linear both; }
-  .cel-beat, .cel-crest-hero, .cel-thaw-ice { animation-duration: 1ms; animation-delay: 0ms; }
+  .cel-beat, .cel-thaw-ice { animation-duration: 1ms; animation-delay: 0ms; }
   .cel-thaw-ice { opacity: 0; }
 }

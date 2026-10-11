@@ -3,10 +3,11 @@ import { ACHIEVEMENTS, ACHIEVEMENT_CATS, RARITY_COLORS } from '../constants.js'
 import { getRank, xpProgress } from '../utils.js'
 import { Num, Gauge, Chip, Sheet, Chapter } from '../components/kit/index.jsx'
 import Medal from '../components/progress/Medal.jsx'
+import MedalReveal from '../components/progress/MedalReveal.jsx'
 import RankLadder from '../components/progress/RankLadder.jsx'
 import RankCrest from '../components/progress/RankCrest.jsx'
 import Numify from '../components/progress/Numify.jsx'
-import { progressContext, progressOf, nearestLocked, fmtEarned, achText } from '../components/progress/achievementMeta.js'
+import { progressContext, progressOf, nearestLocked, fmtEarned, fmtDate, achText } from '../components/progress/achievementMeta.js'
 import '../styles/screens/progress.css'
 
 // ── الإنجازات ─────────────────────────────────────────────────
@@ -15,7 +16,9 @@ import '../styles/screens/progress.css'
 // Arabic name, and the one number that moves — XP to the next level.
 // Under it the ladder E → S+, then «التالي» (the three badges closest
 // to flipping, with how far along they are), then the medal wall in
-// three columns. Tapping a medal opens it in a sheet.
+// three columns. Tapping a medal opens it in a sheet — an earned one
+// spins there on its metal edge every time it opens (حمزة: «كل ما
+// أفتحها»), and a tap on it spins it again; a locked one stays flat.
 //
 // No gold on this page at all: gold means «raise the weight». XP and
 // the level are neutral or accent.
@@ -24,7 +27,10 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US')
 
 export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, unlockedAchievements, unlockedAt = {}, level: levelProp }) {
   const [cat, setCat] = useState('all')
-  const [open, setOpen] = useState(null)
+  const [open, setOpenId] = useState(null)
+  // Every opening is a new reveal, even of the medal just closed.
+  const [opens, setOpens] = useState(0)
+  const setOpen = (id) => { if (id) setOpens(n => n + 1); setOpenId(id) }
 
   const unlocked = unlockedAchievements || []
   const satisfied = useMemo(() => new Set(
@@ -124,13 +130,14 @@ export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, un
         earned={openA ? isEarned(openA.id) : false}
         earnedAt={openA ? unlockedAt[openA.id] : null}
         progress={openA ? progressOf(openA, ctx) : null}
+        opens={opens}
         onClose={() => setOpen(null)}
       />
     </div>
   )
 }
 
-function MedalSheet({ a, open, earned, earnedAt, progress, onClose }) {
+function MedalSheet({ a, open, earned, earnedAt, progress, opens, onClose }) {
   // Keep the last medal while the sheet animates out.
   const last = useRef(a)
   if (a) last.current = a
@@ -143,7 +150,10 @@ function MedalSheet({ a, open, earned, earnedAt, progress, onClose }) {
   return (
     <Sheet open={open} onClose={onClose} title={<Numify>{title}</Numify>}>
       <div className="pg-sheet">
-        <Medal achievement={m} earned={earned} size={132} showUnit />
+        {earned
+          ? <MedalReveal key={`${m.id}:${opens}`} items={[m]} variant="sheet" play
+              date={earnedAt ? fmtDate(earnedAt) : ''} />
+          : <Medal achievement={m} earned={false} size={132} showUnit />}
         <p className="pg-sheet-desc"><Numify>{desc}</Numify></p>
         <div className="pg-sheet-chips">
           <Chip>{rarity}</Chip>

@@ -1,0 +1,20 @@
+/* ══ The streak's flame, alive (components/streak/LiveFlame.jsx) ═══ */
+.lf { position: relative; display: inline-grid; place-items: center; line-height: 0; }
+.lf-a, .lf-b { display: grid; place-items: center; transform-origin: 50% 88%; }
+.lf-b > * { grid-area: 1 / 1; }
+.lf-fill { display: grid; }
+
+/* Gently, always: a slow lean and a quicker flicker that never line up. */
+@keyframes lf-sway  { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes lf-flick { 0%, 100% { transform: scale(1, 1); } 33% { transform: scale(0.97, 1.05); } 66% { transform: scale(1.02, 0.97); } }
+.lf-sway .lf-a { animation: lf-sway 3.6s var(--ease-io) infinite; }
+.lf-sway .lf-b { animation: lf-flick 1.9s var(--ease-io) infinite; }
+
+.lf-ember {
+  position: absolute; left: 50%; top: 14%; border-radius: var(--r-pill);
+  background: var(--streak); opacity: 0; pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-sway .lf-a, .lf-sway .lf-b { animation: none; }
+}

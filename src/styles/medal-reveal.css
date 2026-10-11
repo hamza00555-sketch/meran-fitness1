@@ -1,0 +1,56 @@
+/* ══ A medal that spins (components/progress/MedalReveal.jsx) ═══════
+   The stage is full width and clips its own effects (rays, sparks, the
+   landing ring), so nothing spills over the heading above it. The WebGL
+   canvas and its labels are placed inside .mr-stage by medal3d.js; the
+   flat fallback (no WebGL) is drawn by React in the same box. */
+
+.mr { position: relative; }
+.mr-stage {
+  position: relative; overflow: hidden; isolation: isolate;
+  height: 344px; margin-inline: calc(-1 * var(--gutter));
+}
+/* A pool of the neutral stage light the medal lands in — lit from the
+   first frame, before the medal arrives (--stage-light at 55%). */
+.mr-stage::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  background: radial-gradient(56% 50% at 50% 46%, rgba(42,48,56,0.55), rgba(42,48,56,0) 72%);
+}
+
+/* The titles under the medals (medal3d.js positions them on the floor). */
+.m3-lab { gap: 2px; text-align: center; max-width: 82vw; }
+.m3-two { max-width: 42vw; }
+.m3-lab b, .mr-flat-lab b { font-size: var(--t-title); font-weight: 800; line-height: 1.3; color: var(--ink); text-wrap: balance; }
+.m3-two b, .mr-two .mr-flat-lab b { font-size: var(--t-headline); }
+.m3-lab small, .mr-flat-lab small { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+/* rarity, the way the medals say it: neutral → silver → bright. No gold:
+   gold means «raise the weight». */
+.m3-rare small { color: var(--ink-2); }
+.m3-epic small, .m3-legendary small { color: var(--ink); }
+
+/* ── No WebGL: the app's flat medal, turning on a CSS rotateY ── */
+.mr-flat {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  gap: clamp(24px, 10vw, 48px); padding: 0 var(--gutter) 40px;
+}
+.mr-flat-one {
+  display: grid; justify-items: center; gap: 14px; text-align: center; min-width: 0;
+  max-width: 44%; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  will-change: transform, opacity;
+}
+.mr:not(.mr-two) .mr-flat-one { max-width: 82%; }
+.mr-flat-lab { display: grid; gap: 2px; }
+
+/* ── In the medal sheet: one medal, the sheet already says its name ── */
+.mr-sheet { justify-self: stretch; }
+.mr-sheet .mr-stage { height: 236px; }
+.mr-sheet .mr-flat { padding-bottom: 0; }
+
+@media (max-height: 700px) {
+  .mr-summary .mr-stage { height: 300px; }
+}
+
+/* What the stage shows, for a screen reader. */
+.mr-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; list-style: none;
+}

@@ -27,8 +27,8 @@ export const SOUNDS = {
   'raise':       { gain: 0.55 },   // «ارفع الوزن», soft
   'rest-tick':   { gain: 0.75 },   // rest −3 / −2 / −1
   'rest-end':    { gain: 0.9 },    // rest at zero
-  'medal':       { gain: 0.8 },    // a medal lands
-  'medal-heavy': { gain: 0.8 },    // a rare / epic / legendary one
+  'medal':       { gain: 0.8 },    // a medal lands (the summary's reveal)
+  'medal-heavy': { gain: 0.8 },    // a rare / epic / legendary one (medalQueue.js landingFeel)
   'new-weight':  { gain: 0.6 },    // the monthly report's new heaviest weight
 }
 
