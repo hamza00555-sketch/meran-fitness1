@@ -144,3 +144,23 @@ test('the level-up ladder climbs from the old level to the new', async () => {
   assert.match(src('src/components/progress/RankLadder.jsx'), /fillFrom/)
   assert.match(src('src/components/LevelUpScreen.jsx'), /fillFrom=\{before\}/)
 })
+
+test('a new rank is a new rank however many levels the session jumped', async () => {
+  const { reachedNewRank } = await import('../src/components/progress/ladder.js')
+  assert.equal(reachedNewRank(4, 5), true)      // lands on D's first level
+  assert.equal(reachedNewRank(4, 6), true)      // jumps past it: still D's moment
+  assert.equal(reachedNewRank(3, 4), false)
+  assert.equal(reachedNewRank(5, 6), false)     // already D
+  assert.equal(reachedNewRank(9, 12), true)     // C at 10
+  assert.equal(reachedNewRank(0, 1), false)     // the first level is no promotion
+  assert.equal(reachedNewRank(6, 6), false)
+  assert.match(src('src/components/LevelUpScreen.jsx'), /reachedNewRank\(before, level\)/)
+})
+
+test('Home\'s flame waits while anything covers Home', () => {
+  const app = src('src/App.jsx')
+  const hold = app.match(/hold=\{([^}]+)\}/)?.[1] || ''
+  for (const k of ['summary', 'showLevelUp', 'sessionOpen', 'showReport', 'onboarding', 'showDeloadEnd', 'showWhatsNew', 'packOffer']) {
+    assert.ok(hold.includes(k), `hold misses ${k}`)
+  }
+})

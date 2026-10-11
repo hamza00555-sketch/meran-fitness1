@@ -10,3 +10,10 @@ export function ladderFill(level) {
   const within = next ? Math.max(0, Math.min(1, (level - rank.minLevel) / (next.minLevel - rank.minLevel))) : 0
   return (idx + within) / (RANKS.length - 1)
 }
+
+/** Did going from level `before` to `level` open a new rank? Also when a
+ *  session jumped several levels and went past a rank's first level
+ *  (4 → 6 opens D), not only when it landed exactly on it. */
+export function reachedNewRank(before, level) {
+  return level > 1 && level > before && getRank(Math.max(1, before)).tier !== getRank(level).tier
+}
