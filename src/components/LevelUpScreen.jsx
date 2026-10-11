@@ -5,6 +5,8 @@ import { getRank } from '../utils.js'
 import { Button, Sheet, Num } from './kit/index.jsx'
 import RankCrest from './progress/RankCrest.jsx'
 import RankLadder from './progress/RankLadder.jsx'
+import RollNumber from './RollNumber.jsx'
+import { EASE } from '../motion.js'
 import { shareLevelCard } from './progress/levelCard.js'
 import '../styles/screens/celebrate.css'
 import { lockScroll } from '../scrollLock.js'
@@ -104,29 +106,14 @@ export default function LevelUpScreen({ level, from, onDismiss, onShare }) {
 }
 
 // The number rolls like an odometer: each digit that changes slides up
-// out of its window as the new one slides in, the last digit first.
+// out of its window as the new one slides in, the last digit first —
+// after the screen's wipe and eyebrow (700ms), 30ms apart, 280ms each.
 function Roll({ from, to }) {
-  const a = String(from)
-  const b = String(to)
-  const len = Math.max(a.length, b.length)
-  const A = a.padStart(len, ' ')
-  const B = b.padStart(len, ' ')
   return (
     <div className="cel-roll cel-beat" style={{ '--b': 1 }} aria-label={`المستوى ${to}`} role="img">
       <bdi dir="ltr" className="cel-roll-n" aria-hidden="true">
-        {B.split('').map((ch, i) => {
-          const old = A[i]
-          const order = len - 1 - i
-          if (old === ch) return <span key={i} className="cel-digit">{ch}</span>
-          return (
-            <span key={i} className="cel-digit">
-              <span className="cel-strip" style={{ '--d': order }}>
-                <span>{old === ' ' ? ' ' : old}</span>
-                <span>{ch}</span>
-              </span>
-            </span>
-          )
-        })}
+        <RollNumber from={from} to={to} delay={700} stagger={30} duration={280} easing={EASE.out} up
+          style={{ '--roll-h': '1em' }} />
       </bdi>
     </div>
   )

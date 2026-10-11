@@ -1,8 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Chip, Num } from '../kit/index.jsx'
 import { ArrowUp, Minus, Plus, PencilSimple } from '../kit/icons.js'
 import RaiseRing from './RaiseRing.jsx'
+import RollNumber from '../RollNumber.jsx'
 import { primeAudio } from './sessionAudio.js'
+import { play } from '../../sound.js'
+import { animate, reducedMotion, EASE } from '../../motion.js'
 import { kg, setWords, repsWord } from './sessionWords.js'
 
 // ── The live block: the set being worked ──────────────────────
@@ -18,9 +21,24 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 // through the same handlers as before; this decides sizes, not rules.
 //
 // RAISE: when the progression engine says the weight should go up, the
-// number itself is gold and already holds the new weight, with a gold
-// ring drawn once around it, a chip saying by how much, and «خلّها 75»
-// to put it back in one tap. No other gold on the screen.
+// number itself turns gold and holds the new weight, a gold ring goes
+// around it, a chip says by how much, and «خلّها 75» puts it back in one
+// tap. No other gold on the screen. The first time an exercise shows it,
+// it happens in front of you (the plan's «طلبك 2»):
+//
+//     250ms  the old weight rolls up to the new one and turns gold
+//            (and the short «raise» sound plays)
+//     300ms  the chip slides in; its arrow hops once at 600ms
+//     450ms  «جرّب 77.5 كجم» fades in; «خلّها 75» at 700ms
+//     500ms  the ring draws, bottom to top, 900ms
+//    1400ms  one soft gold flare; a sheen crosses the number at 1500ms
+//    2400ms  the ring starts to breathe, and keeps on until the number
+//            is touched — the field, its steppers or «خلّها»
+//
+// Coming back to the exercise before starting it: only the sheen.
+// «خلّها 75» runs it backwards: the number rolls down, the gold goes,
+// the ring withdraws and the chip leaves. Reduced motion: gold from the
+// first frame, the ring whole and still, nothing breathing.
 
 // Hold to repeat: after 400ms every 150ms, stepping up to 100ms after
 // 1.5s — never faster. Stops on release, cancel or losing the pointer.
@@ -36,7 +54,13 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 const TAP_SLOP = 10
 const HOLD_DELAY = 400
 
-function HoldButton({ label, onStep, children }) {
+// The intro's beats, in ms from its start.
+const T = { roll: 250, chip: 300, hop: 600, adv: 450, keep: 700, ring: 500, flare: 1400, sheen: 1500, done: 2110, breathe: 2400 }
+
+const GOLD = 'rgb(251, 191, 36)'
+const INK = 'rgb(244, 246, 248)'
+
+function HoldButton({ label, onStep, onPress, children }) {
   const timer = useRef(null)
   const press = useRef(null)          // { id, x, y, touch, repeating, at }
   const step = useRef(onStep)
@@ -77,6 +101,7 @@ function HoldButton({ label, onStep, children }) {
       onPointerDown={(e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return
         primeAudio()
+        onPress?.()
         clearTimeout(timer.current)
         const touch = e.pointerType !== 'mouse'
         press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, touch, repeating: false, at: performance.now() }
@@ -112,6 +137,7 @@ function HoldButton({ label, onStep, children }) {
         // for a finger); only a keyboard activation — a click with no
         // pointer behind it, detail 0 — steps here.
         if (e.detail > 0) return
+        onPress?.()
         step.current()
       }}
     >
@@ -120,7 +146,50 @@ function HoldButton({ label, onStep, children }) {
   )
 }
 
-function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, ringDraw, inputTestId }) {
+/**
+ * The number drawn over the input while it moves: a roll (the raise
+ * coming in, «خلّها» taking it back) and/or a sheen. The input itself is
+ * hidden meanwhile (still focusable: a tap ends this) and comes back when
+ * this goes.
+ */
+function NumberOverlay({ show, onGone }) {
+  const ref = useRef(null)
+  const gone = useRef(onGone)
+  gone.current = onGone
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const anims = []
+    const now = performance.now()
+    if (show.color) {
+      anims.push(animate(el, [{ color: show.color[0] }, { color: show.color[1] }],
+        { d: show.colorMs || 320, delay: Math.max(0, show.colorAt - now) }))
+    }
+    let t1 = 0, t2 = 0
+    if (show.sheenAt != null) {
+      t1 = setTimeout(() => {
+        // On the number's own text: background-clip: text skips the text
+        // of positioned children, and the rolled number is one.
+        const n = el.querySelector('.k-roll') || el
+        n.classList.add('s-gt')
+        animate(n, [{ backgroundPosition: '100% 0' }, { backgroundPosition: '0% 0' }], { d: 600, e: EASE.io, fill: 'none' })
+      }, Math.max(0, show.sheenAt - now))
+    }
+    if (show.until != null) t2 = setTimeout(() => gone.current?.(), Math.max(0, show.until - now))
+    return () => { clearTimeout(t1); clearTimeout(t2); anims.forEach(a => a?.cancel?.()) }
+  }, [show.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <span className="s-field-roll" ref={ref} aria-hidden="true">
+      {show.from != null
+        ? <RollNumber from={show.from} to={show.to} delay={Math.max(0, show.rollAt - performance.now())}
+            stagger={show.stagger ?? 40} up={show.up}
+            onDone={show.until == null ? () => gone.current?.() : undefined} />
+        : <span className="k-roll">{show.to}</span>}
+    </span>
+  )
+}
+
+function Stepper({ field, value, unit, unitLabel, onInput, onStep, onTouch, raise, ring, overlay, onOverlayGone, inputTestId }) {
   const fieldRef = useRef(null)
   // The number's width in digits (a point is half a digit). The CSS sizes
   // the input to it and shrinks the type when a long weight («202.5»)
@@ -134,24 +203,27 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, 
   const fit = field === 'weight' && whole >= 3 ? Math.max(len, whole + 1.5) : len
   return (
     <div className="s-step" data-field={field}>
-      <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)}>
+      <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)} onPress={onTouch}>
         <Minus size={24} weight="bold" aria-hidden="true" />
       </HoldButton>
-      <label className="s-field" ref={fieldRef} data-raise={raise ? '1' : undefined}>
-        <input
-          type="text" inputMode="decimal" dir="ltr" size={1}
-          aria-label={unitLabel}
-          data-testid={inputTestId}
-          placeholder="0"
-          value={value ?? ''}
-          style={{ '--len': len, '--fit': fit }}
-          onFocus={e => e.target.select()}
-          onChange={e => onInput(e.target.value)}
-        />
+      <label className="s-field" ref={fieldRef} data-raise={raise ? '1' : undefined}
+        onPointerDown={onTouch}>
+        <span className="s-field-num" style={{ '--len': len, '--fit': fit }} data-rolling={overlay ? '1' : undefined}>
+          <input
+            type="text" inputMode="decimal" dir="ltr" size={1}
+            aria-label={unitLabel}
+            data-testid={inputTestId}
+            placeholder="0"
+            value={value ?? ''}
+            onFocus={e => { onTouch?.(); onOverlayGone?.(); e.target.select() }}
+            onChange={e => onInput(e.target.value)}
+          />
+          {overlay && <NumberOverlay key={overlay.id} show={overlay} onGone={onOverlayGone} />}
+        </span>
         <span className="s-field-unit">{unit}</span>
-        {ring && <RaiseRing hostRef={fieldRef} draw={ringDraw} />}
+        {ring && <RaiseRing hostRef={fieldRef} {...ring} />}
       </label>
-      <HoldButton label={`زد ${unitLabel}`} onStep={() => onStep(1)}>
+      <HoldButton label={`زد ${unitLabel}`} onStep={() => onStep(1)} onPress={onTouch}>
         <Plus size={24} weight="bold" aria-hidden="true" />
       </HoldButton>
     </div>
@@ -161,16 +233,94 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, raise, ring, 
 export default function WorkingArea({
   ex, setIndex, editing = false,
   prevSet = null, coach = null,
-  raise = null,            // { base, raised, ringDraw } when the engine says raise
+  // When the engine says raise: { base, raised, intro: 'full' | 'sheen' | null,
+  // introAt (performance.now() the intro counts from), breathe, onTouch }.
+  raise = null,
   deloadPct = 0,           // a deload week: last time's numbers are the heavy ones
   onUpdateSet, onStepSet, onKeepBase,
 }) {
   const set = ex.sets[setIndex]
+  const [overlay, setOverlay] = useState(null)
+  const [, force] = useState(0)
+  const liveRef = useRef(null)
+  const chipRef = useRef(null)
+  const coachRef = useRef(null)
+  const introRan = useRef(null)
+  // What the raise looked like on the last render of this exercise.
+  const track = useRef({ ex: null, raised: null, delta: 0, leavingUntil: 0, quickUntil: 0 })
+
+  const w = parseFloat(set?.weight)
+  const raised = !!set && !!raise && Number.isFinite(w) && raise.base != null && w > raise.base
+  const delta = raised ? Math.round((w - raise.base) * 100) / 100 : 0
+  const reduce = reducedMotion()
+
+  // Raised ↔ not, while this exercise is on screen: «خلّها» (or stepping
+  // back down) sends the ring and the chip out; raising by hand redraws
+  // the ring quickly. A new exercise starts with a clean slate.
+  const now = typeof performance !== 'undefined' ? performance.now() : 0
+  const inIntro = raise?.intro === 'full' && now < raise.introAt + T.ring + 900
+  if (track.current.ex !== ex.id) track.current = { ex: ex.id, raised: null, delta: 0, leavingUntil: 0, quickUntil: 0 }
+  if (raise) {
+    const was = track.current.raised
+    if (was != null && !reduce) {
+      if (was && !raised) track.current.leavingUntil = now + 320
+      if (!was && raised && !inIntro) track.current.quickUntil = now + 650
+    }
+    track.current.raised = raised
+    if (delta) track.current.delta = delta
+  }
+  const retracting = !raised && now < track.current.leavingUntil
+  useEffect(() => {
+    if (!retracting) return
+    const t = setTimeout(() => force(n => n + 1), Math.max(0, track.current.leavingUntil - performance.now()) + 10)
+    return () => clearTimeout(t)
+  }, [retracting])
+
+  // A moving number belongs to the set it started on.
+  useLayoutEffect(() => { setOverlay(null) }, [ex.id, setIndex])
+
+  // The intro, once per showing that asks for it.
+  const introKey = raise?.intro && raised && !editing ? `${ex.id}|${raise.intro}|${raise.introAt}` : null
+  useLayoutEffect(() => {
+    if (!introKey || introRan.current === introKey) return
+    introRan.current = introKey
+    if (reduce) return
+    const at = raise.introAt
+    const t = performance.now()
+    if (raise.intro === 'full') {
+      setOverlay({ id: introKey, from: kg(raise.base), to: kg(set.weight), rollAt: at + T.roll, stagger: 45,
+        color: [INK, GOLD], colorAt: at + T.roll, sheenAt: at + T.sheen, until: at + T.done })
+      const sound = setTimeout(() => play('raise'), Math.max(0, at + T.roll - t))
+      const chip = chipRef.current
+      animate(chip, [{ opacity: 0, transform: 'translateX(-12px) scale(.96)' }, { opacity: 1, transform: 'none' }], { d: 260, delay: Math.max(0, at + T.chip - t) })
+      animate(chip?.querySelector('svg'), [{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' }, { transform: 'translateY(0)' }], { d: 320, delay: Math.max(0, at + T.hop - t), fill: 'none' })
+      animate(coachRef.current?.querySelector('.s-coach-adv'), [{ opacity: 0 }, { opacity: 1 }], { d: 240, delay: Math.max(0, at + T.adv - t) })
+      animate(coachRef.current?.querySelector('.s-keep'), [{ opacity: 0 }, { opacity: 1 }], { d: 240, delay: Math.max(0, at + T.keep - t) })
+      animate(liveRef.current?.querySelector('.s-field'), [
+        { boxShadow: '0 0 0 0 rgba(251,191,36,0)' },
+        { boxShadow: '0 0 0 0 rgba(251,191,36,0)', offset: 0.01 },
+        { boxShadow: '0 0 26px 3px rgba(251,191,36,0.38)', offset: 0.45 },
+        { boxShadow: '0 0 12px 0 rgba(251,191,36,0.16)' },
+      ], { d: 600, delay: Math.max(0, at + T.flare - t), fill: 'backwards' })
+      return () => clearTimeout(sound)
+    }
+    if (raise.intro === 'sheen') {
+      setOverlay({ id: introKey, from: null, to: kg(set.weight), sheenAt: t + 150, until: t + 800 })
+    }
+  }, [introKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!set) return null
 
-  const w = parseFloat(set.weight)
-  const raised = !!raise && Number.isFinite(w) && raise.base != null && w > raise.base
-  const delta = raised ? Math.round((w - raise.base) * 100) / 100 : 0
+  const touch = () => raise?.onTouch?.()
+  const keep = () => {
+    touch()
+    if (!reduce && raised) {
+      setOverlay({ id: `keep-${performance.now()}`, from: kg(set.weight), to: kg(raise.base), rollAt: performance.now(),
+        up: false, color: [GOLD, INK], colorAt: performance.now(), colorMs: 300 })
+    }
+    onKeepBase()
+  }
+
   const showKeep = !!raise && raise.base != null && Number.isFinite(w) && w !== raise.base
   const prev = setWords(prevSet)
   // «حط أرقام آخر مرة» only when it would change something.
@@ -178,8 +328,18 @@ export default function WorkingArea({
   const prevR = parseInt(prevSet?.reps)
   const asLast = !!prev && (!prevW || kg(set.weight) === prevW) && (!(prevR > 0) || parseInt(set.reps) === prevR)
 
+  // The ring: drawn in the intro, redrawn quickly when raised by hand,
+  // withdrawn when the raise is put back; breathing until touched.
+  const ring = raised ? {
+    draw: reduce ? null : inIntro ? 'full' : now < track.current.quickUntil ? 'quick' : null,
+    drawDelay: inIntro ? raise.introAt + T.ring - now : 0,
+    breathe: !reduce && !!raise.breathe,
+    breatheDelay: raise.intro === 'full' ? raise.introAt + T.breathe - now : 0,
+  } : retracting ? { retract: true } : null
+  const chipDelta = raised ? delta : retracting ? track.current.delta : 0
+
   return (
-    <div className="s-live" data-testid="live-block" data-editing={editing ? '1' : undefined}>
+    <div className="s-live" data-testid="live-block" data-editing={editing ? '1' : undefined} ref={liveRef}>
       <div className="s-live-h">
         {editing ? (
           <span className="s-live-set">
@@ -192,10 +352,12 @@ export default function WorkingArea({
             <span className="s-live-of">من <Num>{ex.sets.length}</Num></span>
           </span>
         )}
-        {raised ? (
-          <Chip tone="raise" icon={ArrowUp} className="s-raise-chip">
-            <Num>+{kg(delta)}</Num> كجم عن آخر مرة
-          </Chip>
+        {(raised || retracting) && chipDelta > 0 ? (
+          <span ref={chipRef} className="s-raise-chip-w" data-leaving={retracting ? '1' : undefined}>
+            <Chip tone="raise" icon={ArrowUp} className="s-raise-chip">
+              <Num>+{kg(chipDelta)}</Num> كجم عن آخر مرة
+            </Chip>
+          </span>
         ) : prev && !editing && !asLast && !(deloadPct > 0) ? (
           // One tap puts last time's numbers back; the coach line under the
           // counters already says what they were, so this only says what it
@@ -216,7 +378,9 @@ export default function WorkingArea({
       <Stepper
         field="weight" value={set.weight} unit="كجم" unitLabel="الوزن"
         inputTestId="weight-input"
-        raise={raised} ring={raised} ringDraw={!!raise?.ringDraw}
+        raise={raised} ring={ring}
+        overlay={overlay} onOverlayGone={() => setOverlay(null)}
+        onTouch={raise ? touch : undefined}
         onInput={v => onUpdateSet(setIndex, 'weight', v)}
         onStep={dir => onStepSet(setIndex, 'weight', dir * 2.5)}
       />
@@ -228,10 +392,10 @@ export default function WorkingArea({
       />
 
       {(coach || showKeep) && (
-        <div className="s-coach">
+        <div className="s-coach" ref={coachRef}>
           <span className="s-coach-text">{coach}</span>
           {showKeep && (
-            <button type="button" className="s-keep" onClick={onKeepBase}>
+            <button type="button" className="s-keep" onClick={keep}>
               خلّها <Num>{kg(raise.base)}</Num>
             </button>
           )}

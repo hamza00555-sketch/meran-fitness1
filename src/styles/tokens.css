@@ -106,6 +106,20 @@
   --ease-exit:  cubic-bezier(0.4, 0, 1, 1);
   --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-wipe:  cubic-bezier(0.7, 0, 0.2, 1);
+  --ease-io:    cubic-bezier(0.45, 0, 0.55, 1);
+  /* Springs, set like Apple's (duration, bounce) and written as linear()
+     below where the browser has it; until then a cubic-bezier with the
+     same character. src/motion.js computes the same curves for the Web
+     Animations calls (tests/motion.test.mjs keeps the two in step).
+     Use the curve with its own duration: --spring-x with --spring-x-ms. */
+  --spring-snappy: cubic-bezier(0.34, 1.4, 0.64, 1);  --spring-snappy-ms: 350ms;   /* 0.35 · bounce 0.15 */
+  --spring-bouncy: cubic-bezier(0.34, 1.4, 0.64, 1);  --spring-bouncy-ms: 500ms;   /* 0.5 · bounce 0.35 */
+  --spring-smooth: cubic-bezier(0.2, 0, 0, 1);        --spring-smooth-ms: 450ms;   /* 0.45 · no bounce */
+  --spring-sheet:  cubic-bezier(0.34, 1.4, 0.64, 1);  --spring-sheet-ms:  420ms;   /* 0.42 · bounce 0.12 */
+  /* Glow is off in this design (--glow-mul: 0) — except here: the raise
+     reminder's one flare and the personal record. Nowhere else. */
+  --glow-raise: 0 0 22px rgba(251,191,36,0.38);
+  --glow-raise-soft: 0 0 12px 0 rgba(251,191,36,0.16);
 
   /* ── Layers ── */
   --z-frame: 100; --z-tabs: 200; --z-live: 300; --z-toast: 900; --z-cover: 1000;
@@ -167,6 +181,20 @@
   --grad-primary: var(--accent);
   --grad-hero:    var(--surface-1);
   --grad-card:    var(--surface-1);
+}
+
+/* The springs as linear() curves (Safari 17.2+, Chrome 113+, Firefox 112+). */
+@supports (animation-timing-function: linear(0, 1)) {
+  :root {
+    --spring-snappy: linear(0, 0.0106, 0.039, 0.0806, 0.1314, 0.1883, 0.2488, 0.3108, 0.3728, 0.4334, 0.4917, 0.5471, 0.5991, 0.6474, 0.6919, 0.7325, 0.7694, 0.8025, 0.8321, 0.8583, 0.8815, 0.9018, 0.9195, 0.9348, 0.9479, 0.9591, 0.9686, 0.9765, 0.9831, 0.9886, 0.993, 0.9966, 0.9994, 1.0016, 1.0033, 1.0045, 1.0053, 1.0059, 1.0062, 1.0063, 1.0062, 1.0061, 1.0058, 1.0055, 1.0052, 1.0048, 1.0044, 1.004, 1);
+    --spring-snappy-ms: 407ms;
+    --spring-bouncy: linear(0, 0.0182, 0.0664, 0.1362, 0.2201, 0.3121, 0.407, 0.5009, 0.5908, 0.6745, 0.7504, 0.8177, 0.876, 0.9253, 0.9659, 0.9985, 1.0237, 1.0423, 1.0552, 1.0633, 1.0673, 1.068, 1.0662, 1.0625, 1.0575, 1.0516, 1.0453, 1.0388, 1.0324, 1.0264, 1.0208, 1.0158, 1.0114, 1.0076, 1.0044, 1.0017, 0.9996, 0.998, 0.9969, 0.9961, 0.9956, 0.9954, 0.9954, 0.9955, 0.9958, 0.9962, 0.9966, 0.997, 1);
+    --spring-bouncy-ms: 761ms;
+    --spring-smooth: linear(0, 0.0077, 0.0283, 0.0585, 0.0957, 0.1377, 0.1829, 0.2298, 0.2774, 0.3248, 0.3713, 0.4165, 0.46, 0.5015, 0.5409, 0.5781, 0.613, 0.6457, 0.6761, 0.7044, 0.7306, 0.7547, 0.777, 0.7975, 0.8163, 0.8335, 0.8493, 0.8637, 0.8768, 0.8887, 0.8996, 0.9094, 0.9184, 0.9265, 0.9338, 0.9405, 0.9465, 0.9519, 0.9568, 0.9612, 0.9652, 0.9688, 0.972, 0.9749, 0.9775, 0.9799, 0.982, 0.9839, 1);
+    --spring-smooth-ms: 445ms;
+    --spring-sheet: linear(0, 0.0099, 0.0364, 0.0752, 0.1228, 0.1762, 0.2331, 0.2916, 0.3503, 0.4079, 0.4637, 0.5169, 0.5672, 0.6143, 0.658, 0.6982, 0.735, 0.7684, 0.7986, 0.8258, 0.8501, 0.8717, 0.8908, 0.9076, 0.9224, 0.9352, 0.9464, 0.956, 0.9643, 0.9714, 0.9774, 0.9824, 0.9867, 0.9902, 0.9931, 0.9955, 0.9974, 0.9989, 1.0001, 1.0011, 1.0018, 1.0023, 1.0026, 1.0028, 1.0029, 1.003, 1.0029, 1.0029, 1);
+    --spring-sheet-ms: 472ms;
+  }
 }
 
 /* ══ Deload ═════════════════════════════════════════════════════

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Button, Num } from '../kit/index.jsx'
 import { Check, CaretLeft, CheckCircle, ArrowUp } from '../kit/icons.js'
 import ExerciseHero from './ExerciseHero.jsx'
@@ -6,7 +7,12 @@ import WorkingArea from './WorkingArea.jsx'
 import SetHistory from './SetHistory.jsx'
 import ExerciseQueue from './ExerciseQueue.jsx'
 import InlineRest from './InlineRest.jsx'
+import PRMoment from './PRMoment.jsx'
+import SessionMedia from './SessionMedia.jsx'
 import { primeAudio } from './sessionAudio.js'
+import { play } from '../../sound.js'
+import { haptic } from '../../haptics.js'
+import { animate, reducedMotion, rise, fadeIn } from '../../motion.js'
 import SetPhrase from './SetPhrase.jsx'
 import { kg, setParts, setsPhrase, repsWord } from './sessionWords.js'
 import { arabicName } from '../../exerciseMedia.js'
@@ -26,6 +32,27 @@ import { PLATE_STEP, roundToPlate } from '../../utils.js'
 // on the exercise you are looking at. Moving between exercises is a tap
 // in the list or a swipe on the head; it never completes, clears or
 // reorders anything.
+//
+// Motion (the plan's «طلباتك» A–C; tokens in tokens.css, curves in
+// motion.js, reduced motion follows the phone):
+//
+//   A · the handoff. Finishing an exercise draws the last check, fills
+//       its segment with one sheen, raises «اكتمل» and «التالي» under
+//       the table, and 1.5s later the next exercise comes on by itself
+//       (حمزة approved). Any move between exercises — that, a tap in the
+//       list, a swipe — is a broadcast cut: the screen leaves towards the
+//       side it came from (220ms) while the next one slides in on a
+//       spring, its picture a little slower for depth, then its names,
+//       then the first set. With the View Transitions API the outgoing
+//       screen is a snapshot that leaves; without it the new one simply
+//       arrives. Reduced motion: a quick fade.
+//   B · the raise reminder (WorkingArea): its intro plays once per
+//       exercise; the ring breathes until the weight is touched.
+//   C · the personal record (PRMoment): one definition — prIndexOf —
+//       for the gold row and the celebration, decided inside the tap so
+//       the iPhone can buzz; big once per exercise, a flash after that.
+//
+// Every set: the «set-done» sound and a light haptic tick, in the tap.
 
 // The raise prefill happens once per exercise per session: after that
 // the numbers are the lifter's, including a «خلّها 75». Kept in
@@ -50,6 +77,22 @@ const firstUnfinished = (list, from = 0) => {
     if (e.sets.length && !e.sets.every(s => s.done)) return i
   }
   return -1
+}
+
+/**
+ * The one definition of a personal record: the heaviest done set that is
+ * heavier than anything on record — never in a deload, never the first
+ * time an exercise is done (nothing on record). The row turns gold for
+ * it, and the celebration fires for it; both read this.
+ */
+export function prIndexOf(sets, maxWeight, deloadPct = 0) {
+  if (deloadPct > 0 || maxWeight == null) return null
+  let best = null, bestW = maxWeight
+  sets.forEach((s, i) => {
+    const w = parseFloat(s.weight)
+    if (s.done && w > bestW) { best = i; bestW = w }
+  })
+  return best
 }
 
 // The coach line under the counters: what this set was last time, in the
@@ -82,9 +125,11 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
 // place, so the dock ignores taps for this long after a rest closes.
 const REST_CLOSE_GUARD_MS = 400
 
-const reducedMotion = () => {
-  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
-}
+// After the last set, the next exercise comes on screen by itself — in
+// the rest, when its demo can actually be watched. After a record's
+// trophy has landed, a little sooner (the record already held the screen).
+const AUTO_NEXT_MS = 1500   // «بعد ثانية ونص» — what حمزة approved
+const AUTO_NEXT_AFTER_PR_MS = 1200
 
 export default function WorkoutPlayer({
   sessionId, exercises, mapping = {},
@@ -98,22 +143,108 @@ export default function WorkoutPlayer({
   const [celebrating, setCelebrating] = useState(null) // { exId }
   const [peek, setPeek] = useState(null)               // ex id whose stage was reopened
   const [fresh, setFresh] = useState(null)             // { exId, si } — the check to draw
+  const [pr, setPr] = useState(null)                   // the record on screen: { exId, si, from, to, name }
+  const [prLanded, setPrLanded] = useState(null)       // exId whose trophy just landed
+  const [touched, setTouched] = useState(() => new Set())   // exercises whose raised weight was touched
   const celebratedRef = useRef(new Set())
-  const ringStart = useRef(new Map())
+  const prShown = useRef(new Set())                    // exercises that had their big record moment
+  const flash = useRef({ token: 0, done: 0, exId: null, si: null, kind: null })
+  const intro = useRef(new Map())                      // exId → { kind, at } — the raise reminder's showings
   const scrollRef = useRef(null)
   const dockRef = useRef(null)
   const restClosedAt = useRef(0)
+  const handoff = useRef({ token: 0, done: 0, dir: 0, at: -Infinity })
 
   const safeIndex = Math.min(index, Math.max(0, exercises.length - 1))
   const ex = exercises[safeIndex]
+  const indexRef = useRef(safeIndex)
+  indexRef.current = safeIndex
 
-  const jump = (i) => {
-    if (i < 0 || i >= exercises.length) return
+  // ── A · moving between exercises ──
+  const apply = (i) => {
     setIndex(i)
     setEditingSet(null)
     setPeek(null)
     setFresh(null)
-    scrollRef.current?.scrollTo?.({ top: 0 })
+    setCelebrating(null)   // the «اكتمل» line belongs to the exercise being left
+    const sc = scrollRef.current
+    if (sc) {
+      for (const c of sc.children) c.style.transform = ''
+      sc.scrollTo?.({ top: 0 })
+    }
+  }
+
+  const jump = (i) => {
+    if (i < 0 || i >= exercises.length) return
+    const from = indexRef.current
+    const dir = i > from ? 1 : i < from ? -1 : 0
+    if (!dir) { apply(i); return }
+    const token = handoff.current.token + 1
+    handoff.current = { ...handoff.current, token, dir, at: performance.now() }
+    const root = document.documentElement
+    const vt = typeof document.startViewTransition === 'function' && !reducedMotion()
+      && document.visibilityState === 'visible'
+    if (!vt) { apply(i); return }
+    root.dataset.handoff = dir > 0 ? 'next' : 'prev'
+    const clear = () => { if (handoff.current.token === token) delete root.dataset.handoff }
+    try {
+      const t = document.startViewTransition(() => { flushSync(() => apply(i)) })
+      t.ready?.catch?.(() => {})   // a skipped transition (a second move mid-way) is fine
+      t.finished.then(clear, clear)
+    } catch {
+      clear()
+      apply(i)
+    }
+  }
+
+  // The new exercise arrives: everything in the middle slides in from the
+  // side the finger (or the list) sent it, on the smooth spring; the
+  // picture travels further and a beat later; the names follow one by
+  // one; the set to do comes last. Runs in the same commit as the change,
+  // so inside a view transition the incoming screen is already moving.
+  useLayoutEffect(() => {
+    const h = handoff.current
+    if (h.token === h.done) return
+    h.done = h.token
+    const sc = scrollRef.current
+    if (!sc) return
+    const kids = [...sc.children]
+    if (reducedMotion()) {
+      kids.forEach(k => animate(k, fadeIn, { d: 160, e: 'linear' }))
+      return
+    }
+    const dx = -48 * h.dir
+    kids.forEach(k => animate(k, [{ opacity: 0, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'none' }], { spring: 'smooth', delay: 50 }))
+    const art = sc.querySelector('.s-stage-media, .s-thumb')
+    animate(art, [{ opacity: 0, transform: `translateX(${-100 * h.dir}px) scale(.94)` }, { opacity: 1, transform: 'none' }], { spring: 'smooth', delay: 110 })
+    ;['.s-name-ar', '.s-name-en', '.s-meta'].forEach((sel, k) => animate(sc.querySelector(sel), rise(10), { d: 260, delay: 120 + 60 * k }))
+    animate(sc.querySelector('[data-testid="live-block"]'), rise(16), { d: 300, delay: 300 })
+  }, [ex?.id])
+
+  // The swipe carries the whole middle with the finger; past either end
+  // of the session it resists (0.35×). Let go short of the line and it
+  // springs back.
+  const drag = (phase, dx = 0) => {
+    const sc = scrollRef.current
+    if (!sc) return
+    const kids = [...sc.children]
+    if (phase === 'move') {
+      const target = indexRef.current + (dx > 0 ? 1 : -1)
+      const x = target < 0 || target >= exercises.length ? dx * 0.35 : dx
+      kids.forEach(k => { k.style.transform = `translateX(${x}px)` })
+      return
+    }
+    kids.forEach(k => {
+      const from = k.style.transform
+      k.style.transform = ''
+      if (from && !reducedMotion()) animate(k, [{ transform: from }, { transform: 'none' }], { spring: 'bouncy', fill: 'none' })
+    })
+  }
+  const swipeTo = (dir) => {
+    const target = indexRef.current + dir
+    if (target < 0 || target >= exercises.length) { drag('cancel'); return }
+    haptic('swipe')
+    jump(target)
   }
 
   // The set being worked: the first unticked one.
@@ -123,31 +254,38 @@ export default function WorkoutPlayer({
   const liveIndex = editing != null ? editing : currentSetIndex
 
   // Completing an exercise's last set earns a short line — what was
-  // done, whether it beat last time — then the next unfinished exercise
-  // comes on screen by itself (during the rest, which is when its demo
-  // can actually be watched). Once per exercise per session.
+  // done, whether it beat last time, what's next — then the next
+  // unfinished exercise comes on screen by itself. Once per exercise.
   useEffect(() => {
     if (!ex || !exComplete || celebratedRef.current.has(ex.id)) return
     celebratedRef.current.add(ex.id)
     setCelebrating({ exId: ex.id })
-  }, [exComplete, ex?.id])
+    // Its segment fills, then one sheen crosses it.
+    const seg = document.querySelectorAll('.s-seg')[safeIndex]?.querySelector('b')
+    if (seg && !reducedMotion()) {
+      animate(seg, [{ opacity: 1, transform: 'translateX(120%)' }, { opacity: 1, transform: 'translateX(-120%)' }], { d: 450, delay: 240, fill: 'none' })
+    }
+  }, [exComplete, ex?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The celebration owns its own lifetime, keyed on itself — never on
-  // the exercise on screen, or moving away mid-line would cancel the
-  // timer and leave it up for good.
+  // the exercise on screen. The line stays up until the next exercise
+  // takes the screen (jump clears it in the same commit, so the outgoing
+  // snapshot still carries «اكتمل» and «التالي»); with nothing left to
+  // move to, it simply stays. Moving away by hand clears it too. A
+  // record's moment holds the move until its trophy has landed.
   const exercisesRef = useRef(exercises)
   exercisesRef.current = exercises
+  const prBusy = !!pr && pr.exId === celebrating?.exId
   useEffect(() => {
-    if (!celebrating) return
+    if (!celebrating || prBusy) return
     const t = setTimeout(() => {
-      setCelebrating(null)
       const list = exercisesRef.current
       const at = list.findIndex(e => e.id === celebrating.exId)
       const next = firstUnfinished(list, at + 1)
-      if (next !== -1) jump(next)
-    }, 1600)
+      if (next !== -1 && list[indexRef.current]?.id === celebrating.exId) jump(next)
+    }, prLanded === celebrating.exId ? AUTO_NEXT_AFTER_PR_MS : AUTO_NEXT_MS)
     return () => clearTimeout(t)
-  }, [celebrating?.exId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [celebrating?.exId, prBusy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the live block in view as sets go by — clear of the dock, its
   // fade, and whatever the dock currently is (the 56pt button, the taller
@@ -218,6 +356,8 @@ export default function WorkoutPlayer({
     })
   }, [ex?.id, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const touchRaise = (exId) => setTouched(t => (t.has(exId) ? t : new Set(t).add(exId)))
+
   const keepBase = () => {
     if (!ex || base == null) return
     ex.sets.forEach((s, i) => {
@@ -225,23 +365,34 @@ export default function WorkoutPlayer({
     })
   }
 
-  // The ring is drawn once per exercise: the first time it shows, and
-  // for the length of that one drawing; after that it is simply there.
+  // The reminder plays in full the first time an exercise shows it (after
+  // the handoff has brought the set in, when it arrived by one); coming
+  // back to it before the first set, only a sheen; once a set is done,
+  // nothing — the ring is simply there.
   const liveSet = ex && liveIndex >= 0 ? ex.sets[liveIndex] : null
   const liveRaised = raiseOn && base != null && liveSet && parseFloat(liveSet.weight) > base
-  if (liveRaised && ex && !ringStart.current.has(ex.id)) ringStart.current.set(ex.id, Date.now())
-  const ringDraw = !!ex && ringStart.current.has(ex.id) && Date.now() - ringStart.current.get(ex.id) < 1400
+  const shownRef = useRef(null)
+  const started = !!ex && ex.sets.some(s => s.done)
+  if (ex && liveRaised && editing == null) {
+    const showing = `${ex.id}|${handoff.current.token}`
+    if (!intro.current.has(ex.id)) {
+      const arriving = performance.now() - handoff.current.at < 600
+      intro.current.set(ex.id, { kind: started ? null : 'full', at: performance.now() + (arriving ? 450 : 0), showing })
+    } else if (shownRef.current !== showing && intro.current.get(ex.id).showing !== showing) {
+      const sheen = !started && !touched.has(ex.id)
+      intro.current.set(ex.id, { kind: sheen ? 'sheen' : null, at: performance.now(), showing })
+    }
+    shownRef.current = showing
+  }
+  const introNow = ex ? intro.current.get(ex.id) : null
+  // The ring breathes until the weight is touched — or a set is done on it.
+  const breathing = !!ex && !started && !touched.has(ex.id)
 
   // A set heavier than anything on record: the heaviest such done set.
-  const prIndex = useMemo(() => {
-    if (!ex || deloadPct > 0 || stats.maxWeight == null) return null
-    let best = null, bestW = stats.maxWeight
-    ex.sets.forEach((s, i) => {
-      const w = parseFloat(s.weight)
-      if (s.done && w > bestW) { best = i; bestW = w }
-    })
-    return best
-  }, [ex, stats.maxWeight, deloadPct])
+  const prIndex = useMemo(
+    () => (ex ? prIndexOf(ex.sets, stats.maxWeight, deloadPct) : null),
+    [ex, stats.maxWeight, deloadPct],
+  )
 
   const summary = useMemo(() => {
     if (!ex || !exComplete) return null
@@ -250,6 +401,23 @@ export default function WorkoutPlayer({
     const delta = top != null && stats.lastWeight != null ? Math.round((top - stats.lastWeight) * 10) / 10 : null
     return { sets: ex.sets.filter(s => s.done).length, top, delta }
   }, [ex, exComplete, stats.lastWeight])
+
+  // The row flashes gold when a record lands on it (and on a second record
+  // in the same exercise, which gets only this): the tint warms and cools
+  // back to the done green, the trophy pops.
+  useLayoutEffect(() => {
+    const f = flash.current
+    if (f.token === f.done) return
+    f.done = f.token
+    const row = scrollRef.current?.querySelector(`.s-table[data-ex="${f.exId}"] [data-set="${f.si}"]`)
+    if (!row) return
+    const reduce = reducedMotion()
+    animate(row, [{ backgroundColor: 'rgba(251,191,36,0.30)' }, { backgroundColor: 'rgba(94,195,42,0.10)' }], { d: reduce ? 600 : (f.kind === 'small' ? 1100 : 900), fill: 'none' })
+    if (reduce) return
+    const tro = row.querySelector('.s-pr-icon')
+    if (f.kind === 'small') animate(tro, [{ opacity: 0, transform: 'scale(.4) rotate(-10deg)' }, { opacity: 1, transform: 'none' }], { spring: 'bouncy', delay: 80 })
+    else animate(tro, [{ transform: 'scale(1.5)' }, { transform: 'none' }], { spring: 'bouncy' })
+  })
 
   if (!ex) return null
 
@@ -263,12 +431,54 @@ export default function WorkoutPlayer({
     fn()
   }
 
+  const name = arabicName(ex.name, mapping) || ex.name
+
+  // «تمّت المجموعة». Everything that must happen inside the tap happens
+  // here: the sound, the haptic (iOS only allows it in a tap), and the
+  // record decision — the same prIndexOf the row is painted by, run on
+  // the sets as they will be.
   const complete = () => {
     if (currentSetIndex < 0) return
+    const si = currentSetIndex
     primeAudio()
+    play('set-done')
+    const after = ex.sets.map((s, i) => (i === si ? { ...s, done: true } : s))
+    const isPR = prIndexOf(after, stats.maxWeight, deloadPct) === si
+    if (isPR) {
+      haptic('pr')
+      play('pr', { at: 0.35 })
+      const before = Math.max(stats.maxWeight, ...ex.sets.filter((s, i) => s.done && i !== si).map(s => parseFloat(s.weight) || 0))
+      const to = parseFloat(ex.sets[si].weight)
+      if (!prShown.current.has(ex.id)) {
+        prShown.current.add(ex.id)
+        setPr({ exId: ex.id, si, from: before, to, name })
+      } else {
+        flash.current = { ...flash.current, token: flash.current.token + 1, exId: ex.id, si, kind: 'small' }
+      }
+    } else {
+      haptic('set')
+    }
+    touchRaise(ex.id)
     setPeek(null)
-    setFresh({ exId: ex.id, si: currentSetIndex })
-    onDoneSet(ex.id, currentSetIndex, true)
+    setFresh({ exId: ex.id, si })
+    onDoneSet(ex.id, si, true)
+  }
+
+  const landPR = () => {
+    const p = pr
+    setPr(null)
+    if (!p) return
+    setPrLanded(p.exId)
+    flash.current = { ...flash.current, token: flash.current.token + 1, exId: p.exId, si: p.si, kind: 'land' }
+  }
+  // The row's trophy, if it is on screen and clear of the dock.
+  const prTarget = (p) => () => {
+    const sc = scrollRef.current
+    const icon = sc?.querySelector(`.s-table[data-ex="${p.exId}"] [data-set="${p.si}"] .s-pr-icon`)
+    if (!icon || !sc) return null
+    const r = icon.getBoundingClientRect(), box = sc.getBoundingClientRect()
+    const dockTop = dockRef.current?.getBoundingClientRect().top ?? box.bottom
+    return r.top >= box.top && r.bottom <= Math.min(box.bottom, dockTop) ? icon : null
   }
 
   const hasDone = ex.sets.some(s => s.done)
@@ -276,6 +486,7 @@ export default function WorkoutPlayer({
   const nextIdx = firstUnfinished(exercises, safeIndex + 1)
   const meta = swapMeta(ex)
   const ar = arabicName(ex.name, mapping)
+  const raiseFor = (e) => !deloadPct && progressionFor(e.name)?.hint === 'raise'
 
   const live = liveIndex >= 0 ? (
     <WorkingArea
@@ -286,7 +497,12 @@ export default function WorkoutPlayer({
         lastWeight: stats.lastWeight ?? (deloadPct === 0 && Number.isFinite(snapW) && snapW > 0 ? snapW : null),
         raisedW, deloadPct,
       })}
-      raise={raiseOn && base != null && editing == null ? { base, raised: raisedW, ringDraw } : null}
+      raise={raiseOn && base != null && editing == null ? {
+        base, raised: raisedW,
+        intro: introNow?.kind || null, introAt: introNow?.at || 0,
+        breathe: breathing,
+        onTouch: () => touchRaise(ex.id),
+      } : null}
       deloadPct={deloadPct}
       onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
       onStepSet={(si, f, d) => onStepSet(ex.id, si, f, d)}
@@ -310,6 +526,8 @@ export default function WorkoutPlayer({
   const restOnTop = isResting && editing == null
 
   const phrase = summary ? setsPhrase(summary.sets) : null
+  const celebratingHere = celebrating?.exId === ex.id
+  const nextEx = celebratingHere && nextIdx !== -1 ? exercises[nextIdx] : null
 
   return (
     <>
@@ -323,6 +541,7 @@ export default function WorkoutPlayer({
           return (
             <span key={e.id} className="s-seg" data-on={i === safeIndex ? '1' : undefined}>
               <i style={{ transform: `scaleX(${frac})` }} />
+              <b aria-hidden="true" />
             </span>
           )
         })}
@@ -351,7 +570,8 @@ export default function WorkoutPlayer({
           moveTargets={exercises.filter(o => o.id !== ex.id).map(o => ({ id: o.id, name: o.name }))}
           onAddExercise={onAddExercise}
           onDiscard={onDiscard}
-          onSwipe={(dir) => jump(Math.max(0, Math.min(exercises.length - 1, safeIndex + dir)))}
+          onSwipe={swipeTo}
+          onDrag={drag}
         />
 
         {ex.sets.length > 0 ? (
@@ -363,6 +583,7 @@ export default function WorkoutPlayer({
             prevSets={prevSets}
             freshIndex={fresh && fresh.exId === ex.id ? fresh.si : null}
             prIndex={prIndex}
+            holdIndex={pr && pr.exId === ex.id ? pr.si : null}
             onEdit={(si) => setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si }))}
             live={live}
           />
@@ -371,10 +592,10 @@ export default function WorkoutPlayer({
         )}
 
         {exComplete && editing == null && summary && (
-          <div className="s-done-line" data-testid="exercise-done" role="status">
+          <div className="s-done-line" data-testid="exercise-done" role="status" data-fresh={celebratingHere ? '1' : undefined}>
             <CheckCircle size={22} weight="fill" className="s-done-icon" aria-hidden="true" />
             <div className="s-done-text">
-              <strong>{celebrating?.exId === ex.id ? `اكتمل ${ar || ex.name}` : 'اكتمل هذا التمرين'}</strong>
+              <strong>{celebratingHere ? `اكتمل ${ar || ex.name}` : 'اكتمل هذا التمرين'}</strong>
               <span>
                 {phrase.num != null && <><Num>{phrase.num}</Num> </>}{phrase.word}
                 {summary.top != null && <> · أعلى <Num>{kg(summary.top)}</Num> كجم</>}
@@ -387,6 +608,20 @@ export default function WorkoutPlayer({
             </div>
           </div>
         )}
+        {nextEx && editing == null && (
+          <div className="s-next-line" data-testid="exercise-next">
+            <span className="s-next-thumb" aria-hidden="true">
+              <SessionMedia name={nextEx.name} mapping={mapping} muscle={nextEx.muscle} className="s-thumb-img" />
+            </span>
+            <span className="s-next-text">
+              <small>التالي</small>
+              <b>
+                {arabicName(nextEx.name, mapping) || nextEx.name}
+                {raiseFor(nextEx) && <ArrowUp size={14} weight="bold" className="s-raise-arrow" role="img" aria-label="ارفع الوزن" />}
+              </b>
+            </span>
+          </div>
+        )}
 
         <ExerciseQueue
           exercises={exercises}
@@ -394,6 +629,7 @@ export default function WorkoutPlayer({
           activeIndex={safeIndex}
           onJump={jump}
           onAdd={onAddExercise}
+          raiseFor={raiseFor}
         />
       </div>
 
@@ -403,6 +639,11 @@ export default function WorkoutPlayer({
         )}
         {dock}
       </div>
+
+      {pr && (
+        <PRMoment key={`${pr.exId}:${pr.si}`} from={pr.from} to={pr.to} name={pr.name}
+          findTarget={prTarget(pr)} onLand={landPR} />
+      )}
     </>
   )
 }

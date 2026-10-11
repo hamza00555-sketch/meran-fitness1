@@ -10,6 +10,10 @@
 // and the docked button fit a 320×568 screen, does the rest make its
 // sound and keep the screen awake, does a finger scrolling over a
 // stepper leave the weight alone, and does the clock tell wall time.
+// And the motion (phase 1): the handoff between exercises, the raise
+// reminder that breathes until the weight is touched, the personal
+// record's moment (once per exercise, its trophy landing on the row),
+// the reduced-motion paths, and sound that never breaks a session.
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
@@ -41,10 +45,44 @@ const ACTIVE = {
 const browser = await chromium.launch()
 
 // Instruments installed before the app loads: a recording AudioContext
-// (so the scheduled rest tones can be read back) and a Wake Lock stub.
-function instruments() {
+// (so the scheduled sounds can be read back: library files as named
+// buffers in __sounds, synthesized fallbacks as frequencies in __tones),
+// the sound files served as tagged stand-ins, a Wake Lock stub, and
+// recorders for vibration, view transitions and Web Animations.
+// `audio`: 'fake' (default), 'none' (no AudioContext at all), 'nodecode'
+// (a context that can't decode files), 'real' (the browser's own).
+function instruments(audio = 'fake') {
   window.__tones = []
+  window.__sounds = []
   window.__wakeLocks = 0
+  window.__vibes = []
+  window.__vt = 0
+  window.__anims = []
+  try {
+    Object.defineProperty(navigator, 'vibrate', { configurable: true, value: (p) => { window.__vibes.push(p); return true } })
+  } catch {}
+  try {
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: { request: async () => { window.__wakeLocks++; return { released: false, release: async () => {} } } },
+    })
+  } catch {}
+  const vt = document.startViewTransition?.bind(document)
+  if (vt) document.startViewTransition = (cb) => { window.__vt++; return vt(cb) }
+  const animate = Element.prototype.animate
+  Element.prototype.animate = function (kf, opts) {
+    try {
+      const cls = typeof this.className === 'string' ? this.className : (this.className?.baseVal || '')
+      if (window.__anims.length < 2000) window.__anims.push({ cls, testid: this.getAttribute?.('data-testid'), kf: JSON.stringify(kf).slice(0, 200), at: performance.now() })
+    } catch {}
+    return animate.call(this, kf, opts)
+  }
+  if (audio === 'real') return
+  if (audio === 'none') {
+    window.AudioContext = undefined
+    window.webkitAudioContext = undefined
+    return
+  }
   class FakeParam { setValueAtTime() {} exponentialRampToValueAtTime() {} }
   class FakeOsc {
     constructor(ctx) { this.ctx = ctx; this.frequency = { value: 0 }; this.type = 'sine' }
@@ -52,25 +90,40 @@ function instruments() {
     start(t) { window.__tones.push({ f: this.frequency.value, at: t - this.ctx.currentTime }) }
     stop() {}
   }
+  class FakeSource {
+    constructor(ctx) { this.ctx = ctx; this.buffer = null }
+    connect() {} disconnect() {}
+    start(t = 0) { if (this.buffer?.name) window.__sounds.push({ name: this.buffer.name, at: t - this.ctx.currentTime }) }
+    stop() { if (this.buffer?.name) window.__sounds.push({ name: this.buffer.name, stopped: true }) }
+  }
   class FakeCtx {
     constructor() { this.state = 'running'; this.destination = {}; this.t0 = performance.now() }
     get currentTime() { return (performance.now() - this.t0) / 1000 }
     resume() { this.state = 'running'; return Promise.resolve() }
     createOscillator() { return new FakeOsc(this) }
     createGain() { return { gain: new FakeParam(), connect() {}, disconnect() {} } }
+    createBuffer() { return {} }
+    createBufferSource() { return new FakeSource(this) }
+  }
+  if (audio === 'fake') {
+    FakeCtx.prototype.decodeAudioData = function (data) {
+      return data?.__sound ? Promise.resolve({ name: data.__sound, duration: 0.2 }) : Promise.reject(new Error('not audio'))
+    }
+    const fetch0 = window.fetch.bind(window)
+    window.fetch = (url, ...rest) => {
+      const m = String(url).match(/\/sounds\/([\w-]+)\.(m4a|mp3)$/)
+      if (!m) return fetch0(url, ...rest)
+      const ab = new ArrayBuffer(8)
+      ab.__sound = m[1]
+      return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(ab) })
+    }
   }
   window.AudioContext = FakeCtx
   window.webkitAudioContext = FakeCtx
-  try {
-    Object.defineProperty(navigator, 'wakeLock', {
-      configurable: true,
-      value: { request: async () => { window.__wakeLocks++; return { released: false, release: async () => {} } } },
-    })
-  } catch {}
 }
 
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
-  sessions = null, reduced = false, lastWeights = null, mapping = null } = {}) {
+  sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -80,8 +133,9 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
   if (blockRemote) await page.route('**/*.r2.dev/**', r => r.abort())
+  if (blockSounds) await page.route('**/sounds/**', r => r.abort())
 
-  await page.addInitScript(instruments)
+  await page.addInitScript(instruments, audio)
   // Seeded history unlocks achievements on the first paint, each one
   // adds XP, and the level-up screen would cover the session — so a
   // context with history starts with them already unlocked.
@@ -180,6 +234,7 @@ const centre = async (locator) => {
   ok('ack: no flying XP over the session', await page.evaluate(() =>
     [...document.querySelectorAll('.xp-float')].every(el => getComputedStyle(el).display === 'none')))
   ok('ack: the finished row draws its check', await page.locator('.s-trow[data-state="done"] .s-tick[data-on="1"][data-fresh="1"]').count() === 1)
+  ok('record: never on the first time an exercise is done (nothing on record to beat)', await page.getByTestId('pr-moment').count() === 0)
   ok('stage: it folds into the 72pt row after the first set',
     await page.getByTestId('exercise-stage').count() === 0 && await page.getByTestId('exercise-row').count() === 1)
   ok('rest: the next set stays editable during the rest',
@@ -191,11 +246,17 @@ const centre = async (locator) => {
   ok('clock: it keeps running through the rest', (await clockSecs(page)) - restClock0 >= 2,
     `${restClock0} → ${await clockSecs(page)}`)
 
-  const tones = await page.evaluate(() => window.__tones)
-  const freqs = tones.map(t => t.f).join(',')
-  ok('sound: three ticks and an end tone, scheduled in the tap', freqs === '660,660,660,880', freqs)
-  ok('sound: the end tone lands at the end of the rest', tones.length === 4 && Math.abs(tones[3].at - 90) < 2,
-    JSON.stringify(tones.map(t => Math.round(t.at))))
+  const sounds = await page.evaluate(() => window.__sounds.filter(s => !s.stopped))
+  const restSounds = sounds.filter(s => /^rest-/.test(s.name))
+  ok('sound: three library ticks and the end chime, scheduled in the tap',
+    restSounds.map(s => s.name).join(',') === 'rest-tick,rest-tick,rest-tick,rest-end', JSON.stringify(sounds))
+  ok('sound: the ticks at −3/−2/−1 and the chime at the end of the rest', restSounds.length === 4
+    && [87, 88, 89, 90].every((t, i) => Math.abs(restSounds[i].at - t) < 2), JSON.stringify(restSounds.map(t => Math.round(t.at))))
+  ok('sound: the set itself made the short «set-done» sound, at once',
+    sounds.filter(s => s.name === 'set-done').length === 1 && sounds.find(s => s.name === 'set-done').at < 0.3, JSON.stringify(sounds))
+  ok('sound: no synthesized beeps while the files are there', (await page.evaluate(() => window.__tones.length)) === 0)
+  ok('haptics: the set ticks (Android pattern; iOS uses the switch in the same tap)',
+    JSON.stringify(await page.evaluate(() => window.__vibes)) === '[12]', JSON.stringify(await page.evaluate(() => window.__vibes)))
 
   const before = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
   await page.getByRole('button', { name: 'زد 15 ثانية' }).click()
@@ -204,7 +265,9 @@ const centre = async (locator) => {
   await page.getByRole('button', { name: 'أنقص 15 ثانية' }).click()
   const back = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
   ok('rest: −15 pulls it back', back - before === 0, String(back - before))
-  ok('sound: ±15 reschedules the tones', (await page.evaluate(() => window.__tones.length)) === 12)
+  const resched = await page.evaluate(() => window.__sounds.filter(s => /^rest-/.test(s.name)))
+  ok('sound: ±15 cancels and reschedules the rest sounds',
+    resched.filter(s => !s.stopped).length === 12 && resched.filter(s => s.stopped).length === 8, JSON.stringify(resched.length))
 
   const skipColor = await page.getByRole('button', { name: 'تخطي' }).evaluate(el => getComputedStyle(el).color)
   ok('rest: «تخطي» is plain grey text, never red', skipColor !== DANGER && skipColor !== ACCENT, skipColor)
@@ -222,9 +285,30 @@ const centre = async (locator) => {
   ok('rest: skip cleared the stored timer', await page.evaluate(() => localStorage.getItem('hf_rest_timer') === null))
 
   // Second set, then let the clock run out.
+  const vt0 = await page.evaluate(() => window.__vt)
   await completeBtn(page).click()
+  const tapAt = Date.now()
   await page.waitForTimeout(500)
   ok('completion: the last set names the finished exercise', /اكتمل/.test(await text(page)))
+  const nextLine = await page.getByTestId('exercise-next').innerText().catch(() => '')
+  ok('handoff: «التالي» names the next exercise, under «اكتمل»', /التالي/.test(nextLine) && /تفتيح جهاز/.test(nextLine), nextLine)
+  await page.evaluate(() => { window.__anims = [] })
+  // The next exercise comes on by itself a second and a half after the last set.
+  await page.waitForFunction(() => document.querySelector('.s-name-en')?.textContent === 'Pec Deck', null, { timeout: 4000, polling: 50 }).catch(() => {})
+  const handoffMs = Date.now() - tapAt
+  ok('handoff: the next exercise comes on by itself ~1.5s after the last set', handoffMs >= 1350 && handoffMs <= 2300, `${handoffMs}ms`)
+  await page.waitForTimeout(700)
+  const ho = await page.evaluate(() => ({
+    vt: window.__vt, attr: document.documentElement.dataset.handoff ?? null,
+    slide: window.__anims.some(a => /translateX\(-48px\)/.test(a.kf)),
+    art: window.__anims.some(a => /s-stage-media/.test(a.cls) && /translateX\(-100px\) scale\(\.94\)/.test(a.kf)),
+    names: window.__anims.filter(a => /s-name-ar|s-name-en|s-meta/.test(a.cls)).length,
+    live: window.__anims.some(a => a.testid === 'live-block'),
+  }))
+  ok('handoff: it runs as a view transition (the outgoing screen is a snapshot that leaves)', ho.vt === vt0 + 1, JSON.stringify(ho))
+  ok('handoff: the new screen slides in from the left, its picture deeper, names one by one, the set last',
+    ho.slide && ho.art && ho.names === 3 && ho.live, JSON.stringify(ho))
+  ok('handoff: and it tidies up after itself', ho.attr === null, JSON.stringify(ho))
   await endRest(page, 23000)
   const ready = page.getByTestId('rest-ready')
   await ready.waitFor({ timeout: 4000 }).catch(() => {})
@@ -234,7 +318,6 @@ const centre = async (locator) => {
   ok('ready: the field runs edge to edge', fullWidth)
 
   // Meanwhile the next exercise came on screen by itself.
-  await page.waitForTimeout(2000)
   ok('completion: the next exercise comes on screen', (await page.locator('.s-name-en').first().textContent()) === 'Pec Deck')
   ok('ready: it waits for a tap instead of dismissing itself', await ready.isVisible().catch(() => false))
   await ready.click()
@@ -349,6 +432,39 @@ const centre = async (locator) => {
   await swipe(-140)
   ok('swipe: dragging left goes back', (await page.locator('.s-name-en').first().textContent()) === 'Hammer Strength Machine Bench Press')
   ok('swipe: navigation never touches the data', JSON.stringify((await activeStored(page)).exercises) === JSON.stringify(ACTIVE.exercises))
+
+  // The screen follows the finger; short of the line it springs back; at
+  // the first exercise, dragging towards «before» resists.
+  const box = await page.locator('[data-testid="exercise-stage"]').boundingBox()
+  const hx = box.x + box.width / 2, hy = box.y + box.height / 2
+  const shift = () => page.evaluate(() => [...document.querySelector('.s-scroll').children].map(c => c.style.transform))
+  await page.mouse.move(hx, hy)
+  await page.mouse.down()
+  await page.mouse.move(hx + 20, hy, { steps: 3 })
+  await page.mouse.move(hx + 40, hy, { steps: 3 })
+  const following = await shift()
+  ok('swipe: mid-drag, the whole middle moves with the finger', following.length >= 3 && following.every(t => t === 'translateX(40px)'), JSON.stringify(following))
+  await page.waitForTimeout(250)   // let go slowly: no flick
+  await page.evaluate(() => { window.__anims = [] })
+  await page.mouse.up()
+  await page.waitForTimeout(100)
+  const back = await page.evaluate(() => ({
+    t: [...document.querySelector('.s-scroll').children].map(c => c.style.transform),
+    spring: window.__anims.filter(a => /translateX\(40px\)/.test(a.kf) && /"none"/.test(a.kf)).length,
+  }))
+  ok('swipe: let go short of 56px, it springs back and stays on the exercise',
+    back.t.every(t => t === '') && back.spring >= 3 && (await page.locator('.s-name-en').first().textContent()) === 'Hammer Strength Machine Bench Press', JSON.stringify(back))
+  await page.waitForTimeout(800)
+  await page.mouse.move(hx, hy)
+  await page.mouse.down()
+  await page.mouse.move(hx - 50, hy, { steps: 3 })
+  await page.mouse.move(hx - 100, hy, { steps: 3 })
+  const edge = await shift()
+  ok('swipe: past the first exercise it resists (0.35×)', edge.every(t => t === 'translateX(-35px)'), JSON.stringify(edge))
+  await page.mouse.up()
+  await page.waitForTimeout(600)
+  ok('swipe: and lands back where it was', (await page.locator('.s-name-en').first().textContent()) === 'Hammer Strength Machine Bench Press'
+    && (await shift()).every(t => t === ''))
   ok('swipe: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
@@ -855,7 +971,22 @@ const RAISE_SESSIONS = [
   await page.waitForTimeout(300)
   const w = page.getByTestId('weight-input')
   ok('raise: the weight arrives already raised', await w.inputValue() === '77.5', await w.inputValue())
-  ok('raise: the number itself is gold', await w.evaluate(el => getComputedStyle(el).color) === GOLD)
+  // The intro: the old weight rolls up to the new one over the input, gold.
+  const rolled = await page.evaluate(() => {
+    const o = document.querySelector('.s-field-roll')
+    return !!o && !!o.querySelector('.k-roll-on') && o.querySelectorAll('.k-roll-s').length > 0
+  })
+  await page.waitForFunction(() => document.querySelector('.s-field-roll') && !document.querySelector('.s-field-roll .k-roll-on'), null, { timeout: 2000 }).catch(() => {})
+  const roll = await page.evaluate(() => {
+    const o = document.querySelector('.s-field-roll')
+    const i = document.querySelector('[data-testid="weight-input"]')
+    return o && { text: o.textContent, color: getComputedStyle(o).color, input: getComputedStyle(i).opacity }
+  })
+  ok('raise: the old weight rolls up to the new one, in gold, over the input',
+    !!roll && roll.text === '77.5' && roll.color === GOLD && roll.input === '0', JSON.stringify({ rolled, roll }))
+  ok('raise: the session list marks the exercise with a still gold arrow',
+    await page.getByTestId('queue-raise').count() === 1
+    && await page.getByTestId('queue-raise').evaluate(el => getComputedStyle(el).color) === GOLD)
   const st = await activeStored(page)
   ok('raise: every set still to do moved up, not just the first',
     st.exercises[0].sets.every(s => s.weight === '77.5'), JSON.stringify(st.exercises[0].sets))
@@ -878,23 +1009,51 @@ const RAISE_SESSIONS = [
   })
   ok('raise: the ring is drawn once, not looped', anim.name === 's-raise-draw' && anim.count === '1', JSON.stringify(anim))
   await page.waitForTimeout(1600)
+  ok('raise: after the intro the input itself holds the number, in gold',
+    await page.locator('.s-field-roll').count() === 0 && await w.evaluate(el => getComputedStyle(el).color) === GOLD
+    && await w.evaluate(el => getComputedStyle(el).opacity) === '1')
   const trace = await page.evaluate(async () => {
     const out = []
-    for (let i = 0; i < 12; i++) {
-      out.push(parseFloat(getComputedStyle(document.querySelector('.s-raise-path')).strokeDashoffset))
+    for (let i = 0; i < 16; i++) {
+      const ring = document.querySelector('[data-testid="raise-ring"]')
+      out.push({ off: parseFloat(getComputedStyle(document.querySelector('.s-raise-path')).strokeDashoffset), op: parseFloat(getComputedStyle(ring).opacity) })
       await new Promise(r => setTimeout(r, 100))
     }
     return out
   })
-  ok('raise: then it stays whole and still', trace.every(v => v === 0), trace.join(','))
+  ok('raise: then the ring stays whole', trace.every(v => v.off === 0), JSON.stringify(trace.map(t => t.off)))
+  const breath = await page.locator('[data-testid="raise-ring"]').evaluate(el => {
+    const cs = getComputedStyle(el)
+    return { name: cs.animationName, count: cs.animationIterationCount, state: el.getAttribute('data-state') }
+  })
+  ok('raise: and breathes — dims and comes back — until the number is touched',
+    breath.name === 's-raise-breathe' && breath.count === 'infinite' && breath.state === 'breathe'
+    && Math.min(...trace.map(t => t.op)) < 0.6 && Math.max(...trace.map(t => t.op)) > 0.95, JSON.stringify({ breath, op: trace.map(t => t.op) }))
   await page.screenshot({ path: `${OUT}/raise.png` })
+  await page.waitForTimeout(3000)
+  ok('raise: still breathing seconds later (not three breaths and done)',
+    await page.locator('[data-testid="raise-ring"]').getAttribute('data-state') === 'breathe')
+  await w.click()
+  await page.waitForTimeout(150)
+  const still = await page.locator('[data-testid="raise-ring"]').evaluate(el => ({
+    state: el.getAttribute('data-state'), name: getComputedStyle(el).animationName, op: getComputedStyle(el).opacity }))
+  ok('raise: touching the number stops the breathing, the ring whole and still',
+    still.state === 'still' && still.name === 'none' && still.op === '1', JSON.stringify(still))
+  await w.evaluate(el => el.blur())
 
   await page.getByRole('button', { name: /خلّها\s*75/ }).click()
-  await page.waitForTimeout(300)
+  await page.waitForTimeout(60)
+  const reverse = await page.evaluate(() => ({
+    ring: document.querySelector('[data-testid="raise-ring"]')?.getAttribute('data-state'),
+    roll: !!document.querySelector('.s-field-roll .k-roll-on'),
+  }))
+  ok('raise: «خلّها 75» runs it backwards — the number rolls down, the ring withdraws',
+    reverse.ring === 'retract' && reverse.roll, JSON.stringify(reverse))
+  await page.waitForTimeout(450)
   ok('raise: «خلّها 75» puts the weight back', await w.inputValue() === '75')
   ok('raise: for every set', (await activeStored(page)).exercises[0].sets.every(s => s.weight === '75'))
   ok('raise: and the gold goes with it', await page.locator('[data-testid="raise-ring"]').count() === 0
-    && await w.evaluate(el => getComputedStyle(el).color) !== GOLD)
+    && await w.evaluate(el => getComputedStyle(el).color) !== GOLD && await page.locator('.s-raise-chip').count() === 0)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await page.locator('[data-testid="session"]').waitFor({ timeout: 10000 }).catch(() => {})
   await page.waitForTimeout(900)
@@ -922,12 +1081,55 @@ const RAISE_SESSIONS = [
 }
 
 {
-  // A set heavier than anything on record wears gold on its row: the
-  // weight, and a trophy where its check would be.
+  // A set heavier than anything on record: the full celebration
+  // («كاملة بالقصاصات»), then its trophy lands on the row, which wears
+  // gold — the weight, and a trophy where its check would be.
   const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
   await page.waitForTimeout(300)
+  await page.evaluate(() => { window.__vibes = []; window.__sounds = []; window.__anims = [] })
   await completeBtn(page).click()          // 77.5, over the 75 on record
-  await page.waitForTimeout(500)
+  const tapAt = Date.now()
+  await page.waitForTimeout(450)
+  const moment = page.getByTestId('pr-moment')
+  const said = await moment.innerText().catch(() => '')
+  ok('record: the moment fires on the tap — «رقم قياسي جديد»', await moment.count() === 1 && /رقم قياسي جديد/.test(said), said)
+  const sub = await page.evaluate(() => {
+    const b = document.querySelector('.pr-sub bdi')
+    return b && { dir: b.getAttribute('dir'), text: b.textContent, line: document.querySelector('.pr-sub').textContent.replace(/\s+/g, ' ') }
+  })
+  ok('record: «+2.5 كجم فوق أعلى وزن قبل», the sign held before the number in a <bdi dir=ltr>',
+    sub?.dir === 'ltr' && sub.text === '+2.5' && /^\+2\.5 كجم فوق أعلى وزن قبل$/.test(sub.line), JSON.stringify(sub))
+  ok('record: the phone buzzes twice, in the tap', JSON.stringify(await page.evaluate(() => window.__vibes)) === '[[12,70,28]]',
+    JSON.stringify(await page.evaluate(() => window.__vibes)))
+  const prSounds = await page.evaluate(() => window.__sounds.filter(s => !s.stopped && /set-done|pr/.test(s.name)))
+  ok('record: the set sound, then the record sound a third of a second later',
+    prSounds.map(s => s.name).join(',') === 'set-done,pr' && Math.abs(prSounds[1].at - 0.35) < 0.2, JSON.stringify(prSounds))
+  ok('record: the rest is already counting underneath', await page.getByTestId('rest-bar').count() === 1)
+  ok('record: the row\'s trophy waits, hidden, for the one flying in',
+    await page.locator('.s-trow[data-state="done"] .s-pr-icon').getAttribute('data-hold') === '1')
+  await page.waitForTimeout(300)
+  const show = await page.evaluate(() => {
+    const c = document.querySelector('.pr-conf')
+    let gold = 0
+    try {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+      for (let i = 0; i < d.length; i += 4 * 5) if (d[i + 3] > 0 && d[i] > 200 && d[i + 1] > 150) gold++
+    } catch {}
+    return { gold, shock: window.__anims.some(a => /pr-shock/.test(a.cls)), trophy: window.__anims.some(a => /pr-tro/.test(a.cls) && /rotate\(-10deg\)/.test(a.kf)),
+      number: document.querySelector('.pr-num')?.textContent }
+  })
+  ok('record: the gold shock ring and the trophy dropping in on a spring', show.shock && show.trophy, JSON.stringify(show))
+  ok('record: gold confetti, on its own canvas', show.gold > 30, JSON.stringify(show))
+  await page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 5000 }).catch(() => {})
+  const landedMs = Date.now() - tapAt
+  const landed = await page.evaluate(() => ({
+    hold: document.querySelector('.s-trow[data-state="done"] .s-pr-icon')?.getAttribute('data-hold') ?? null,
+    flew: window.__anims.some(a => /pr-fly/.test(a.cls) && /translate\(/.test(a.kf)),
+    flash: window.__anims.some(a => /s-trow/.test(a.cls) && /backgroundColor/.test(a.kf)),
+  }))
+  ok('record: ~2.3s on, the trophy flies into the row and lands there', landedMs > 2200 && landedMs < 3800
+    && landed.hold === null && landed.flew && landed.flash, JSON.stringify({ landedMs, ...landed }))
+  await page.waitForTimeout(200)
   const pr = await page.evaluate(() => {
     const row = document.querySelector('.s-trow[data-state="done"]')
     const icon = row.querySelector('.s-cell-tick .s-pr-icon')
@@ -937,7 +1139,73 @@ const RAISE_SESSIONS = [
   ok('record: the row shows a gold trophy instead of the check', pr.icon && !pr.tick && pr.color === GOLD, JSON.stringify(pr))
   ok('record: its weight is gold', pr.kg === GOLD, JSON.stringify(pr))
   ok('record: and a screen reader hears it, in words', /رقم قياسي/.test(pr.label) && /77\.5 كجم × 12 عدّة/.test(pr.label), pr.label)
+
+  // A second record in the same exercise: the small flash only — the row
+  // warms gold and its trophy pops — with the buzz and the sound.
+  await page.getByRole('button', { name: 'تخطي' }).click()
+  await page.waitForTimeout(500)
+  await page.getByTestId('weight-input').fill('80')
+  await page.evaluate(() => { window.__vibes = []; window.__sounds = []; window.__anims = [] })
+  await completeBtn(page).click()
+  await page.waitForTimeout(400)
+  const small = await page.evaluate(() => ({
+    moment: !!document.querySelector('[data-testid="pr-moment"]'),
+    vibes: JSON.stringify(window.__vibes),
+    sound: window.__sounds.some(s => s.name === 'pr'),
+    pop: window.__anims.some(a => /s-pr-icon/.test(a.cls) && /scale\(\.4\) rotate\(-10deg\)/.test(a.kf)),
+    flash: window.__anims.some(a => /s-trow/.test(a.cls) && /backgroundColor/.test(a.kf)),
+    gold: document.querySelectorAll('.s-pr-icon').length,
+  }))
+  ok('record: a second record in the same exercise is the small flash, not the full moment',
+    !small.moment && small.pop && small.flash && small.gold === 1, JSON.stringify(small))
+  ok('record: still felt and heard', small.vibes === '[[12,70,28]]' && small.sound, JSON.stringify(small))
   ok('record: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // A tap anywhere skips to the landing.
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(300)
+  await completeBtn(page).click()
+  await page.waitForTimeout(600)
+  ok('record/skip: the moment is up', await page.getByTestId('pr-moment').count() === 1)
+  await page.mouse.click(195, 300)
+  await page.waitForTimeout(500)
+  ok('record/skip: one tap lands it at once', await page.getByTestId('pr-moment').count() === 0
+    && await page.locator('.s-pr-icon').getAttribute('data-hold') === null)
+  ok('record/skip: and that tap did nothing else (the rest still counts)', await page.getByTestId('rest-bar').count() === 1
+    && (await activeStored(page)).exercises[0].sets.filter(s => s.done).length === 1)
+  ok('record/skip: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // Reduced motion (the phone's setting): the card fades in with the
+  // numbers already there — no confetti, no shock ring, no flight — and
+  // the buzz stays.
+  const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS, reduced: true })
+  await page.waitForTimeout(300)
+  await page.evaluate(() => { window.__vibes = []; window.__anims = [] })
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  const calm = await page.evaluate(() => {
+    const c = document.querySelector('.pr-conf')
+    let drawn = 0
+    try {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data
+      for (let i = 3; i < d.length; i += 4 * 5) if (d[i] > 0) drawn++
+    } catch {}
+    return { moment: !!document.querySelector('[data-testid="pr-moment"]'), drawn, number: document.querySelector('.pr-num')?.textContent,
+      moving: window.__anims.filter(a => /pr-shock|pr-tro|pr-fly/.test(a.cls)).length, vibes: JSON.stringify(window.__vibes) }
+  })
+  ok('record/reduced: the card is there, the number already 77.5', calm.moment && calm.number === '77.5', JSON.stringify(calm))
+  ok('record/reduced: no confetti, no shock ring, no trophy spring', calm.drawn === 0 && calm.moving === 0, JSON.stringify(calm))
+  ok('record/reduced: the buzz stays', calm.vibes === '[[12,70,28]]', calm.vibes)
+  await page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 4000 }).catch(() => {})
+  ok('record/reduced: it fades away and the row keeps the trophy', await page.getByTestId('pr-moment').count() === 0
+    && await page.locator('.s-pr-icon').count() === 1 && await page.locator('.s-pr-icon').getAttribute('data-hold') === null)
+  ok('record/reduced: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -947,6 +1215,11 @@ const RAISE_SESSIONS = [
   await page.waitForTimeout(300)
   ok('raise/deload: no ring', await page.locator('[data-testid="raise-ring"]').count() === 0)
   ok('raise/deload: the weight is not raised', await page.getByTestId('weight-input').inputValue() === '75')
+  await page.getByTestId('weight-input').fill('85')
+  await completeBtn(page).click()
+  await page.waitForTimeout(500)
+  ok('record/deload: no record in a deload week, even over the old best',
+    await page.getByTestId('pr-moment').count() === 0 && await page.locator('.s-pr-icon').count() === 0)
   ok('raise/deload: no page errors', errors.length === 0)
   await ctx.close()
 }
@@ -961,6 +1234,12 @@ const RAISE_SESSIONS = [
     return { anim: cs.animationName, off: cs.strokeDashoffset }
   })
   ok('raise/reduced: nothing animates, the ring is complete', st.anim === 'none' && parseFloat(st.off) === 0, JSON.stringify(st))
+  const calm = await page.evaluate(() => ({
+    roll: !!document.querySelector('.s-field-roll'),
+    breathe: document.querySelector('[data-testid="raise-ring"]').getAttribute('data-state'),
+    color: getComputedStyle(document.querySelector('[data-testid="weight-input"]')).color,
+  }))
+  ok('raise/reduced: gold from the first frame — no roll, no breathing', !calm.roll && calm.breathe === 'still' && calm.color === GOLD, JSON.stringify(calm))
   ok('raise/reduced: no page errors', errors.length === 0)
   await ctx.close()
 }
@@ -1145,6 +1424,63 @@ const RAISE_SESSIONS = [
   await page.waitForTimeout(400)
   ok('session: and the other tabs still open', await page.locator('.pv').count() === 1)
   ok('session: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 11. Moving between exercises under reduced motion ══════════
+// The phone's «تقليل الحركة»: a quick fade, no slide, no view transition.
+{
+  const { ctx, page, errors } = await open({ reduced: true })
+  await page.evaluate(() => { window.__anims = [] })
+  const vt0 = await page.evaluate(() => window.__vt)
+  await page.getByRole('button', { name: /Pec Deck/ }).last().click()
+  await page.waitForTimeout(400)
+  const r = await page.evaluate(() => ({
+    name: document.querySelector('.s-name-en')?.textContent, vt: window.__vt,
+    slides: window.__anims.filter(a => /translate/.test(a.kf)).length,
+    fades: window.__anims.filter(a => /opacity/.test(a.kf) && !/translate/.test(a.kf)).length,
+  }))
+  ok('handoff/reduced: it moves, with a fade and nothing sliding', r.name === 'Pec Deck' && r.vt === vt0 && r.slides === 0 && r.fades >= 2, JSON.stringify(r))
+  ok('handoff/reduced: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 12. Sound never breaks the session ═════════════════════════
+// No Web Audio at all; a context that can't decode the files (the rest
+// keeps plain tones then); the files unreachable; and the real browser,
+// which must decode the format the app picks for it.
+for (const [label, opts] of [['no audio', { audio: 'none' }], ['no decoding', { audio: 'nodecode' }],
+  ['files unreachable', { audio: 'real', blockSounds: true }], ['real audio', { audio: 'real' }]]) {
+  const { ctx, page, errors } = await open({ ...opts, sessions: RAISE_SESSIONS })
+  await page.waitForTimeout(300)
+  await completeBtn(page).click()          // a record, too: its sound and buzz
+  await page.waitForTimeout(400)
+  await page.getByRole('button', { name: 'زد 15 ثانية' }).click({ timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(2600)          // the record lands
+  await endRest(page)
+  const ready = page.getByTestId('rest-ready')
+  await ready.waitFor({ timeout: 4000 }).catch(() => {})
+  ok(`sound/${label}: the session runs — set, record, rest, «جاهز»`, await ready.isVisible().catch(() => false)
+    && (await activeStored(page)).exercises[0].sets[0].done)
+  if (label === 'no decoding') {
+    const tones = await page.evaluate(() => window.__tones.map(t => t.f))
+    ok('sound/no decoding: the rest falls back to its plain 660/880 tones', tones.slice(0, 4).join(',') === '660,660,660,880', tones.join(','))
+  }
+  if (label === 'real audio') {
+    const dec = await page.evaluate(async () => {
+      const out = { pick: document.createElement('audio').canPlayType('audio/mp4; codecs="mp4a.40.2"') ? 'm4a' : 'mp3' }
+      for (const ext of ['m4a', 'mp3']) {
+        try {
+          const ab = await (await fetch(`/sounds/set-done.${ext}`)).arrayBuffer()
+          const b = await new OfflineAudioContext(1, 44100, 44100).decodeAudioData(ab)
+          out[ext] = Math.round(b.duration * 1000)
+        } catch (e) { out[ext] = String(e).slice(0, 60) }
+      }
+      return out
+    })
+    ok('sound/real audio: the browser decodes the format the app picks for it', typeof dec[dec.pick] === 'number' && dec[dec.pick] > 50, JSON.stringify(dec))
+  }
+  ok(`sound/${label}: no page errors`, errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

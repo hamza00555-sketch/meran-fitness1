@@ -27,7 +27,9 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cacheId: 'meran-v1',
-        globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,otf,woff,woff2}'],
+        // The sounds (public/sounds, ~100 KB for both formats) are
+        // precached too: the gym is where the app is used offline.
+        globPatterns: ['**/*.{js,css,html,ico,png,webp,svg,otf,woff,woff2}', 'sounds/*.{m4a,mp3}'],
         // The old design lives at /classic/ with a service worker of its
         // own; this one must not answer its pages with the new app. The
         // heavy PNG art is the old design's; the new one ships WebP copies

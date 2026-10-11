@@ -9,6 +9,23 @@
 .k-weight .k-unit { font-size: 0.8em; color: var(--ink-3); font-weight: 600; }
 .k-eyebrow { display: block; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); line-height: 1.4; }
 
+/* ── A rolling number (RollNumber.jsx) ──
+   The final number holds the size in transparent ink; the digits roll in
+   windows over it. --roll-h is a window's height (1.15em by default; the
+   level-up number, set at line-height 1, uses 1em). */
+.k-roll { position: relative; display: inline-block; white-space: nowrap; direction: ltr; unicode-bidi: isolate; }
+.k-roll-ghost { color: transparent; }
+.k-roll-o {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.k-roll-w {
+  display: inline-block; flex: none; overflow: hidden; text-align: center;
+  height: var(--roll-h, 1.15em); line-height: var(--roll-h, 1.15em);
+}
+.k-roll-s { display: flex; flex-direction: column; }
+.k-roll-s > span { display: block; height: var(--roll-h, 1.15em); line-height: var(--roll-h, 1.15em); }
+
 /* ── Buttons ── */
 .k-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

@@ -1,0 +1,60 @@
+/* ══ رقم قياسي جديد — components/player/PRMoment.jsx ════════════════
+   Over the session, under nothing: the screen dims behind a soft
+   vignette, a gold ring leaves the centre, the trophy drops in, the new
+   weight rolls in gold. Gold is the record's colour here and nowhere
+   else on screen; the glow is allowed for this one moment (--glow-raise).
+   The rest panel stays visible underneath: the hint sits above it. */
+
+.pr {
+  position: fixed; inset: 0; z-index: calc(var(--z-cover) + 10);
+  display: grid; place-items: center; text-align: center;
+  font-family: var(--font); color: var(--ink);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.pr-stage { position: absolute; inset: 0; display: grid; place-items: center; }
+.pr-scrim {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 50% 40%, rgba(42,48,56,0.55), rgba(3,4,4,0.9) 62%),
+    rgba(3,4,4,0.55);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
+  backdrop-filter: blur(10px) saturate(120%);
+}
+.pr-shock {
+  position: absolute; left: 50%; top: 41%;
+  width: 150px; height: 150px; margin: -75px 0 0 -75px;
+  border-radius: 50%; border: 3px solid var(--raise); opacity: 0;
+}
+.pr-body {
+  position: relative; display: grid; justify-items: center; gap: 2px;
+  margin-top: -60px; padding-inline: var(--gutter);
+}
+.pr-tro { display: grid; place-items: center; width: 84px; height: 84px; color: var(--raise); }
+.pr-tro svg, .pr-fly svg { width: 100%; height: 100%; filter: drop-shadow(var(--glow-raise)); }
+.pr-eb { margin-top: 8px; font-size: var(--t-headline); font-weight: 700; color: var(--raise); }
+.pr-w { display: flex; align-items: baseline; justify-content: center; gap: 8px; direction: rtl; }
+.pr-num {
+  position: relative; display: inline-flex;
+  font-size: 104px; font-weight: 800; line-height: 1.05; font-stretch: 75%;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--raise);
+}
+.pr-u { font-size: var(--t-title); font-weight: 600; color: var(--ink-2); }
+.pr-sub { font-size: var(--t-body); font-weight: 600; color: var(--ink); }
+.pr-sub b { color: var(--raise); font-weight: 800; }
+.pr-name { margin-top: 2px; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.pr-hint {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--safe-bottom) + 150px);
+  font-size: var(--t-caption); font-weight: 600; color: var(--ink-3);
+}
+.pr-conf { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+/* The trophy in flight to its row: outside the fading card. */
+.pr-fly {
+  position: fixed; left: 0; top: 0; width: 84px; height: 84px; opacity: 0;
+  color: var(--raise); pointer-events: none; transform-origin: center;
+}
+
+@media (max-height: 640px) {
+  .pr-num { font-size: 84px; }
+  .pr-hint { bottom: calc(var(--safe-bottom) + 118px); }
+}

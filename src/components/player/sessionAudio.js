@@ -4,72 +4,68 @@
 // or resumed inside a tap. The old beep built a fresh context from a
 // timer, outside any tap, and could start suspended and stay silent.
 //
-// So: one context for the whole app, primed by the «تمّت المجموعة» tap
-// (and any stepper press). In that same tap the rest starts, and its
-// tones are scheduled ahead on the audio clock — three short 660Hz ticks
-// at −3/−2/−1s and an 880Hz end tone at zero — so they play on time even
-// if the JS timers are throttled. ±15 and skip cancel and reschedule.
-// Vibration is an extra, never the signal: iPhones have none on the web.
+// So: one context for the whole app (src/sound.js), primed by the
+// «تمّت المجموعة» tap (and any stepper press). In that same tap the rest
+// starts, and its sounds are scheduled ahead on the audio clock — the
+// library's short tick at −3/−2/−1s and its end chime at zero — so they
+// play on time even if the JS timers are throttled. ±15 and skip cancel
+// and reschedule. Vibration is an extra, never the signal: iPhones have
+// none on the web.
+//
+// The sounds are files (public/sounds), decoded on the first tap. If a
+// file can't be had at all (offline before it was ever cached, a codec
+// the phone lacks), the rest keeps a plain tone in its place: the end of
+// a rest is a signal, not a flourish.
 
-let ctx = null
+import { unlock, unlocked, running, play } from '../../sound.js'
 
 /** Create or wake the shared context. Call it from inside a user tap. */
 export function primeAudio() {
-  try {
-    if (!ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext
-      if (!AC) return null
-      ctx = new AC()
-    }
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-    // Duck the lifter's music instead of stopping it, where supported.
-    try { if (navigator.audioSession) navigator.audioSession.type = 'transient' } catch {}
-  } catch { ctx = null }
-  return ctx
+  return unlock()
 }
 
-export const audioPrimed = () => !!ctx && ctx.state !== 'closed'
+export const audioPrimed = () => unlocked()
+
+// The tone a rest falls back to when its file is missing — the old
+// 660Hz tick and 880Hz end, unchanged.
+const toneFallback = (freq, dur, peak) => (c, t) => {
+  try {
+    const o = c.createOscillator()
+    const g = c.createGain()
+    o.type = 'sine'
+    o.frequency.value = freq
+    o.connect(g)
+    g.connect(c.destination)
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.012)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+    o.start(t)
+    o.stop(t + dur + 0.03)
+    return () => { try { g.disconnect() } catch {} try { o.stop() } catch {} }
+  } catch { return null }
+}
+const TICK = toneFallback(660, 0.11, 0.28)
+const END = toneFallback(880, 0.5, 0.38)
 
 /**
- * Schedule the rest tones for a rest ending `secondsLeft` from now.
+ * Schedule the rest sounds for a rest ending `secondsLeft` from now.
  * Returns a cancel function.
  */
 export function scheduleRestTones(secondsLeft) {
-  if (!ctx || ctx.state === 'closed' || !(secondsLeft > 0)) return () => {}
-  const now = ctx.currentTime
-  const nodes = []
-  const tone = (at, freq, dur, peak) => {
-    if (at < 0.05) return
-    try {
-      const o = ctx.createOscillator()
-      const g = ctx.createGain()
-      o.type = 'sine'
-      o.frequency.value = freq
-      o.connect(g)
-      g.connect(ctx.destination)
-      const t = now + at
-      g.gain.setValueAtTime(0.0001, t)
-      g.gain.exponentialRampToValueAtTime(peak, t + 0.012)
-      g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
-      o.start(t)
-      o.stop(t + dur + 0.03)
-      nodes.push([o, g])
-    } catch {}
+  if (!unlocked() || !(secondsLeft > 0)) return () => {}
+  const cancels = []
+  const at = (s, name, fallback) => {
+    if (s < 0.05) return
+    cancels.push(play(name, { at: s, fallback }))
   }
-  for (const k of [3, 2, 1]) tone(secondsLeft - k, 660, 0.11, 0.28)
-  tone(secondsLeft, 880, 0.5, 0.38)
-  return () => {
-    for (const [o, g] of nodes) {
-      try { g.disconnect() } catch {}
-      try { o.stop() } catch {}
-    }
-  }
+  for (const k of [3, 2, 1]) at(secondsLeft - k, 'rest-tick', TICK)
+  at(secondsLeft, 'rest-end', END)
+  return () => cancels.forEach(c => c())
 }
 
-/** A short chime now — for a rest that ended with nothing scheduled. */
+/** The end chime now — for a rest that ended with nothing scheduled. */
 export function chimeNow() {
-  if (!ctx || ctx.state !== 'running') return false
-  const cancel = scheduleRestTones(0.06)
-  void cancel
+  if (!running()) return false
+  play('rest-end', { at: 0.06, fallback: END })
   return true
 }

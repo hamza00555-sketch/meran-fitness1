@@ -93,20 +93,61 @@ function NameAr({ name, mapping }) {
   return <>{ar}<span className="s-latin-sep" aria-hidden="true">·</span><bdi dir="ltr" className="s-latin">{name}</bdi></>
 }
 
-function useSwipe(onSwipe) {
+// The swipe follows the finger: once a press has moved 10px more sideways
+// than down, it is a drag — the pointer is captured (so a drag that wanders
+// off the head still ends here) and `onDrag('move', dx)` carries the
+// screen along. On release it goes through past 56px, or on a flick
+// faster than 0.4px/ms; otherwise `onDrag('cancel')` springs it back.
+const SWIPE_DIST = 56
+const SWIPE_SPEED = 0.4
+
+function useSwipe(onSwipe, onDrag) {
   const start = useRef(null)
+  const cancel = () => {
+    const s = start.current
+    start.current = null
+    if (s?.dragging) onDrag?.('cancel')
+  }
   return {
-    onPointerDown: (e) => { start.current = { x: e.clientX, y: e.clientY } },
+    onPointerDown: (e) => {
+      const t = performance.now()
+      start.current = { x: e.clientX, y: e.clientY, id: e.pointerId, dragging: false, samples: [{ x: e.clientX, t }] }
+    },
+    onPointerMove: (e) => {
+      const s = start.current
+      if (!s || s.id !== e.pointerId) return
+      const dx = e.clientX - s.x
+      const dy = e.clientY - s.y
+      if (!s.dragging) {
+        if (Math.abs(dx) <= 10 || Math.abs(dx) <= Math.abs(dy) * 1.5) return
+        s.dragging = true
+        try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
+      }
+      const t = performance.now()
+      s.samples.push({ x: e.clientX, t })
+      while (s.samples.length > 2 && t - s.samples[0].t > 90) s.samples.shift()
+      onDrag?.('move', dx)
+    },
     onPointerUp: (e) => {
       const s = start.current
       start.current = null
       if (!s || !onSwipe) return
       const dx = e.clientX - s.x
       const dy = e.clientY - s.y
+      const first = s.samples[0]
+      const dt = performance.now() - first.t
+      const v = dt > 0 ? (e.clientX - first.x) / dt : 0
+      const sideways = Math.abs(dx) > Math.abs(dy) * 1.5
+      const far = Math.abs(dx) > SWIPE_DIST
+      const flick = s.dragging && Math.abs(v) > SWIPE_SPEED && Math.sign(v) === Math.sign(dx)
       // RTL: the next exercise waits on the left, so dragging right brings it.
-      if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx > 0 ? 1 : -1)
+      if (sideways && (far || flick)) onSwipe(dx > 0 ? 1 : -1)
+      else if (s.dragging) onDrag?.('cancel')
     },
-    onPointerCancel: () => { start.current = null },
+    onPointerCancel: cancel,
+    // Only the head's own capture ending counts: a finger's implicit
+    // capture on the pill is handed over to the head when a drag starts.
+    onLostPointerCapture: (e) => { if (e.target === e.currentTarget && start.current?.id === e.pointerId) cancel() },
   }
 }
 
@@ -114,12 +155,12 @@ export default function ExerciseHero({
   ex, mapping = {}, expanded, animate = false, onToggleStage, collapsible = false,
   maxWeight = null, deloadPct = 0, quietBest = false, ytUrl,
   canSwap, swapNext = null, swapOrigin = null, onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
-  onAddExercise, onDiscard, onSwipe,
+  onAddExercise, onDiscard, onSwipe, onDrag,
 }) {
   const [menu, setMenu] = useState(false)
   const [info, setInfo] = useState(false)
   const [copied, setCopied] = useState(false)
-  const swipe = useSwipe(onSwipe)
+  const swipe = useSwipe(onSwipe, onDrag)
   const watch = useTap(() => openVideo(ytUrl))
   const fold = useTap(() => onToggleStage?.())
 

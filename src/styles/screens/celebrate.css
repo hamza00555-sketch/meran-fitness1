@@ -6,7 +6,6 @@
 
 @keyframes cel-wipe  { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
 @keyframes cel-in    { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-@keyframes cel-roll  { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 @keyframes cel-crest { from { opacity: 0; transform: scale(0.6); } 70% { opacity: 1; transform: scale(1.03); } to { opacity: 1; transform: scale(1); } }
 @keyframes cel-thaw  { from { opacity: 1; } to { opacity: 0; } }
 
@@ -33,9 +32,7 @@
   display: inline-flex; font-size: var(--t-poster); font-weight: 800; line-height: 1; font-stretch: 75%;
   font-variant-numeric: tabular-nums lining-nums; color: var(--ink);
 }
-.cel-digit { display: inline-block; height: 1em; overflow: hidden; }
-.cel-strip { display: flex; flex-direction: column; animation: cel-roll 280ms var(--ease-out) both; animation-delay: calc(700ms + var(--d, 0) * 30ms); }
-.cel-strip > span { display: block; height: 1em; line-height: 1; }
+/* the digits roll through RollNumber (kit.css .k-roll), at --roll-h: 1em */
 
 .cel-crest-row { display: inline-flex; align-items: center; gap: 12px; margin-top: var(--space-1); }
 .cel-crest-text { display: inline-flex; align-items: baseline; gap: 8px; font-size: var(--t-title); font-weight: 800; color: var(--ink); }
@@ -90,7 +87,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cel { animation: k-fade-in 160ms linear both; }
-  .cel-beat, .cel-crest-hero, .cel-strip, .cel-thaw-ice { animation-duration: 1ms; animation-delay: 0ms; }
-  .cel-strip { transform: translateY(-50%); }
+  .cel-beat, .cel-crest-hero, .cel-thaw-ice { animation-duration: 1ms; animation-delay: 0ms; }
   .cel-thaw-ice { opacity: 0; }
 }

@@ -4,6 +4,7 @@ import { Timer } from '../kit/icons.js'
 import { ls } from '../../utils.js'
 import { primeAudio, audioPrimed, scheduleRestTones, chimeNow } from './sessionAudio.js'
 import { restClock } from './sessionWords.js'
+import { haptic } from '../../haptics.js'
 
 const STORE = 'hf_rest_timer'
 
@@ -23,8 +24,9 @@ const STORE = 'hf_rest_timer'
 // field, «جاهز · المجموعة التالية», that waits for a tap — the signal
 // stays until you look up — and counts the overtime, «+0:23».
 //
-// Sound: tones scheduled on the shared AudioContext the moment the rest
-// starts (primed by the tap that started it), rescheduled on ±15.
+// Sound: the library's tick (−3/−2/−1s) and end chime, scheduled on the
+// shared AudioContext the moment the rest starts (primed by the tap that
+// started it), rescheduled on ±15 (sessionAudio.js).
 
 function read() {
   return ls.get(STORE, null)
@@ -105,7 +107,7 @@ export default function InlineRest({ onDone, onSkip, seconds = DEFAULT_SECONDS, 
     if (firedRef.current || !liveRef.current) return
     firedRef.current = true
     if (!scheduled.current) chimeNow()
-    try { navigator.vibrate?.([180, 80, 180]) } catch {}
+    haptic('rest')
   }, [finished])
 
   if (!st) return null

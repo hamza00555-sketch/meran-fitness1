@@ -34,11 +34,15 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 //
 // A set heavier than anything on record wears gold — the one place a
 // personal best is said, on the row that set it: the weight in gold, and
-// a gold trophy where its check would be.
+// a gold trophy where its check would be. While the record's moment is
+// on screen (PRMoment) that trophy waits, hidden, for the one flying in
+// to land on it; WorkoutPlayer finds it by the table's exercise and the
+// row's set number.
 
-function Tick({ on, fresh, pr }) {
+function Tick({ on, fresh, pr, hold }) {
   if (on && pr) {
-    return <Trophy size={20} weight="fill" className="s-pr-icon" role="img" aria-label="رقم قياسي" />
+    return <Trophy size={20} weight="fill" className="s-pr-icon" role="img" aria-label="رقم قياسي"
+      data-hold={hold ? '1' : undefined} />
   }
   return (
     <span className="s-tick" data-on={on ? '1' : undefined} data-fresh={fresh ? '1' : undefined} aria-hidden="true">
@@ -56,11 +60,11 @@ const dash = <span className="s-dash">—</span>
 
 export default function SetHistory({
   ex, liveIndex, currentIndex, editingIndex, prevSets = [], freshIndex = null, prIndex = null,
-  onEdit, live,
+  holdIndex = null, onEdit, live,
 }) {
   const hasHistory = ex.sets.some((_, i) => i !== liveIndex && setWords(prevSets[i]))
   return (
-    <div className="s-table" role="list" aria-label="المجموعات" data-history={hasHistory ? '1' : undefined}>
+    <div className="s-table" role="list" aria-label="المجموعات" data-history={hasHistory ? '1' : undefined} data-ex={ex.id}>
       {ex.sets.map((s, i) => {
         if (i === liveIndex && live) return <div key={i} role="listitem" className="s-trow-live">{live}</div>
         const prev = setWords(prevSets[i])
@@ -86,13 +90,13 @@ export default function SetHistory({
                 <span className="s-prev-label">آخر مرة</span> <SetPhrase set={prevSets[i]} />
               </span>
             )}
-            <span className="s-cell-tick"><Tick on={s.done} fresh={i === freshIndex} pr={isPR} /></span>
+            <span className="s-cell-tick"><Tick on={s.done} fresh={i === freshIndex} pr={isPR} hold={i === holdIndex} /></span>
           </>
         )
         return (
           <div key={i} role="listitem">
             {s.done ? (
-              <button type="button" className="s-trow" data-state={state} data-prev={prev ? '1' : undefined}
+              <button type="button" className="s-trow" data-state={state} data-set={i} data-prev={prev ? '1' : undefined}
                 data-editing={i === editingIndex ? '1' : undefined}
                 aria-label={`المجموعة ${i + 1}: ${setWords(s) || 'فاضية'}${isPR ? ' — رقم قياسي' : ''}${prev ? ` — آخر مرة ${prev}` : ''} — اضغط للتعديل`}
                 onClick={() => onEdit(i)}>
