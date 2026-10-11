@@ -271,7 +271,16 @@ async function shoot(page, name) {
   await page.setViewportSize({ width: 390, height: Math.min(h, 16000) })
   await page.waitForTimeout(400)
   await page.screenshot({ path: `${SHOTS}/${name}-full.png`, fullPage: true })
+  // Put the phone back exactly as it was, or every check after this one
+  // would run against the stretched page.
+  await page.evaluate(() => {
+    for (const el of [document.querySelector('.rp'), document.querySelector('.rp-scroll'), document.documentElement, document.body]) {
+      el.style.position = ''; el.style.height = ''; el.style.overflow = ''
+    }
+    window.scrollTo(0, 0)
+  })
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.waitForTimeout(300)
 }
 
 {

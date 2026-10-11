@@ -487,26 +487,38 @@ async function openDeloadSettings(page) {
   await page.waitForTimeout(3000)
   ok('report: it opened', await page.locator('.mr-section').count() > 0)
 
-  // The chart shades the taper rather than marking each point.
-  const band = await page.locator('svg rect[fill="#5CC9EE"]').count()
-  ok('report: the trend chart shades the deload stretch', band === 1, String(band))
-
-  // The verdict. Four light days at the END of the month is exactly the
-  // arrangement a least-squares fit is dragged down by, so "up" here is
-  // the exclusion doing its job — not an accident of the fixture.
-  const verdict = await page.evaluate(() => {
-    const svg = document.querySelector('svg[aria-label*="الاتجاه"]')
-    return svg?.getAttribute('aria-label') || ''
+  // Said once, on the cover, in the deload blue. (The daily volume
+  // chart that used to shade it is gone from the report.)
+  const note = await page.evaluate(() => {
+    const el = document.querySelector('.rp-cover-note.is-deload')
+    return el ? { text: el.textContent.trim(), color: getComputedStyle(el).color } : null
   })
+  ok('report: the cover names the deload stretch once, in blue',
+    /فيه أسبوع تخفيف من 20 إلى 26\. خفيف عن قصد، وما ينحسب ضدك\./.test(note?.text || '') && note?.color === 'rgb(92, 201, 238)',
+    JSON.stringify(note))
+
+  // Four light sessions at the END of the month is exactly the shape
+  // that used to read as a decline. Now: the taper is not a step back
+  // in «صرت أقوى؟», its days stay off the light scale, and next month's
+  // plan does not answer it with «نزّل».
+  const taper = await page.evaluate(() => ({
+    stronger: document.querySelector('#rp-stronger .rp-ch-lead')?.textContent.trim() || '',
+    caption: document.querySelector('#rp-stronger .rp-caption')?.textContent || '',
+    litTaper: [...document.querySelectorAll('.rp-cal-cell.is-deload[data-level]')].length,
+    next: [...document.querySelectorAll('.rp-next-item')].map(li => li.dataset.kind),
+    blueDashes: [...document.querySelectorAll('.rp-ring .rp-arc.is-done.is-deload')].length,
+  }))
   ok('report: the taper does not turn the month into a decline',
-    /صاعد/.test(verdict), verdict)
+    /^وزنك زاد/.test(taper.stronger) && /جلسات التخفيف ما تنحسب هنا/.test(taper.caption) &&
+    taper.litTaper === 0 && !taper.next.includes('lower'), JSON.stringify(taper))
+  ok('report: the deload sessions still count as attended', taper.blueDashes === 4, JSON.stringify(taper))
 
   // Every stored deload day is rimmed, trained or not.
   const rimmed = await page.evaluate(() =>
-    [...document.querySelectorAll('[title*="ديلود"]')].map(e => e.getAttribute('title')))
+    [...document.querySelectorAll('.rp-cal-cell.is-deload')].map(e => e.getAttribute('title')))
   ok('report: the calendar rims the whole stored stretch', rimmed.length === 7, String(rimmed.length))
   ok('report: a rimmed day keeps saying what kind of day it was',
-    rimmed.every(t => /تمرّنت|راحة|غياب/.test(t)), rimmed.slice(0, 3).join(' | '))
+    rimmed.every(t => /تمرّنت|راحة|فاتك/.test(t) && /تخفيف/.test(t)), rimmed.slice(0, 3).join(' | '))
 
   ok('report: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
