@@ -18,7 +18,7 @@
 }
 .s-session > * { width: 100%; max-width: 560px; margin-inline: auto; }
 .s-session[data-dock="rest"],
-.s-session:has(.s-rest:not([hidden])) { --s-dock-h: 124px; }
+.s-session:has(.s-rest:not([hidden], .s-rest-leaving)) { --s-dock-h: 124px; }
 .s-session:has(.s-ready:not([hidden])) { --s-dock-h: calc(76px + var(--safe-bottom)); --s-dock-gap: 0px; }
 
 /* The cover's own ⌄ bar is redundant once the session draws its bar. */
@@ -288,8 +288,18 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 }
 .s-tick[data-on="1"] { box-shadow: none; }
 .s-tick path { stroke-dasharray: 24; stroke-dashoffset: 0; }
-.s-tick[data-fresh="1"] path { animation: s-tick-draw 180ms var(--ease-out) both; }
+.s-tick[data-fresh="1"] path { animation: s-tick-draw 180ms var(--ease-out) 200ms both; }
 @keyframes s-tick-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+/* Phase 3 · the row just ticked: its green comes in from the start edge
+   (120ms after the tap, 220ms) and it settles from a hair larger. */
+.s-trow[data-state="done"][data-fresh="1"] {
+  background: linear-gradient(rgba(var(--accent-rgb), 0.10), rgba(var(--accent-rgb), 0.10)) right / 100% 100% no-repeat;
+  animation: s-row-tint 220ms var(--ease-out) 120ms backwards,
+             s-row-settle var(--spring-snappy-ms) var(--spring-snappy) 60ms backwards;
+}
+.s-trow[data-state="done"][data-fresh="1"]:active { background-color: rgba(var(--accent-rgb), 0.08); }
+@keyframes s-row-tint { from { background-size: 0% 100%; } }
+@keyframes s-row-settle { from { transform: scale(1.015); } }
 
 .s-trow-live { padding-block: 4px; }
 
@@ -367,6 +377,10 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   color: var(--ink); pointer-events: none; white-space: nowrap;
 }
 .s-field[data-raise="1"] .s-field-roll { color: var(--raise); }
+/* A number rolling narrower (− from 77.5 to 75) starts wider than the
+   box it lands in; it spills to the right, away from the unit beside it,
+   not over «كجم». (The rolling digits are LTR: flex-start is the left.) */
+.s-field-roll .k-roll-o { justify-content: flex-start; }
 .s-field-num[data-rolling="1"] input { opacity: 0; }
 .s-field input::placeholder { color: var(--ink-3); }
 .s-field-unit { flex: none; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
@@ -513,6 +527,18 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 .s-dock:has(.s-ready:not([hidden]))::before { display: none; }
 .s-rest[hidden], .s-ready[hidden] { display: none !important; }
 
+/* Phase 3 · the button becoming the rest: a copy of it stays over the
+   panel's footprint for half a second — its words give way to a check —
+   while the panel grows out of it (WorkoutPlayer runs the clocks). */
+.s-rest[data-arrive="morph"] { animation: none; }
+.s-dock-ghost {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
+  display: grid; place-items: center;
+}
+.s-dock-ghost > * { grid-area: 1 / 1; }
+.s-ghost-label { display: inline-flex; align-items: center; gap: 8px; }
+.s-ghost-ok path { stroke-dasharray: 30; stroke-dashoffset: 0; }
+
 /* Rest, in the dock's place */
 .s-rest {
   position: relative; overflow: hidden;
@@ -531,7 +557,13 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 }
 .s-rest-skip:active { background: var(--surface-3); }
 .s-rest-main { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.s-rest-time { font-size: var(--t-display); font-weight: 800; line-height: 1.05; font-stretch: 87.5%; color: var(--ink); }
+.s-rest-time { display: inline-block; transform-origin: center; font-size: var(--t-display); font-weight: 800; line-height: 1.05; font-stretch: 87.5%; color: var(--ink); }
+/* The last three seconds: a wave leaves the panel with each tick (its
+   Web Animation, InlineRest); the drain turns green under it. */
+.s-rest-wave {
+  position: absolute; inset: 0; border-radius: var(--r-md); pointer-events: none; opacity: 0;
+}
+.s-rest-wave[hidden] { display: none; }
 .s-rest-nudges { display: flex; gap: 8px; }
 .s-rest-nudge {
   min-width: 56px; height: 44px; padding: 0 10px; border: 0; border-radius: var(--r-pill); cursor: pointer;
@@ -541,25 +573,54 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
   transition: transform var(--dur-press) var(--ease-out);
 }
 .s-rest-nudge:active { transform: scale(0.94); }
-.s-rest-bar { height: 4px; margin-top: 10px; border-radius: var(--r-pill); background: rgba(var(--rest-rgb), 0.18); overflow: hidden; }
+.s-rest-bar {
+  height: 4px; margin-top: 10px; border-radius: var(--r-pill); background: rgba(var(--rest-rgb), 0.18); overflow: hidden;
+  /* The track takes the tint with the fill, so it shows when the fill is
+     a sliver (three seconds of ninety). Its clock: InlineRest. */
+  animation-name: s-track-tint; animation-timing-function: linear; animation-fill-mode: both;
+}
+@keyframes s-track-tint { from { background-color: rgba(var(--rest-rgb), 0.18); } to { background-color: rgba(var(--accent-rgb), 0.24); } }
 .s-rest-bar i {
   display: block; height: 100%; background: var(--rest); border-radius: inherit;
   transform-origin: left;    /* RTL: drains from the start edge */
-  animation-name: s-drain; animation-timing-function: linear; animation-fill-mode: both;
+  /* The drain, and its tint: blue until three seconds are left, then
+     linearly to the green of «جاهز» (InlineRest sets both clocks). */
+  animation-name: s-drain, s-drain-tint; animation-timing-function: linear; animation-fill-mode: both;
 }
 @keyframes s-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes s-drain-tint { from { background-color: var(--rest); } to { background-color: var(--accent); } }
+
+/* The panel that counted down, fading under «جاهز» as it wipes in —
+   where it was, out of the flow. */
+.s-rest.s-rest-leaving {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--safe-bottom) + 12px);
+  width: calc(100% - 2 * var(--gutter)); max-width: 520px; margin-inline: auto;
+  pointer-events: none;
+  animation: s-rest-out 340ms var(--ease-exit) forwards;
+}
+@keyframes s-rest-out { to { opacity: 0; transform: scale(0.98); } }
 
 /* «جاهز»: a full-width green field that waits for the tap */
 .s-ready {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  width: 100%; min-height: calc(76px + var(--safe-bottom)); padding: 10px 16px calc(var(--safe-bottom) + 10px);
-  border: 0; border-radius: var(--r-0); cursor: pointer;
-  background: var(--accent); color: var(--on-accent); font-family: var(--font);
+  display: flex; width: 100%; min-height: calc(76px + var(--safe-bottom)); padding: 0;
+  border: 0; border-radius: var(--r-0); cursor: pointer; background: transparent;
+  color: var(--on-accent); font-family: var(--font);
   -webkit-tap-highlight-color: transparent;
+}
+/* The face is what wipes in from the start edge; the button around it is
+   tappable at once, so a tap in the first frames of the wipe still counts. */
+.s-ready-face {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: 10px 16px calc(var(--safe-bottom) + 10px);
+  background: var(--accent);
   animation: s-wipe 320ms var(--ease-wipe) both;
 }
-.s-ready:active { background: var(--accent-press); }
-.s-ready-title { font-size: var(--t-title); font-weight: 800; line-height: 1.25; }
+.s-ready:active .s-ready-face { background: var(--accent-press); }
+.s-ready-title {
+  font-size: var(--t-title); font-weight: 800; line-height: 1.25;
+  animation: s-ready-settle var(--spring-bouncy-ms) var(--spring-bouncy) 120ms backwards;
+}
+@keyframes s-ready-settle { from { transform: scale(0.96); } }
 .s-ready-over { font-size: var(--t-label); font-weight: 700; line-height: 1.3; }
 @keyframes s-wipe { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0 0 0 0); } }
 
@@ -592,7 +653,7 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
    stay clear of it. Wide enough for one row: the countdown keeps its
    56px and «تخطي» joins the nudges; «راحة» labels the drain bar. ── */
 @media (max-height: 700px) and (min-width: 370px) {
-  .s-session:has(.s-rest:not([hidden])) { --s-dock-h: 98px; }
+  .s-session:has(.s-rest:not([hidden], .s-rest-leaving)) { --s-dock-h: 98px; }
   .s-rest {
     display: grid; align-items: center;
     grid-template-columns: auto 1fr auto auto;
@@ -608,14 +669,17 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 }
 /* Narrower and short (SE): two rows as usual, the countdown at 40px. */
 @media (max-height: 700px) and (max-width: 369px) {
-  .s-session:has(.s-rest:not([hidden])) { --s-dock-h: 100px; }
+  .s-session:has(.s-rest:not([hidden], .s-rest-leaving)) { --s-dock-h: 100px; }
   .s-rest-time { font-size: 40px; }
   .s-rest { padding-block: 8px 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .s-stage, .s-exrow, .s-rest, .s-done-line, .s-done-line[data-fresh="1"], .s-next-line, .s-raise-chip-w[data-enter="1"] { animation: none; }
-  .s-ready { animation: s-fade 160ms linear both; }
+  .s-trow[data-state="done"][data-fresh="1"], .s-ready-title { animation: none; }
+  /* A real fade: the blanket 0.01ms (index.css) would paint its first
+     frame at opacity 0, a blink in the dock. */
+  .s-ready-face { animation: s-fade 160ms linear both; animation-duration: 160ms !important; }
   .s-tick[data-fresh="1"] path, .s-raise-draw .s-raise-path, .s-raise-quick .s-raise-path { animation: none; stroke-dashoffset: 0; }
   .s-raise-breathe { animation: none; opacity: 1; }
   .s-seg i { transition: none; }

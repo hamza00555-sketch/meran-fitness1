@@ -41,11 +41,16 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 // exercise (WorkoutPlayer keeps it, `claimIntro`), not to this block,
 // which mounts again for every set and after «حفظ التعديل».
 // «خلّها 75» runs it backwards: the number rolls down, the gold goes,
-// the ring withdraws and the chip leaves. Stepping the weight rolls it
-// (180ms), and a press on a stepper or the field ends any moving copy at
-// once, so what is shown is always what will be logged. Reduced motion:
-// gold from the first frame, the ring whole and still, nothing
-// breathing; the «raise» sound still plays.
+// the ring withdraws and the chip leaves. A press on a stepper or the
+// field ends any moving copy at once, so what is shown is always what
+// will be logged. Reduced motion: gold from the first frame, the ring
+// whole and still, nothing breathing; the «raise» sound still plays.
+//
+// Phase 3 · the steppers (the plan's «اقتراح 5»): every press of + rolls
+// the number up and every − rolls it down, weight and reps alike, 160ms
+// — the feel of a banking app's figures. Held down, the repeat (every
+// 150ms, then 100ms) changes it without rolling, so the number never
+// lags the finger. Reduced motion: it simply changes.
 
 // Hold to repeat: after 400ms every 150ms, stepping up to 100ms after
 // 1.5s — never faster. Stops on release, cancel or losing the pointer.
@@ -60,6 +65,9 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 // press. A keyboard press steps once.
 const TAP_SLOP = 10
 const HOLD_DELAY = 400
+
+// A single press of + or −: the number rolls this long.
+const STEP_ROLL_MS = 160
 
 // The intro's beats, in ms from its start.
 const T = { roll: 250, chip: 300, hop: 600, adv: 450, keep: 700, ring: 500, flare: 1400, sheen: 1500, done: 2110, breathe: 2400 }
@@ -87,7 +95,7 @@ function HoldButton({ label, onStep, onPress, children }) {
     const held = performance.now() - p.at
     timer.current = setTimeout(() => {
       if (!press.current) return
-      step.current()
+      step.current(true)
       loop()
     }, held > 1500 ? 100 : 150)
   }
@@ -96,7 +104,7 @@ function HoldButton({ label, onStep, onPress, children }) {
     const p = press.current
     if (!p) return
     p.repeating = true
-    step.current()
+    step.current(true)
     loop()
   }
 
@@ -118,7 +126,7 @@ function HoldButton({ label, onStep, onPress, children }) {
           timer.current = setTimeout(startRepeat, HOLD_DELAY)
         } else {
           try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch {}
-          step.current()
+          step.current(false)
           press.current.repeating = true
           timer.current = setTimeout(loop, HOLD_DELAY)
         }
@@ -134,7 +142,7 @@ function HoldButton({ label, onStep, onPress, children }) {
         if (p.id !== e.pointerId) return
         const tap = p.touch && !p.repeating && Math.hypot(e.clientX - p.x, e.clientY - p.y) <= TAP_SLOP
         clear(e.currentTarget)
-        if (tap) step.current()
+        if (tap) step.current(false)
       }}
       onPointerCancel={(e) => clear(e.currentTarget)}
       onLostPointerCapture={(e) => { if (press.current?.id === e.pointerId) clear(e.currentTarget) }}
@@ -145,7 +153,7 @@ function HoldButton({ label, onStep, onPress, children }) {
         // pointer behind it, detail 0 — steps here.
         if (e.detail > 0) return
         onPress?.()
-        step.current()
+        step.current(false)
       }}
     >
       {children}
@@ -213,7 +221,7 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, onTouch, rais
   const press = () => { onTouch?.(); onOverlayGone?.() }
   return (
     <div className="s-step" data-field={field}>
-      <HoldButton label={`أنقص ${unitLabel}`} onStep={() => onStep(-1)} onPress={press}>
+      <HoldButton label={`أنقص ${unitLabel}`} onStep={(repeat) => onStep(-1, repeat)} onPress={press}>
         <Minus size={24} weight="bold" aria-hidden="true" />
       </HoldButton>
       <label className="s-field" ref={fieldRef} data-raise={raise ? '1' : undefined}
@@ -233,7 +241,7 @@ function Stepper({ field, value, unit, unitLabel, onInput, onStep, onTouch, rais
         <span className="s-field-unit">{unit}</span>
         {ring && <RaiseRing hostRef={fieldRef} {...ring} />}
       </label>
-      <HoldButton label={`زد ${unitLabel}`} onStep={() => onStep(1)} onPress={press}>
+      <HoldButton label={`زد ${unitLabel}`} onStep={(repeat) => onStep(1, repeat)} onPress={press}>
         <Plus size={24} weight="bold" aria-hidden="true" />
       </HoldButton>
     </div>
@@ -252,6 +260,7 @@ export default function WorkingArea({
 }) {
   const set = ex.sets[setIndex]
   const [overlay, setOverlay] = useState(null)
+  const [repsOverlay, setRepsOverlay] = useState(null)
   const [, force] = useState(0)
   const liveRef = useRef(null)
   const chipRef = useRef(null)
@@ -259,8 +268,9 @@ export default function WorkingArea({
   const introRan = useRef(null)
   const introCur = useRef(null)     // the intro this render asks for (the sound checks it)
   const alive = useRef(true)
-  const stepAt = useRef(0)          // when a stepper last changed the weight
+  const stepAt = useRef({ weight: 0, reps: 0 })   // when a single press (not a held repeat) last stepped each
   const lastW = useRef(set?.weight)
+  const lastR = useRef(set?.reps)
   useEffect(() => {
     alive.current = true
     return () => { alive.current = false }
@@ -296,27 +306,39 @@ export default function WorkingArea({
   }, [retracting])
 
   // A moving number belongs to the set it started on.
-  useLayoutEffect(() => { setOverlay(null) }, [ex.id, setIndex])
+  useLayoutEffect(() => { setOverlay(null); setRepsOverlay(null) }, [ex.id, setIndex])
 
   // A moving copy of the number only ever shows the number the input
-  // holds: when the weight changes under it, it goes (and in this render
+  // holds: when the value changes under it, it goes (and in this render
   // already — `shown` — so not even one frame shows a stale number). A
-  // stepper's change rolls the new number in instead (180ms), while the
-  // raise reminder is on this exercise.
+  // single press of + or − rolls the new number in instead (160ms).
   const wNow = kg(set?.weight)
+  const rNow = String(set?.reps ?? '')
   const shown = overlay && overlay.to === wNow ? overlay : null
+  const repsShown = repsOverlay && repsOverlay.to === rNow ? repsOverlay : null
+  const stepRoll = (field, a, b) => {
+    if (reduce || !a || !b || a === b || performance.now() - stepAt.current[field] > 400) return null
+    const t = performance.now()
+    return { id: `step-${field}-${t}`, from: a, to: b, rollAt: t, stagger: 30, duration: STEP_ROLL_MS }
+  }
   useLayoutEffect(() => {
     const before = lastW.current
     lastW.current = set?.weight
     if (before === set?.weight) return
-    const a = kg(before)
-    if (raise && !reduce && performance.now() - stepAt.current < 400 && a && wNow && a !== wNow) {
-      const t = performance.now()
-      setOverlay({ id: `step-${t}`, from: a, to: wNow, rollAt: t, stagger: 30, duration: 180 })
-      return
-    }
+    const roll = stepRoll('weight', kg(before), wNow)
+    if (roll) { setOverlay(roll); return }
     setOverlay(o => (o && o.to !== wNow ? null : o))
   }, [set?.weight]) // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const before = lastR.current
+    lastR.current = set?.reps
+    if (before === set?.reps) return
+    const roll = stepRoll('reps', String(before ?? ''), rNow)
+    if (roll) { setRepsOverlay(roll); return }
+    setRepsOverlay(o => (o && o.to !== rNow ? null : o))
+  }, [set?.reps]) // eslint-disable-line react-hooks/exhaustive-deps
+  // A step: a single press may roll; a held repeat never does.
+  const stepped = (field, repeat) => { stepAt.current[field] = repeat ? 0 : performance.now() }
 
   // The intro, once per showing that asks for it — and only in the first
   // block to claim it, so a block that mounts again replays nothing.
@@ -433,13 +455,14 @@ export default function WorkingArea({
         overlay={shown} onOverlayGone={() => setOverlay(null)}
         onTouch={raise ? touch : undefined}
         onInput={v => onUpdateSet(setIndex, 'weight', v)}
-        onStep={dir => { stepAt.current = performance.now(); onStepSet(setIndex, 'weight', dir * 2.5) }}
+        onStep={(dir, repeat) => { stepped('weight', repeat); onStepSet(setIndex, 'weight', dir * 2.5) }}
       />
       <Stepper
         field="reps" value={set.reps} unit={repsWord(parseInt(set.reps))} unitLabel="العدّات"
         inputTestId="reps-input"
+        overlay={repsShown} onOverlayGone={() => setRepsOverlay(null)}
         onInput={v => onUpdateSet(setIndex, 'reps', v)}
-        onStep={dir => onStepSet(setIndex, 'reps', dir)}
+        onStep={(dir, repeat) => { stepped('reps', repeat); onStepSet(setIndex, 'reps', dir) }}
       />
 
       {(coach || showKeep) && (

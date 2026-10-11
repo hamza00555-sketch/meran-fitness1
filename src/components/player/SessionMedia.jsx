@@ -3,6 +3,7 @@ import { subscribe, getVersion, urlFor, remoteUrlFor } from '../../assets/regist
 import { mediaSlotFor, animSlotFor } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
 import { Barbell } from '../kit/icons.js'
+import { useReveal } from '../kit/useReveal.js'
 
 // ── The exercise's picture, for the stage and the thumbnail ──────
 //
@@ -11,6 +12,9 @@ import { Barbell } from '../kit/icons.js'
 // for a lit stage instead of a 3:2 box: no box, no radius, the art
 // standing on the neutral light. The last rung is a Phosphor barbell,
 // never an emoji. Under reduced motion a loop never autoplays.
+//
+// Each rung comes in softly (kit/useReveal.js): a faint light while it is
+// on its way, a 200ms fade when it arrives, nothing for one already here.
 
 const reducedMotion = () => {
   try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches } catch { return false }
@@ -26,19 +30,21 @@ export default function SessionMedia({ name, mapping = {}, muscle, animate = fal
   const animSlot = animSlotFor(name, mapping)
   const stillUrl = stillSlot ? (urlFor(stillSlot) || remoteUrlFor(stillSlot)) : undefined
   const animUrl = animate && !videoBroken && animSlot && !reducedMotion() ? urlFor(animSlot) : undefined
-
-  if (animUrl) {
-    return (
-      <video className={className} src={animUrl} autoPlay loop muted playsInline
-        onError={() => setVideoBroken(true)} />
-    )
-  }
-  if (stillUrl && !stillBroken) {
-    return <img className={className} src={stillUrl} alt="" loading="lazy" onError={() => setStillBroken(true)} />
-  }
   const group = MUSCLE_GROUPS[muscle]?.img
     ? MUSCLE_GROUPS[muscle]
     : Object.values(MUSCLE_GROUPS).find(g => g.exercises?.some(e => e.name === name))
-  if (group?.img) return <img className={className} src={group.img} alt="" data-art="muscle" />
+  const still = stillUrl && !stillBroken ? stillUrl : null
+  const reveal = useReveal(animUrl || still || group?.img || null)
+
+  if (animUrl) {
+    return (
+      <video className={className} src={animUrl} autoPlay loop muted playsInline {...reveal}
+        onError={() => setVideoBroken(true)} />
+    )
+  }
+  if (still) {
+    return <img className={className} src={still} alt="" loading="lazy" {...reveal} onError={() => setStillBroken(true)} />
+  }
+  if (group?.img) return <img className={className} src={group.img} alt="" data-art="muscle" {...reveal} />
   return <Barbell className={className} size={40} weight="regular" aria-hidden="true" />
 }

@@ -73,7 +73,11 @@ function instruments(audio = 'fake') {
   Element.prototype.animate = function (kf, opts) {
     try {
       const cls = typeof this.className === 'string' ? this.className : (this.className?.baseVal || '')
-      if (window.__anims.length < 2000) window.__anims.push({ cls, testid: this.getAttribute?.('data-testid'), kf: JSON.stringify(kf).slice(0, 200), at: performance.now() })
+      // Where it runs, too: a number rolling in the live block (field) or
+      // in the rest's clock (rest) are different things.
+      if (window.__anims.length < 2000) window.__anims.push({ cls, testid: this.getAttribute?.('data-testid'),
+        field: !!this.closest?.('.s-field'), rest: !!this.closest?.('.s-rest, .s-dock'),
+        kf: JSON.stringify(kf).slice(0, 200), at: performance.now(), d: opts?.duration ?? null, delay: opts?.delay ?? 0 })
     } catch {}
     return animate.call(this, kf, opts)
   }
@@ -325,7 +329,7 @@ async function dragHead(page, dx = 40) {
     const cs = getComputedStyle(el)
     return { name: cs.animationName, origin: cs.transformOrigin, color: cs.backgroundColor }
   })
-  ok('rest: a blue bar drains from the start edge', drain.name === 's-drain' && drain.origin.startsWith('0px')
+  ok('rest: a blue bar drains from the start edge', /^s-drain\b/.test(drain.name) && drain.origin.startsWith('0px')
     && drain.color === 'rgb(59, 157, 232)', JSON.stringify(drain))
   ok('rest: the countdown is 56px', await page.locator('.s-rest-time').evaluate(el => parseFloat(getComputedStyle(el).fontSize)) === 56)
 
@@ -1199,7 +1203,7 @@ const RAISE_SESSIONS = [
     chip: window.__anims.filter(a => /s-raise-chip-w/.test(a.cls)).length
       + [...document.querySelectorAll('.s-raise-chip-w')].flatMap(c => c.getAnimations()).length,
     flare: window.__anims.filter(a => /s-field/.test(a.cls) && /boxShadow/.test(a.kf)).length,
-    roll: window.__anims.filter(a => /k-roll-s/.test(a.cls)).length,
+    roll: window.__anims.filter(a => /k-roll-s/.test(a.cls) && a.field).length,
     ring: document.querySelector('[data-testid="raise-ring"]')?.getAttribute('data-state') ?? null,
     chipShown: !!document.querySelector('.s-raise-chip'),
   }))
@@ -1801,7 +1805,408 @@ for (const [label, opts] of [['no audio', { audio: 'none' }], ['no decoding', { 
   await ctx.close()
 }
 
-// ══ 13. The end of a workout: medals that spin, numbers that count ══
+// ══ 13. Every set (phase 3): «تمّت المجموعة» becomes the rest ═══
+// Every frame from the tap is sampled: the button's copy and the rest
+// are both there from the first frame, the panel starts as the button's
+// footprint and grows to its full height, the clock starts at the tap,
+// and once the copy has gone the panel does not fade in a second time.
+const sampleFrames = (page, ms, fn) => page.evaluate(([ms, src]) => {
+  const probe = new Function(`return (${src})()`)
+  window.__mf = []
+  const t0 = performance.now()
+  return new Promise(resolve => {
+    const tick = () => {
+      try { window.__mf.push({ t: Math.round(performance.now() - t0), ...probe() }) } catch (e) { window.__mf.push({ err: String(e) }) }
+      if (performance.now() - t0 < ms) requestAnimationFrame(tick)
+      else resolve(window.__mf)
+    }
+    requestAnimationFrame(tick)
+  })
+}, [ms, fn.toString()])
+const clipTop = (clip) => {
+  const m = /inset\(\s*(-?[\d.]+)px/.exec(clip || '')
+  return m ? parseFloat(m[1]) : (clip === 'none' || !clip ? 0 : NaN)
+}
+{
+  const { ctx, page, errors } = await open()
+  await page.evaluate(() => { window.__anims = [] })
+  const frames = sampleFrames(page, 1100, () => {
+    const ghost = document.querySelector('[data-testid="dock-ghost"]')
+    const rest = document.querySelector('.s-rest')
+    return {
+      btn: !!document.querySelector('[data-testid="complete-set"]'),
+      ghost: !!ghost, ghostOp: ghost ? +getComputedStyle(ghost).opacity : null,
+      rest: !!rest, clip: rest ? getComputedStyle(rest).clipPath : null, restOp: rest ? +getComputedStyle(rest).opacity : null,
+      cssAnim: rest ? getComputedStyle(rest).animationName : null,
+    }
+  })
+  await page.waitForTimeout(50)
+  const tapAt = Date.now()
+  await completeBtn(page).click()
+  const mf = await frames
+  const after = mf.filter(f => !f.btn)
+  const first = after[0] || {}
+  ok('morph: in the frame the button goes, its copy and the rest panel are both there',
+    first.ghost && first.rest && first.ghostOp > 0.9, JSON.stringify(first))
+  ok('morph: the panel starts as the button\'s footprint (clipped to its bottom 56pt)',
+    clipTop(first.clip) > 30, JSON.stringify(first.clip))
+  const grown = after.filter(f => f.t - first.t >= 520)
+  ok('morph: and grows into the whole panel (clip gone) within half a second',
+    grown.length > 0 && grown.every(f => f.rest && Math.abs(clipTop(f.clip)) < 1), JSON.stringify(grown.slice(0, 2)))
+  const rising = after.filter(f => f.t - first.t > 200 && f.t - first.t < 500)
+  ok('morph: it grows continuously (the top edge rises through in-between heights)',
+    new Set(rising.map(f => Math.round(clipTop(f.clip)))).size >= 3, JSON.stringify(rising.map(f => Math.round(clipTop(f.clip)))))
+  ok('morph: the green copy fades as the panel grows, and is gone after',
+    after.some(f => f.ghost && f.ghostOp > 0 && f.ghostOp < 0.9) && after.filter(f => f.t - first.t > 600).every(f => !f.ghost),
+    JSON.stringify(after.map(f => f.ghostOp)))
+  ok('morph: no second fade once the copy has gone (the panel never dips)',
+    after.filter(f => f.t - first.t > 300).every(f => f.restOp === 1) && after.every(f => f.cssAnim === 'none'),
+    JSON.stringify(after.filter(f => f.restOp !== 1 || f.cssAnim !== 'none').slice(0, 3)))
+  ok('morph: never a frame without the button, its copy or the rest', mf.every(f => f.btn || f.ghost || f.rest))
+  const endsAt = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
+  ok('morph: the rest\'s clock starts at the tap, not after the motion', Math.abs(endsAt - tapAt - 90000) < 400, String(endsAt - tapAt))
+  const parts = await page.evaluate(() => ({
+    tint: getComputedStyle(document.querySelector('.s-trow[data-state="done"]')).animationName,
+    fresh: document.querySelector('.s-trow[data-state="done"]')?.dataset.fresh,
+    live: window.__anims.filter(a => a.testid === 'live-block' && /translateY\(10px\)/.test(a.kf)).length,
+    order: ['s-rest-label', 's-rest-time', 's-rest-nudges', 's-rest-bar']
+      .map(c => window.__anims.find(a => a.cls.split(' ').includes(c))?.delay ?? null),
+    check: window.__anims.some(a => /strokeDashoffset/.test(a.kf) && a.rest),
+  }))
+  ok('morph: the row just ticked takes its green from the start edge and settles',
+    parts.fresh === '1' && /s-row-tint/.test(parts.tint) && /s-row-settle/.test(parts.tint), JSON.stringify(parts))
+  ok('morph: the button\'s words give way to a check that draws', parts.check, JSON.stringify(parts))
+  ok('morph: the next set\'s block rises into place', parts.live === 1, JSON.stringify(parts))
+  ok('morph: the panel\'s parts come in one after another',
+    parts.order.every(d => d != null) && parts.order.every((d, i) => i === 0 || d > parts.order[i - 1]), JSON.stringify(parts.order))
+  ok('morph: the haptic and the sound still come with the tap',
+    JSON.stringify(await page.evaluate(() => window.__vibes)) === '[12]'
+    && await page.evaluate(() => window.__sounds.some(s => s.name === 'set-done')))
+  ok('morph: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  // Reduced motion: the two cross-fade — no growing, no rising.
+  const { ctx, page, errors } = await open({ reduced: true })
+  await page.evaluate(() => { window.__anims = [] })
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  const r = await page.evaluate(() => ({
+    clip: window.__anims.filter(a => /clipPath/.test(a.kf)).length,
+    moves: window.__anims.filter(a => a.rest && /translate|scale/.test(a.kf)).length,
+    fades: window.__anims.filter(a => a.rest && /opacity/.test(a.kf)).length,
+    ghost: !!document.querySelector('[data-testid="dock-ghost"]'),
+    rest: !!document.querySelector('[data-testid="rest-bar"]'),
+  }))
+  ok('morph/reduced: a cross-fade, nothing grows or slides', r.clip === 0 && r.moves === 0 && r.fades >= 2 && !r.ghost && r.rest, JSON.stringify(r))
+  ok('morph/reduced: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 13b. The last three seconds of the rest ═══════════════════
+{
+  const { ctx, page, errors } = await open()
+  await completeBtn(page).click()
+  await page.waitForTimeout(800)
+  await page.evaluate(() => {
+    const t = JSON.parse(localStorage.getItem('hf_rest_timer'))
+    t.endsAt = Date.now() + 4600
+    localStorage.setItem('hf_rest_timer', JSON.stringify(t))
+    window.__anims = []
+  })
+  const mf = await sampleFrames(page, 6400, () => {
+    const rest = document.querySelector('.s-rest:not(.s-rest-leaving)')
+    const leaving = document.querySelector('.s-rest-leaving')
+    const ready = document.querySelector('[data-testid="rest-ready"]')
+    const bar = document.querySelector('.s-rest-bar i')
+    return {
+      time: rest?.querySelector('.s-rest-time .k-roll-ghost, .s-rest-time .k-roll')?.textContent ?? null,
+      final: rest?.dataset.final ?? null,
+      bar: bar ? getComputedStyle(bar).backgroundColor : null,
+      track: bar ? getComputedStyle(bar.parentElement).backgroundColor : null,
+      rest: !!rest, leaving: !!leaving, ready: !!ready,
+    }
+  })
+  const at = (txt) => mf.filter(f => f.rest && f.time === txt)
+  ok('last 3s: not yet at 0:04', at('0:04').length > 0 && at('0:04').every(f => !f.final), JSON.stringify(at('0:04')[0]))
+  ok('last 3s: marked at 0:03, 0:02 and 0:01', ['0:03', '0:02', '0:01'].every(t => at(t).length > 0 && at(t).every(f => f.final === '1')),
+    JSON.stringify(['0:03', '0:02', '0:01'].map(t => at(t).length)))
+  const anims = await page.evaluate(() => ({
+    pulse: window.__anims.filter(a => /s-rest-time/.test(a.cls) && /scale\(1\.12\)/.test(a.kf)).length,
+    wave: window.__anims.filter(a => /s-rest-wave/.test(a.cls) && /boxShadow/.test(a.kf)).length,
+    down: window.__anims.filter(a => /k-roll-s/.test(a.cls) && a.rest && /^\[\{"transform":"translateY\(-50%\)"/.test(a.kf)).length,
+  }))
+  ok('last 3s: with each of 3, 2 and 1 the number pulses once, and a wave leaves the panel',
+    anims.pulse === 3 && anims.wave === 3, JSON.stringify(anims))
+  ok('rest: the time rolls down every second', anims.down >= 4, JSON.stringify(anims))
+  const rgb = (c) => (c || '').match(/[\d.]+/g)?.map(Number) || []
+  const b4 = rgb(at('0:04')[0]?.bar), b1 = rgb(at('0:01').at(-1)?.bar)
+  const t4 = rgb(at('0:04')[0]?.track), t1 = rgb(at('0:01').at(-1)?.track)
+  ok('last 3s: the bar is the rest blue before, and turns to the green of «جاهز»',
+    b4.join() === '59,157,232' && b1[1] > 180 && b1[2] < 120, `${b4} → ${b1}`)
+  ok('last 3s: its track takes the tint too, so it shows when the fill is a sliver',
+    t4[0] === 59 && t1[0] > 80 && t1[2] < 120, `${t4} → ${t1}`)
+  const sounds = await page.evaluate(() => window.__sounds.filter(s => /^rest-/.test(s.name) && !s.stopped).slice(-4))
+  ok('last 3s: the library ticks (rescheduled for the new end) land a second apart, the chime after',
+    sounds.map(s => s.name).join() === 'rest-tick,rest-tick,rest-tick,rest-end'
+    && [1, 2, 3].every(i => Math.abs(sounds[i].at - sounds[i - 1].at - 1) < 0.05), JSON.stringify(sounds))
+  const firstReady = mf.findIndex(f => f.ready)
+  ok('zero: «جاهز» wipes in over the counted-down panel — never an empty frame',
+    firstReady > 0 && mf[firstReady].leaving && mf.slice(firstReady - 1).every(f => f.ready || f.rest), JSON.stringify(mf.slice(firstReady - 1, firstReady + 2)))
+  ok('zero: the panel is gone under it within half a second', mf.filter(f => f.t - mf[firstReady].t > 500).every(f => !f.leaving && !f.rest && f.ready))
+  await page.evaluate(() => { window.__anims = [] })
+  await page.getByTestId('rest-ready').click()
+  await page.waitForTimeout(400)
+  const back = await page.evaluate(() => window.__anims.some(a => /k-btn/.test(a.cls) && a.rest && /translateY\(8px\)/.test(a.kf)))
+  ok('«جاهز»: the button comes back with a short rise', back && await completeBtn(page).count() === 1)
+  ok('last 3s: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 13c. + and − roll the numbers ══════════════════════════════
+{
+  const { ctx, page, errors } = await open()
+  const rollIn = (field) => page.evaluate((field) => {
+    const o = document.querySelector(`.s-step[data-field="${field}"] .s-field-roll`)
+    return o ? { on: !!o.querySelector('.k-roll-on'), shown: o.querySelector('.k-roll-ghost')?.textContent ?? null } : null
+  }, field)
+  await page.evaluate(() => { window.__anims = [] })
+  await page.getByRole('button', { name: 'زد العدّات' }).click()
+  const r1 = await rollIn('reps')
+  ok('steppers: + on the reps rolls the number up to the new one', r1?.on && r1.shown === '13'
+    && await page.evaluate(() => window.__anims.some(a => a.field && /k-roll-s/.test(a.cls) && /^\[\{"transform":"translateY\(0\)"/.test(a.kf))), JSON.stringify(r1))
+  await page.waitForTimeout(400)
+  ok('steppers: then the input holds it again', await page.locator('.s-field-roll').count() === 0
+    && (await inputs(page))[1] === '13')
+  await page.evaluate(() => { window.__anims = [] })
+  await page.getByRole('button', { name: 'أنقص الوزن' }).click()
+  const r2 = await rollIn('weight')
+  const down = await page.evaluate(() => window.__anims.filter(a => a.field && /k-roll-s/.test(a.cls)).map(a => ({ kf: a.kf.slice(0, 40), d: a.d })))
+  ok('steppers: − on the weight rolls it down, in 160ms', r2?.on && r2.shown === '72.5'
+    && down.length > 0 && down.every(a => /translateY\(-50%\)/.test(a.kf) && a.d === 160), JSON.stringify({ r2, down }))
+  await page.waitForTimeout(400)
+  // Held down: the repeat changes the number without rolling it.
+  const b = await page.getByRole('button', { name: 'زد الوزن' }).boundingBox()
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2)
+  await page.mouse.down()
+  const held = await sampleFrames(page, 1400, () => ({
+    v: document.querySelector('[data-testid="weight-input"]').value,
+    roll: !!document.querySelector('.s-step[data-field="weight"] .s-field-roll'),
+  }))
+  await page.mouse.up()
+  const late = held.filter(f => f.t > 450)
+  ok('steppers: held, the repeat changes it without rolling, so it keeps up with the finger',
+    new Set(late.map(f => f.v)).size >= 4 && late.every(f => !f.roll), JSON.stringify(late.filter(f => f.roll).slice(0, 2)) + ` ${[...new Set(held.map(f => f.v))]}`)
+  ok('steppers: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  const { ctx, page, errors } = await open({ reduced: true })
+  await page.getByRole('button', { name: 'زد العدّات' }).click()
+  ok('steppers/reduced: the number simply changes', await page.locator('.s-field-roll').count() === 0 && (await inputs(page))[1] === '13')
+  ok('steppers/reduced: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 14. The frame (phase 5): sheets you pull down ══════════════
+// A finger on the ⋯ sheet's title row: a short slow pull springs back
+// (the sheet still holds the page), a pull past the line closes it, and
+// after it the page is free — the same window-level probe as the freeze
+// above, and the same overlap that froze it (⋯ leaving as «معلومات
+// ونصائح» arrives), closed by a pull this time.
+// Probes the sheet at the given fractions of the way (the finger's offset
+// then, and where the sheet is drawn).
+async function pull(page, ctx, sel, dy, ms, { x = null, probes = [0.5, 1] } = {}) {
+  const box = await page.locator(sel).last().boundingBox()
+  const px = x ?? box.x + box.width / 2, py = box.y + Math.min(box.height / 2, 24)
+  const cdp = await ctx.newCDPSession(page)
+  const steps = Math.max(4, Math.round(ms / 16))
+  const seen = []
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: px, y: py }] })
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: px, y: py + (dy * i) / steps }] })
+    if (probes.some(f => i === Math.round(steps * f))) {
+      seen.push(await page.evaluate((finger) => {
+        const s = [...document.querySelectorAll('.k-sheet')].at(-1)
+        const m = new DOMMatrixReadOnly(getComputedStyle(s).transform === 'none' ? undefined : getComputedStyle(s).transform)
+        return { y: m.m42, finger, op: +getComputedStyle(s).opacity, shade: +getComputedStyle(s.parentElement.querySelector('.k-scrim-bg')).opacity }
+      }, (dy * i) / steps))
+    }
+    await page.waitForTimeout(16)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await cdp.detach()
+  return seen
+}
+const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style.overflow, inert: !!document.getElementById('root')?.inert, sheets: document.querySelectorAll('.k-sheet').length }))
+{
+  const HIST = Array.from({ length: 24 }, (_, i) => ({ id: 100 + i, date: new Date(2026, 7, 1 + i, 18).toISOString(), duration: 50,
+    exercises: [{ id: 'h', muscle: 'Chest', name: 'Pec Deck', sets: [{ weight: '50', reps: '12', done: true }] }] }))
+  const { ctx, page, errors } = await open({ sessions: HIST })
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(700)
+  const [a, b] = await pull(page, ctx, '.k-sheet-h', 48, 300)
+  await page.waitForTimeout(700)
+  let st = await lockState(page)
+  // It takes over past the touch slop (Chrome only sends the first move
+  // after ~15px), and from there moves with the finger, 1:1, no jump.
+  ok('sheet drag: the sheet follows the finger 1:1, opaque, as the shade lightens',
+    a && b && Math.abs((b.y - a.y) - (b.finger - a.finger)) < 1.5 && b.finger - b.y >= 0 && b.finger - b.y <= 18
+    && b.op === 1 && b.shade < 1, JSON.stringify([a, b]))
+  ok('sheet drag: a short slow pull springs back — still open, still holding the page',
+    st.sheets === 1 && st.overflow === 'hidden' && st.inert && await page.evaluate(() => getComputedStyle(document.querySelector('.k-sheet')).transform === 'none'), JSON.stringify(st))
+  const [up] = await pull(page, ctx, '.k-sheet-h', -200, 300, { probes: [1] })
+  await page.waitForTimeout(700)
+  ok('sheet drag: pulled up it gives like rubber — a little, never past its limit — and settles back',
+    up && up.y < -20 && up.y > -72 && await page.evaluate(() => getComputedStyle(document.querySelector('.k-sheet')).transform === 'none'), JSON.stringify(up))
+  await pull(page, ctx, '.k-sheet-h', 260, 220)
+  await page.waitForTimeout(600)
+  st = await lockState(page)
+  ok('sheet drag: a real pull down closes it, and the page is free at once', st.sheets === 0 && st.overflow === '' && !st.inert, JSON.stringify(st))
+
+  // The overlap that once froze the app: ⋯ leaving while «معلومات ونصائح» arrives.
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(500)
+  await page.getByText('معلومات ونصائح').click()
+  await page.waitForTimeout(600)
+  await pull(page, ctx, '.k-sheet-grab', 320, 200)
+  await page.waitForTimeout(600)
+  st = await lockState(page)
+  ok('sheet drag: after two sheets overlap and the second is pulled away, nothing holds the page', st.sheets === 0 && st.overflow === '' && !st.inert, JSON.stringify(st))
+  await page.getByRole('button', { name: 'صغّر الجلسة' }).click()
+  await page.waitForTimeout(500)
+  await page.locator('nav.f-tabs > button').nth(1).click()
+  await page.waitForTimeout(600)
+  const y0 = await page.evaluate(() => window.scrollY)
+  await page.mouse.wheel(0, 800)
+  await page.waitForTimeout(400)
+  ok('sheet drag: with the session minimised, History still scrolls', (await page.evaluate(() => window.scrollY)) > y0 + 100)
+  ok('sheet drag: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 14b. The tab bar: one capsule that slides; pages that slide ═══
+{
+  const HIST = Array.from({ length: 6 }, (_, i) => ({ id: 100 + i, date: new Date(2026, 7, 1 + i, 18).toISOString(), duration: 50,
+    exercises: [{ id: 'h', muscle: 'Chest', name: 'Pec Deck', sets: [{ weight: '50', reps: '12', done: true }] }] }))
+  for (const reduced of [false, true]) {
+    const label = reduced ? 'tabs/reduced' : 'tabs'
+    const { ctx, page, errors } = await open({ active: null, sessions: HIST, reduced })
+    const capsule = () => page.evaluate(() => {
+      const p = document.querySelector('.f-tab-pill').getBoundingClientRect()
+      const on = document.querySelector('.f-tab.on .f-tab-icon').getBoundingClientRect()
+      return { dx: Math.round(p.left - on.left), dy: Math.round(p.top - on.top), w: Math.round(p.width - on.width),
+        op: +getComputedStyle(document.querySelector('.f-tab-pill')).opacity,
+        bgs: [...document.querySelectorAll('.f-tab-icon')].filter(i => getComputedStyle(i).backgroundColor !== 'rgba(0, 0, 0, 0)').length }
+    })
+    const c0 = await capsule()
+    ok(`${label}: one capsule, under the current tab's icon`, c0.dx === 0 && c0.dy === 0 && c0.w === 0 && c0.op === 1 && c0.bgs === 0, JSON.stringify(c0))
+    await page.evaluate(() => { window.__anims = [] })
+    const vt0 = await page.evaluate(() => window.__vt)
+    await page.locator('nav.f-tabs > button').nth(3).click()
+    const during = await page.evaluate(() => document.documentElement.dataset.tabnav ?? null)
+    await page.waitForTimeout(700)
+    const c1 = await capsule()
+    const r = await page.evaluate(() => ({
+      vt: window.__vt, attr: document.documentElement.dataset.tabnav ?? null,
+      slide: window.__anims.filter(a => /f-tab-pill/.test(a.cls) && /translate/.test(a.kf)).length,
+      swell: window.__anims.filter(a => /scale\(1\.14\)/.test(a.kf)).length,
+      main: getComputedStyle(document.querySelector('main')).transform, mainStyle: document.querySelector('main').getAttribute('style'),
+    }))
+    ok(`${label}: the capsule lands under the tapped tab`, c1.dx === 0 && c1.dy === 0 && c1.op === 1, JSON.stringify(c1))
+    if (!reduced) {
+      ok('tabs: the capsule slides there and the icon swells once', r.slide === 1 && r.swell === 1, JSON.stringify(r))
+      ok('tabs: the page changes as a view transition, entering from the tab\'s side', r.vt === vt0 + 1 && during === 'fwd', JSON.stringify({ ...r, during }))
+    } else {
+      ok('tabs/reduced: no slide, no swell, no view transition', r.slide === 0 && r.swell === 0 && r.vt === vt0, JSON.stringify(r))
+    }
+    ok(`${label}: nothing is left on <main> (no transform to trap a fixed sheet), and it tidies up`,
+      r.main === 'none' && !r.mainStyle && r.attr === null, JSON.stringify(r))
+    await page.locator('nav.f-tabs > button').nth(0).click()
+    await page.waitForTimeout(700)
+    ok(`${label}: back home, the capsule follows`, JSON.stringify(await capsule()).startsWith('{"dx":0,"dy":0,"w":0,"op":1'))
+    ok(`${label}: no page errors`, errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+}
+
+// ══ 14c. Pictures come in softly ══════════════════════════════
+// The muscle art held back 700ms: its place waits with a faint light,
+// then it fades in; the same picture again (already in the phone) is
+// simply there.
+{
+  const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'ar', timezoneId: 'Asia/Riyadh' })
+  const page = await ctx.newPage()
+  const errors = []
+  page.on('pageerror', e => errors.push(String(e)))
+  await page.route('**/*.r2.dev/**', r => r.abort())
+  await page.route('**/assets/muscle_chest*', async r => { await new Promise(res => setTimeout(res, 700)); await r.continue() })
+  await page.addInitScript(instruments, 'fake')
+  await page.addInitScript(([active, version]) => {
+    localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
+    localStorage.setItem('hf_pack_prompted', '1')
+    localStorage.setItem('hf_seen_version', JSON.stringify(version))
+    localStorage.setItem('hf_onboarded', 'true')
+    localStorage.setItem('hf_weights_reset_v2', 'true')
+    localStorage.setItem('hf_active', JSON.stringify(active))
+  }, [ACTIVE, APP_VERSION])
+  await page.goto(APP, { waitUntil: 'domcontentloaded' })
+  await page.locator('.s-stage img').first().waitFor({ timeout: 8000 })
+  // The light comes on once the picture is clearly not quick (120ms).
+  await page.waitForFunction(() => document.querySelector('.s-stage img')?.dataset.wait === '1', null, { timeout: 500 }).catch(() => {})
+  const waiting = await page.evaluate(() => {
+    const i = document.querySelector('.s-stage img')
+    return { wait: i.dataset.wait ?? null, anim: getComputedStyle(i).animationName, bg: getComputedStyle(i).backgroundImage.slice(0, 15) }
+  })
+  ok('media: on its way, the picture\'s place carries a faint light', waiting.wait === '1' && waiting.anim === 'k-wait' && /gradient/.test(waiting.bg), JSON.stringify(waiting))
+  await page.waitForFunction(() => { const i = document.querySelector('.s-stage img'); return i && !i.dataset.wait }, null, { timeout: 4000 }).catch(() => {})
+  const came = await page.evaluate(() => ({
+    wait: document.querySelector('.s-stage img').dataset.wait ?? null,
+    fade: window.__anims.filter(a => /s-stage-img/.test(a.cls) && /"opacity":0/.test(a.kf) && a.d === 200).length,
+  }))
+  ok('media: when it arrives the light goes and it fades in (200ms) instead of popping', came.wait === null && came.fade === 1, JSON.stringify(came))
+  ok('media: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  // The next exercise (Pec Deck) shows the same chest art, already in the
+  // phone. (No routes here: Playwright turns the browser's caches off
+  // while any route is set.)
+  const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'ar', timezoneId: 'Asia/Riyadh' })
+  const page = await ctx.newPage()
+  const errors = []
+  page.on('pageerror', e => errors.push(String(e)))
+  await page.addInitScript(instruments, 'fake')
+  await page.addInitScript(([active, version]) => {
+    localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
+    localStorage.setItem('hf_pack_prompted', '1')
+    localStorage.setItem('hf_seen_version', JSON.stringify(version))
+    localStorage.setItem('hf_onboarded', 'true')
+    localStorage.setItem('hf_weights_reset_v2', 'true')
+    localStorage.setItem('hf_active', JSON.stringify(active))
+  }, [ACTIVE, APP_VERSION])
+  await page.goto(APP, { waitUntil: 'domcontentloaded' })
+  await page.waitForFunction(() => { const i = document.querySelector('.s-stage img'); return i && i.complete && !i.dataset.wait }, null, { timeout: 6000 }).catch(() => {})
+  await page.evaluate(() => { window.__anims = [] })
+  const first = page.evaluate(() => new Promise(resolve => {
+    const seen = []
+    const tick = () => {
+      const i = document.querySelector('.s-stage img')
+      if (i && /Pec Deck/.test(document.querySelector('.s-name-en')?.textContent || '')) seen.push(i.dataset.wait ?? null)
+      if (seen.length < 4) requestAnimationFrame(tick); else resolve(seen)
+    }
+    requestAnimationFrame(tick)
+  }))
+  await page.getByRole('button', { name: /Pec Deck/ }).last().click()
+  const frames = await first
+  await page.waitForTimeout(500)
+  const fade = await page.evaluate(() => window.__anims.filter(a => /s-stage-img/.test(a.cls) && a.d === 200).length)
+  ok('media: a picture already in the phone is simply there — no light, no fade', frames.every(w => w === null) && fade === 0, JSON.stringify({ frames, fade }))
+  ok('media (cached): no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 15. The end of a workout: medals that spin, numbers that count ══
 // (motion phases 2 and 4). A lifter whose best was 95kg puts up 140kg:
 // «أول 100 كجم» (common) and «140 كجم» (rare) are earned in one go.
 // The medal stage is WebGL; a headless browser may have it (SwiftShader)

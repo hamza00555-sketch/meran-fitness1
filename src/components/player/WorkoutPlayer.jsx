@@ -12,7 +12,7 @@ import SessionMedia from './SessionMedia.jsx'
 import { primeAudio } from './sessionAudio.js'
 import { play } from '../../sound.js'
 import { haptic } from '../../haptics.js'
-import { animate, reducedMotion, rise, fadeIn } from '../../motion.js'
+import { animate, reducedMotion, rise, fadeIn, EASE } from '../../motion.js'
 import SetPhrase from './SetPhrase.jsx'
 import { kg, setParts, setsPhrase, repsWord } from './sessionWords.js'
 import { arabicName } from '../../exerciseMedia.js'
@@ -53,6 +53,18 @@ import { PLATE_STEP, roundToPlate } from '../../utils.js'
 //       the iPhone can buzz; big once per exercise, a flash after that.
 //
 // Every set: the «set-done» sound and a light haptic tick, in the tap.
+//
+// Phase 3 · every set (the plan's «اقتراح 1»): «تمّت المجموعة» turns into
+// the rest instead of being swapped for it. The rest mounts in the tap
+// (its clock starts at once); for the first 200ms a copy of the button
+// stays on top — pressed, its words giving way to a check that draws —
+// while the row behind it tints green from the start edge and draws its
+// own check, and the next set's block rises in. Then the button's
+// footprint grows up into the rest panel on the snappy spring (a clip,
+// so nothing inside is squashed) as the green fades out of it, and the
+// panel's parts come in one after another. When the rest goes, the
+// button comes back with a short rise. Under 500ms in all; reduced
+// motion cross-fades the two.
 
 // The raise prefill happens once per exercise per session: after that
 // the numbers are the lifter's, including a «خلّها 75». Kept in
@@ -148,6 +160,9 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
 // place, so the dock ignores taps for this long after a rest closes.
 const REST_CLOSE_GUARD_MS = 400
 
+// How long the button's copy stays over the growing rest panel.
+const MORPH_MS = 520
+
 // After the last set, the next exercise comes on screen by itself — in
 // the rest, when its demo can actually be watched. After a record's
 // trophy has landed, a little sooner (the record already held the screen).
@@ -191,6 +206,8 @@ export default function WorkoutPlayer({
   const dockRef = useRef(null)
   const restClosedAt = useRef(0)
   const handoff = useRef({ token: 0, done: 0, dir: 0, at: -Infinity })
+  const morph = useRef({ token: 0, done: 0 })
+  const [ghost, setGhost] = useState(0)                // the morph whose button copy is on screen (0: none)
 
   const safeIndex = Math.min(index, Math.max(0, exercises.length - 1))
   const ex = exercises[safeIndex]
@@ -483,6 +500,54 @@ export default function WorkoutPlayer({
     else animate(tro, [{ transform: 'scale(1.5)' }, { transform: 'none' }], { spring: 'bouncy' })
   })
 
+  // ── Phase 3 · the button becomes the rest ──
+  const restOnTop = isResting && editing == null
+  useEffect(() => {
+    if (!ghost) return
+    const t = setTimeout(() => setGhost(g => (g === ghost ? 0 : g)), MORPH_MS)
+    return () => clearTimeout(t)
+  }, [ghost])
+  useLayoutEffect(() => {
+    const m = morph.current
+    if (!ghost || m.done === ghost) return
+    m.done = ghost
+    const dock = dockRef.current
+    const copy = dock?.querySelector('.s-dock-ghost')
+    const panel = dock?.querySelector('.s-rest')
+    if (!copy) return
+    if (reducedMotion()) {
+      animate(copy, [{ opacity: 1 }, { opacity: 0 }], { d: 160, e: 'linear', fill: 'forwards' })
+      animate(panel, fadeIn, { d: 160, e: 'linear' })
+      return
+    }
+    // The button: pressed, and its words give way to a check.
+    animate(copy, [{ transform: 'scale(0.98)' }, { transform: 'scale(0.97)', offset: 0.3 }, { transform: 'none' }], { d: 260 })
+    animate(copy.querySelector('.s-ghost-label'), [{ opacity: 1 }, { opacity: 0 }], { d: 120, fill: 'forwards' })
+    animate(copy.querySelector('.s-ghost-ok path'), [{ strokeDashoffset: 30 }, { strokeDashoffset: 0 }], { d: 180, delay: 40 })
+    animate(copy, [{ opacity: 1 }, { opacity: 0 }], { d: 180, delay: 200, e: EASE.exit, fill: 'forwards' })
+    // The next set's block rises into place — at once: the block it
+    // replaces is already gone, so a later start would leave a hole.
+    animate(scrollRef.current?.querySelector('[data-testid="live-block"]'), rise(10), { d: 240, delay: 30 })
+    if (!panel) return
+    // The button's footprint grows up into the panel.
+    const cut = Math.max(0, panel.offsetHeight - copy.offsetHeight)
+    animate(panel, [{ clipPath: `inset(${cut}px 0px 0px 0px round 16px)` }, { clipPath: 'inset(0px 0px 0px 0px round 16px)' }],
+      { spring: 'snappy', delay: 200 })
+    ;[['.s-rest-label', 240], ['.s-rest-skip', 240], ['.s-rest-time', 280], ['.s-rest-nudges', 320]].forEach(([sel, at]) =>
+      animate(panel.querySelector(sel), rise(6), { d: 220, delay: at }))
+    animate(panel.querySelector('.s-rest-bar'), fadeIn, { d: 200, delay: 360 })
+  }, [ghost, restOnTop])
+  // The rest goes (a tap on «جاهز», «تخطي»): the button comes back with a short rise.
+  const wasResting = useRef(restOnTop)
+  useLayoutEffect(() => {
+    const was = wasResting.current
+    wasResting.current = restOnTop
+    if (!was || restOnTop) return
+    const btn = dockRef.current?.querySelector(':scope > .k-btn')
+    if (reducedMotion()) animate(btn, fadeIn, { d: 160, e: 'linear' })
+    else animate(btn, [{ opacity: 0, transform: 'translateY(8px) scale(0.98)' }, { opacity: 1, transform: 'none' }], { spring: 'snappy' })
+  }, [restOnTop])
+
   if (!ex) return null
 
   // Closing the rest (a tap on «جاهز» or «تخطي») starts the guard.
@@ -525,6 +590,8 @@ export default function WorkoutPlayer({
     touchRaise(ex.id)
     setPeek(null)
     setFresh({ exId: ex.id, si })
+    morph.current.token += 1
+    setGhost(morph.current.token)
     onDoneSet(ex.id, si, true)
   }
 
@@ -587,8 +654,6 @@ export default function WorkoutPlayer({
   } else {
     dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(onRequestFinish)}>إنهاء الجلسة</Button>
   }
-  const restOnTop = isResting && editing == null
-
   const phrase = summary ? setsPhrase(summary.sets) : null
   const celebratingHere = celebrating?.exId === ex.id
   const nextEx = celebratingHere && nextIdx !== -1 ? exercises[nextIdx] : null
@@ -648,7 +713,7 @@ export default function WorkoutPlayer({
             freshIndex={fresh && fresh.exId === ex.id ? fresh.si : null}
             prIndex={prIndex}
             holdIndex={pr && pr.exId === ex.id ? pr.si : null}
-            onEdit={(si) => setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si }))}
+            onEdit={(si) => { setFresh(null); setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si })) }}
             live={live}
           />
         ) : (
@@ -699,9 +764,20 @@ export default function WorkoutPlayer({
 
       <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'}>
         {isResting && (
-          <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} />
+          <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} morph={!!ghost} />
         )}
         {dock}
+        {ghost && restOnTop ? (
+          // The button, for the moment it takes to become the rest: not a
+          // button any more (nothing to tap, nothing to read out).
+          <span className="k-btn k-btn-primary k-btn-lg k-full s-dock-ghost" aria-hidden="true" data-testid="dock-ghost">
+            <span className="s-ghost-label"><Check size={20} weight="bold" />تمّت المجموعة</span>
+            <svg className="s-ghost-ok" width="30" height="30" viewBox="0 0 24 24">
+              <path d="M5.5 12.5l4.2 4.2L18.5 7.5" fill="none" stroke="currentColor"
+                strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" pathLength="30" />
+            </svg>
+          </span>
+        ) : null}
       </div>
 
       {pr && (

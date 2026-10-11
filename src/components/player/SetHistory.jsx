@@ -27,7 +27,10 @@ import { kg, setWords, repsWord } from './sessionWords.js'
 //
 // Done rows are tinted with the brand green and carry a check that
 // draws itself once (~180ms) the moment the set is ticked — that is the
-// whole acknowledgement: no flying XP, no toast. Tapping a done row
+// whole acknowledgement: no flying XP, no toast. The row just ticked
+// (data-fresh) takes its tint from the start edge (220ms) and settles
+// from a hair larger, while the check draws (phase 3: the button
+// becoming the rest happens under it). Tapping a done row
 // hands it to the live block in its labelled editing mode; the row
 // itself never becomes an input, so a stray thumb can't change history.
 // Rows still to come show their planned numbers, quietly.
@@ -97,7 +100,7 @@ export default function SetHistory({
           <div key={i} role="listitem">
             {s.done ? (
               <button type="button" className="s-trow" data-state={state} data-set={i} data-prev={prev ? '1' : undefined}
-                data-editing={i === editingIndex ? '1' : undefined}
+                data-editing={i === editingIndex ? '1' : undefined} data-fresh={i === freshIndex ? '1' : undefined}
                 aria-label={`المجموعة ${i + 1}: ${setWords(s) || 'فاضية'}${isPR ? ' — رقم قياسي' : ''}${prev ? ` — آخر مرة ${prev}` : ''} — اضغط للتعديل`}
                 onClick={() => onEdit(i)}>
                 {body}

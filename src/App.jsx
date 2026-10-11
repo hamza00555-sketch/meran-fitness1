@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
@@ -31,6 +32,14 @@ const NAV = [
   { id: 'library',  label: 'المكتبة',  icon: Books },
 ]
 
+// The page under the bar. How it arrived is fixed when it mounts: inside
+// a tab switch's view transition the snapshot moves, so it has no fade of
+// its own (adding one later would replay it); otherwise it fades in.
+function PageMain({ vt, children, ...rest }) {
+  const [enter] = useState(() => !vt)
+  return <main className={enter ? 'page-enter f-main' : 'f-main'} {...rest}>{children}</main>
+}
+
 // Pages
 import HomePage        from './pages/HomePage.jsx'
 import WorkoutPage     from './pages/WorkoutPage.jsx'
@@ -52,6 +61,8 @@ import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import StreakChip       from './components/streak/StreakChip.jsx'
 import LiveBar          from './components/frame/LiveBar.jsx'
+import TabBar           from './components/frame/TabBar.jsx'
+import { reducedMotion } from './motion.js'
 import SessionSummary   from './components/frame/SessionSummary.jsx'
 import Onboarding       from './components/frame/Onboarding.jsx'
 import ProgressPage     from './pages/ProgressPage.jsx'
@@ -165,17 +176,49 @@ export default function App() {
   const page = pages[pages.length - 1] || null
   const pushPage = useCallback((p) => setPages(prev => [...prev.filter(x => x !== p), p]), [])
   const popPage  = useCallback(() => setPages(prev => prev.slice(0, -1)), [])
+  // A tab switch (phase 5): the page under the bar leaves towards the
+  // side it came from and the new one comes in from the tapped tab's side,
+  // 14px and a fade, while the bar stays put and its capsule slides
+  // (TabBar). It runs as a view transition — a snapshot of the old page
+  // moves, never <main> itself, so no transform is ever left on it (see
+  // index.css: a transform on <main> traps fixed sheets). Without view
+  // transitions, or under reduced motion, the new page simply fades in.
+  const navNow = useRef({ tab: 'home', page: null })
+  const tabNav = useRef({ vt: false, token: 0 })
   const goTab    = useCallback((t) => {
-    setPages([])
-    setTab(prev => {
-      if (prev === t) window.scrollTo({ top: 0, behavior: 'smooth' })
-      return t
-    })
+    const apply = () => {
+      setPages([])
+      setTab(prev => {
+        if (prev === t) window.scrollTo({ top: 0, behavior: 'smooth' })
+        return t
+      })
+    }
+    const { tab: cur, page: pg } = navNow.current
+    const i = NAV.findIndex(n => n.id === t), j = NAV.findIndex(n => n.id === cur)
+    const vt = !pg && t !== cur && i >= 0 && j >= 0 && typeof document.startViewTransition === 'function'
+      && !reducedMotion() && document.visibilityState === 'visible'
+    if (!vt) { apply(); return }
+    const root = document.documentElement
+    const token = ++tabNav.current.token
+    root.dataset.tabnav = i > j ? 'fwd' : 'back'
+    const clear = () => { if (tabNav.current.token === token) delete root.dataset.tabnav }
+    try {
+      const tr = document.startViewTransition(() => {
+        tabNav.current.vt = true
+        try { flushSync(apply) } finally { tabNav.current.vt = false }
+      })
+      tr.ready?.catch?.(() => {})   // skipped (a second tap mid-way): fine
+      tr.finished.then(clear, clear)
+    } catch {
+      clear()
+      apply()
+    }
   }, [])
 
   // Each view keeps its own scroll position, so a tab switch does not
   // dump you at the top of a long list, or halfway down the next one.
   const viewKey = page || tab
+  navNow.current = { tab, page }
   const scrollPos = useRef({})
   const viewRef = useRef(viewKey)
   useEffect(() => {
@@ -183,7 +226,9 @@ export default function App() {
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
-  useEffect(() => {
+  // Before paint (and inside a tab switch's view transition, before its
+  // new snapshot), so the page never shows a frame at the wrong height.
+  useLayoutEffect(() => {
     viewRef.current = viewKey
     window.scrollTo(0, scrollPos.current[viewKey] || 0)
   }, [viewKey])
@@ -955,7 +1000,7 @@ export default function App() {
           No shared header any more: Home has its own top (date, greeting,
           avatar, gear), every other tab a large title with the streak
           chip, pushed pages a back bar. */}
-      <main key={viewKey} className="page-enter f-main" data-live={active && !sessionOpen ? '1' : undefined}>
+      <PageMain key={viewKey} vt={tabNav.current.vt} data-live={active && !sessionOpen ? '1' : undefined}>
         {!page && tab === 'home' && (
           <HomePage
             sessions={sessions}
@@ -1108,7 +1153,7 @@ export default function App() {
             <PhotosPage photos={photos} setPhotos={setPhotos} onBack={popPage} embedded />
           </>
         )}
-      </main>
+      </PageMain>
 
       {/* ── The running session ──
           Full screen while you train: no tabs to wander into mid-set. ⌄
@@ -1149,19 +1194,7 @@ export default function App() {
       {active && !sessionOpen && (
         <LiveBar active={active} title={dayWord(active)} onOpen={() => setSessionOpen(true)} />
       )}
-      <nav className="f-tabs" aria-label="التنقل">
-        {NAV.map(t => {
-          const on = !page && tab === t.id
-          const Icon = t.icon
-          return (
-            <button key={t.id} type="button" className={`f-tab${on ? ' on' : ''}`}
-              aria-current={on ? 'page' : undefined} onClick={() => goTab(t.id)}>
-              <span className="f-tab-icon"><Icon size={24} weight={on ? 'fill' : 'regular'} aria-hidden="true" /></span>
-              <span className="f-tab-label">{t.label}</span>
-            </button>
-          )
-        })}
-      </nav>
+      <TabBar items={NAV} current={page ? null : tab} onSelect={goTab} />
 
       {/* ── Overlays ─────────────────────────────────────────────── */}
       {/* The player owns rest inline while the workout tab is open —

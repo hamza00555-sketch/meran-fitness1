@@ -1,6 +1,7 @@
 import { useState, useSyncExternalStore } from 'react'
 import { subscribe, getVersion, urlFor, remoteUrlFor } from '../../assets/registry.js'
 import { mediaSlotFor } from '../../exerciseMedia.js'
+import { useReveal } from '../kit/useReveal.js'
 
 // ── A 48pt thumbnail for a library row ────────────────────────
 //
@@ -19,18 +20,21 @@ export default function Thumb({ name, art, mapping }) {
   const [artBroken, setArtBroken] = useState(false)
   const slot = mediaSlotFor(name, mapping)
   const url = slot ? (urlFor(slot) || remoteUrlFor(slot)) : undefined
+  const artSrc = art ? (artBroken ? art : webp(art)) : null
+  // Comes in softly: a faint light until it arrives, then a short fade.
+  const reveal = useReveal(url && !broken ? url : artSrc)
 
   if (url && !broken) {
     return (
       <span className="lib-thumb lib-thumb-still" aria-hidden="true">
-        <img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} />
+        <img src={url} alt="" loading="lazy" decoding="async" {...reveal} onError={() => setBroken(true)} />
       </span>
     )
   }
   return (
     <span className="lib-thumb lib-thumb-art" aria-hidden="true">
       {art && (
-        <img src={artBroken ? art : webp(art)} alt="" loading="lazy" decoding="async"
+        <img src={artSrc} alt="" loading="lazy" decoding="async" {...reveal}
           onError={() => { if (!artBroken) setArtBroken(true) }} />
       )}
     </span>

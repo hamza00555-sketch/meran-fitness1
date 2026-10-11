@@ -114,10 +114,15 @@ const chartClashes = (page) => page.evaluate(() => {
   }
   return { out, missing }
 })
+// The weekly bars grow in one after another when the page opens (phase
+// 5); whatever is measured is measured once they have.
+const barsSettled = (page) => page.waitForFunction(() => document.getAnimations()
+  .every(a => !a.effect?.target?.classList?.contains('bc-bar') || a.playState === 'finished'), null, { timeout: 4000 }).catch(() => {})
 const toProgress = async (page, view) => {
   await page.locator('nav > button').nth(2).click()
   await page.waitForTimeout(400)
   if (view) { await page.getByRole('tab', { name: view }).click(); await page.waitForTimeout(400) }
+  await barsSettled(page)
 }
 
 // 1. Deload end: shown, names the weight, dismissal sticks against the end date

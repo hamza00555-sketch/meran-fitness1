@@ -188,27 +188,63 @@ button.k-chip { cursor: pointer; min-height: 36px; }
 @keyframes k-fade-in   { from { opacity: 0; } to { opacity: 1; } }
 @keyframes k-fade-out  { from { opacity: 1; } to { opacity: 0; } }
 .k-scrim {
-  position: fixed; inset: 0; z-index: var(--z-cover); background: var(--scrim);
+  position: fixed; inset: 0; z-index: var(--z-cover);
   display: flex; align-items: flex-end; justify-content: center;
   animation: k-fade-in var(--dur-fast) var(--ease-out);
 }
+/* The dimming, as its own layer under the sheet, so pulling the sheet
+   down can lighten it without fading the sheet (useSheetDrag). */
+.k-scrim-bg { position: absolute; inset: 0; background: var(--scrim); pointer-events: none; }
 .k-scrim.k-leaving { animation: k-fade-out 200ms var(--ease-exit) forwards; }
+/* Phase 5: the sheet comes up on the sheet spring (0.42s, a hair of
+   bounce) and can be pulled down to close (kit/useSheetDrag.js). Its
+   ::after is the same surface carried on below the screen's edge, so the
+   spring's overshoot and a pull upwards never lift its foot off the floor. */
 .k-sheet {
+  position: relative;
   width: 100%; max-width: 560px; max-height: 88dvh; display: flex; flex-direction: column;
   background: var(--surface-2); border-radius: var(--r-md) var(--r-md) 0 0;
   box-shadow: 0 -12px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
   padding-bottom: var(--safe-bottom);
-  animation: k-sheet-in var(--dur-sheet) var(--ease-sheet);
+  animation: k-sheet-in var(--spring-sheet-ms) var(--spring-sheet);
+}
+.k-sheet::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 96px;
+  background: var(--surface-2); pointer-events: none;
 }
 .k-sheet.k-leaving { animation: k-sheet-out 200ms var(--ease-exit) forwards; }
 .k-sheet-tall { height: 92dvh; max-height: 92dvh; }
-.k-sheet-grab { width: 36px; height: 5px; border-radius: var(--r-pill); background: var(--surface-3); margin: 8px auto 0; flex: none; }
-.k-sheet-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 0 var(--gutter); }
+/* The grabber and the title row are the sheet's handle: a drag there is
+   always the sheet's, never a scroll. */
+.k-sheet-grab { width: 36px; height: 5px; border-radius: var(--r-pill); background: var(--surface-3); margin: 8px auto 0; flex: none; touch-action: none; }
+.k-sheet-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 0 var(--gutter); touch-action: none; }
+.k-sheet[data-dragging] { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+@media (prefers-reduced-motion: reduce) {
+  /* Reduced motion: no rise — the Sheet fades it (a Web Animation). */
+  .k-sheet, .k-sheet.k-leaving, .k-scrim, .k-scrim.k-leaving { animation: none; }
+}
 .k-sheet-h h2 { margin: 0; font-size: var(--t-title); font-weight: 700; padding-inline-start: 8px; }
 .k-sheet-body { overflow-y: auto; padding: 8px var(--gutter) var(--space-4); overscroll-behavior: contain; }
 .k-sheet-foot { padding: 8px var(--gutter) var(--space-4); border-top: 1px solid var(--hairline); }
 .k-confirm-msg { margin: 0; font-size: var(--t-body); color: var(--ink-2); line-height: 1.7; }
 .k-confirm-actions { display: grid; gap: 8px; }
+
+/* ── A picture on its way (kit/useReveal.js) ──
+   Its place carries a faint light crossing it every 1.2s, start edge to
+   end edge (right to left), until it arrives and fades in. The light
+   starts and ends off the picture (a 300% gradient at 0% and 100%), so a
+   picture that turns up within a few frames never shows it. Reduced
+   motion: still. */
+img[data-wait], video[data-wait] {
+  background-image: linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0) 70%);
+  background-size: 300% 100%; background-repeat: no-repeat; background-position: 0% 0;
+  border-radius: var(--r-sm);
+  animation: k-wait 1.2s linear infinite;
+}
+@keyframes k-wait { from { background-position: 0% 0; } to { background-position: 100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  img[data-wait], video[data-wait] { animation: none; background-image: none; }
+}
 
 /* A 44pt target for anything drawn smaller. */
 .hit44 { position: relative; }
@@ -231,10 +267,51 @@ button.k-chip { cursor: pointer; min-height: 36px; }
   background: none; border: 0; cursor: pointer; color: var(--ink-3);
   font-family: var(--font); -webkit-tap-highlight-color: transparent;
 }
-.f-tab-icon { width: 56px; height: 28px; border-radius: var(--r-pill); display: grid; place-items: center; transition: background var(--dur-fast); }
+.f-tab-icon { width: 56px; height: 28px; border-radius: var(--r-pill); display: grid; place-items: center; }
 .f-tab-label { font-size: var(--t-caption); font-weight: 600; line-height: 1.2; }
 .f-tab.on { color: var(--ink); }
-.f-tab.on .f-tab-icon { background: var(--accent-wash); color: var(--accent); }
+.f-tab.on .f-tab-icon { color: var(--accent); }
+/* The one capsule under the current tab's icon; TabBar places it and
+   slides it on the snappy spring. Under the icons, over the bar. */
+.f-tab-pill {
+  position: absolute; top: 0; left: 0; z-index: -1; width: 56px; height: 28px;
+  border-radius: var(--r-pill); background: var(--accent-wash);
+  pointer-events: none; opacity: 0;
+}
+
+/* Phase 5 · a tab switch (App.jsx goTab, as a view transition): the old
+   page leaves 14px towards where it came from and fades — quickly, so
+   the two pages barely overlap (150ms, ease-out); the new one comes in
+   from the tapped tab's side (220ms, 70ms later). The bar
+   and the live bar are their own layers, shown live and not animated, so
+   they hold still and the capsule's slide shows through. «fwd» is a tab
+   further along — to the left, in Arabic. */
+html[data-tabnav] .f-tabs { view-transition-name: f-tabs; }
+html[data-tabnav] .f-livebar { view-transition-name: f-livebar; }
+html[data-tabnav]::view-transition { pointer-events: none; }
+html[data-tabnav]::view-transition-old(f-tabs),
+html[data-tabnav]::view-transition-old(f-livebar) { display: none; }
+html[data-tabnav]::view-transition-group(f-tabs),
+html[data-tabnav]::view-transition-group(f-livebar),
+html[data-tabnav]::view-transition-new(f-tabs),
+html[data-tabnav]::view-transition-new(f-livebar) { animation: none; }
+html[data-tabnav]::view-transition-image-pair(root) { isolation: auto; }
+html[data-tabnav]::view-transition-old(root),
+html[data-tabnav]::view-transition-new(root) { mix-blend-mode: normal; }
+html[data-tabnav="fwd"]::view-transition-old(root)  { animation: f-page-out-fwd 150ms var(--ease-out) both; }
+html[data-tabnav="back"]::view-transition-old(root) { animation: f-page-out-back 150ms var(--ease-out) both; }
+html[data-tabnav="fwd"]::view-transition-new(root)  { animation: f-page-in-fwd 220ms var(--ease-out) 70ms both; }
+html[data-tabnav="back"]::view-transition-new(root) { animation: f-page-in-back 220ms var(--ease-out) 70ms both; }
+/* Reduced motion (no view transition): the new page fades in. A real
+   fade — the blanket 0.01ms (index.css) would paint its first frame at
+   opacity 0 and blink the whole page black on every tab. */
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation-duration: var(--dur-fast) !important; }
+}
+@keyframes f-page-out-fwd  { to { opacity: 0; transform: translateX(14px); } }
+@keyframes f-page-out-back { to { opacity: 0; transform: translateX(-14px); } }
+@keyframes f-page-in-fwd   { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes f-page-in-back  { from { opacity: 0; transform: translateX(14px); } }
 
 .f-livebar {
   position: fixed; left: 0; right: 0; margin: 0 auto; width: calc(100% - 16px); max-width: 544px;

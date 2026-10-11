@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Button } from '../kit/index.jsx'
 import { withNums } from '../home/HomeBits.jsx'
 import { lockScroll } from '../../scrollLock.js'
+import { useSheetDrag } from '../kit/useSheetDrag.js'
 
 // ── Before «تخطي اليوم» ───────────────────────────────────────
 // Skipping moves the plan to its next day and nothing else: the streak
@@ -23,6 +24,10 @@ export default function SkipSheet({ copy, onConfirm, onClose }) {
   const [opener] = useState(() => document.activeElement)
   const close = useRef(onClose)
   close.current = onClose
+  // Pulled down, it closes like every other sheet (kit/useSheetDrag.js).
+  const sheetRef = useRef(null)
+  const scrimRef = useRef(null)
+  useSheetDrag({ sheetRef, scrimRef, onDismiss: () => close.current() })
   useEffect(() => {
     const release = lockScroll({ inert: true })
     const onKey = (e) => { if (e.key === 'Escape') close.current() }
@@ -35,8 +40,10 @@ export default function SkipSheet({ copy, onConfirm, onClose }) {
   }, [opener])
 
   return createPortal(
-    <div className="k-scrim" onClick={onClose} role="presentation">
+    <div className="k-scrim" onClick={onClose} role="presentation" ref={scrimRef}>
+      <span className="k-scrim-bg" aria-hidden="true" />
       <div
+        ref={sheetRef}
         className="k-sheet skip-sheet-k"
         role="dialog" aria-modal="true" aria-labelledby="skip-sheet-title"
         onClick={e => e.stopPropagation()}

@@ -14,6 +14,7 @@ import { Num } from '../kit/index.jsx'
 import { subscribe, getVersion, urlFor } from '../../assets/registry.js'
 import { mediaSlotFor, arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
+import { useReveal } from '../kit/useReveal.js'
 
 const DIGITS = /([+−-]?\d+(?:[.,:/]\d+)*%?)/
 
@@ -37,11 +38,13 @@ export function ExerciseThumb({ name, muscle, size = 40, className = '' }) {
   const still = slot && !broken ? urlFor(slot) : undefined
   const fallback = groupOf(name, muscle)?.img
   const style = { width: size, height: size }
+  // Comes in softly: a faint light until it arrives, then a short fade.
+  const reveal = useReveal(still || fallback || null)
   return (
     <span className={`hm-thumb${still ? ' is-still' : ''} ${className}`} style={style} aria-hidden="true">
       {still
-        ? <img src={still} alt="" loading="lazy" onError={() => setBroken(true)} />
-        : fallback ? <img src={fallback} alt="" loading="lazy" /> : null}
+        ? <img src={still} alt="" loading="lazy" {...reveal} onError={() => setBroken(true)} />
+        : fallback ? <img src={fallback} alt="" loading="lazy" {...reveal} /> : null}
     </span>
   )
 }
