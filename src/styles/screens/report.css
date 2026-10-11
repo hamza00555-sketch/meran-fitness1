@@ -140,6 +140,14 @@
   background: var(--surface-1); color: var(--ink-2);
 }
 .rp-cal-cell.k-trained { color: var(--ink); }
+/* The whole cell takes the day's light, so the month reads as a lit
+   grid at a glance; the pill under the number carries the same step
+   for anyone who cannot tell the tints apart. */
+.rp-cal-cell[data-level="1"] { background: rgba(244,246,248,0.07); }
+.rp-cal-cell[data-level="2"] { background: rgba(244,246,248,0.11); }
+.rp-cal-cell[data-level="3"] { background: rgba(244,246,248,0.16); }
+.rp-cal-cell[data-level="4"] { background: rgba(244,246,248,0.22); }
+.rp-cal-cell[data-level="5"] { background: rgba(244,246,248,0.30); }
 .rp-cal-cell.k-miss { background: transparent; box-shadow: inset 0 0 0 1px var(--hairline); }
 .rp-cal-cell.k-none, .rp-cal-cell.k-ahead { background: transparent; color: var(--ink-4); }
 .rp-cal-cell.is-deload { box-shadow: inset 0 0 0 1.5px #5CC9EE; }
@@ -198,7 +206,7 @@
 .rp-sets { display: grid; gap: var(--space-1); }
 .rp-sets ul { display: grid; gap: var(--space-3); }
 .rp-sets-scale, .rp-sets-row {
-  display: grid; grid-template-columns: 64px minmax(0, 1fr) 32px; align-items: center; column-gap: var(--space-3);
+  display: grid; grid-template-columns: 76px minmax(0, 1fr) 28px; align-items: center; column-gap: var(--space-3);
 }
 .rp-sets-ticks { position: relative; height: 16px; }
 .rp-sets-ticks i {
@@ -233,6 +241,8 @@
 
 /* ── The months before ── */
 .rp-months { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+/* Fewer months than six (he started recently): the bars keep their
+   width and line up from the start edge, oldest first. */
 .rp-month {
   display: grid; justify-items: center; gap: 6px; min-height: 44px; padding: var(--space-1) 0;
   border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink-3);
@@ -240,7 +250,7 @@
 }
 .rp-month:disabled { cursor: default; }
 .rp-month:not(:disabled):active { background: var(--surface-1); }
-.rp-month-n { font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
+.rp-month-n { min-height: 1.4em; font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
 .rp-month-bar { position: relative; width: 22px; height: 84px; display: flex; align-items: flex-end; }
 .rp-month-bar i { display: block; width: 100%; border-radius: 4px 4px 2px 2px; background: var(--ink-4); }
 .rp-month-l { font-size: var(--t-caption); font-weight: 600; white-space: nowrap; }
@@ -295,7 +305,7 @@
   .rp-ring-wrap { width: 196px; height: 196px; }
   .rp-ring { width: 196px; height: 196px; }
   .rp .rp-cover-line, .rp .rp-ch-lead { font-size: var(--t-headline); }
-  .rp-sets-scale, .rp-sets-row { grid-template-columns: 56px minmax(0, 1fr) 28px; }
+  .rp-sets-scale, .rp-sets-row { grid-template-columns: 72px minmax(0, 1fr) 24px; column-gap: var(--space-2); }
 }
 
 /* ── The save sheet (SavePosterSheet) ── */

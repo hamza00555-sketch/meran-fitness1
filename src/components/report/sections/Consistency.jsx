@@ -75,6 +75,7 @@ export default function Consistency({ report, id = 'rp-when', liveStreak = null,
               title={cellLabel(day)}
               aria-label={cellLabel(day)}
               className={`rp-cal-cell k-${day.kind}${day.deload ? ' is-deload' : ''}`}
+              data-level={day.kind === 'trained' && day.level ? day.level : undefined}
               style={{ '--i': i }}
             >
               <span className="rp-cal-n"><Num>{Number(day.date.slice(8))}</Num></span>

@@ -48,6 +48,9 @@ export const PER_USER_KEYS = [
   'hf_seen_version', 'hf_weights_reset_v2', 'hf_weights_reset_at',
   'hf_exercise_subs', 'hf_rest_timer', 'hf_recovery', 'hf_rep_target',
   'hf_unlocked_at',
+  // The month report's goals (monthReport.js). New in the redesign; the
+  // old design never reads it.
+  'hf_month_goal',
 ]
 
 export const deleteUserData = (id) => {

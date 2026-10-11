@@ -32,7 +32,7 @@ export default function Months({ report, trail = [], older = [], onPick, id = 'r
               aria-label={`تقرير ${monthLabel(t.month)} — ${t.attended} ${unitAr(t.attended, 'session')}`}
               onClick={() => onPick(t.month)}
             >
-              <span className="rp-month-n"><Num>{t.attended}</Num></span>
+              <span className="rp-month-n">{has && <Num>{t.attended}</Num>}</span>
               <span className="rp-month-bar">
                 <i style={{ height: has ? `${Math.max(6, (t.attended / max) * 100)}%` : 0 }} />
               </span>

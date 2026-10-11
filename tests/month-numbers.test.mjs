@@ -132,7 +132,8 @@ test('the cover sentence says what happened in plain words', () => {
 test('the calendar sentence names the days that went missing', () => {
   const cal = (...kinds) => kinds.map((k, i) => day(`2026-03-${String(18 + i).padStart(2, '0')}`, k, k !== 'rest'))
   assert.equal(calendarLine(cal('trained', 'rest', 'trained')), 'مشيت على خطتك الشهر كله.')
-  assert.equal(calendarLine(cal('trained', 'paid', 'trained')), 'مشيت على خطتك الشهر كله.', 'a ticket day held the plan')
+  assert.equal(calendarLine(cal('trained', 'paid', 'trained')), 'مشيت على خطتك، إلا الخميس 19.',
+    'a ticket held the streak, but the session still did not happen — as the cover says')
   assert.equal(calendarLine(cal('miss', 'rest', 'trained')), 'مشيت على خطتك، إلا الأربعاء 18.')
   assert.equal(calendarLine(cal('miss', 'rest', 'miss')), 'مشيت على خطتك، إلا يومين: الأربعاء 18 والجمعة 20.')
   assert.equal(calendarLine(cal('miss', 'miss', 'miss', 'miss')), 'فاتك 4 أيام من خطتك هالشهر.')
@@ -415,7 +416,8 @@ test('every month with a session, newest first, none after the one being offered
 
 test('six months of training days for the picker, oldest first', () => {
   const s = [
-    on('2025-11', 4, 'Bench Press', three(50)),          // seven months back: outside
+    on('2025-08', 4, 'Bench Press', three(45)),          // seven months back: outside
+    on('2025-11', 4, 'Bench Press', three(50)),
     on('2026-01', 9, 'Bench Press', three(55)),
     on('2026-01', 9, 'Squat', three(80), { muscle: 'Legs' }),   // same day: one day
     on('2026-01', 11, 'Bench Press', three(55)),
@@ -427,6 +429,10 @@ test('six months of training days for the picker, oldest first', () => {
     { month: '2026-02', attended: 0 }, { month: '2026-03', attended: 1 },
   ])
   assert.deepEqual(monthsTrail(s, '2026-01', 2).map(x => x.month), ['2025-12', '2026-01'], 'over the turn of the year')
+  // Someone who started in January is not shown four empty months first.
+  const fresh = s.filter(x => x.date >= '2026-01')
+  assert.deepEqual(monthsTrail(fresh, MAR, 6).map(x => x.month), ['2026-01', '2026-02', '2026-03'])
+  assert.deepEqual(monthsTrail([], MAR, 6), [{ month: MAR, attended: 0 }])
 })
 
 test('any past month builds its own full report', () => {

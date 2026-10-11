@@ -289,9 +289,12 @@ const weekdayAndDay = (iso) => {
   return `${WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}`
 }
 
-/** The calendar's one sentence: did he keep to the plan, and where not. */
+/** The calendar's one sentence: did he keep to the plan, and where not.
+ *  A day a ticket paid for is still a planned session that did not
+ *  happen — the cover counts it as missed, so this does too; the ticket
+ *  line under the calendar says the streak survived it. */
 export function calendarLine(calendar = []) {
-  const misses = calendar.filter(d => d.kind === 'miss').map(d => d.date)
+  const misses = calendar.filter(d => d.kind === 'miss' || d.kind === 'paid').map(d => d.date)
   const running = calendar.some(d => d.kind === 'ahead')
   if (!calendar.some(d => d.planned || d.kind === 'trained')) return ''
   if (!misses.length) return running ? 'مشيت على خطتك لين اليوم.' : 'مشيت على خطتك الشهر كله.'
@@ -642,16 +645,23 @@ export function reportMonths(sessions = [], upTo) {
   return [...set].sort().reverse()
 }
 
-/** Training days in each of the `n` months ending at `end`, oldest first. */
+/** Training days in each of the `n` months ending at `end`, oldest
+ *  first — starting no earlier than the first month he trained, so a
+ *  new user is not shown a row of empty months from before he began. */
 export function monthsTrail(sessions = [], end, n = 6) {
   const months = [end]
   while (months.length < n) months.unshift(prevMonth(months[0]))
   const days = new Map(months.map(m => [m, new Set()]))
+  let first = null
   for (const s of sessions) {
     const k = dayKey(s.date)
     days.get(k.slice(0, 7))?.add(k)
+    if (!first || k < first) first = k
   }
-  return months.map(m => ({ month: m, attended: days.get(m).size }))
+  const from = first ? first.slice(0, 7) : end
+  return months
+    .filter(m => m >= from || m === end)
+    .map(m => ({ month: m, attended: days.get(m).size }))
 }
 
 // ── The report ────────────────────────────────────────────────
