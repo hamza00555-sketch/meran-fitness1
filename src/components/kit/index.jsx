@@ -13,10 +13,12 @@
 //     never prints backwards inside an Arabic line
 //   · no emoji in chrome; icons come from ./icons.js
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CaretLeft, CaretRight, X } from './icons.js'
 import { lockScroll } from '../../scrollLock.js'
+import { animate, reducedMotion } from '../../motion.js'
+import { useSheetDrag } from './useSheetDrag.js'
 
 const cx = (...a) => a.filter(Boolean).join(' ')
 
@@ -233,7 +235,9 @@ export function EmptyState({ icon: Icon, title, children, action }) {
 /**
  * The one bottom sheet. Portal, scrim, grabber, title, close; Escape
  * closes; the page behind is inert and does not scroll; focus returns
- * to the opener. No overshoot on the way in, a real exit on the way out.
+ * to the opener. It comes up on the sheet spring (a hair of bounce) and
+ * can be pulled down to close (useSheetDrag); a real exit on the way out.
+ * Reduced motion: it fades in and out.
  */
 export function Sheet({ open, onClose, title, children, footer, tall, labelledBy }) {
   const [mounted, setMounted] = useState(open)
@@ -242,15 +246,31 @@ export function Sheet({ open, onClose, title, children, footer, tall, labelledBy
   const close = useRef(onClose)
   close.current = onClose
   const titleId = useId()
+  const sheetRef = useRef(null)
+  const scrimRef = useRef(null)
+  const dragged = useSheetDrag({ sheetRef, scrimRef, onDismiss: () => close.current?.(), enabled: mounted && !leaving })
 
   useEffect(() => {
     if (open) { setMounted(true); setLeaving(false) }
     else if (mounted) {
+      // Pulled down and gone already: no second exit, and the lock goes now.
+      if (dragged.current) { setMounted(false); setLeaving(false); return }
       setLeaving(true)
+      if (reducedMotion()) {
+        animate(sheetRef.current, [{ opacity: 1 }, { opacity: 0 }], { d: 160, e: 'linear', fill: 'forwards' })
+        animate(scrimRef.current, [{ opacity: 1 }, { opacity: 0 }], { d: 160, e: 'linear', fill: 'forwards' })
+      }
       const t = setTimeout(() => { setMounted(false); setLeaving(false) }, 220)
       return () => clearTimeout(t)
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reduced motion: no rise, a fade (the CSS rise is off for it in kit.css).
+  useLayoutEffect(() => {
+    if (!mounted || leaving || !reducedMotion()) return
+    animate(sheetRef.current, [{ opacity: 0 }, { opacity: 1 }], { d: 160, e: 'linear' })
+    animate(scrimRef.current, [{ opacity: 0 }, { opacity: 1 }], { d: 160, e: 'linear' })
+  }, [mounted]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!mounted) return
@@ -268,8 +288,9 @@ export function Sheet({ open, onClose, title, children, footer, tall, labelledBy
 
   if (!mounted) return null
   return createPortal(
-    <div className={cx('k-scrim', leaving && 'k-leaving')} onClick={() => close.current?.()} role="presentation">
-      <div className={cx('k-sheet', tall && 'k-sheet-tall', leaving && 'k-leaving')}
+    <div className={cx('k-scrim', leaving && 'k-leaving')} onClick={() => close.current?.()} role="presentation" ref={scrimRef}>
+      <span className="k-scrim-bg" aria-hidden="true" />
+      <div className={cx('k-sheet', tall && 'k-sheet-tall', leaving && 'k-leaving')} ref={sheetRef}
         role="dialog" aria-modal="true" aria-labelledby={labelledBy || (title ? titleId : undefined)}
         onClick={e => e.stopPropagation()}>
         <span className="k-sheet-grab" aria-hidden="true" />

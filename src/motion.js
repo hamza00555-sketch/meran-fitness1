@@ -129,3 +129,14 @@ export function rollColumns(from, to) {
 /** Rise in from `px` below, fading — the entrance most lines use. */
 export const rise = (px = 8) => [{ opacity: 0, transform: `translateY(${px}px)` }, { opacity: 1, transform: 'none' }]
 export const fadeIn = [{ opacity: 0 }, { opacity: 1 }]
+
+// ── The rest's last three seconds (InlineRest) ──
+export const FINAL_SECONDS = 3
+/** The countdown is in its last three seconds (and not paused). */
+export const isRestFinal = (left, paused = false) => !paused && left > 0 && left <= FINAL_SECONDS
+/**
+ * The delay (s) of the bar's blue-to-green tint, for a rest with `msLeft`
+ * to go: it starts when three seconds are left — later if more remain,
+ * already part-way (a negative delay) if fewer do.
+ */
+export const restTintDelay = (msLeft) => Math.round((Math.max(0, msLeft) / 1000 - FINAL_SECONDS) * 1000) / 1000

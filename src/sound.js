@@ -12,11 +12,15 @@
 // and decoded then, not at page load. A sound asked for before its file
 // is decoded still plays, as long as its moment hasn't passed.
 //
-// The phone's mute: Web Audio on an iPhone follows the ringer switch —
-// the audio session is set to «transient», which ducks the lifter's
-// music for a moment instead of stopping it and stays silent when the
-// phone is on silent. Android plays at the media volume. Elsewhere the
-// platform has no mute to respect.
+// The lifter's music and the phone's mute: where the page has an audio
+// session (navigator.audioSession — iOS Safari 16.4+), its type is set
+// once, to «ambient» (ambientSession below). Ambient is iOS's own
+// convention for short interface sounds: they MIX with whatever is
+// playing — the gym playlist keeps going at full volume, never ducked,
+// never paused — and they follow the silent switch, so a phone on silent
+// stays silent. («transient», which this used to ask for, ducks the music
+// under every tick.) Android plays at the media volume, mixed. Elsewhere
+// the platform has no mute to respect.
 //
 // Nothing here ever throws: no AudioContext, no fetch, a file that won't
 // decode — each is a quiet no-op.
@@ -37,6 +41,18 @@ const SESSION = ['set-done', 'rest-tick', 'rest-end', 'pr', 'raise']
 
 let ctx = null
 const buffers = new Map()     // name → AudioBuffer
+
+// Set once, before the first context: «ambient» mixes with the music and
+// obeys the silent switch (see the note at the top). Never throws.
+let sessionSet = false
+export function ambientSession() {
+  if (sessionSet) return
+  sessionSet = true
+  try {
+    const s = typeof navigator !== 'undefined' ? navigator.audioSession : null
+    if (s && s.type !== 'ambient') s.type = 'ambient'
+  } catch {}
+}
 const loading = new Map()     // name → Promise<AudioBuffer|null>
 
 const base = (() => {
@@ -93,6 +109,7 @@ export function load(name) {
 export function unlock() {
   if (typeof window === 'undefined') return null
   try {
+    ambientSession()
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext
       if (!AC) return null
@@ -102,8 +119,6 @@ export function unlock() {
       const r = ctx.resume()
       if (r && typeof r.catch === 'function') r.catch(() => {})
     }
-    // Duck the music instead of stopping it, and stay silent on silent.
-    try { if (navigator.audioSession) navigator.audioSession.type = 'transient' } catch {}
     // Older iOS only unlocks after something has played inside the tap.
     if (!unlock.primed && typeof ctx.createBuffer === 'function' && typeof ctx.createBufferSource === 'function') {
       unlock.primed = true
@@ -172,6 +187,7 @@ export function play(name, { at = 0, when = null, gain = null, fallback = null }
 // The first tap anywhere unlocks the context and starts the decoding,
 // so the first set's sound is ready by the time it is needed.
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  ambientSession()
   const events = ['pointerdown', 'touchend', 'keydown']
   const first = () => {
     // Not every keydown is a gesture the browser accepts (Escape isn't).

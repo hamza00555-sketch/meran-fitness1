@@ -169,6 +169,7 @@ export default function StatsPage({ sessions = [] }) {
             format={(v) => tons(v)}
             unit="طن"
             height={132}
+            animate
             ariaLabel={`الحجم الأسبوعي لآخر ${WEEKS} أسبوع، بالطن. هذا الأسبوع ${tons(now.volume)} طن.`}
           />
         </div>
@@ -180,6 +181,7 @@ export default function StatsPage({ sessions = [] }) {
             data={weeks.map((w, i) => ({ value: w.sessions, label: label(w, i), aria: i === weeks.length - 1 ? 'هذا الأسبوع' : `أسبوع ${dm(w.start)}` }))}
             showValues="all"
             height={96}
+            animate
             format={(v) => Math.round(v)}
             ariaLabel={`عدد الجلسات في كل أسبوع لآخر ${WEEKS} أسبوع. هذا الأسبوع ${now.sessions}.`}
           />

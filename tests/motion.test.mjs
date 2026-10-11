@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, existsSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { springCurve, SPRINGS, rollColumns } from '../src/motion.js'
+import { springCurve, SPRINGS, rollColumns, FINAL_SECONDS, isRestFinal, restTintDelay } from '../src/motion.js'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const tokens = readFileSync(path.join(ROOT, 'src/styles/tokens.css'), 'utf8')
@@ -76,4 +76,49 @@ test('a rolling number lines up on the decimal point', () => {
   assert.deepEqual(rollColumns('77.5', '75'), [['7', '7'], ['7', '5'], ['.', ' '], ['5', ' ']])
   assert.deepEqual(rollColumns('9', '10'), [[' ', '1'], ['9', '0']])
   assert.deepEqual(rollColumns('97.5', '102.5'), [[' ', '1'], ['9', '0'], ['7', '2'], ['.', '.'], ['5', '5']])
+})
+
+test('the rest\'s last three seconds: 3, 2 and 1 — not 4, not 0, not while paused', () => {
+  assert.equal(FINAL_SECONDS, 3)
+  assert.deepEqual([5, 4, 3, 2, 1, 0].map(n => isRestFinal(n)), [false, false, true, true, true, false])
+  assert.equal(isRestFinal(2, true), false)
+  assert.equal(isRestFinal(-1), false)
+})
+
+test('the bar turns green exactly when three seconds are left', () => {
+  // 90s to go: the tint waits 87s. 3s to go: it starts now. 1.5s: half-way in.
+  assert.equal(restTintDelay(90_000), 87)
+  assert.equal(restTintDelay(3_000), 0)
+  assert.equal(restTintDelay(1_500), -1.5)
+  assert.equal(restTintDelay(0), -3)
+  assert.equal(restTintDelay(-500), -3)
+})
+
+test('on an iPhone the app\'s sounds mix with the music and follow the silent switch', async () => {
+  // navigator.audioSession (iOS Safari 16.4+): set once, to «ambient» —
+  // never «transient», which ducks the music under every tick.
+  const src = readFileSync(path.join(ROOT, 'src/sound.js'), 'utf8')
+  assert.doesNotMatch(src, /audioSession\.type\s*=\s*'transient'/)
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  const session = { type: 'auto' }
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { audioSession: session } })
+  try {
+    const sound = await import('../src/sound.js?ambient')
+    sound.ambientSession()
+    assert.equal(session.type, 'ambient')
+    // Once: it does not fight a later change.
+    session.type = 'playback'
+    sound.ambientSession()
+    assert.equal(session.type, 'playback')
+  } finally {
+    if (desc) Object.defineProperty(globalThis, 'navigator', desc)
+  }
+  // No audio session (every other browser): nothing happens, nothing throws.
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} })
+  try {
+    const sound = await import('../src/sound.js?nosession')
+    assert.doesNotThrow(() => sound.ambientSession())
+  } finally {
+    if (desc) Object.defineProperty(globalThis, 'navigator', desc)
+  }
 })
