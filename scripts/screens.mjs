@@ -328,11 +328,11 @@ for (const [fixtureName, screens] of byFixture) {
     ...devices[f.device], timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: f.reducedMotion,
   })
-  // The art pack lives on R2. Blocked, every call site falls back to a
+  // The art pack (served by the app at /pack/). Blocked, every call site falls back to a
   // local asset or an emoji in the same box — layout, spacing and tokens
   // are unaffected, only the picture inside differs. Recorded per shot
   // as art:"fallback" so nobody reads a placeholder as the design.
-  await ctx.route('**/*.r2.dev/**', r => r.abort())
+  await ctx.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
   // Google Fonts, on the other hand, must arrive: without them every
   // shot shows the offline fallback (Zanjabeel, and a system mono in
   // place of Oxanium) and reads as a different app. The browser cannot

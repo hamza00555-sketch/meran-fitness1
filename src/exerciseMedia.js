@@ -187,6 +187,32 @@ export const ANIMATED_EXERCISES = [
   'Lying Leg Curl'
 ]
 
+// Loops that stay in the pack but are not played here. Each was grown
+// from a still حمزة later marked wrong — the wrong movement (a lat
+// pulldown standing in for the pullover, a seated curl for «مرجحة خلفية
+// جهاز», which is the lying machine) or the wrong muscle lit — so the
+// motion repeats the mistake the corrected still fixes. Until new loops
+// are grown from the corrected stills, these exercises show the still.
+// (The eleventh corrected still, Machine Hip Adduction, never had a
+// loop, so it has nothing to hold back.)
+//
+// They stay in ANIMATED_EXERCISES on purpose: that list makes the
+// pack's exa_ slots, and the old design (classic/, which plays them)
+// reads the same pack on the same phone. Taking a name off this list is
+// all it takes to play its loop again once the new one is published.
+export const LOOPS_ON_HOLD = [
+  'Machine Pullover',
+  'Cable Lateral Raise',
+  'Dumbbell Shoulder Press',
+  'Reverse Fly',
+  'Leg Curl',
+  'Hip Thrust',
+  'Machine Hip Abduction',
+  'Barbell Reverse Curl',
+  'Cable Overhead Triceps Extension',
+  'Cable Triceps Kickback',
+]
+
 /** The still-image slot for an exercise, or null for one we don't know. */
 export function mediaSlotFor(name, mapping = {}) {
   const row = rowFor(name, mapping)
@@ -216,7 +242,8 @@ export function equipLabel(name, mapping = {}) {
 // back to a lowercase scan because resolveExerciseName lowercases.
 const lower = new Map(Object.entries(EXERCISE_MEDIA).map(([k, v]) => [k.toLowerCase(), v]))
 const animSet = new Set(ANIMATED_EXERCISES)
-for (const [k, v] of Object.entries(EXERCISE_MEDIA)) v.anim = animSet.has(k)
+const heldSet = new Set(LOOPS_ON_HOLD)
+for (const [k, v] of Object.entries(EXERCISE_MEDIA)) v.anim = animSet.has(k) && !heldSet.has(k)
 
 // ── The last resort: the same words in a different order ──────
 //

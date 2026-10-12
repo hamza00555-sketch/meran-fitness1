@@ -164,7 +164,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  if (blockRemote) await page.route('**/*.r2.dev/**', r => r.abort())
+  if (blockRemote) await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
   if (blockSounds) await page.route('**/sounds/**', r => r.abort())
 
   await page.addInitScript(instruments, audio)
@@ -2462,7 +2462,7 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  await page.route('**/*.r2.dev/**', r => r.abort())
+  await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
   await page.route('**/assets/muscle_chest*', async r => { await new Promise(res => setTimeout(res, 700)); await r.continue() })
   await page.addInitScript(instruments, 'fake')
   await page.addInitScript(([active, version]) => {

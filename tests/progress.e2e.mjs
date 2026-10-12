@@ -58,7 +58,7 @@ const SE = { ...devices['iPhone SE'], viewport: { width: 320, height: 568 } }
 async function open(fixture, extra = {}, { device = devices['iPhone 13'], photos = 0, reduced = false, init: initExtra = null } = {}) {
   const f = resolve(fixture)
   const ctx = await browser.newContext({ ...device, timezoneId: 'Asia/Riyadh', locale: 'ar', reducedMotion: reduced ? 'reduce' : 'no-preference' })
-  await ctx.route('**/*.r2.dev/**', r => r.abort())
+  await ctx.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))

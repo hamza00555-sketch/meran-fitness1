@@ -125,9 +125,9 @@ async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = f
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  // The bucket is not reachable from the test runner; fail fast rather
-  // than let the pack download hang the page.
-  await page.route('**/*.r2.dev/**', r => r.abort())
+  // The art pack (served by the preview at /pack/) stays out, so every
+  // run sees the same fallback art whatever the pack holds.
+  await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
 
   await page.addInitScript(([sessions, recovery, iso, version, goals, unlocked]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))

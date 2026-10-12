@@ -15,7 +15,6 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
 import { ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
 import { deloadWeight } from '../src/deload.js'
 
@@ -63,7 +62,7 @@ async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, 
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  await page.route('**/*.r2.dev/**', r => r.abort())
+  await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
 
   await page.addInitScript(([sessions, recovery, iso, unlocked, plan, extra]) => {
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
@@ -338,12 +337,11 @@ async function openDeloadSettings(page) {
 }
 
 // ══ 12. The deload artwork actually arrives ═══════════════════
-// Every other block blocks the bucket and exercises the fallback. This
-// one serves the pack this checkout built, from disk, so the whole
-// install path runs: manifest, 63 blobs, then the two deload slots the
-// home screen asks for. Served locally rather than fetched because a
-// test that depends on a live CDN fails for reasons that have nothing
-// to do with the code.
+// Every other block blocks the pack and exercises the fallback. This
+// one installs the pack the build put in dist/pack, served by the
+// preview at /pack/ exactly as the site serves it, so the whole install
+// path runs: manifest, every blob, then the two deload slots the home
+// screen asks for.
 {
   const ctx = await browser.newContext({
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -352,18 +350,10 @@ async function openDeloadSettings(page) {
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
 
-  let served = 0
-  await page.route('**/*.r2.dev/**', async route => {
-    const rel = new URL(route.request().url()).pathname.replace(/^\//, '')
-    try {
-      const body = await readFile(`pack/${rel}`)
-      served++
-      route.fulfill({
-        status: 200,
-        contentType: rel.endsWith('.json') ? 'application/json' : 'image/webp',
-        body,
-      })
-    } catch { route.abort() }
+  const fetched = new Set()
+  page.on('requestfinished', req => {
+    const u = new URL(req.url())
+    if (u.pathname.startsWith('/pack/i/')) fetched.add(u.pathname)
   })
 
   await page.addInitScript(([sessions, recovery, iso, unlocked]) => {
@@ -389,16 +379,24 @@ async function openDeloadSettings(page) {
   await page.waitForTimeout(1500)
 
   await page.locator('[data-pack="offer-accept"]').click()
-  // ~12MB of blobs, verified and written to IndexedDB one at a time.
-  await page.waitForTimeout(75000)
 
-  const pointer = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
-  // The pack this checkout built says how many objects it holds; the
+  // The pack the preview serves says how many objects it holds; the
   // number grows as art is added, so it is read rather than pinned.
-  const builtManifest = JSON.parse(await readFile('pack/manifest.json', 'utf8').catch(() => 'null'))
-  const expected = builtManifest?.assets?.length ?? 182
-  ok('pack: it installs', pointer?.count === expected, `${JSON.stringify(pointer)} vs ${expected}`)
-  ok('pack: every object came from the built pack', served >= expected, String(served))
+  const builtManifest = await (await fetch(new URL('pack/manifest.json', APP))).json()
+  const expected = builtManifest.assets.length
+  const files = new Set(builtManifest.assets.map(a => `/pack/${a.file}`))
+  // ~14MB of blobs, verified and written to IndexedDB one at a time:
+  // wait for the pointer the install writes last, not a fixed time.
+  let pointer = null
+  for (let i = 0; i < 180 && pointer?.count !== expected; i++) {
+    await page.waitForTimeout(500)
+    pointer = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
+  }
+  await page.waitForTimeout(1500)
+  ok('pack: it installs', pointer?.count === expected && pointer?.packVersion === builtManifest.packVersion,
+    `${JSON.stringify(pointer)} vs ${expected} v${builtManifest.packVersion}`)
+  ok('pack: every distinct file came from the site\'s own /pack/',
+    [...files].every(f => fetched.has(f)), `${[...files].filter(f => !fetched.has(f)).length} of ${files.size} not fetched`)
 
   const arts = await page.evaluate(() =>
     [...document.querySelectorAll('img[data-art]')].map(i => ({
@@ -430,7 +428,7 @@ async function openDeloadSettings(page) {
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
-  await page.route('**/*.r2.dev/**', r => r.abort())
+  await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
 
   // Nine climbing days, then a four-day taper at the end of the month.
   let n = 0

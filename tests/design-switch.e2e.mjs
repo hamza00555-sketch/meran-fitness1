@@ -27,7 +27,7 @@ const SEED = {
 
 const browser = await chromium.launch()
 const ctx = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar', serviceWorkers: 'allow' })
-await ctx.route('**/*.r2.dev/**', r => r.abort())
+await ctx.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
 // Seed once, on the very first page only — later loads must see what the
 // app itself wrote, or the test would prove nothing about persistence.
 await ctx.addInitScript((seed) => {

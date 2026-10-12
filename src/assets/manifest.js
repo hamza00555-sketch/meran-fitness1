@@ -13,7 +13,7 @@ const isHex64 = (s) => typeof s === 'string' && /^[0-9a-f]{64}$/i.test(s)
  * A manifest from a newer schema is refused rather than half-read:
  * an old build guessing at new fields is worse than no pack at all.
  */
-export function parseManifest(raw) {
+export function parseManifest(raw, { from } = {}) {
   if (!raw || typeof raw !== 'object') throw new Error('manifest-malformed')
 
   const schema = Number(raw.schemaVersion)
@@ -23,7 +23,7 @@ export function parseManifest(raw) {
   if (!Array.isArray(raw.assets) || !raw.assets.length) throw new Error('manifest-empty')
   if (typeof raw.baseUrl !== 'string' || !raw.baseUrl) throw new Error('manifest-no-base')
 
-  const baseUrl = raw.baseUrl.endsWith('/') ? raw.baseUrl : raw.baseUrl + '/'
+  const baseUrl = resolveBase(raw.baseUrl.endsWith('/') ? raw.baseUrl : raw.baseUrl + '/', from)
   const assets = []
   const byId = new Map()
 
@@ -60,6 +60,17 @@ export function parseManifest(raw) {
   }
 }
 
+// The self-hosted pack says `"baseUrl": "/pack/"` — a path, because
+// the same build serves production, previews and localhost. A path
+// means "on the host the manifest came from", so it is resolved against
+// the manifest's own URL: on the same site that changes nothing, and a
+// dev server pointed at a deployed manifest fetches the files from
+// there rather than from itself. An absolute base passes through as is.
+function resolveBase(base, from) {
+  if (!from || /^[a-z][a-z0-9+.-]*:/i.test(base)) return base
+  try { return new URL(base, from).href } catch { return base }
+}
+
 /** Fetches and validates the manifest. Cache-busted so a stale CDN copy can't pin an old pack. */
 export async function fetchManifest(url, { signal } = {}) {
   const res = await fetch(url, { signal, cache: 'no-cache', credentials: 'omit', mode: 'cors' })
@@ -68,5 +79,9 @@ export async function fetchManifest(url, { signal } = {}) {
     err.status = res.status
     throw err
   }
-  return parseManifest(await res.json())
+  return parseManifest(await res.json(), { from: res.url || absolute(url) })
+}
+
+const absolute = (url) => {
+  try { return new URL(url, globalThis.location?.href).href } catch { return undefined }
 }
