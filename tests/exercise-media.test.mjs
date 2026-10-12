@@ -20,7 +20,7 @@ globalThis.localStorage = {
 
 const { MUSCLE_GROUPS } = await import('../src/constants.js')
 const {
-  EXERCISE_MEDIA, ANIMATED_EXERCISES, EQUIP_LABELS,
+  EXERCISE_MEDIA, ANIMATED_EXERCISES, LOOPS_ON_HOLD, EQUIP_LABELS,
   mediaSlotFor, animSlotFor, arabicName, equipLabel, wordSetKey,
 } = await import('../src/exerciseMedia.js')
 
@@ -57,8 +57,35 @@ test('every animated exercise has a recorded source clip', async () => {
   // has a video and ships none.
   const { readFileSync } = await import('node:fs')
   const sources = JSON.parse(readFileSync(new URL('../scripts/pack-sources.json', import.meta.url), 'utf8')).slots
-  const missing = ANIMATED_EXERCISES.map(n => animSlotFor(n)).filter(s => !sources[s])
+  // The pack's slot, not animSlotFor: a loop on hold is still in the pack.
+  const missing = ANIMATED_EXERCISES.map(n => `exa_${EXERCISE_MEDIA[n].slug}`).filter(s => !sources[s])
   assert.deepEqual(missing, [])
+})
+
+// ── Loops on hold ─────────────────────────────────────────────
+// Ten loops were grown from stills حمزة later marked wrong. The new
+// design shows the corrected still instead; the old design still plays
+// them, so they stay in the pack.
+
+test('a loop on hold is not played, and the corrected still shows', () => {
+  assert.equal(LOOPS_ON_HOLD.length, 10)
+  for (const name of LOOPS_ON_HOLD) {
+    assert.ok(ANIMATED_EXERCISES.includes(name), `${name} has no loop to hold`)
+    assert.equal(animSlotFor(name), null, name)
+    assert.equal(mediaSlotFor(name), `ex_${EXERCISE_MEDIA[name].slug}`, name)
+  }
+  // A held exercise found through an alias stays held too.
+  assert.equal(animSlotFor('cable triceps kickback'), null)
+  // The neighbours keep playing.
+  assert.equal(animSlotFor('Lying Leg Curl'), 'exa_lying_leg_curl')
+  assert.equal(animSlotFor('Seated Leg Curl'), 'exa_seated_leg_curl')
+})
+
+test('a loop on hold keeps its slot in the pack, for the old design', async () => {
+  const { EXERCISE_ANIMS } = await import('../src/assets/slots.js')
+  for (const name of LOOPS_ON_HOLD) {
+    assert.ok(EXERCISE_ANIMS[`exa_${EXERCISE_MEDIA[name].slug}`], name)
+  }
 })
 
 test('lookups resolve, and unknown names stay quiet', () => {
