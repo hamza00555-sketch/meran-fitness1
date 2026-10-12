@@ -6,6 +6,7 @@ import { achSlot } from '../../assets/slots.js'
 import { urlFor } from '../../assets/registry.js'
 import { RARITY_COLORS } from '../../constants.js'
 import { animate, reducedMotion } from '../../motion.js'
+import { mark } from '../../perf.js'
 import '../../styles/medal-reveal.css'
 
 // ── A medal that spins ────────────────────────────────────────
@@ -43,8 +44,8 @@ import '../../styles/medal-reveal.css'
 const FONT = "'Meran Latin','Meran Arabic',sans-serif"
 
 let loader = null
-const loadStage = () => loader || (loader = import('./medal3d.js')
-  .then(m => m.default)
+const loadStage = () => loader || (mark('medal:chunk-request'), loader = import('./medal3d.js')
+  .then(m => { mark('medal:chunk'); return m.default })
   .catch((e) => { loader = null; throw e }))
 
 /** The SVG path(s) of a rendered Phosphor glyph, as one string for Path2D. */
@@ -128,7 +129,8 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
       if (!s || !s.webgl) { try { s?.destroy() } catch {} flat(); return }
       stage.current = s
       setMode('gl')
-      s.prepare(list()).catch(() => { if (alive) giveUp(s) })
+      mark('medal:stage')
+      s.prepare(list()).then(() => mark('medal:ready'), () => { if (alive) giveUp(s) })
     }, flat)
     return () => {
       alive = false
@@ -147,6 +149,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
     if (mode !== 'gl' || !s) return
     if ((play || skip) && !S.played) {
       S.played = true
+      mark('medal:play-gl')
       setState('playing')
       s.play(list()).then(() => {
         if (stage.current !== s) return
@@ -180,6 +183,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
     if (!play || S.flatPlayed) return
     S.flatPlayed = true
     S.played = true
+    mark('medal:play-flat')
     setState('playing')
     const fade = revealMode({ webgl: false, reduced: reducedMotion() }) === 'flat-fade'
     // (lost mid-flight on the GL stage: only the ones still in the air turn)
@@ -195,7 +199,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
         ], { d: 1500, delay: 200 + k * 1700, e: 'cubic-bezier(.16,.84,.3,1)', fill: 'both' })
       if (!a) { el.style.opacity = '1'; landed([i], false); return }
       S.anims.push(a)
-      a.finished.then(() => landed([i], false), () => {})
+      a.finished.then(() => { mark(`flat:land:${i}`); landed([i], false) }, () => {})
     })
   }, [mode, play, skip, ids]) // eslint-disable-line react-hooks/exhaustive-deps
 

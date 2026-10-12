@@ -15,6 +15,7 @@ import { play as playSound, load as loadSound } from '../../sound.js'
 import { haptic } from '../../haptics.js'
 import '../../styles/summary.css'
 import { lockScroll } from '../../scrollLock.js'
+import { mark, resetMarks } from '../../perf.js'
 
 // ── The end of a workout ──────────────────────────────────────
 // Finishing used to fire up to five effects in different places and
@@ -102,7 +103,9 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const [skipped, setSkipped] = useState(false)
   const skippedRef = useRef(false)
   skippedRef.current = skipped
-  const t0 = useRef(performance.now()).current
+  const t0Ref = useRef(null)
+  if (t0Ref.current == null) { resetMarks(); mark('sum:open'); t0Ref.current = performance.now() }
+  const t0 = t0Ref.current
   const still = skipped || reducedMotion()
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') onDone() }
@@ -114,6 +117,7 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const s = summary
   const queue = useMemo(() => medalQueue(s?.achievements || []), [s?.achievements])
   const hasMedals = queue.stage.length > 0
+  if (hasMedals) mark('sum:medals')
 
   // The beats, in order: what is on screen decides the numbering.
   let beat = 0
@@ -183,6 +187,8 @@ export default function SessionSummary({ summary, xp, onDone }) {
   // has pushed every line out of view.
   const cue = [...SEEN_LINES].reverse().find(k => B[k] != null && vis?.includes(k)) || 'medals'
   const medalGo = useAt(t0, (hasMedals ? at(cue) : at('xp')) + 240, skipped)
+  if (medalGo && hasMedals) mark('sum:medal-go')
+  if (beatIn.xp) mark('sum:xp-beat')
 
   // The medal sounds, decoded ahead of the landing.
   useEffect(() => { if (hasMedals) { loadSound('medal'); loadSound('medal-heavy') } }, [hasMedals])

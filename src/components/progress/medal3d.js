@@ -30,6 +30,8 @@
 //     «مران», the title and the date.
 // The host owns layout: the canvas and the labels sit inside it, so the
 // effects are clipped to the stage and never cover the heading above.
+import { mark } from '../../perf.js'
+
 const TAU = Math.PI * 2, H = .1, FLOOR = -1.3, DIST = Math.hypot(.6, 8)
 const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v
 const ease = (u) => 1 - Math.pow(1 - clamp(u), 3)
@@ -190,12 +192,18 @@ function load(it, font, date) {
   while (assets.size >= ASSETS_KEPT) assets.delete(assets.keys().next().value)
   const p = (async () => {
     let src = null
+    mark('m3:art-start', true)
     if (it.art) { try { src = new Image(); src.src = it.art; await src.decode() } catch (e) { src = null } }
     if (!src) src = face(it, font)   // a broken pack file draws the composed medal, like <Art> does
+    mark('m3:art', true)
     const m = 256, cv = canvas(m), cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(src, 0, 0, m, m)
     const px = cx.getImageData(0, 0, m, m).data, A = new Float32Array(m * m)
     for (let i = 0; i < m * m; i++) A[i] = px[i * 4 + 3] / 255
-    return { key, src, eng: engrave(it, 1024, font, date), ...rim(contours(A, m, .5), m, px) }
+    const r = rim(contours(A, m, .5), m, px)
+    mark('m3:alpha', true)
+    const eng = engrave(it, 1024, font, date)
+    mark('m3:engrave', true)
+    return { key, src, eng, ...r }
   })()
   assets.set(key, p); p.catch(() => assets.delete(key))
   return p
@@ -323,6 +331,7 @@ export default function MedalStage(host, o = {}) {
   const gpuMap = new Map()
   if (!o.noGL) {
     try { gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: MANUAL }) } catch (e) { gl = null }
+    mark('m3:context')
   }
   function prog(vs, fs) {
     const p = gl.createProgram(), shs = []
@@ -408,6 +417,7 @@ export default function MedalStage(host, o = {}) {
   if (gl) {
     cv.addEventListener('webglcontextlost', onLost); cv.addEventListener('webglcontextrestored', onRestored)
     try { glInit() } catch (e) { console.error(e); gl = null }
+    mark('m3:shaders')
   }
 
   // ── state ──
@@ -421,6 +431,7 @@ export default function MedalStage(host, o = {}) {
     layout(x, y, s, now) { Object.assign(this.L, { tx: x, ty: y, ts: s }); if (now) Object.assign(this.L, { x, y, s, vx: 0, vy: 0, vs: 0 }) }
     start() {
       this.on = true; this.t0 = clock
+      mark(`m3:start:${this.i}`)
       if (RM) return
       this.tc = this.R.heavy ? 2.25 : 2
       this.th = { t0: clock, tc: this.tc, from: 0, to: this.R.turns * TAU, p: 2, vc: 1.7 }
@@ -433,6 +444,7 @@ export default function MedalStage(host, o = {}) {
         if (R.sparks) burst(this, R.sparks)
       }
       this.glint(clock + (RM ? .25 : .12))
+      mark(`m3:land:${this.i}`)
       this.onLand && this.onLand()
       try { o.onLand && o.onLand(this.i, this.it) } catch (e) { /* a sound must never stop the medal */ }
     }
@@ -503,9 +515,13 @@ export default function MedalStage(host, o = {}) {
   // ── reveal ──
   const fontsReady = () => document.fonts ? Promise.all([document.fonts.load(`800 58px ${font}`, 'مران ٠1'), document.fonts.load(`600 30px ${font}`, 'أكتوبر 2026')]).catch(() => {}) : Promise.resolve()
   async function prepare(list) {
+    mark('m3:prepare')
     await fontsReady()
+    mark('m3:fonts')
     const as = await Promise.all(list.map(it => load(it, font, DATE)))
+    mark('m3:assets')
     if (gl && !lost && !dead) as.forEach(gpu)
+    mark('m3:gpu')
     return as
   }
   async function play(list) {
@@ -532,6 +548,7 @@ export default function MedalStage(host, o = {}) {
       else { a.layout(0, 0, 1, 1); b.layout(...SLOT[1], 1); a.onLand = () => at(.55, () => { a.layout(...SLOT[0]); b.start() }) }
     }
     at(.3, () => a.start())
+    mark('m3:play')
     measure(); wake()
   }
   function skip() {
@@ -596,6 +613,7 @@ export default function MedalStage(host, o = {}) {
     gl.enable(gl.DEPTH_TEST)
     for (const m of medals) {
       if (!m.on || m.op <= 0) continue
+      mark(`m3:frame:${m.i}`)
       const g = gpu(m.a), { R, M } = pose(m), u = { uVP: C.VP, uM: M, uR: R, uEye: C.e, uTint: m.R.tint, uOp: m.op, uSw: m.sweep(), uGs: m.R.gs, uMet: m.R.met, uA: { tex: g.art, unit: 0 } }
       gl.disable(gl.CULL_FACE)
       use(progs.rim, u); gl.bindBuffer(gl.ARRAY_BUFFER, g.vb); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ib)
