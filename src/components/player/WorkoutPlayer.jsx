@@ -160,7 +160,10 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
 // place, so the dock ignores taps for this long after a rest closes.
 const REST_CLOSE_GUARD_MS = 400
 
-// How long the button's copy stays over the growing rest panel.
+// How long the button's copy stays over the growing rest panel. The dock
+// ignores taps for as long: the rest's controls are already there under
+// the copy (which takes no taps), so a thumb bouncing on «تمّت المجموعة»
+// would otherwise land on «تخطي» or ±15 it can't see yet.
 const MORPH_MS = 520
 
 // After the last set, the next exercise comes on screen by itself — in
@@ -204,7 +207,7 @@ export default function WorkoutPlayer({
   const intro = useRef(new Map())                      // exId → { kind, at, showing, ran } — this showing's raise reminder
   const scrollRef = useRef(null)
   const dockRef = useRef(null)
-  const restClosedAt = useRef(0)
+  const dockQuietUntil = useRef(0)                     // the dock takes no tap before this (performance.now())
   const handoff = useRef({ token: 0, done: 0, dir: 0, at: -Infinity })
   const morph = useRef({ token: 0, done: 0 })
   const [ghost, setGhost] = useState(0)                // the morph whose button copy is on screen (0: none)
@@ -550,14 +553,20 @@ export default function WorkoutPlayer({
 
   if (!ex) return null
 
-  // Closing the rest (a tap on «جاهز» or «تخطي») starts the guard.
-  const closeRest = () => {
-    restClosedAt.current = performance.now()
-    onCloseRest?.()
+  // Whenever what is under the thumb changes in the dock, it stays quiet
+  // for a moment, so the second tap of a double tap lands on nothing:
+  // closing the rest (a tap on «جاهز» or «تخطي»), and the button turning
+  // into the rest. One guard for everything in the dock, taken before any
+  // of its buttons sees the tap.
+  const quietDock = (ms) => { dockQuietUntil.current = Math.max(dockQuietUntil.current, performance.now() + ms) }
+  const swallowIfQuiet = (e) => {
+    if (performance.now() >= dockQuietUntil.current) return
+    e.stopPropagation()
+    e.preventDefault()
   }
-  const guarded = (fn) => () => {
-    if (performance.now() - restClosedAt.current < REST_CLOSE_GUARD_MS) return
-    fn()
+  const closeRest = () => {
+    quietDock(REST_CLOSE_GUARD_MS)
+    onCloseRest?.()
   }
 
   const name = arabicName(ex.name, mapping) || ex.name
@@ -590,6 +599,7 @@ export default function WorkoutPlayer({
     touchRaise(ex.id)
     setPeek(null)
     setFresh({ exId: ex.id, si })
+    quietDock(MORPH_MS)
     morph.current.token += 1
     setGhost(morph.current.token)
     onDoneSet(ex.id, si, true)
@@ -648,11 +658,11 @@ export default function WorkoutPlayer({
   } else if (isResting) {
     dock = null   // InlineRest below
   } else if (currentSetIndex >= 0) {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(complete)} data-testid="complete-set">تمّت المجموعة</Button>
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={complete} data-testid="complete-set">تمّت المجموعة</Button>
   } else if (nextIdx !== -1) {
-    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={guarded(() => jump(nextIdx))}>التمرين التالي</Button>
+    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={() => jump(nextIdx)}>التمرين التالي</Button>
   } else {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(onRequestFinish)}>إنهاء الجلسة</Button>
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => onRequestFinish()}>إنهاء الجلسة</Button>
   }
   const phrase = summary ? setsPhrase(summary.sets) : null
   const celebratingHere = celebrating?.exId === ex.id
@@ -762,7 +772,7 @@ export default function WorkoutPlayer({
         />
       </div>
 
-      <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'}>
+      <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'} onClickCapture={swallowIfQuiet}>
         {isResting && (
           <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} morph={!!ghost} />
         )}

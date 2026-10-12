@@ -995,6 +995,49 @@ async function dragHead(page, dx = 40) {
   await ctx.close()
 }
 
+// ══ 4b′. A double tap on «تمّت المجموعة» leaves the rest alone ════
+// For the moment the button turns into the rest, only its copy shows (it
+// takes no taps) while the rest's «تخطي» and ±15 are already under it.
+// A thumb bouncing on the button — at its start, middle or end, 60 or
+// 150ms later — must not skip the rest or move its end.
+{
+  const SIX = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press',
+      sets: Array.from({ length: 7 }, () => ({ weight: '40', reps: '12', done: false })) }],
+  }
+  const { ctx, page, errors } = await open({ active: SIX, viewport: { width: 390, height: 664 } })
+  const b = await completeBtn(page).boundingBox()
+  const bad = []
+  for (const fx of [0.1, 0.5, 0.9]) {
+    for (const gap of [60, 150]) {
+      const x = b.x + b.width * fx, y = b.y + b.height / 2
+      await finger(page, ctx, { x, y }, { holdMs: 30 })
+      const t0 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt ?? null)
+      await page.waitForTimeout(gap)
+      await finger(page, ctx, { x, y }, { holdMs: 30 })
+      await page.waitForTimeout(600)
+      const t1 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt ?? null)
+      const panel = await page.getByTestId('rest-bar').count()
+      if (t0 == null || t1 !== t0 || panel !== 1) bad.push(`${fx}@${gap}ms: ${t0} → ${t1}, panel ${panel}`)
+      // Next round: skip the rest (after the morph), then wait out the guard.
+      await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 1500 }).catch(() => {})
+      await page.waitForTimeout(500)
+    }
+  }
+  ok('morph guard: a second tap through the turning button neither skips the rest nor moves its end', bad.length === 0, bad.join('; '))
+  const done = (await activeStored(page)).exercises[0].sets.filter(s => s.done).length
+  ok('morph guard: each double tap logged one set', done === 6, String(done))
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  const e0 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
+  await page.getByRole('button', { name: 'زد 15 ثانية' }).click()
+  const e1 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
+  ok('morph guard: once the rest is up, +15 works as usual', e1 - e0 === 15000, String(e1 - e0))
+  ok('morph guard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 4c. Resting on the last of six sets (390×664, Safari's height) ══
 {
   const six = Array.from({ length: 6 }, (_, i) => ({ weight: '75', reps: '12', done: i < 4 }))
