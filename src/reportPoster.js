@@ -24,7 +24,7 @@
 import { urlFor } from './assets/registry.js'
 import { arabicName } from './exerciseMedia.js'
 import { todayKey } from './day.js'
-import { unitWord } from './monthReport.js'
+import { unitWord, fromWord } from './monthReport.js'
 
 export const POSTER_W = 1080
 export const POSTER_H = 1920
@@ -262,7 +262,7 @@ export async function drawPoster(canvas, { report, profile = {}, mapping = {}, l
     text(ctx, ar || best.exercise, R, blockTop + 76, { size: 54, weight: 700, color: C.ink, maxWidth: nameW, dir: ar ? 'rtl' : 'ltr' })
     if (ar) text(ctx, best.exercise, R, blockTop + 124, { size: 34, weight: 600, stretch: 85, color: C.ink3, maxWidth: nameW, dir: 'ltr' })
     const gain = Math.round((best.weight - best.prevBest) * 10) / 10
-    text(ctx, `كان ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
+    text(ctx, `${fromWord(best)} ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
   } else if (planned && !figs.some(f => f.planned)) {
     text(ctx, 'حضورك', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
     text(ctx, `${AR(attended)} / ${AR(planned)}`, R, blockTop + 140, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })

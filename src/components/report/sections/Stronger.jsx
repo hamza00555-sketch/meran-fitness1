@@ -12,7 +12,7 @@
 
 import { Num } from '../../kit/index.jsx'
 import { arabicName } from '../../../exerciseMedia.js'
-import { strongerLine, monthName, kgText } from '../../../monthReport.js'
+import { strongerLine, monthName, kgText, fromWord } from '../../../monthReport.js'
 import { fmtDayAr, countAr } from '../../../streak.js'
 import { Section, Gain, Bidi } from '../parts.jsx'
 
@@ -44,7 +44,7 @@ function Jump({ pr, mapping }) {
         </div>
       </div>
       <p className="rp-best-sub">
-        كان <Num>{kgText(pr.prevBest)}</Num> كجم · <Gain kg={pr.gain} />
+        {fromWord(pr)} <Num>{kgText(pr.prevBest)}</Num> كجم · <Gain kg={pr.gain} />
         {pr.date && <> · يوم {fmtDayAr(pr.date, { weekday: false })}</>}
       </p>
     </div>
@@ -81,6 +81,9 @@ export default function Stronger({ report, id = 'rp-stronger', mapping = {} }) {
   const rest = rows.filter(g => !jump || g.lift !== jump.lift)
   const shown = rest.slice(0, MAX_ROWS)
   const hasDeload = (report.volume?.deloadSessions || 0) > 0
+  // A lift started this month has no weight from before it: its new
+  // weight is measured from its first session, and the caption says so.
+  const startedHere = [jump, ...shown].some(g => g && g.firstTime && (g.gain > 0))
 
   return (
     <Section id={id} q="صرت أقوى؟" lead={strongerLine(prs.length)}>
@@ -93,6 +96,7 @@ export default function Stronger({ report, id = 'rp-stronger', mapping = {} }) {
       <p className="rp-caption rp-in" style={{ '--i': 3 }}>
         {rest.length > MAX_ROWS && <><Bidi text={`و${countAr(rest.length - MAX_ROWS, 'workout')} غير اللي فوق.`} />{' '}</>}
         الذهبي وزن جديد: أثقل من أي وزن رفعته في التمرين قبل {monthName(month)}.
+        {startedHere && ' والتمرين اللي بدأته هالشهر: أثقل من أول وزن بدأت فيه.'}
         {hasDeload && ' جلسات التخفيف ما تنحسب هنا.'}
       </p>
     </Section>

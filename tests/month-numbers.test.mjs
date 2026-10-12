@@ -769,3 +769,20 @@ test('«مجموعات كاملة» and «تكرارات» count ticked body-wei
   assert.equal(r.muscles.reduce((n, m) => n + m.sets, 0), r.sets.completed, 'the same number the muscle bars add up to')
   assert.equal(r.reps.total, 30 + 36)
 })
+
+// ══ a lift started this month ═════════════════════════════════
+// There was no weight before the month: the bar is its first session,
+// and the gold card and the poster must say «بدأته على», never «كان».
+
+test('a new weight in a lift started this month says where it started', () => {
+  const s = []
+  for (let d = 10; d <= 31; d += 2) s.push(on(MAR, d, 'Bench Press', three(d >= 20 ? 50 : 40)))
+  s.push(on(FEB, 20, 'Squat', three(100), { muscle: 'Legs' }), on(MAR, 11, 'Squat', three(110), { muscle: 'Legs' }))
+  const r = build(s, { today: '2026-04-03' })
+  const bench = r.prs.find(p => p.lift === 'bench press')
+  const squat = r.prs.find(p => p.lift === 'squat')
+  assert.deepEqual([bench.firstTime, bench.prevBest, bench.weight], [true, 40, 50])
+  assert.equal(squat.firstTime, false)
+  assert.equal(R.fromWord(bench), 'بدأته على')
+  assert.equal(R.fromWord(squat), 'كان')
+})

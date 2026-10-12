@@ -458,13 +458,19 @@ export function liftGains(sessions = [], month, { mapping = {}, resetAt = 0 } = 
   return rows.sort((a, b) => b.gain - a.gain || b.sessions - a.sessions)
 }
 
-/** The new weights only, biggest jump first — the report's «وزن جديد». */
+/** The new weights only, biggest jump first — the report's «وزن جديد».
+ *  firstTime: the lift was started this month, so prevBest is its first
+ *  session's weight, not a best from before. */
 export const newWeights = (gains = []) => gains
   .filter(g => g.gain > 0)
   .map(g => ({
     exercise: g.exercise, lift: g.lift, weight: g.top, prevBest: g.before,
-    gain: g.gain, date: g.date, steps: g.steps,
+    gain: g.gain, date: g.date, steps: g.steps, firstTime: !!g.firstTime,
   }))
+
+/** What a new weight is measured from: «كان 60» for a best from before
+ *  the month, «بدأته على 40» for a lift first done in it. */
+export const fromWord = (pr) => (pr?.firstTime ? 'بدأته على' : 'كان')
 
 // ── One lift, week by week ────────────────────────────────────
 // The heaviest ticked set of a lift in each of the last `weeks` weeks,
