@@ -1699,6 +1699,41 @@ const RAISE_SESSIONS = [
   }
 }
 
+// ══ 6b. A swapped-in machine due a raise gets its own ═══════════
+// Both the hammer press (75) and its alternative, the chest press (60),
+// are due a raise. Swapped from ⋯ before the first set, the chest press
+// is offered 62.5 on the number, with its ring — as when the session
+// starts on it — not just in the coach line.
+{
+  const day = (n, name, w) => ({
+    id: n, date: new Date(2026, 8, n, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'x' + n, muscle: 'Chest', name, sets: [[w, 15], [w, 15], [w, 14]].map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }],
+  })
+  const H = 'Hammer Strength Machine Bench Press', C = 'Chest Press Machine'
+  const SESS = [day(1, H, 75), day(2, C, 60), day(3, H, 75), day(4, C, 60), day(5, H, 75), day(6, C, 60)]
+  const ACT = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Push',
+    exercises: [{ id: 'a', muscle: 'Chest', name: H, sets: [{ weight: '75', reps: '12', done: false }, { weight: '75', reps: '12', done: false }] }],
+  }
+  const { ctx, page, errors } = await open({ sessions: SESS, active: ACT })
+  await page.waitForTimeout(2600)
+  const v0 = await inputs(page)
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /استبدال التمرين/ }).click()
+  await page.waitForTimeout(2600)
+  const v1 = await inputs(page)
+  const ring = await page.locator('.s-field[data-raise="1"]').count()
+  const st = await activeStored(page)
+  ok('swap raise: the hammer press opens raised to 77.5', v0[0] === '77.5', JSON.stringify(v0))
+  ok('swap raise: the chest press swapped in is raised to 62.5 on the number, ring and all',
+    st.exercises[0].name === C && v1[0] === '62.5' && ring === 1 && st.exercises[0].sets.every(s => s.weight === '62.5'),
+    `${JSON.stringify(v1)} ring=${ring} ${JSON.stringify(st.exercises[0].sets)}`)
+  ok('swap raise: «خلّها 60» is there for it', await page.getByRole('button', { name: /خلّها\s*60/ }).count() === 1)
+  ok('swap raise: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 7. Finishing asks; throwing away lives in ⋯ ═══════════════
 {
   const { ctx, page, errors } = await open()

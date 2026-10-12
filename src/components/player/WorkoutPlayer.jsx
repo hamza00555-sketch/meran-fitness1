@@ -103,6 +103,10 @@ const writeMotion = (sid, part) => {
 // How long a showing's intro stays on offer: the full one to the ring's
 // first breath (WorkingArea's T.breathe), the sheen a little past its end.
 const INTRO_LIFE_MS = { full: 2400, sheen: 900 }
+// The raise belongs to the machine in an exercise's place, not to the
+// place: swapped for its alternative (same id, new name), the new machine
+// gets its own prefill, intro and breathing ring.
+const raiseKey = (e) => `${e.id}:${e.name}`
 
 const firstUnfinished = (list, from = 0) => {
   const n = list.length
@@ -424,7 +428,7 @@ export default function WorkoutPlayer({
   useEffect(() => {
     if (!ex || !raiseOn || base == null || raisedW == null) return
     if (ex.sets.some(s => s.done)) return
-    const key = `${sessionId}:${ex.id}`
+    const key = `${sessionId}:${raiseKey(ex)}`
     if (raiseSeen(key)) return
     markRaiseSeen(key)
     ex.sets.forEach((s, i) => {
@@ -434,9 +438,9 @@ export default function WorkoutPlayer({
         onUpdateSet(ex.id, i, 'weight', kg(raisedW))
       }
     })
-  }, [ex?.id, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ex?.id, ex?.name, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const touchRaise = (exId) => setTouched(t => (t.has(exId) ? t : new Set(t).add(exId)))
+  const touchRaise = (k) => setTouched(t => (t.has(k) ? t : new Set(t).add(k)))
   useEffect(() => { writeMotion(sessionId, { touched: [...touched] }) }, [touched]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const keepBase = () => {
@@ -456,33 +460,34 @@ export default function WorkoutPlayer({
   const liveSet = ex && liveIndex >= 0 ? ex.sets[liveIndex] : null
   const liveRaised = raiseOn && base != null && liveSet && parseFloat(liveSet.weight) > base
   const started = !!ex && ex.sets.some(s => s.done)
+  const rk = ex ? raiseKey(ex) : null
   if (ex && liveRaised && editing == null) {
-    const showing = `${ex.id}|${handoff.current.token}`
-    const cur = intro.current.get(ex.id)
+    const showing = `${rk}|${handoff.current.token}`
+    const cur = intro.current.get(rk)
     if (!cur || cur.showing !== showing) {
       const kind = started ? null
-        : !introPlayed.current.has(ex.id) ? 'full'
-        : touched.has(ex.id) ? null : 'sheen'
+        : !introPlayed.current.has(rk) ? 'full'
+        : touched.has(rk) ? null : 'sheen'
       const arriving = performance.now() - handoff.current.at < 600
-      intro.current.set(ex.id, { kind, at: performance.now() + (kind === 'full' && arriving ? 450 : 0), showing, ran: false })
+      intro.current.set(rk, { kind, at: performance.now() + (kind === 'full' && arriving ? 450 : 0), showing, ran: false })
     }
   }
-  const introNow = ex ? intro.current.get(ex.id) : null
+  const introNow = ex ? intro.current.get(rk) : null
   // Over once a set is done, or once it has had its time.
   if (introNow?.kind && (started || performance.now() > introNow.at + INTRO_LIFE_MS[introNow.kind])) introNow.kind = null
   // The first live block to ask plays it; any later one (or a re-run) is told no.
-  const claimIntro = (exId) => () => {
-    const e = intro.current.get(exId)
+  const claimIntro = (k) => () => {
+    const e = intro.current.get(k)
     if (!e || !e.kind || e.ran) return false
     e.ran = true
-    if (e.kind === 'full' && !introPlayed.current.has(exId)) {
-      introPlayed.current.add(exId)
+    if (e.kind === 'full' && !introPlayed.current.has(k)) {
+      introPlayed.current.add(k)
       writeMotion(sessionId, { intro: [...introPlayed.current] })
     }
     return true
   }
   // The ring breathes until the weight is touched — or a set is done on it.
-  const breathing = !!ex && !started && !touched.has(ex.id)
+  const breathing = !!ex && !started && !touched.has(rk)
 
   // A set heavier than anything on record: the heaviest such done set.
   const prIndex = useMemo(
@@ -610,7 +615,7 @@ export default function WorkoutPlayer({
     } else {
       haptic('set')
     }
-    touchRaise(ex.id)
+    touchRaise(raiseKey(ex))
     setPeek(null)
     setFresh({ exId: ex.id, si })
     quietDock(MORPH_MS)
@@ -654,9 +659,9 @@ export default function WorkoutPlayer({
       raise={raiseOn && base != null && editing == null ? {
         base, raised: raisedW,
         intro: introNow?.kind || null, introAt: introNow?.at || 0,
-        claimIntro: claimIntro(ex.id),
+        claimIntro: claimIntro(rk),
         breathe: breathing,
-        onTouch: () => touchRaise(ex.id),
+        onTouch: () => touchRaise(rk),
       } : null}
       deloadPct={deloadPct}
       onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
