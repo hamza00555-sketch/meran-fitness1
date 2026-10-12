@@ -2029,6 +2029,7 @@ const clipTop = (clip) => {
       ghost: !!ghost, ghostOp: ghost ? +getComputedStyle(ghost).opacity : null,
       rest: !!rest, clip: rest ? getComputedStyle(rest).clipPath : null, restOp: rest ? +getComputedStyle(rest).opacity : null,
       cssAnim: rest ? getComputedStyle(rest).animationName : null,
+      liveOp: (() => { const l = document.querySelector('[data-testid="live-block"]'); return l ? +getComputedStyle(l).opacity : null })(),
     }
   })
   await page.waitForTimeout(50)
@@ -2054,12 +2055,14 @@ const clipTop = (clip) => {
     after.filter(f => f.t - first.t > 300).every(f => f.restOp === 1) && after.every(f => f.cssAnim === 'none'),
     JSON.stringify(after.filter(f => f.restOp !== 1 || f.cssAnim !== 'none').slice(0, 3)))
   ok('morph: never a frame without the button, its copy or the rest', mf.every(f => f.btn || f.ghost || f.rest))
+  ok('morph: the next set\'s block is never a hole — it rises from half-seen, at once',
+    after.length > 5 && after.every(f => f.liveOp != null && f.liveOp >= 0.45), JSON.stringify(after.slice(0, 6).map(f => [f.t, f.liveOp])))
   const endsAt = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
   ok('morph: the rest\'s clock starts at the tap, not after the motion', Math.abs(endsAt - tapAt - 90000) < 400, String(endsAt - tapAt))
   const parts = await page.evaluate(() => ({
     tint: getComputedStyle(document.querySelector('.s-trow[data-state="done"]')).animationName,
     fresh: document.querySelector('.s-trow[data-state="done"]')?.dataset.fresh,
-    live: window.__anims.filter(a => a.testid === 'live-block' && /translateY\(10px\)/.test(a.kf)).length,
+    live: window.__anims.filter(a => a.testid === 'live-block' && /translateY\(10px\)/.test(a.kf) && !a.delay).length,
     order: ['s-rest-label', 's-rest-time', 's-rest-nudges', 's-rest-bar']
       .map(c => window.__anims.find(a => a.cls.split(' ').includes(c))?.delay ?? null),
     check: window.__anims.some(a => /strokeDashoffset/.test(a.kf) && a.rest),

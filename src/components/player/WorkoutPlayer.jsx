@@ -540,9 +540,11 @@ export default function WorkoutPlayer({
     animate(copy.querySelector('.s-ghost-label'), [{ opacity: 1 }, { opacity: 0 }], { d: 120, fill: 'forwards' })
     animate(copy.querySelector('.s-ghost-ok path'), [{ strokeDashoffset: 30 }, { strokeDashoffset: 0 }], { d: 180, delay: 40 })
     animate(copy, [{ opacity: 1 }, { opacity: 0 }], { d: 180, delay: 200, e: EASE.exit, fill: 'forwards' })
-    // The next set's block rises into place — at once: the block it
-    // replaces is already gone, so a later start would leave a hole.
-    animate(scrollRef.current?.querySelector('[data-testid="live-block"]'), rise(10), { d: 240, delay: 30 })
+    // The next set's block rises into place — at once, and from half-seen:
+    // the block it replaces is already gone, so a start from nothing (or a
+    // later one) would leave a hole where the set should be.
+    animate(scrollRef.current?.querySelector('[data-testid="live-block"]'),
+      [{ opacity: 0.5, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { d: 240 })
     if (!panel) return
     // The button's footprint grows up into the panel.
     const cut = Math.max(0, panel.offsetHeight - copy.offsetHeight)
