@@ -23,6 +23,11 @@ const nsKey = (key) => {
   return id === 'default' ? key : `u:${id}:${key}`
 }
 
+/** The key a per-user value is stored under for the active user (the
+ *  first user keeps the bare key). For values kept as raw strings
+ *  rather than through ls. */
+export const userKey = (key) => nsKey(key)
+
 export const getUsers = () => {
   try {
     const v = localStorage.getItem('hf_users')
@@ -51,6 +56,10 @@ export const PER_USER_KEYS = [
   // The month report's goals (monthReport.js). New in the redesign; the
   // old design never reads it.
   'hf_month_goal',
+  // The day Home's flame last lit (components/streak/flameLit.js): one
+  // person's flame must not use up another's on a shared phone, and a
+  // data reset starts it over. New in the redesign as well.
+  'meran_flame_lit',
 ]
 
 export const deleteUserData = (id) => {
@@ -575,16 +584,32 @@ export const scheduleNotificationsForToday = async (workoutTime, messages, worko
 }
 
 // ── Export / Import ───────────────────────────────────────────
+/** What a backup file holds. One builder, so the share-sheet backup and
+ *  the download write the same file. */
+export const backupData = ({ sessions, xp, profile, unlockedAchievements, challengeState, photos }) => ({
+  version: '2.1',
+  exportDate: new Date().toISOString(),
+  sessions, xp, profile, unlockedAchievements, challengeState, photos,
+  // The streak and the rest-day balance are derived from these, not
+  // stored. Left out of the backup, a restore came back with a broken
+  // streak and no rest days, and no export could ever be audited.
+  recovery: ls.get('hf_recovery', null),
+  // The month report's goals (hf_month_goal), new in the redesign. The
+  // old design's restore ignores a key it does not know.
+  monthGoals: ls.get('hf_month_goal', null),
+})
+
+/** Put a backup's month goals back. Older backups have none: the goals
+ *  on the phone are kept. */
+export const restoreMonthGoals = (data) => {
+  const g = data?.monthGoals
+  if (!g || typeof g !== 'object' || Array.isArray(g)) return false
+  ls.set('hf_month_goal', g)
+  return true
+}
+
 export const exportAllData = (sessions, xp, profile, unlockedAchievements, challengeState, photos) => {
-  const data = {
-    version: '2.1',
-    exportDate: new Date().toISOString(),
-    sessions, xp, profile, unlockedAchievements, challengeState, photos,
-    // The streak and the rest-day balance are derived from these, not
-    // stored. Left out of the backup, a restore came back with a broken
-    // streak and no rest days, and no export could ever be audited.
-    recovery: ls.get('hf_recovery', null),
-  }
+  const data = backupData({ sessions, xp, profile, unlockedAchievements, challengeState, photos })
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

@@ -13,16 +13,11 @@ import { ListGroup, ListRow, ConfirmSheet } from '../../components/kit/index.jsx
 import { Export, DownloadSimple, ArrowCounterClockwise, Trash, CheckCircle, Warning } from '../../components/kit/icons.js'
 import { MapTrifold } from '@phosphor-icons/react'
 import { Notice, Ar } from './parts.jsx'
-import { exportAllData, importAllData, ls, PER_USER_KEYS } from '../../utils.js'
+import { exportAllData, importAllData, backupData, ls, PER_USER_KEYS } from '../../utils.js'
 import { canShareFiles, supportsDownload } from '../../reportPoster.js'
 import { todayKey } from '../../day.js'
 
-const backupJson = ({ sessions, xp, profile, unlockedAchievements, challengeState, photos }) => JSON.stringify({
-  version: '2.1',
-  exportDate: new Date().toISOString(),
-  sessions, xp, profile, unlockedAchievements, challengeState, photos,
-  recovery: ls.get('hf_recovery', null),
-})
+const backupJson = (all) => JSON.stringify(backupData(all))
 
 const looksLikeBackup = (d) => d && typeof d === 'object' &&
   (d.sessions !== undefined || d.xp !== undefined || d.profile || d.type === 'exercise_mapping')
