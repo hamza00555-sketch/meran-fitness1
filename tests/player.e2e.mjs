@@ -1875,6 +1875,35 @@ const RAISE_SESSIONS = [
   await ctx.close()
 }
 
+// ══ 8b. The rest card holds still through a tab switch ═════════
+// The session docked with a rest running: the floating rest card is its
+// own layer in the tab switch, like the tab bar and the live bar, so it
+// isn't captured with the old page and faded out with it.
+{
+  const { ctx, page, errors } = await open()
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  await page.getByRole('button', { name: 'صغّر الجلسة' }).filter({ visible: true }).click()
+  await page.waitForTimeout(700)
+  await page.evaluate(() => {
+    window.__vtNames = null
+    new MutationObserver(() => {
+      if (window.__vtNames || !document.documentElement.dataset.tabnav) return
+      const name = (sel) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).viewTransitionName : null }
+      window.__vtNames = { card: name('.rt-bar'), live: name('.f-livebar'), tabs: name('.f-tabs') }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-tabnav'] })
+  })
+  ok('rest card: on screen with the session docked', await page.locator('.rt-bar').count() === 1)
+  await page.locator('nav.f-tabs > button').nth(2).click()
+  await page.waitForTimeout(700)
+  const names = await page.evaluate(() => window.__vtNames)
+  ok('rest card: a layer of its own in the tab switch, beside the live bar and the tab bar',
+    names?.card === 'rt-bar' && names.live === 'f-livebar' && names.tabs === 'f-tabs', JSON.stringify(names))
+  ok('rest card: still there after the switch', await page.locator('.rt-bar').count() === 1)
+  ok('rest card: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 9. An empty session: add an exercise, or a routine ════════
 {
   const { ctx, page, errors } = await open({ active: { ...ACTIVE, exercises: [] } })
