@@ -57,7 +57,8 @@ const browser = await chromium.launch()
 const SE = { ...devices['iPhone SE'], viewport: { width: 320, height: 568 } }
 async function open(fixture, extra = {}, { device = devices['iPhone 13'], photos = 0, reduced = false, init: initExtra = null } = {}) {
   const f = resolve(fixture)
-  const ctx = await browser.newContext({ ...device, timezoneId: 'Asia/Riyadh', locale: 'ar', reducedMotion: reduced ? 'reduce' : 'no-preference' })
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
+    ...device, timezoneId: 'Asia/Riyadh', locale: 'ar', reducedMotion: reduced ? 'reduce' : 'no-preference' })
   await ctx.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
   const page = await ctx.newPage()
   const errors = []

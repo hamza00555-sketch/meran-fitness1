@@ -55,7 +55,7 @@ const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso`, optionally mid-deload. */
 async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, recovery = null, plan = null, device = 'iPhone 13', extra = null } = {}) {
-  const ctx = await browser.newContext({
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices[device], timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
   })
@@ -343,7 +343,7 @@ async function openDeloadSettings(page) {
 // path runs: manifest, every blob, then the two deload slots the home
 // screen asks for.
 {
-  const ctx = await browser.newContext({
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
   })
   const page = await ctx.newPage()
@@ -422,7 +422,7 @@ async function openDeloadSettings(page) {
 // through the DOM rather than a screenshot, because "is the band
 // there" and "did the verdict flip" are both exact questions.
 {
-  const ctx = await browser.newContext({
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
   })
   const page = await ctx.newPage()

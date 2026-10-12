@@ -156,7 +156,7 @@ function glInstruments(noGL) {
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
   sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false,
   unlocked = null, noGL = false, xp = null, perf = false, route = null } = {}) {
-  const ctx = await browser.newContext({
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
@@ -2461,7 +2461,8 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
 // then it fades in; the same picture again (already in the phone) is
 // simply there.
 {
-  const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'ar', timezoneId: 'Asia/Riyadh' })
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
+    ...devices['iPhone 13'], locale: 'ar', timezoneId: 'Asia/Riyadh' })
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
@@ -2498,7 +2499,8 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
   // The next exercise (Pec Deck) shows the same chest art, already in the
   // phone. (No routes here: Playwright turns the browser's caches off
   // while any route is set.)
-  const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'ar', timezoneId: 'Asia/Riyadh' })
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
+    ...devices['iPhone 13'], locale: 'ar', timezoneId: 'Asia/Riyadh' })
   const page = await ctx.newPage()
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))

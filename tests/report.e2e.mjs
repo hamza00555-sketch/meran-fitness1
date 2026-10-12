@@ -117,7 +117,7 @@ const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso` and a seeded history. */
 async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = false, goals = null } = {}) {
-  const ctx = await browser.newContext({
+  const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices['iPhone 13'], viewport: { width: 390, height: 844 },
     timezoneId: 'Asia/Riyadh', locale: 'ar',
     reducedMotion: reduced ? 'reduce' : 'no-preference',
