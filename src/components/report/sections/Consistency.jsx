@@ -1,8 +1,8 @@
 // ── When did you train? ───────────────────────────────────────
 // The streak as one number — the flame, the number, «يوم/أيام», exactly
 // as Home shows it — then the month on a calendar. A trained day is lit,
-// and lit brighter the more kilos it moved (five steps, the month's
-// lightest ordinary day to its heaviest). A rest day is empty, a missed
+// and lit brighter the more kilos it moved (five steps, as a share of
+// the month's heaviest ordinary day). A rest day is empty, a missed
 // workout day has a ✕, a missed one a ticket paid for has the small
 // blue ticket (the sentence above names it, so it has to be findable),
 // a deload day has the blue rim and stays out of the light scale. One
@@ -31,7 +31,8 @@ const KIND = {
 }
 
 // Words for the light step, for anyone who cannot see it.
-const LIGHT = ['', 'أخف يوم', 'خفيف', 'متوسط', 'ثقيل', 'أثقل يوم']
+// Several days can share a step, so none of them is «the» lightest.
+const LIGHT = ['', 'خفيف جداً', 'خفيف', 'متوسط', 'ثقيل', 'ثقيل جداً']
 
 function cellLabel(day) {
   const parts = [fmtDayAr(day.date), KIND[day.kind] || '']

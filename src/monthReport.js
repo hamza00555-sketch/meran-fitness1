@@ -163,11 +163,14 @@ const topOf = (ex) => {
 }
 
 // ── Each day, as light ────────────────────────────────────────
-// The calendar lights a trained day by how many kilos it moved, in five
-// steps from the month's lightest day to its heaviest. Deload days are
-// left out of the scale: they are light on purpose, and letting them
-// set the bottom would make every ordinary day look heavy — or, put at
-// the bottom themselves, would read as slacking.
+// The calendar lights a trained day by how many kilos it moved, as a
+// share of the month's heaviest day, in five steps: a day with 90% of
+// the heaviest is lit almost as bright, one with a third of it is dim.
+// Measured from zero, never from the month's lightest day — stretched
+// between the two, days 4% apart read as «أخف يوم» and «أثقل يوم», and
+// an arms day always looked like slacking beside a legs day.
+// Deload days are left out of the scale: they are light on purpose, and
+// a deload day is never what sets the heaviest.
 
 export const DAY_LEVELS = 5
 
@@ -175,18 +178,10 @@ export const DAY_LEVELS = 5
 export function dayLevels(series = [], bins = DAY_LEVELS) {
   const scale = series.filter(p => !p.deload)
   const out = {}
-  if (!scale.length) {
-    for (const p of series) out[p.date] = null
-    return out
-  }
-  const lo = Math.min(...scale.map(p => p.value))
-  const hi = Math.max(...scale.map(p => p.value))
+  const hi = scale.length ? Math.max(...scale.map(p => p.value)) : 0
   for (const p of series) {
-    if (p.deload) { out[p.date] = null; continue }
-    // One day, or every day the same: they are all the month's heaviest.
-    out[p.date] = hi === lo
-      ? bins
-      : 1 + Math.min(bins - 1, Math.floor(((p.value - lo) / (hi - lo)) * bins))
+    if (p.deload || !(hi > 0)) { out[p.date] = p.deload ? null : bins; continue }
+    out[p.date] = Math.min(bins, Math.max(1, Math.ceil((p.value / hi) * bins)))
   }
   return out
 }

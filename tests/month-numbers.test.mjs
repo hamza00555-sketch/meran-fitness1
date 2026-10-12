@@ -69,12 +69,21 @@ const three = (w, r = 12) => [[w, r], [w, r], [w, r]]
 
 // ══ each day as light ═════════════════════════════════════════
 
-test('five steps of light, from the lightest ordinary day to the heaviest', () => {
+test('five steps of light, as a share of the month\'s heaviest day', () => {
   const lv = dayLevels([
-    { date: 'a', value: 1000 }, { date: 'b', value: 1250 }, { date: 'c', value: 1500 },
-    { date: 'd', value: 1750 }, { date: 'e', value: 2000 },
+    { date: 'a', value: 400 }, { date: 'b', value: 800 }, { date: 'c', value: 1200 },
+    { date: 'd', value: 1600 }, { date: 'e', value: 2000 },
   ])
   assert.deepEqual(Object.values(lv), [1, 2, 3, 4, 5])
+})
+
+test('days a few percent apart are lit alike, not as the lightest and the heaviest', () => {
+  // The same workout with the bench at 60 and then at 65: 3,960 and
+  // 4,140 kg. Stretched between the two they read as 1 and 5.
+  assert.deepEqual(dayLevels([{ date: 'a', value: 3960 }, { date: 'b', value: 4140 }]), { a: 5, b: 5 })
+  // An arms day beside a legs day: dimmer by what it moved, not the floor.
+  assert.deepEqual(dayLevels([{ date: 'arms', value: 4900 }, { date: 'legs', value: 13500 }]), { arms: 2, legs: 5 })
+  assert.equal(dayLevels([{ date: 'a', value: 1 }, { date: 'b', value: 2000 }]).a, 1, 'never below the first step')
 })
 
 test('a deload day sits outside the scale, whatever it weighed', () => {
@@ -82,7 +91,7 @@ test('a deload day sits outside the scale, whatever it weighed', () => {
     { date: 'a', value: 1000 }, { date: 'b', value: 2000 },
     { date: 'c', value: 200, deload: true }, { date: 'd', value: 5000, deload: true },
   ])
-  assert.equal(lv.a, 1)
+  assert.equal(lv.a, 3, 'half the heaviest ordinary day')
   assert.equal(lv.b, 5, 'the 5000 deload day does not make 2000 look light')
   assert.equal(lv.c, null)
   assert.equal(lv.d, null)
@@ -494,7 +503,8 @@ test('a month that ENDS in a deload week', () => {
   const tail = r.consistency.calendar.filter(d => d.date >= '2026-03-25')
   assert.ok(tail.every(d => d.deload), 'the whole last week is rimmed')
   assert.ok(tail.every(d => d.level === null))
-  assert.equal(r.consistency.calendar.find(d => d.date === '2026-03-01').level, 1, 'the lightest ORDINARY day is the bottom')
+  assert.equal(r.consistency.calendar.find(d => d.date === '2026-03-23').level, 5, 'the heaviest ORDINARY day is the top')
+  assert.equal(r.consistency.calendar.find(d => d.date === '2026-03-01').level, 4, '60 against 87.5: two thirds of it')
 
   // Stronger: the taper is not a step back, and not a new weight.
   assert.equal(r.prs.length, 1)
