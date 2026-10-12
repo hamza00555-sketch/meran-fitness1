@@ -489,6 +489,41 @@ const states = async (page, ms) => {
   await ctx.close()
 }
 
+// 7c. Opening medal after medal doesn't pile up their pictures: only the
+// last few medals' (a face and a 1024px back plate each, ~5 MB) are kept.
+{
+  const track = () => {
+    const ce = Document.prototype.createElement
+    window.__cv = []
+    Document.prototype.createElement = function (t, ...a) {
+      const el = ce.call(this, t, ...a)
+      if (String(t).toLowerCase() === 'canvas') window.__cv.push(new WeakRef(el))
+      return el
+    }
+  }
+  const { ctx, page, errors } = await open('veteran', { hf_unlocked: ['a1', 'a2', 'c7'], hf_xp: 9100 }, { init: track })
+  await page.waitForTimeout(2500)
+  const b = page.getByRole('button', { name: 'كمّل' })
+  if (await b.count()) { await b.click(); await page.waitForTimeout(300) }
+  await toProgress(page, 'الإنجازات')
+  const tiles = page.locator('.pg-tile.on')
+  const n = Math.min(8, await tiles.count())
+  for (let i = 0; i < n; i++) {
+    await tiles.nth(i).click()
+    await states(page, 8000)
+    await page.getByRole('button', { name: 'إغلاق' }).click()
+    await page.waitForTimeout(400)
+  }
+  const cdp = await ctx.newCDPSession(page)
+  await cdp.send('HeapProfiler.collectGarbage')
+  await page.waitForTimeout(200)
+  await cdp.send('HeapProfiler.collectGarbage')
+  const plates = await page.evaluate(() => window.__cv.map(r => r.deref()).filter(c => c && c.width === 1024).length)
+  ok('ach memory: after opening 8 medals, at most 4 medals\' pictures are kept', n === 8 && plates <= 4, `${n} opened, ${plates} back plates alive`)
+  ok('ach memory: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
 // 8. The level-up screen, stronger: a new rank (level 5) — the crest
 //    drops, one sheen, one ring, the ladder climbs, confetti in the rank's
 //    colour; a tap jumps to the end.

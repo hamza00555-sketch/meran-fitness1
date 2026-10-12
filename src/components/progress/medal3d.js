@@ -173,10 +173,21 @@ function engrave(it, n, font, date) {
   x.lineWidth = 4; x.beginPath(); x.arc(256, 256, 168, 0, TAU); x.stroke()
   return cv
 }
+// The pictures a medal is built from (its face, its 1024px back plate and
+// the outline), kept for the few medals seen last so reopening one is
+// instant — never all of them: each holds ~5 MB of canvas, and an iOS
+// home-screen app lives for days (iOS also refuses new canvases past its
+// memory cap). A stage still showing an older one keeps its own copy.
+const ASSETS_KEPT = 4
 const assets = new Map()
 function load(it, font, date) {
   const key = (it.art || `face:${it.rarity}:${it.n}:${it.glyph}`) + '|' + it.title + '|' + date
-  if (assets.has(key)) return assets.get(key)
+  if (assets.has(key)) {
+    const hit = assets.get(key)
+    assets.delete(key); assets.set(key, hit)   // the most recently used goes last
+    return hit
+  }
+  while (assets.size >= ASSETS_KEPT) assets.delete(assets.keys().next().value)
   const p = (async () => {
     let src = null
     if (it.art) { try { src = new Image(); src.src = it.art; await src.decode() } catch (e) { src = null } }
