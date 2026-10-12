@@ -4,16 +4,22 @@
 //   APP=http://localhost:4173/ node tests/pack-install.e2e.mjs
 //
 // Nothing is intercepted: the preview serves dist/pack at /pack/ exactly
-// as the site does, and the service worker is live. Settings → «حزمة
-// الصور» → download; then the player shows, for exercises on screen:
+// as the site does, and the service worker runs — checked, not assumed:
+// its precache is filled, and its two pack rules have each answered a
+// request (the manifest NetworkFirst, a still CacheFirst) before the
+// pack is downloaded. Settings → «حزمة الصور» → download; then the
+// player shows, for exercises on screen:
 //
 //   - a corrected still where its old loop is on hold (Cable Triceps
 //     Kickback faces the machine now, and is not the bucket's picture),
 //   - the lying machine for «مرجحة خلفية جهاز» (Leg Curl),
 //   - an October Push Pull Legs loop (Cable Fly) where one is expected.
 //
-// Then the old design opens on the same phone and must neither fetch
-// nor delete anything: both designs read the same manifest.
+// Then the old design opens on the same phone — the switch set to it,
+// and its own bundle seen running — and must neither fetch nor delete
+// anything: both designs read the same manifest. Last, offline in the
+// gym: the app reloads from the worker and the stage still comes out
+// of the downloaded pack.
 //
 // This Chromium has no H.264 decoder, so a loop cannot actually play
 // here: the app mounts the <video>, the decode fails, and it falls back
@@ -24,8 +30,12 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { APP_VERSION, ACHIEVEMENTS, MUSCLE_GROUPS } from '../src/constants.js'
+import { offlineOrigin } from './offline-origin.mjs'
 
-const APP = process.env.APP || 'http://localhost:4173/'
+// Through an origin that can be taken down: offline must stop the
+// service worker's own requests too (see tests/offline-origin.mjs).
+const origin = await offlineOrigin(process.env.APP || 'http://localhost:4173/')
+const APP = origin.url
 const OUT = process.env.OUT || '/tmp/meran-pack-install-e2e'
 mkdirSync(OUT, { recursive: true })
 
@@ -51,15 +61,17 @@ page.on('request', r => { const u = new URL(r.url()); if (u.pathname.startsWith(
 
 await ctx.addInitScript(([version, unlocked]) => {
   // Seeded once; later loads see what the app itself wrote.
-  if (!sessionStorage.getItem('seeded')) {
-    sessionStorage.setItem('seeded', '1')
-    localStorage.setItem('hf_weights_reset_v2', 'true')
-    localStorage.setItem('hf_seen_version', JSON.stringify(version))
-    localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
-    localStorage.setItem('hf_onboarded', 'true')
-    localStorage.setItem('hf_pack_prompted', '1')
-    localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
-  }
+  try {
+    if (!sessionStorage.getItem('seeded')) {
+      sessionStorage.setItem('seeded', '1')
+      localStorage.setItem('hf_weights_reset_v2', 'true')
+      localStorage.setItem('hf_seen_version', JSON.stringify(version))
+      localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
+      localStorage.setItem('hf_onboarded', 'true')
+      localStorage.setItem('hf_pack_prompted', '1')
+      localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
+    }
+  } catch { /* the browser's own error page, when a load fails offline */ }
   // Every <video> the app mounts, with its source and where it sits,
   // caught before a decode failure can take it down again.
   window.__videos = []
@@ -86,8 +98,44 @@ const shaOf = (url) => page.evaluate(async (u) => {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map(b => b.toString(16).padStart(2, '0')).join('')
 }, url)
 
-// ── Install from Settings ─────────────────────────────────────
+const cacheNames = () => page.evaluate(() => caches.keys())
+const cached = (cacheName, url) => page.evaluate(async ([n, u]) => !!(await (await caches.open(n)).match(u)), [cacheName, url])
+const muscleOf = (name) => Object.entries(MUSCLE_GROUPS).find(([, g]) => g.exercises?.some(e => e.name === name))?.[0]
+async function onStage(name) {
+  await page.evaluate(([n, muscle]) => {
+    localStorage.setItem('hf_active', JSON.stringify({
+      id: Date.now() - 60000, date: new Date().toISOString(), name: 'Pack — اختبار',
+      exercises: [{ id: 'x', muscle, name: n, sets: [{ weight: '20', reps: '12', done: false }] }],
+    }))
+  }, [name, muscleOf(name)])
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.locator('[data-testid="session"]').waitFor({ timeout: 10000 }).catch(() => {})
+  await page.waitForTimeout(1500)
+  const stage = page.locator('[data-testid="exercise-stage"]').first()
+  const img = await page.evaluate(() => document.querySelector('[data-testid="exercise-stage"] img')?.src || null)
+  const videos = await page.evaluate(() => window.__videos.filter(v => v.stage))
+  return { stage, img, videos }
+}
+
+// ── The service worker, running ───────────────────────────────
 await page.goto(APP, { waitUntil: 'networkidle' })
+await page.evaluate(() => navigator.serviceWorker.ready)
+await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 }).catch(() => {})
+{
+  const names = await cacheNames()
+  ok('the service worker installed: its precache is filled', names.some(n => n.startsWith('meran-v1-precache-')), names.join(', '))
+}
+// Now under the worker: the boot's manifest request and a still shown
+// before any download both go through its pack rules.
+const kickback = await onStage('Cable Triceps Kickback')
+ok('before the download, the stage still comes off the site\'s /pack/i/',
+  kickback.img === new URL(`pack/${byId.get('ex_cable_triceps_kickback').file}`, APP).href, kickback.img)
+ok('the worker kept that still (CacheFirst, meran-pack-remote)', await cached('meran-pack-remote', kickback.img))
+ok('and the manifest (NetworkFirst, meran-pack-manifest)', await cached('meran-pack-manifest', new URL('pack/manifest.json', APP).href))
+await page.evaluate(() => localStorage.removeItem('hf_active'))
+await page.reload({ waitUntil: 'networkidle' })
+
+// ── Install from Settings ─────────────────────────────────────
 await page.waitForTimeout(700)
 for (let i = 0; i < 10; i++) {
   await page.evaluate(() => document.querySelector('nav.f-tabs button')?.click())
@@ -119,23 +167,6 @@ ok('Settings shows that version', (await page.evaluate(() => document.body.inner
 await page.screenshot({ path: `${OUT}/settings-ready.png` })
 
 // ── The player, one exercise on the stage at a time ──────────
-const muscleOf = (name) => Object.entries(MUSCLE_GROUPS).find(([, g]) => g.exercises?.some(e => e.name === name))?.[0]
-async function onStage(name) {
-  await page.evaluate(([n, muscle]) => {
-    localStorage.setItem('hf_active', JSON.stringify({
-      id: Date.now() - 60000, date: new Date().toISOString(), name: 'Pack — اختبار',
-      exercises: [{ id: 'x', muscle, name: n, sets: [{ weight: '20', reps: '12', done: false }] }],
-    }))
-  }, [name, muscleOf(name)])
-  await page.reload({ waitUntil: 'domcontentloaded' })
-  await page.locator('[data-testid="session"]').waitFor({ timeout: 10000 }).catch(() => {})
-  await page.waitForTimeout(1500)
-  const stage = page.locator('[data-testid="exercise-stage"]').first()
-  const img = await page.evaluate(() => document.querySelector('[data-testid="exercise-stage"] img')?.src || null)
-  const videos = await page.evaluate(() => window.__videos.filter(v => v.stage))
-  return { stage, img, videos }
-}
-
 {
   const s = await onStage('Cable Triceps Kickback')
   const sha = s.img?.startsWith('blob:') ? await shaOf(s.img) : null
@@ -167,21 +198,44 @@ async function onStage(name) {
 {
   await page.evaluate(() => localStorage.removeItem('hf_active'))
   const before = packFetches.length
+  // The switch in Settings, set to the old design: without it,
+  // classic/index.html sends /classic/ straight back to / before the
+  // old bundle runs, and this would test the new design twice.
+  await page.evaluate(() => localStorage.setItem('meran_design', 'classic'))
   await page.goto(new URL('classic/', APP).href, { waitUntil: 'networkidle' })
   await page.waitForTimeout(2500)
+  const bundle = await page.evaluate(() => [...document.scripts].map(s => s.src).find(s => /\/classic\/assets\/index-[^/]+\.js$/.test(s)) || null)
+  ok('the old design is the one running', new URL(page.url()).pathname === '/classic/' && !!bundle, `${page.url()} · ${bundle}`)
   ok('the old design fetches nothing: the pack it reads is already here', packFetches.length === before,
     packFetches.slice(before, before + 3).join(', '))
   ok('and deletes nothing', (await blobCount()) === unique, `${await blobCount()}/${unique}`)
+  await page.evaluate(() => localStorage.setItem('meran_design', 'new'))
   await page.goto(APP, { waitUntil: 'networkidle' })
   await page.waitForTimeout(1500)
   ok('back in the new design, still installed and nothing refetched',
-    (await blobCount()) === unique && packFetches.length === before, `${await blobCount()}/${unique}, ${packFetches.length - before} fetches`)
+    new URL(page.url()).pathname === '/' && (await blobCount()) === unique && packFetches.length === before,
+    `${page.url()} · ${await blobCount()}/${unique}, ${packFetches.length - before} fetches`)
 }
+
+// ── Offline, in the gym ───────────────────────────────────────
+origin.setDown(true)
+await ctx.setOffline(true)
+{
+  let s = null, err = ''
+  try { s = await onStage('Cable Triceps Kickback') } catch (e) { err = e.message.split('\n')[0] }
+  const sha = s?.img?.startsWith('blob:') ? await shaOf(s.img) : null
+  ok('offline, the app reloads from the service worker', !err && await page.locator('[data-testid="session"]').count() > 0, err)
+  ok('offline, the stage still comes out of the downloaded pack', sha === byId.get('ex_cable_triceps_kickback').sha256, sha)
+  await page.evaluate(() => localStorage.removeItem('hf_active')).catch(() => {})
+}
+origin.setDown(false)
+await ctx.setOffline(false)
 
 ok('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 
 for (const [n, p, e] of results) console.log(p ? '✅' : '❌', n, e ? `— ${e}` : '')
 await browser.close()
+await origin.close()
 const failed = results.filter(r => !r[1]).length
 console.log(failed ? `\n${failed} failed` : `\nall ${results.length} passed`)
 process.exit(failed ? 1 : 0)

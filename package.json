@@ -23,7 +23,8 @@
     "dev:classic": "vite --config classic/vite.config.js",
     "test:design": "node tests/design-switch.e2e.mjs",
     "test:progress": "node tests/progress.e2e.mjs",
-    "test:pack-install": "node tests/pack-install.e2e.mjs"
+    "test:pack-install": "node tests/pack-install.e2e.mjs",
+    "test:offline": "node tests/offline.e2e.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
