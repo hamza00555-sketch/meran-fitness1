@@ -32,6 +32,7 @@ const LIVE = process.env.LIVE || 'https://meran-fitness1.vercel.app/'
 const { MANIFEST_URL } = await import(pathToFileURL(new URL('../src/assets/pack.js', import.meta.url).pathname).href)
 const { APP_VERSION } = await import(pathToFileURL(new URL('../src/constants.js', import.meta.url).pathname).href)
 const { ALL_SLOT_IDS } = await import(pathToFileURL(new URL('../src/assets/slots.js', import.meta.url).pathname).href)
+const { readPrecache, precacheProblems } = await import(pathToFileURL(new URL('../scripts/precache.mjs', import.meta.url).pathname).href)
 const LIVE_MANIFEST = new URL(MANIFEST_URL, LIVE).href
 const AS_BROWSER = { Origin: 'https://meran.example' }
 
@@ -58,6 +59,20 @@ ok('the delivered bytes match the published hash',
   createHash('sha256').update(Buffer.from(await imgRes.arrayBuffer())).digest('hex') === one.sha256)
 const gone = await fetch(`${base}i/${'0'.repeat(64)}.webp`)
 ok('a file that is not there is a 404, not the app\'s page', gone.status === 404, `HTTP ${gone.status}`)
+
+// The deployed service worker: each precache URL once (one URL under two
+// revisions stops it at install, and then nothing is cached and nothing
+// works offline), and no Workbox cleanup that would take the old
+// design's precache with it (scripts/precache.mjs, vite.config.js).
+{
+  const swRes = await fetch(new URL('sw.js', LIVE))
+  const text = swRes.ok ? await swRes.text() : ''
+  const list = readPrecache(text)
+  const problems = precacheProblems(list, { name: 'the live sw.js' })
+  ok('the deployed service worker precaches each URL once, and no pack file', swRes.ok && list.entries.length > 0 && problems.length === 0,
+    `${list.entries.length} entries · ${problems.length} problems: ${problems.slice(0, 2).join(' | ')}`)
+  ok('…and leaves the old design\'s precache alone', !/cleanupOutdatedCaches\(\)/.test(text))
+}
 
 // ── The app, installing from that site ────────────────────────
 const browser = await chromium.launch()
