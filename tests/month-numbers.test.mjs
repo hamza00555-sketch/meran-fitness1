@@ -584,3 +584,50 @@ test('counting words follow the app\'s rule', () => {
   assert.equal(countWord(3, 'thing'), '3 أشياء')
   assert.equal(countWord(15, 'rep'), '15 عدّة')
 })
+
+// ══ a streak reset after the month ════════════════════════════
+// A second plan change inside 30 days resets the streak. A reset that
+// came after the month had not happened when the month closed: it must
+// not zero that month's «الستريك آخر <شهر>», nor turn its tickets into
+// misses, nor drop the streak from the poster.
+
+const everyOtherDay = () => {
+  const s = []
+  for (let d = 1; d <= 27; d += 2) s.push(on(FEB, d, 'Bench Press', three(60)))
+  for (let d = 1; d <= 31; d += 2) s.push(on(MAR, d, 'Bench Press', three(d >= 15 ? 65 : 60)))
+  return s
+}
+
+test('a reset after the month leaves that month\'s streak as it closed', async () => {
+  const s = everyOtherDay()
+  const plain = build(s, { today: '2026-04-03' })
+  assert.equal(plain.consistency.endStreak, 59, 'February 1 to March 31, all kept')
+
+  const later = build(s, { today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-04-02' } })
+  assert.equal(later.consistency.endStreak, 59, 'an April reset does not reach back into March')
+  assert.equal(later.consistency.endStreak, plain.consistency.endStreak)
+
+  const feb = build(s, { month: FEB, today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-03-20' } })
+  assert.equal(feb.consistency.endStreak, 28, 'February\'s streak, before the March reset')
+
+  const nextDay = build(s, { today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-04-01' } })
+  assert.equal(nextDay.consistency.endStreak, 59, 'a reset on the first of the next month is still after it')
+
+  // A reset inside the month still counts from the day after it.
+  const inside = build(s, { today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-03-20' } })
+  assert.equal(inside.consistency.endStreak, 11, 'March 21 to 31')
+
+  const { posterFigures } = await import('../src/reportPoster.js')
+  const figs = posterFigures(later, { liveStreak: 1, today: '2026-04-03' }).figs
+  assert.ok(figs.some(f => f.flame && f.v === '59'), JSON.stringify(figs))
+})
+
+test('a ticket spent in the month stays a ticket after a later reset', () => {
+  const s = everyOtherDay().filter(x => monthKey(x.date) !== MAR || new Date(x.date).getDate() !== 9)
+  const plain = build(s, { today: '2026-05-12' })
+  const reset = build(s, { today: '2026-05-12', config: { ...CFG, streakResetAt: '2026-05-10' } })
+  const kind = (r) => r.consistency.calendar.find(d => d.date === '2026-03-09').kind
+  assert.equal(kind(plain), 'paid')
+  assert.equal(kind(reset), 'paid', 'the May reset does not turn March\'s ticket into a miss')
+  assert.equal(reset.consistency.endStreak, plain.consistency.endStreak)
+})

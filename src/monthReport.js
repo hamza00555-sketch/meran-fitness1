@@ -182,7 +182,12 @@ function consistencyIn(sessions, config, month, today) {
   const last = lastDayOf(month)
   const running = today <= last
   const until = running ? today : addDays(last, 1)
-  const recovery = computeRecovery(sessions, config, until)
+  // A streak reset (a second plan change inside 30 days) voids every day
+  // up to it. One that came after the month had not happened when the
+  // month closed, so it cannot take that month's streak or tickets away.
+  const resetAt = config?.streakResetAt
+  const asOf = resetAt && resetAt > last ? { ...config, streakResetAt: null } : config
+  const recovery = computeRecovery(sessions, asOf, until)
   const rows = new Map((recovery.ledger || []).filter(r => r.date.startsWith(month)).map(r => [r.date, r]))
   const trainedOn = new Set(sessions.map(s => dayKey(s.date)))
 
