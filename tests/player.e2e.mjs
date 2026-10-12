@@ -2292,6 +2292,48 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
   await ctx.close()
 }
 
+// ══ 14a. A form with changes isn't flicked away ════════════════
+// «تعديل الجلسة» in History: once a weight is changed, the flick down on
+// its list (the way back to the top) scrolls, it never closes the sheet
+// and throws the change away. Unchanged, the same flick closes it.
+{
+  const HIST = [{ id: 1001, date: new Date(2026, 9, 9, 18).toISOString(), duration: 50,
+    exercises: ['Pec Deck', 'Cable Fly', 'Machine Shoulder Press', 'Lateral Raise', 'Triceps Pushdown', 'Leg Press'].map((name, i) => ({
+      id: 'e' + i, muscle: 'Chest', name, sets: [1, 2, 3, 4].map(() => ({ weight: '50', reps: '12', done: true })) })) }]
+  const { ctx, page, errors } = await open({ active: null, sessions: HIST })
+  const openEdit = async () => {
+    await page.getByRole('button', { name: /خيارات جلسة/ }).first().click()
+    await page.waitForTimeout(600)
+    await page.getByText('تعديل الجلسة').first().click()
+    await page.waitForTimeout(800)
+  }
+  const flickDown = async () => {
+    await page.evaluate(() => { document.querySelector('.k-sheet-body').scrollTop = 0 })
+    await page.waitForTimeout(200)
+    const body = await page.locator('.k-sheet-body').boundingBox()
+    await finger(page, ctx, { x: body.x + 40, y: body.y + 120 }, { dy: 260, steps: 8 })
+    await page.waitForTimeout(800)
+  }
+  await page.locator('nav.f-tabs > button').nth(1).click()
+  await page.waitForTimeout(700)
+  await openEdit()
+  await flickDown()
+  ok('edit sheet: unchanged, a flick down on the list closes it as any sheet', await page.locator('.k-sheet').count() === 0)
+  await openEdit()
+  await page.getByRole('textbox', { name: 'وزن المجموعة 1' }).first().fill('52.5')
+  await page.waitForTimeout(200)
+  await flickDown()
+  ok('edit sheet: with a change, the same flick keeps it open and the change in it',
+    await page.locator('.k-sheet').count() === 1
+    && await page.getByRole('textbox', { name: 'وزن المجموعة 1' }).first().inputValue() === '52.5')
+  await page.locator('.k-sheet').getByRole('button', { name: 'حفظ التعديلات' }).click({ timeout: 2000 }).catch(() => {})
+  await page.waitForTimeout(600)
+  const w = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_sessions'))[0].exercises[0].sets[0].weight)
+  ok('edit sheet: and «حفظ التعديلات» saves it', w === '52.5', String(w))
+  ok('edit sheet: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 14b. The tab bar: one capsule that slides; pages that slide ═══
 {
   const HIST = Array.from({ length: 6 }, (_, i) => ({ id: 100 + i, date: new Date(2026, 7, 1 + i, 18).toISOString(), duration: 50,

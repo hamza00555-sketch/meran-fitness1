@@ -239,7 +239,7 @@ export function EmptyState({ icon: Icon, title, children, action }) {
  * can be pulled down to close (useSheetDrag); a real exit on the way out.
  * Reduced motion: it fades in and out.
  */
-export function Sheet({ open, onClose, title, children, footer, tall, labelledBy }) {
+export function Sheet({ open, onClose, title, children, footer, tall, labelledBy, pullFromBody = true }) {
   const [mounted, setMounted] = useState(open)
   const [leaving, setLeaving] = useState(false)
   const [opener] = useState(() => (typeof document !== 'undefined' ? document.activeElement : null))
@@ -248,7 +248,7 @@ export function Sheet({ open, onClose, title, children, footer, tall, labelledBy
   const titleId = useId()
   const sheetRef = useRef(null)
   const scrimRef = useRef(null)
-  const dragged = useSheetDrag({ sheetRef, scrimRef, onDismiss: () => close.current?.(), enabled: mounted && !leaving })
+  const dragged = useSheetDrag({ sheetRef, scrimRef, onDismiss: () => close.current?.(), enabled: mounted && !leaving, fromBody: pullFromBody })
 
   useEffect(() => {
     if (open) { setMounted(true); setLeaving(false) }

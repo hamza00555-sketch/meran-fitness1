@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Sheet, Button, IconButton, Num } from '../kit/index.jsx'
 import { Trash, X } from '../kit/icons.js'
 import { arabicName } from '../../exerciseMedia.js'
@@ -12,11 +13,17 @@ import Txt from './Txt.jsx'
 
 export default function EditSessionSheet({ open, onClose, title, dateText, data, mapping = {}, onChange, onSave }) {
   const ex = data || []
+  // Once something is changed, a flick down on the list (the way back to
+  // its top) no longer closes the sheet and throws the changes away: only
+  // the grabber and the title row pull it down, and «إلغاء» says it.
+  const [changed, setChanged] = useState(false)
+  useEffect(() => { if (open) setChanged(false) }, [open])
+  const change = (next) => { setChanged(true); onChange(next) }
   const updSet = (ei, si, field, val) =>
-    onChange(ex.map((e, i) => i !== ei ? e : { ...e, sets: e.sets.map((s, j) => j !== si ? s : { ...s, [field]: toWesternDigits(val) }) }))
+    change(ex.map((e, i) => i !== ei ? e : { ...e, sets: e.sets.map((s, j) => j !== si ? s : { ...s, [field]: toWesternDigits(val) }) }))
   const delSet = (ei, si) =>
-    onChange(ex.map((e, i) => i !== ei ? e : { ...e, sets: e.sets.filter((_, j) => j !== si) }))
-  const delExercise = (ei) => onChange(ex.filter((_, i) => i !== ei))
+    change(ex.map((e, i) => i !== ei ? e : { ...e, sets: e.sets.filter((_, j) => j !== si) }))
+  const delExercise = (ei) => change(ex.filter((_, i) => i !== ei))
 
   // Saving keeps the exercises that still have a done set, as before.
   // With none left there is nothing to save — that is a delete, and it
@@ -24,7 +31,7 @@ export default function EditSessionSheet({ open, onClose, title, dateText, data,
   const keeps = ex.some(e => (e.sets || []).some(s => s.done))
 
   return (
-    <Sheet open={open} onClose={onClose} title="تعديل الجلسة" tall
+    <Sheet open={open} onClose={onClose} title="تعديل الجلسة" tall pullFromBody={!changed}
       footer={(
         <div className="hs-edit-foot">
           <Button variant="primary" size="lg" onClick={onSave} disabled={!keeps} className="hs-grow">حفظ التعديلات</Button>
