@@ -24,6 +24,17 @@ export const PRECACHE = {
     'assets/goalc_*.png', 'assets/challenge_*.png', 'assets/cardio.png',
     'fonts/Zanjabeel-*.otf',
   ],
+  // Which URLs Workbox precaches without a revision, trusting the name
+  // alone. vite-plugin-pwa's default is everything under assets/ — but
+  // public/assets lands there too, so ach_consistency.webp went in with
+  // no revision, and once more (via includeAssets) with one. Workbox
+  // refuses one URL with two revisions: the worker threw at startup
+  // and cached nothing, and every launch fetched the JS, the fonts and
+  // the medal art again. Only the files Vite names by their content
+  // (assets/index-AbC123_x.js) can skip the revision; a public picture
+  // keeps its own, so a redrawn one under the same name still updates.
+  // scripts/build.mjs fails the build if either goes wrong again.
+  dontCacheBustURLsMatching: /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/,
 }
 
 // Two runtime rules look after the pack, which this site serves at
@@ -66,7 +77,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['assets/**/*', 'fonts/**/*'],
+      // No includeAssets: globPatterns above already takes what public/
+      // should precache, and includeAssets would add it all a second
+      // time — past globIgnores, heavy PNGs included (12.7 MB). The
+      // manifest's icons are in globPatterns' reach too, so they are not
+      // added again either: every URL goes into the precache once.
+      includeManifestIcons: false,
       manifest: {
         name: 'مران | MERAN',
         short_name: 'مران',
@@ -88,7 +104,16 @@ export default defineConfig({
         cacheId: 'meran-v1',
         ...PRECACHE,
         navigateFallbackDenylist: [/^\/classic\//, /^\/pack\//],
-        cleanupOutdatedCaches: true,
+        // Off on purpose. Workbox's cleanup deletes every '-precache-'
+        // cache whose name CONTAINS this worker's scope, and the root
+        // scope (https://host/) is inside the old design's cache name
+        // (meran-classic-precache-v2-https://host/classic/): each
+        // activation here would take /classic/ offline until it was
+        // opened online again. It has nothing to do for us anyway: this
+        // precache is 'meran-v1-precache-v2-<scope>' on every deploy, and
+        // no older root precache exists to clear — the worker had thrown
+        // at startup since its first commit (see dontCacheBustURLsMatching).
+        cleanupOutdatedCaches: false,
         runtimeCaching: [
           ...PACK_RUNTIME_CACHING,
           {

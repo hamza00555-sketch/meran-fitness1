@@ -137,12 +137,13 @@ test('the same art keeps its version on every build; changed art moves it', asyn
 
 const viteConfig = await import(pathToFileURL(path.join(ROOT, 'vite.config.js')).href)
 
-test('no pack file is precached', async () => {
+test('no pack file is precached; only Vite\'s hashed files go without a revision', async () => {
   // Run Workbox's own globbing — what generateSW does — with the app's
   // precache settings over a dist that holds the built pack next to an
-  // ordinary WebP and the page.
+  // ordinary WebP (as public/assets puts it), a Vite chunk and the page.
   await mkdir(path.join(DIST, 'assets'), { recursive: true })
   await copyFile(path.join(OUT, manifest.assets.find(a => !a.type).file), path.join(DIST, 'assets/hero.webp'))
+  await writeFile(path.join(DIST, 'assets/medal3d-Ab3_x-9Z.js'), 'export {}')
   await writeFile(path.join(DIST, 'index.html'), '<!doctype html>')
   const { getManifest } = await import('workbox-build')
   const { manifestEntries } = await getManifest({ globDirectory: DIST, ...viteConfig.PRECACHE })
@@ -150,19 +151,58 @@ test('no pack file is precached', async () => {
   assert.deepEqual(urls.filter(u => u.startsWith('pack/')), [])
   assert.ok(urls.includes('assets/hero.webp'), 'the glob still takes ordinary WebP')
   assert.ok(urls.includes('index.html'))
+  // The name of a Vite chunk changes with its content, so it needs no
+  // revision; a public picture keeps the same name when redrawn, so it
+  // must carry one — with none, a phone that has the old one keeps it.
+  const rev = (u) => manifestEntries.find(e => e.url === u)?.revision
+  assert.equal(rev('assets/medal3d-Ab3_x-9Z.js'), null)
+  assert.match(rev('assets/hero.webp'), /^[0-9a-f]{32}$/)
+  // No file in public/ looks like a Vite chunk to that rule.
+  const pub = (await readdir(path.join(ROOT, 'public'), { recursive: true })).map(f => f.split(path.sep).join('/'))
+  assert.deepEqual(pub.filter(f => viteConfig.PRECACHE.dontCacheBustURLsMatching.test(f)), [])
 })
 
-test('the last real build precached no pack file either', async (t) => {
+const { readPrecache, precacheProblems } = await import(pathToFileURL(path.join(ROOT, 'scripts/precache.mjs')).href)
+
+test('the build refuses a precache that would stop the worker at install', () => {
+  // Three entries from the root sw.js as it was deployed up to 41ff44d:
+  // public/assets went in twice (globPatterns with no revision,
+  // includeAssets with one) and the fonts twice. Workbox throws
+  // add-to-cache-list-conflicting-entries on the first, so the worker
+  // cached nothing at all.
+  const sw = 'e.precacheAndRoute([{url:"assets/ach_consistency.webp",revision:null},{url:"assets/index-CsSlpdIa.js",revision:null},'
+    + '{url:"fonts/meran-latin.woff2",revision:"9a1"},{url:"assets/ach_consistency.webp",revision:"55c51aab"},'
+    + '{url:"fonts/meran-latin.woff2",revision:"9a1"}],{})'
+  const list = readPrecache(sw)
+  assert.equal(list.entries.length, 5)
+  const isPublic = (u) => !/index-/.test(u)
+  const problems = precacheProblems(list, { name: 'dist/sw.js', isPublic })
+  assert.equal(problems.length, 3, problems.join('\n'))
+  assert.match(problems[0], /ach_consistency\.webp under 2 revisions \(none, 55c51aab\) .* throws at install/)
+  assert.match(problems[1], /meran-latin\.woff2 2 times/)
+  assert.match(problems[2], /ach_consistency\.webp, a public\/ file, with no revision/)
+  // A pack file, and an entry the reader cannot parse, are refused too.
+  assert.match(precacheProblems(readPrecache('[{url:"pack/i/ab.webp",revision:"1"}]'), { name: 'x' })[0], /a pack file/)
+  assert.match(precacheProblems(readPrecache('[{url:"a.js",revision:1}]'), { name: 'x' })[0], /read 0 of 1/)
+})
+
+test('the last real build: every URL once, revisions on public files, no pack file', async (t) => {
   const sw = path.join(ROOT, 'dist/sw.js')
   if (!existsSync(sw) || !existsSync(path.join(ROOT, 'dist/pack/manifest.json'))) {
     return t.skip('no build in dist/ — run npm run build')
   }
   for (const f of ['dist/sw.js', 'dist/classic/sw.js']) {
     const text = await readFile(path.join(ROOT, f), 'utf8')
-    const urls = [...text.matchAll(/\{url:"([^"]+)",revision:/g)].map(m => m[1])
-    assert.ok(urls.length > 0, f)
-    assert.deepEqual(urls.filter(u => /(^|\/)pack\//.test(u)), [], f)
+    const list = readPrecache(text)
+    assert.ok(list.entries.length > 0, f)
+    const isPublic = f === 'dist/sw.js' ? (u) => existsSync(path.join(ROOT, 'public', u)) : () => false
+    assert.deepEqual(precacheProblems(list, { name: f, isPublic }), [], f)
   }
+  // The root worker leaves the other caches on this origin alone:
+  // Workbox's cleanupOutdatedCaches() matches any cache whose name
+  // contains the scope, and https://host/ is inside the old design's
+  // meran-classic-precache-v2-https://host/classic/.
+  assert.doesNotMatch(await readFile(sw, 'utf8'), /cleanupOutdatedCaches\(\)/)
 })
 
 test('stills are CacheFirst from this site, the manifest NetworkFirst, nothing else', () => {

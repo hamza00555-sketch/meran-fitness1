@@ -27,6 +27,7 @@ import { readFile, readdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readPrecache, precacheProblems } from './precache.mjs'
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)))
 const DIST = path.join(root, 'dist')
@@ -82,21 +83,21 @@ for (const a of manifest.assets) {
 const unconverted = packFiles.filter(f => !/\.(webp|mp4|json)$/.test(f))
 if (unconverted.length) problems.push(`pack: unconverted files: ${unconverted.slice(0, 3).join(', ')}`)
 
-// Precache: the pack is downloaded on request into IndexedDB, never
-// precached — 14 MB in every service-worker install would be the whole
-// pack forced onto every visitor, twice over.
-async function precache(sw) {
-  const text = await readFile(sw, 'utf8')
-  const urls = [...text.matchAll(/\{url:"([^"]+)",revision:/g)].map(m => m[1])
-  const base = path.dirname(sw)
-  const files = [...new Set(urls)].map(u => path.join(base, u)).filter(f => existsSync(f))
+// Precache (scripts/precache.mjs): every URL once, a revision on every
+// public/ file, and no pack file — the pack is downloaded on request
+// into IndexedDB; 14 MB in every service-worker install would be the
+// whole pack forced onto every visitor, twice over.
+async function precache(sw, isPublic) {
+  const name = path.relative(root, sw)
+  const list = readPrecache(await readFile(sw, 'utf8'))
+  problems.push(...precacheProblems(list, { name, isPublic }))
+  const urls = list.entries.map(e => e.url)
+  const files = [...new Set(urls)].map(u => path.join(path.dirname(sw), u)).filter(f => existsSync(f))
   return { urls, bytes: await sizeOf(files) }
 }
-const pcNew = await precache(path.join(DIST, 'sw.js'))
+const pcNew = await precache(path.join(DIST, 'sw.js'), (u) => existsSync(path.join(root, 'public', u)))
+// classic/ has no public/ of its own (publicDir: false).
 const pcOld = await precache(path.join(DIST, 'classic/sw.js'))
-for (const u of [...pcNew.urls, ...pcOld.urls]) {
-  if (/(^|\/)pack\//.test(u)) problems.push(`precache: ${u} is a pack file`)
-}
 
 // The manifest URL, read back out of both bundles. Every manifest URL a
 // bundle carries must be this one — except the old design's frozen
