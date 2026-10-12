@@ -69,6 +69,10 @@
   display: grid; justify-items: center; text-align: center;
 }
 .rp-eyebrow { display: block; font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-3); }
+/* Heard, not seen: the month that just opened in place. */
+.rp-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+.rp-cover-title:focus { outline: none; }
+.rp-cover-title:focus-visible { outline: 2px solid var(--ink-2); outline-offset: 4px; border-radius: 4px; }
 
 /* The ring: one dash per planned session. */
 .rp-ring-wrap { position: relative; margin-top: var(--space-4); width: 216px; height: 216px; }

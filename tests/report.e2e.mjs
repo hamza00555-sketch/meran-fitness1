@@ -464,6 +464,42 @@ async function shoot(page, name) {
   await ctx.close()
 }
 
+// ══ 3b. The same, by keyboard ═════════════════════════════════
+// Picking a month replaces the report, button and all: focus must land
+// on the new cover, not drop to the page, and the change is said. Escape
+// gives focus back to the row on Home that opened the report.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { reduced: true })
+  const row = page.locator('.k-row', { hasText: 'تقرير مارس 2026' }).first()
+  await row.focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(900)
+  await page.locator('.rp-scroll').evaluate(el => { el.scrollTop = el.scrollHeight })
+  await page.waitForTimeout(300)
+  await page.locator('.rp-month', { hasText: 'فبراير' }).focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(900)
+  const after = await page.evaluate(() => ({
+    active: document.activeElement === document.body ? 'BODY' : `${document.activeElement?.className} ${document.activeElement?.textContent?.trim()}`,
+    said: document.querySelector('.rp [aria-live="polite"]')?.textContent.trim() || '',
+  }))
+  ok('months, keyboard: focus lands on the new month\'s cover', /rp-cover-title/.test(after.active) && /فبراير 2026/.test(after.active), JSON.stringify(after))
+  ok('months, keyboard: the new month is announced', after.said === 'تقرير فبراير 2026', JSON.stringify(after))
+  await page.keyboard.press('Tab')
+  const next = await page.evaluate(() => document.activeElement?.closest('.rp') ? 'inside' : 'outside')
+  ok('months, keyboard: Tab goes on from inside the report', next === 'inside', next)
+  await page.locator('.rp-bar button[aria-label="إغلاق"]').focus()
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(500)
+  const back = await page.evaluate(() => {
+    const a = document.activeElement
+    return !a || a === document.body ? 'BODY' : `${a.className} ${a.textContent.replace(/\s+/g, ' ').trim()}`
+  })
+  ok('report, keyboard: Escape gives focus back to the row that opened it', /تقرير مارس 2026/.test(back), back)
+  ok('months, keyboard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 4. A month that ends in a deload week ═════════════════════
 // Said once, in the deload blue, and never counted against him.
 {
