@@ -81,7 +81,7 @@
 .cel-thaw { display: inline-grid; }
 .cel-thaw > span { grid-area: 1 / 1; }
 /* The deload's ice — the accent it is leaving — fading into the green. */
-.cel-thaw-ice { color: #5CC9EE; animation: cel-thaw 600ms var(--ease-out) both; animation-delay: 900ms; }
+.cel-thaw-ice { color: var(--deload); animation: cel-thaw 600ms var(--ease-out) both; animation-delay: 900ms; }
 
 .cel-return { display: grid; justify-items: center; gap: 2px; margin-top: var(--space-6); }
 .cel-return-label { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }

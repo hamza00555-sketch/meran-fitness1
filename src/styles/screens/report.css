@@ -99,7 +99,7 @@
   font-size: var(--t-body); font-weight: 600; line-height: 1.55; color: var(--ink-2);
 }
 .rp-cover-note svg { flex: none; margin-top: 3px; }
-.rp-cover-note.is-deload { color: #5CC9EE; }
+.rp-cover-note.is-deload { color: var(--deload); }
 .rp-cover-note.is-reached { color: var(--ink); }
 .rp-cover-cta { margin-top: var(--space-6); }
 
@@ -157,7 +157,7 @@
    same mark as the ticket line under the calendar. */
 .rp .is-paid { color: var(--rest); display: inline-grid; }
 .rp-cal-cell.k-none, .rp-cal-cell.k-ahead { background: transparent; color: var(--ink-4); }
-.rp-cal-cell.is-deload { box-shadow: inset 0 0 0 1.5px #5CC9EE; }
+.rp-cal-cell.is-deload { box-shadow: inset 0 0 0 1.5px var(--deload); }
 .rp-cal-n { font-size: var(--t-caption); font-weight: 600; line-height: 1; }
 .rp-cal-g { min-height: 10px; display: grid; place-items: center; }
 

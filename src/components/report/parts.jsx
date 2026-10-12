@@ -11,10 +11,11 @@ export const AR = (n) => Number(n || 0).toLocaleString('en-US')
 
 const cx = (...a) => a.filter(Boolean).join(' ')
 
-// The deload blue, as a literal: the report is usually read after the
-// stretch ended, when the app's palette is back to normal, and this
-// colour has to mean «تخفيف» wherever it is seen.
-export const DELOAD_INK = '#5CC9EE'
+// The deload blue (tokens.css --deload): the report is usually read
+// after the stretch ended, when the app's palette is back to normal, and
+// this colour has to mean «تخفيف» wherever it is seen. One token, not a
+// hex repeated in three files; the ticket stays the rest blue.
+export const DELOAD_INK = 'var(--deload)'
 
 // ── A number that counts up once and then rests ────────────────
 // Under reduced motion useCountUp hands back the final value at once.

@@ -89,7 +89,7 @@ export default function Cover({ report, onShare, sharing = false, today }) {
 
         {report.deload && (
           <p className="rp-cover-note is-deload rp-in" style={{ '--i': 3 }}>
-            <Drop size={16} weight="fill" color={DELOAD_INK} aria-hidden="true" />
+            <Drop size={16} weight="fill" aria-hidden="true" />
             <span><Bidi text={deloadLine(report.deload.ranges, report.month)} /></span>
           </p>
         )}

@@ -71,6 +71,12 @@
   --streak:       #F97316;   /* the streak — nothing else */
   --rest-rgb:     59,157,232;
   --rest:         #3B9DE8;   /* rest days, rest tickets */
+  /* A deload — light on purpose — wherever it is marked after the fact
+     (the report's note, dashes and rims). The glacier the whole app
+     turns while one runs (see [data-deload] below), kept apart from the
+     rest blue on purpose: a ticket is a day off, a deload is training.
+     Not changed by the deload theme, so it means the same either way. */
+  --deload:       #5CC9EE;
   --danger:       #F25555;   /* destructive text inside menus and confirms only */
   --danger-fill:  #DC2626;
 
