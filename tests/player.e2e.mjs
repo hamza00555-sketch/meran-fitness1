@@ -2538,6 +2538,43 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   await ctx.close()
 }
 
+// The medal's picture can't be built (iOS refuses a 2D canvas once its
+// canvas memory is spent): the flat medals take over and land, with their
+// titles and sounds, instead of an empty stage that never finishes.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  await page.evaluate(() => {
+    window.__sounds = []
+    const gc = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+  })
+  await finishNow(page)
+  await waitLanded(page, 12000)
+  const r = await reveal(page)
+  ok('summary, picture fails: the flat medals take over and land', r?.mode === 'flat' && r.flat === 2 && r.state === 'landed', JSON.stringify(r))
+  const sounds = await medalSounds(page)
+  ok('summary, picture fails: with their sounds', sounds.join(',') === 'medal-heavy,medal', sounds.join(','))
+  ok('summary, picture fails: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+// The same, with a tap on the summary before they come (a skip): the
+// flat medals stand there at once.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  await page.evaluate(() => {
+    const gc = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+  })
+  await finishNow(page)
+  await page.waitForTimeout(450)
+  await page.locator('.sum-title').click()
+  await waitLanded(page, 6000)
+  const r = await reveal(page)
+  ok('summary, picture fails, skipped: the flat medals are down', r?.mode === 'flat' && r.state === 'landed', JSON.stringify(r))
+  ok('summary, picture fails, skipped: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // Reduced motion: no spin, a fade; the numbers are there from the start.
 {
   const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), reduced: true })
