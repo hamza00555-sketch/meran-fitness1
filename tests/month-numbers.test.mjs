@@ -261,9 +261,11 @@ test('completed sets per muscle, per week of the month', () => {
   const chest = m.find(x => x.key === 'Chest')
   assert.equal(back.sets, 44)
   assert.equal(back.perWeek, 9.9)
-  assert.equal(back.status, 'low')
+  assert.equal(back.shown, 10, 'drawn as a whole number')
+  assert.equal(back.status, 'ok', 'judged on the 10 it shows, not on 9.9')
   assert.equal(chest.perWeek, Math.round((90 / (31 / 7)) * 10) / 10)
-  assert.equal(chest.status, 'high', 'over twenty a week')
+  assert.equal(chest.perWeek, 20.3)
+  assert.equal(chest.status, 'ok', '20.3 is drawn as 20, the top of the range')
   assert.deepEqual([WEEKLY_SETS.min, WEEKLY_SETS.max], [10, 20], 'the plan builder\'s range')
 })
 
@@ -668,4 +670,34 @@ test('a deload run to term keeps its whole week, from the stamp alone too', () =
   assert.deepEqual(r.deload.ranges, [{ from: '2026-03-18', to: '2026-03-24' }], 'no ordinary session inside it: the planned end stands')
   assert.equal(r.consistency.calendar.filter(d => d.deload).length, 7, 'and the calendar rims the same seven days')
   assert.equal(deloadLine(r.deload.ranges, MAR), 'فيه أسبوع تخفيف من 18 إلى 24. خفيف عن قصد، وما ينحسب ضدك.')
+})
+
+// ══ a muscle is judged on the number it shows ═════════════════
+
+/** `n` single back sets spread over March (31 days = 31/7 weeks). */
+const backSets = (n) => [...Array(n)].map((_, i) => on(MAR, 1 + (i % 31), 'Lat Pulldown', [[50, 10]], { muscle: 'Back' }))
+
+test('a muscle at 9.5–9.9 sets a week reads «10», in range — never «10 · أقل من اللازم»', () => {
+  const r = build(backSets(43), { today: '2026-04-03' })
+  const back = r.muscles.find(m => m.key === 'Back')
+  assert.equal(back.sets, 43)
+  assert.equal(back.perWeek, 9.7)
+  assert.equal(back.shown, 10)
+  assert.equal(back.status, 'ok')
+  assert.ok(!r.next.some(n => n.kind === 'sets'), 'no «زِد مجموعات الظهر» at 10 a week')
+  assert.equal(musclesLine(r.muscles), 'كل عضلاتك أخذت حقها.')
+
+  const half = muscleSets(backSets(42), MAR, { today: TODAY })[0]
+  assert.equal(half.perWeek, 9.5)
+  assert.deepEqual([half.shown, half.status], [10, 'ok'], 'half rounds up, as the screen does')
+
+  // 9.3 is drawn as 9: under the range, and the reason says 9.
+  const low = muscleSets(backSets(41), MAR, { today: TODAY })
+  assert.equal(low[0].perWeek, 9.3)
+  assert.deepEqual([low[0].shown, low[0].status], [9, 'low'])
+  const [item] = nextMonthPlan({ sessions: [], month: MAR, muscles: low })
+  assert.match(nextCopy(item).reason, /أخذ(ت)? 9 مجموعات بالأسبوع/)
+
+  // And over the top only when the shown number is over 20.
+  assert.equal(muscleSets(backSets(93), MAR, { today: TODAY })[0].status, 'high', '21 a week')
 })

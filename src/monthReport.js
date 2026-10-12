@@ -510,11 +510,15 @@ export function muscleSets(sessions = [], month, { today = todayKey(), firstEver
   return [...by.values()]
     .map(m => {
       const perWeek = Math.round((m.sets / weeks) * 10) / 10
+      // Judged on the whole number the screen shows: 9.7 is drawn as
+      // «10», and «10 · أقل من اللازم» beside a range that starts at 10
+      // would contradict itself.
+      const shown = Math.round(perWeek)
       const status = m.key === OTHER.key ? null
-        : perWeek < WEEKLY_SETS.min ? 'low'
-        : perWeek > WEEKLY_SETS.max ? 'high'
+        : shown < WEEKLY_SETS.min ? 'low'
+        : shown > WEEKLY_SETS.max ? 'high'
         : 'ok'
-      return { ...m, perWeek, status }
+      return { ...m, perWeek, shown, status }
     })
     .sort((a, b) => b.perWeek - a.perWeek)
 }
@@ -573,7 +577,7 @@ export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = 
   const sets = muscles
     .filter(m => m.status === 'low')
     .sort((a, b) => a.perWeek - b.perWeek)
-    .map(m => ({ kind: 'sets', muscle: m.key, label: m.label, perWeek: m.perWeek, min: WEEKLY_SETS.min, max: WEEKLY_SETS.max }))
+    .map(m => ({ kind: 'sets', muscle: m.key, label: m.label, perWeek: m.perWeek, shown: m.shown ?? Math.round(m.perWeek), min: WEEKLY_SETS.min, max: WEEKLY_SETS.max }))
 
   const out = []
   const queues = [raise, sets, lower]
@@ -601,7 +605,7 @@ export function nextCopy(item, mapping = {}) {
     }
   }
   if (item.kind === 'sets') {
-    const per = Math.round(item.perWeek)
+    const per = item.shown ?? Math.round(item.perWeek)
     const took = per < 1 ? 'أقل من مجموعة' : countWord(per, 'set')
     return {
       title: `زِد مجموعات ${item.label}`,
