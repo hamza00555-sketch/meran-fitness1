@@ -2491,6 +2491,43 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   await ctx.close()
 }
 
+// A short phone (320×568): the medal stage pushes «أعلى وزن», the streak
+// and the level out of view. Their moments wait to be seen instead of
+// playing unseen, the medals don't wait for them, and scrolling down
+// plays each one as it comes into view.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'),
+    device: 'iPhone SE', viewport: { width: 320, height: 568 } })
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  const t = Date.now()
+  await page.waitForFunction(() => /playing|landed/.test(document.querySelector('[data-testid="medal-reveal"]')?.dataset.state || ''),
+    null, { timeout: 4000, polling: 50 }).catch(() => {})
+  const medalsAt = Date.now() - t
+  await page.waitForTimeout(Math.max(0, 2600 - (Date.now() - t)))
+  const lines = () => page.evaluate(() => {
+    const sc = document.querySelector('.sum'), foot = document.querySelector('.sum-foot').getBoundingClientRect()
+    return [...document.querySelectorAll('.sum-sec:not(.sum-ach-sec)')].map(el => {
+      const r = el.getBoundingClientRect()
+      return { go: el.dataset.go || null, seen: r.top >= sc.getBoundingClientRect().top && r.bottom <= foot.top + 1,
+        text: el.innerText.replace(/\s+/g, ' ').slice(0, 60) }
+    })
+  })
+  const before = await lines()
+  ok('summary 320: the lines pushed out of view hold their moments', before.length === 3 && before.every(l => l.seen || !l.go), JSON.stringify(before))
+  ok('summary 320: the hidden streak still shows where it stood, the level its +0',
+    /0 ← 0/.test(before[1].text) && /\+0 XP/.test(before[2].text), JSON.stringify(before.map(l => l.text)))
+  ok('summary 320: the medals start without waiting for lines nobody can see', medalsAt < 1700, `${medalsAt}ms`)
+  await page.evaluate(() => { const sc = document.querySelector('.sum'); sc.scrollTop = sc.scrollHeight })
+  await page.waitForTimeout(1800)
+  const after = await lines()
+  ok('summary 320: scrolled into view, each one plays — the new best, the streak, the level',
+    after.every(l => l.go === '1') && /140/.test(after[0].text) && /0 ← 1/.test(after[1].text) && !/\+0 XP/.test(after[2].text),
+    JSON.stringify(after))
+  ok('summary 320: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // No medal earned: the module is never fetched.
 {
   const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY })
@@ -2578,12 +2615,34 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
 // Reduced motion: no spin, a fade; the numbers are there from the start.
 {
   const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), reduced: true })
+  // Every frame from the tap: once «أعلى وزن» or the streak can be seen at
+  // all, it already says the new best and the new streak, the flame lit.
+  await page.evaluate(() => {
+    window.__sumFrames = []
+    const t0 = performance.now()
+    const tick = () => {
+      const secs = [...document.querySelectorAll('.sum-sec:not(.sum-ach-sec)')]
+      if (secs.length >= 2) {
+        const [pr, st] = secs
+        window.__sumFrames.push({ t: Math.round(performance.now() - t0),
+          pr: [+getComputedStyle(pr).opacity, pr.querySelector('.sum-pr-v')?.innerText.replace(/\s+/g, ' ')],
+          st: [+getComputedStyle(st).opacity, st.querySelector('.sum-streak-n')?.innerText.replace(/\s+/g, ' '),
+            !!st.querySelector('.lf-fill')] })
+      }
+      if (performance.now() - t0 < 4000) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
   await finishNow(page)
   await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
   const early = await setsShown(page)
   await waitLanded(page, 12000)
   const r = await reveal(page)
   ok('summary, reduced: the numbers are final from the first frame', early === '3', String(early))
+  const frames = await page.evaluate(() => window.__sumFrames)
+  const wrong = frames.filter(f => (f.pr[0] > 0.01 && !/^140 /.test(f.pr[1] || '')) || (f.st[0] > 0.01 && (!/0 ← 1/.test(f.st[1] || '') || !f.st[2])))
+  ok('summary, reduced: the new best and the streak never show an old number first',
+    frames.length > 10 && wrong.length === 0, JSON.stringify(wrong.slice(0, 2)))
   ok('summary, reduced: the medals fade in, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && r?.state === 'landed', JSON.stringify(r))
   ok('summary, reduced: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()

@@ -37,6 +37,12 @@ import { lockScroll } from '../../scrollLock.js'
 // «تم» works from the first frame, the medal module loads beside the
 // summary and never holds it up, and a tap anywhere lands everything —
 // a tap on a landed medal spins it again instead.
+//
+// A moment plays where it can be seen. The medal stage is tall, and on a
+// short phone it pushes «أعلى وزن», the streak and the level below the
+// fold or under «تم»: a line that isn't wholly in view (above the foot)
+// when its beat comes holds its old numbers, and plays the moment it is
+// scrolled into view. The medals wait only for the lines that are seen.
 // Reduced motion: the numbers are there from the start, the medals fade.
 
 const BEAT = 320
@@ -59,34 +65,45 @@ function useAt(t0, at, skip) {
   return on
 }
 
-/** A number counting up from zero once its line is in — or the final number, skipped or reduced. */
-function Tally({ to, t0, at, dur = 900, skip, fmt = (v) => Math.round(v) }) {
+/**
+ * A number counting up from zero from `startAt` (a performance.now()
+ * time; null: not yet — it holds at zero) — or the final number, skipped
+ * or reduced.
+ */
+function Tally({ to, startAt, dur = 900, skip, fmt = (v) => Math.round(v) }) {
   const still = skip || reducedMotion()
   const [v, setV] = useState(still ? to : 0)
   const cur = useRef(still ? to : 0)
   useEffect(() => {
     if (skip || reducedMotion()) { cur.current = to; setV(to); return }
+    if (startAt == null) return
     let raf = 0
     const from = cur.current
     // Timed from when it was due, not from the first frame that came: a
     // busy moment (the medal stage building) skips the count ahead
     // instead of starting it late.
-    const start = Math.max(performance.now(), t0 + at)
+    const start = Math.max(performance.now(), startAt)
     const step = (now) => {
       const k = Math.max(0, Math.min(1, (now - start) / dur))
       cur.current = from + (to - from) * easeOut(k)
       setV(cur.current)
       if (k < 1) raf = requestAnimationFrame(step)
     }
-    const t = setTimeout(() => { raf = requestAnimationFrame(step) }, Math.max(0, t0 + at - performance.now()))
+    const t = setTimeout(() => { raf = requestAnimationFrame(step) }, Math.max(0, startAt - performance.now()))
     return () => { clearTimeout(t); cancelAnimationFrame(raf) }
-  }, [to, skip]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [to, skip, startAt])
   return <Num>{fmt(v)}</Num>
 }
 
+// The lines whose moments wait to be seen, in the order they come.
+const SEEN_LINES = ['prs', 'streak', 'xp']
+
 export default function SessionSummary({ summary, xp, onDone }) {
   const [skipped, setSkipped] = useState(false)
+  const skippedRef = useRef(false)
+  skippedRef.current = skipped
   const t0 = useRef(performance.now()).current
+  const still = skipped || reducedMotion()
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') onDone() }
     window.addEventListener('keydown', onKey)
@@ -108,10 +125,64 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const at = (k) => B[k] * BEAT
   const b = (k) => ({ '--b': B[k] })
 
-  const prGo = useAt(t0, (B.prs ?? 0) * BEAT + 120, skipped)
-  const streakGo = useAt(t0, at('streak') + 120, skipped)
-  // the medals arrive after the summary's last line has landed
-  const medalGo = useAt(t0, at('xp') + 240, skipped)
+  // The lines wholly in view above «تم» right now — kept up to date as he
+  // scrolls, as the phone turns, and as the summary's own layout changes
+  // (the medals' stage arrives with the achievements, a moment after it
+  // opens, and pushes everything under it down).
+  const root = useRef(null)
+  const foot = useRef(null)
+  const lines = { prs: useRef(null), streak: useRef(null), xp: useRef(null) }
+  const [vis, setVis] = useState(null)
+  useLayoutEffect(() => {
+    const sc = root.current
+    if (!sc) return
+    const look = () => {
+      const top = sc.scrollTop
+      const bottom = top + sc.clientHeight - (foot.current?.offsetHeight || 0)
+      // offsetTop/Height ignore the beats' entrance transforms
+      return SEEN_LINES.filter(k => {
+        const el = lines[k].current
+        return el && el.offsetTop >= top - 1 && el.offsetTop + el.offsetHeight <= bottom + 1
+      })
+    }
+    const mark = () => {
+      const v = look()
+      setVis(cur => (cur && cur.join() === v.join() ? cur : v))
+    }
+    mark()
+    sc.addEventListener('scroll', mark, { passive: true })
+    window.addEventListener('resize', mark)
+    let ro = null
+    try { ro = new ResizeObserver(mark); ro.observe(sc.firstElementChild) } catch { ro = null }
+    return () => {
+      sc.removeEventListener('scroll', mark)
+      window.removeEventListener('resize', mark)
+      try { ro?.disconnect() } catch {}
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A line's moment starts once its beat has come and it is in view — at
+  // its beat, or later, when it is scrolled to (performance.now(), kept).
+  // Skipped or under reduced motion there are no moments: the numbers are
+  // simply final.
+  const beatIn = {
+    prs: useAt(t0, (B.prs ?? 0) * BEAT + 120, skipped),
+    streak: useAt(t0, at('streak') + 120, skipped),
+    xp: useAt(t0, at('xp') + 120, skipped),
+  }
+  const [goAt, setGoAt] = useState({})
+  useEffect(() => {
+    const now = performance.now()
+    const add = SEEN_LINES.filter(k => goAt[k] == null && beatIn[k] && vis?.includes(k))
+    if (add.length) setGoAt(g => ({ ...g, ...Object.fromEntries(add.map(k => [k, now])) }))
+  }, [beatIn.prs, beatIn.streak, beatIn.xp, vis]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prGo = still || goAt.prs != null
+  const streakGo = still || goAt.streak != null
+  // The medals arrive after the last line in view has come in: all of
+  // them on a tall phone; straight after their own beat when the stage
+  // has pushed every line out of view.
+  const cue = [...SEEN_LINES].reverse().find(k => B[k] != null && vis?.includes(k)) || 'medals'
+  const medalGo = useAt(t0, (hasMedals ? at(cue) : at('xp')) + 240, skipped)
 
   // The medal sounds, decoded ahead of the landing.
   useEffect(() => { if (hasMedals) { loadSound('medal'); loadSound('medal-heavy') } }, [hasMedals])
@@ -129,7 +200,7 @@ export default function SessionSummary({ summary, xp, onDone }) {
   // The trophy of «أعلى وزن» hops as its line arrives.
   const trophy = useRef(null)
   useLayoutEffect(() => {
-    if (!prGo || skipped || reducedMotion() || !trophy.current) return
+    if (!prGo || still || !trophy.current) return
     const a = animate(trophy.current, [{ transform: 'scale(.4) rotate(-12deg)' }, { transform: 'none' }], { spring: 'bouncy' })
     return () => { try { a?.finish() } catch {} }
   }, [prGo, skipped])
@@ -141,24 +212,35 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const summaryRef = useRef(s)
   summaryRef.current = s
   const gaugeAnim = useRef(null)
+  const [gaugeHeld, setGaugeHeld] = useState(false)
   useEffect(() => {
     if (reducedMotion() || !s) return
     // Set up as the line starts to come in (still transparent), holding
-    // the old fill through the 120ms delay: the bar never shows its final
-    // length first and then jumps back. The XP of the finish and of the
-    // medals has all arrived by then.
+    // the old fill until it plays: the bar never shows its final length
+    // first and then jumps back. The XP of the finish and of the medals
+    // has all arrived by then.
     const t = setTimeout(() => {
       const fillEl = gauge.current?.querySelector('.k-gauge-fill')
-      if (!fillEl) return
+      if (!fillEl || skippedRef.current) return
       const now = xpProgress(xpNow.current)
       const before = xpProgress(Math.max(0, xpNow.current - (summaryRef.current?.xp || 0)))
       const r0 = before.level < now.level ? 0 : before.currentXP / Math.max(1, before.neededXP)
       const r1 = now.currentXP / Math.max(1, now.neededXP)
-      gaugeAnim.current = animate(fillEl, [{ transform: `scaleX(${r0})` }, { transform: `scaleX(${r1})` }],
-        { d: 800, delay: Math.max(0, t0 + at('xp') + 120 - performance.now()), e: EASE.out })
+      const a = animate(fillEl, [{ transform: `scaleX(${r0})` }, { transform: `scaleX(${r1})` }], { d: 800, e: EASE.out })
+      try { a?.pause() } catch {}
+      gaugeAnim.current = a
+      setGaugeHeld(true)
     }, Math.max(0, t0 + at('xp') - performance.now()))
     return () => { clearTimeout(t); try { gaugeAnim.current?.cancel() } catch {} }
   }, [B.xp]) // eslint-disable-line react-hooks/exhaustive-deps
+  // …and fills once the line is seen.
+  const xpAt = goAt.xp ?? null
+  useEffect(() => {
+    const a = gaugeAnim.current
+    if (!gaugeHeld || !a || xpAt == null) return
+    const t = setTimeout(() => { try { a.play() } catch {} }, Math.max(0, xpAt - performance.now()))
+    return () => clearTimeout(t)
+  }, [gaugeHeld, xpAt])
   useEffect(() => { if (skipped) { try { gaugeAnim.current?.finish() } catch {} } }, [skipped])
 
   if (!s) return null
@@ -175,14 +257,14 @@ export default function SessionSummary({ summary, xp, onDone }) {
 
   return createPortal(
     <div className={`sum${skipped ? ' sum-skip' : ''}`} role="dialog" aria-modal="true" aria-label="ملخص الجلسة"
-      onClick={() => setSkipped(true)} data-testid="session-summary">
+      onClick={() => setSkipped(true)} data-testid="session-summary" ref={root}>
       <div className="sum-body">
         <span className="k-eyebrow sum-beat" style={b('eyebrow')}>انحفظت الجلسة</span>
         <h1 className="sum-title sum-beat" style={b('title')}>{s.title}</h1>
         <div className="sum-stats sum-beat" style={b('stats')}>
-          <span><b><Tally to={s.duration} t0={t0} at={at('stats') + 80} skip={skipped} fmt={fmtDur} /></b><small>{dur.unit}</small></span>
-          <span><b><Tally to={s.sets} t0={t0} at={at('stats') + 200} skip={skipped} /></b><small>مجموعة</small></span>
-          <span><b><Tally to={tons} t0={t0} at={at('stats') + 320} skip={skipped} fmt={(v) => v.toFixed(1)} /></b><small>طن</small></span>
+          <span><b><Tally to={s.duration} startAt={t0 + at('stats') + 80} skip={skipped} fmt={fmtDur} /></b><small>{dur.unit}</small></span>
+          <span><b><Tally to={s.sets} startAt={t0 + at('stats') + 200} skip={skipped} /></b><small>مجموعة</small></span>
+          <span><b><Tally to={tons} startAt={t0 + at('stats') + 320} skip={skipped} fmt={(v) => v.toFixed(1)} /></b><small>طن</small></span>
         </div>
 
         {hasMedals && (
@@ -204,27 +286,27 @@ export default function SessionSummary({ summary, xp, onDone }) {
         )}
 
         {s.prs.length > 0 && (
-          <section className="sum-sec sum-beat" style={b('prs')}>
+          <section className="sum-sec sum-beat" style={b('prs')} ref={lines.prs} data-go={prGo ? '1' : undefined}>
             <h2><span className="sum-trophy" ref={trophy}><Trophy size={16} weight="fill" aria-hidden="true" /></span> أعلى وزن</h2>
             {s.prs.map(p => (
               <div key={p.name} className="sum-pr">
                 <span>{arabicName(p.name) || p.name}</span>
                 <span className="sum-pr-v"><ArrowUp size={14} weight="bold" aria-hidden="true" />
-                  {prGo && !skipped
+                  {prGo && !still
                     ? <RollNumber className="sum-roll" from={p.prev} to={p.top} delay={160} stagger={50} />
-                    : <Num>{prGo || skipped ? p.top : p.prev}</Num>}
+                    : <Num>{prGo ? p.top : p.prev}</Num>}
                   {' '}كجم <small>(كان <Num>{p.prev}</Num>)</small></span>
               </div>
             ))}
           </section>
         )}
 
-        <section className="sum-sec sum-beat" style={b('streak')}>
+        <section className="sum-sec sum-beat" style={b('streak')} ref={lines.streak} data-go={streakGo ? '1' : undefined}>
           <div className="sum-streak">
             <span className="sum-flame"><LiveFlame size={26} filled={!streakUp || streakGo} ignite={streakUp && streakGo} skip={skipped} /></span>
             <span className="sum-streak-n">
               {streakUp && <><Num>{s.streakBefore}</Num> ← </>}
-              <b>{streakUp && streakGo && !skipped
+              <b>{streakUp && streakGo && !still
                 ? <RollNumber className="sum-roll" from={s.streakBefore} to={s.streakAfter} delay={260} />
                 : <Num>{streakUp && !streakGo ? s.streakBefore : s.streakAfter}</Num>}</b>
             </span>
@@ -232,16 +314,16 @@ export default function SessionSummary({ summary, xp, onDone }) {
           <p className="sum-line">{s.streakLine}</p>
         </section>
 
-        <section className="sum-sec sum-beat" style={b('xp')}>
+        <section className="sum-sec sum-beat" style={b('xp')} ref={lines.xp} data-go={xpAt != null || still ? '1' : undefined}>
           <div className="sum-xp">
             <span>المستوى <Num>{level}</Num></span>
-            <span className="sum-xp-gain"><Tally to={s.xp} t0={t0} at={at('xp') + 120} dur={800} skip={skipped} fmt={(v) => `+${Math.round(v)} XP`} /></span>
+            <span className="sum-xp-gain"><Tally to={s.xp} startAt={xpAt} dur={800} skip={skipped} fmt={(v) => `+${Math.round(v)} XP`} /></span>
           </div>
           <div ref={gauge}><Gauge value={currentXP} max={neededXP} tone="accent" label="التقدم للمستوى الجاي" /></div>
           {s.levelUp && level >= s.levelUp && <p className="sum-levelup">مستوى جديد · <Num>{s.levelUp}</Num></p>}
         </section>
       </div>
-      <div className="sum-foot sum-beat" style={b('foot')} onClick={e => e.stopPropagation()}>
+      <div className="sum-foot sum-beat" style={b('foot')} onClick={e => e.stopPropagation()} ref={foot}>
         <Button variant="primary" size="lg" full onClick={onDone}>تم</Button>
       </div>
     </div>,
