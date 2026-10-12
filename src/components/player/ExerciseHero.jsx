@@ -158,10 +158,17 @@ export default function ExerciseHero({
   ex, mapping = {}, expanded, animate = false, onToggleStage, collapsible = false,
   maxWeight = null, deloadPct = 0, quietBest = false, ytUrl,
   canSwap, swapNext = null, swapOrigin = null, onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
-  onAddExercise, onDiscard, onSwipe, onDrag,
+  onAddExercise, onDiscard, onSheet, onSwipe, onDrag,
 }) {
-  const [menu, setMenu] = useState(false)
-  const [info, setInfo] = useState(false)
+  // The ⋯ sheet and the info sheet belong to the exercise they were opened
+  // for: should the screen move on under them, they close rather than
+  // turn into the next exercise's (and act on it).
+  const [menuFor, setMenuFor] = useState(null)
+  const [infoFor, setInfoFor] = useState(null)
+  const menu = menuFor != null && menuFor === ex.id
+  const info = infoFor != null && infoFor === ex.id
+  const setMenu = (on) => { if (on) onSheet?.(); setMenuFor(on ? ex.id : null) }
+  const setInfo = (on) => { if (on) onSheet?.(); setInfoFor(on ? ex.id : null) }
   const [copied, setCopied] = useState(false)
   const swipe = useSwipe(onSwipe, onDrag)
   const watch = useTap(() => openVideo(ytUrl))

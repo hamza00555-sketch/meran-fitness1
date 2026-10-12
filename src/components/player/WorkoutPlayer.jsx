@@ -182,6 +182,7 @@ export default function WorkoutPlayer({
   const [index, setIndex] = useState(() => Math.max(0, firstUnfinished(exercises)))
   const [editingSet, setEditingSet] = useState(null)   // { exId, si }
   const [celebrating, setCelebrating] = useState(null) // { exId }
+  const [stay, setStay] = useState(false)              // he took over this celebration: no move on by itself
   const [peek, setPeek] = useState(null)               // ex id whose stage was reopened
   const [fresh, setFresh] = useState(null)             // { exId, si } — the check to draw
   const [pr, setPr] = useState(null)                   // the record on screen: { exId, si, from, to, name }
@@ -325,6 +326,7 @@ export default function WorkoutPlayer({
     if (!ex || !exComplete || celebratedRef.current.has(ex.id)) return
     celebratedRef.current.add(ex.id)
     setCelebrating({ exId: ex.id })
+    setStay(false)
     // Its segment fills, then one sheen crosses it.
     const seg = document.querySelectorAll('.s-seg')[safeIndex]?.querySelector('b')
     if (seg && !reducedMotion()) {
@@ -340,20 +342,30 @@ export default function WorkoutPlayer({
   // record's moment holds the move until its trophy has landed, and then
   // the wait is the shorter one — only when that moment held this
   // completion, not for a record set earlier in the exercise.
+  //
+  // He can take over before it comes: opening ⋯ or the exercise's info,
+  // or tapping a done row to correct it, calls the move off for good (he
+  // moves on by hand, with «التمرين التالي»), so a sheet's actions or the
+  // numbers he types still land on the exercise he finished. At the
+  // moment it would come, any sheet up, an exercise no longer complete
+  // (a set added) or the screen elsewhere also keep it where it is.
   const exercisesRef = useRef(exercises)
   exercisesRef.current = exercises
   const prBusy = !!pr && pr.exId === celebrating?.exId
+  const holdAuto = () => { if (celebrating) setStay(true) }
   useEffect(() => {
-    if (!celebrating) return
+    if (!celebrating || stay) return
     if (prBusy) { prHeld.current = celebrating.exId; return }
     const t = setTimeout(() => {
       const list = exercisesRef.current
       const at = list.findIndex(e => e.id === celebrating.exId)
+      const done = at !== -1 && list[at].sets.length > 0 && list[at].sets.every(s => s.done)
       const next = firstUnfinished(list, at + 1)
-      if (next !== -1 && list[indexRef.current]?.id === celebrating.exId) jump(next)
+      const sheetUp = !!document.querySelector('.k-sheet:not(.k-leaving)')
+      if (done && !sheetUp && next !== -1 && list[indexRef.current]?.id === celebrating.exId) jump(next)
     }, prHeld.current === celebrating.exId ? AUTO_NEXT_AFTER_PR_MS : AUTO_NEXT_MS)
     return () => clearTimeout(t)
-  }, [celebrating?.exId, prBusy]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [celebrating?.exId, prBusy, stay]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the live block in view as sets go by — clear of the dock, its
   // fade, and whatever the dock currently is (the 56pt button, the taller
@@ -710,6 +722,7 @@ export default function WorkoutPlayer({
           moveTargets={exercises.filter(o => o.id !== ex.id).map(o => ({ id: o.id, name: o.name }))}
           onAddExercise={onAddExercise}
           onDiscard={onDiscard}
+          onSheet={holdAuto}
           onSwipe={swipeTo}
           onDrag={drag}
         />
@@ -724,7 +737,7 @@ export default function WorkoutPlayer({
             freshIndex={fresh && fresh.exId === ex.id ? fresh.si : null}
             prIndex={prIndex}
             holdIndex={pr && pr.exId === ex.id ? pr.si : null}
-            onEdit={(si) => { setFresh(null); setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si })) }}
+            onEdit={(si) => { setFresh(null); holdAuto(); setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si })) }}
             live={live}
           />
         ) : (

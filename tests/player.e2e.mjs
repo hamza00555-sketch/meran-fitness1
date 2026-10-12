@@ -962,6 +962,61 @@ async function dragHead(page, dx = 40) {
   await ctx.close()
 }
 
+// ══ 4a. The move on by itself waits for him ════════════════════
+// Opening ⋯ (or the info) or tapping a done row to correct it, in the
+// second and a half after an exercise's last set, calls the move off:
+// the sheet's actions and the numbers he types land on the exercise he
+// finished, never on the next one that would have slid in under them.
+{
+  const TWO = () => ({
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [
+      { id: 'p', muscle: 'Legs', name: 'Leg Press', sets: [{ weight: '40', reps: '12', done: false }] },
+      { id: 'c', muscle: 'Legs', name: 'Leg Curl',
+        sets: [{ weight: '30', reps: '12', done: false }, { weight: '30', reps: '12', done: false }] },
+    ],
+  })
+  {
+    const { ctx, page, errors } = await open({ active: TWO() })
+    const n0 = await page.getByTestId('exercise-name').textContent()
+    await completeBtn(page).click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+    await page.waitForTimeout(1600)
+    const title = await page.locator('.k-sheet-h h2').textContent().catch(() => null)
+    ok('wait: with ⋯ open the next exercise does not slide in under it',
+      (await page.getByTestId('exercise-name').textContent()) === n0 && title === n0, `${n0} / sheet ${title}`)
+    await page.getByText('إضافة مجموعة').click()
+    await page.waitForTimeout(2000)
+    const st = await activeStored(page)
+    ok('wait: «إضافة مجموعة» adds to the exercise he finished, and the screen stays on it',
+      st.exercises[0].sets.length === 2 && st.exercises[1].sets.length === 2
+      && (await page.getByTestId('exercise-name').textContent()) === n0,
+      `${st.exercises.map(e => e.sets.length)}`)
+    ok('wait/⋯: no page errors', errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+  {
+    const { ctx, page, errors } = await open({ active: TWO() })
+    const n0 = await page.getByTestId('exercise-name').textContent()
+    await completeBtn(page).click()
+    await page.waitForTimeout(600)
+    await page.locator('.s-trow[data-state="done"]').first().click()
+    await page.waitForTimeout(1500)
+    ok('wait: correcting a done set keeps the screen on it, still editing',
+      (await page.getByTestId('exercise-name').textContent()) === n0
+      && await page.getByRole('button', { name: 'حفظ التعديل' }).count() === 1)
+    await page.getByTestId('reps-input').fill('10')
+    await page.waitForTimeout(300)
+    const st = await activeStored(page)
+    ok('wait: the corrected reps land on the set being corrected',
+      st.exercises[0].sets[0].reps === '10' && st.exercises[1].sets.every(s => s.reps === '12'),
+      JSON.stringify(st.exercises.map(e => e.sets.map(s => `${s.weight}x${s.reps}${s.done ? '✓' : ''}`))))
+    ok('wait/edit: no page errors', errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+}
+
 // ══ 4b. A double tap on «جاهز» does not log the next set ═══════
 {
   const THREE = {
