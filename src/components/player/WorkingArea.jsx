@@ -288,7 +288,9 @@ export default function WorkingArea({
   // the ring quickly. A new exercise starts with a clean slate.
   const now = typeof performance !== 'undefined' ? performance.now() : 0
   const inIntro = raise?.intro === 'full' && now < raise.introAt + T.ring + 900
-  if (track.current.ex !== ex.id) track.current = { ex: ex.id, raised: null, delta: 0, leavingUntil: 0, quickUntil: 0 }
+  // (a machine swapped into the same place is a new exercise here too)
+  const machine = `${ex.id}:${ex.name}`
+  if (track.current.ex !== machine) track.current = { ex: machine, raised: null, delta: 0, leavingUntil: 0, quickUntil: 0 }
   if (raise) {
     const was = track.current.raised
     if (was != null && !reduce) {
@@ -306,7 +308,7 @@ export default function WorkingArea({
   }, [retracting])
 
   // A moving number belongs to the set it started on.
-  useLayoutEffect(() => { setOverlay(null); setRepsOverlay(null) }, [ex.id, setIndex])
+  useLayoutEffect(() => { setOverlay(null); setRepsOverlay(null) }, [ex.id, ex.name, setIndex])
 
   // A moving copy of the number only ever shows the number the input
   // holds: when the value changes under it, it goes (and in this render
@@ -342,7 +344,7 @@ export default function WorkingArea({
 
   // The intro, once per showing that asks for it — and only in the first
   // block to claim it, so a block that mounts again replays nothing.
-  const introKey = raise?.intro && raised && !editing ? `${ex.id}|${raise.intro}|${raise.introAt}` : null
+  const introKey = raise?.intro && raised && !editing ? `${ex.id}:${ex.name}|${raise.intro}|${raise.introAt}` : null
   introCur.current = introKey
   useLayoutEffect(() => {
     if (!introKey || introRan.current === introKey) return

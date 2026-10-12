@@ -14,6 +14,9 @@ import { DRAG_SLOP, rubberBand, releaseVelocity, shouldDismiss, exitDuration } f
 // else on a touch screen only moving down with the content scrolled to
 // its top — so scrolling a long list, typing, and sideways rows inside a
 // sheet are untouched. A mouse drags from the grabber and title only.
+// `fromBody: false` keeps it to the grabber and title row: a form with
+// changes not yet saved, where the flick that scrolls back to the top
+// must not throw them away.
 // Touch uses touch events (a non-passive touchmove is the only way to
 // take a gesture the browser would otherwise scroll); mouse and pen use
 // pointer events.
@@ -37,10 +40,12 @@ function scrollerIn(sheet, target) {
   return null
 }
 
-export function useSheetDrag({ sheetRef, scrimRef, onDismiss, enabled = true }) {
+export function useSheetDrag({ sheetRef, scrimRef, onDismiss, enabled = true, fromBody = true }) {
   const left = useRef(false)
   const dismiss = useRef(onDismiss)
   dismiss.current = onDismiss
+  const bodyOk = useRef(fromBody)
+  bodyOk.current = fromBody
 
   useEffect(() => {
     const sheet = sheetRef.current
@@ -56,10 +61,12 @@ export function useSheetDrag({ sheetRef, scrimRef, onDismiss, enabled = true }) 
 
     const start = (x, y, target, kind) => {
       if (left.current || !target || target.closest?.(NO_DRAG)) { g = null; return }
+      const handle = !!target.closest?.(HANDLE)
+      if (!handle && !bodyOk.current) { g = null; return }
       const t = performance.now()
       g = {
         kind, x0: x, y0: y, mode: 'pending', dy: 0,
-        handle: !!target.closest?.(HANDLE), scroller: scrollerIn(sheet, target),
+        handle, scroller: scrollerIn(sheet, target),
         height: sheet.getBoundingClientRect().height || 1, samples: [{ t, y }],
       }
     }

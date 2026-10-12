@@ -28,9 +28,11 @@ import '../../styles/medal-reveal.css'
 //            has the title already)
 //
 // Fallbacks, each a decision in medalQueue.js revealMode():
-//   no WebGL, the chunk can't load, or the context is lost and doesn't
-//   come back within 3 s (iOS drops them in the background) → the app's
-//   own flat medal (Medal.jsx) turning on a CSS rotateY instead;
+//   no WebGL, the chunk can't load, the medal's picture can't be built
+//   (a 2D canvas refused — iOS caps canvas memory), or the context is
+//   lost and doesn't come back within 3 s (iOS drops them in the
+//   background) → the app's own flat medal (Medal.jsx) turning on a CSS
+//   rotateY instead (already standing, if a skip was asked for);
 //   the phone asks for less motion → no spin, a fade (both kinds);
 //   no art pack → the module composes the face from Medal.jsx's parts
 //   (disc, glyph, engraved number), so nothing is ever a broken image.
@@ -88,6 +90,16 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
     }
   }
 
+  // The GL stage gives up (its picture couldn't be built): the flat medal
+  // takes over from here — the flat effect below plays it, or stands it
+  // there if a skip was already asked for.
+  const giveUp = (s) => {
+    if (stage.current !== s) return
+    stage.current = null
+    try { s.destroy() } catch {}
+    setMode('flat')
+  }
+
   // The stage: fetched and built at once, the art prepared ahead of time.
   useEffect(() => {
     let alive = true
@@ -116,7 +128,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
       if (!s || !s.webgl) { try { s?.destroy() } catch {} flat(); return }
       stage.current = s
       setMode('gl')
-      s.prepare(list()).catch(() => {})
+      s.prepare(list()).catch(() => { if (alive) giveUp(s) })
     }, flat)
     return () => {
       alive = false
@@ -139,7 +151,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
       s.play(list()).then(() => {
         if (stage.current !== s) return
         if (S.skipped) { s.skip(); landed(items.map((_, i) => i), true) }
-      }, () => {})
+      }, () => giveUp(s))
     }
     if (skip && !S.skipped) {
       S.skipped = true

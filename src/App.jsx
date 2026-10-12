@@ -640,7 +640,8 @@ export default function App() {
     collectRef.current = false
     pendingLevelRef.current = null
     const sm = summaryRef.current
-    if (sm?.levelUp) {
+    // Only a level he is actually at now (whatever was held for it).
+    if (sm?.levelUp && levelFromXP(xpRef.current) >= sm.levelUp) {
       setLevelUpNum(sm.levelUp)
       setLevelUpFrom(levelFromXP(Math.max(0, xpRef.current - (sm.xp || 0))))
       setShowLevelUp(true)
@@ -1195,9 +1196,18 @@ export default function App() {
             onStartPlannedWorkout={startPlannedWorkout}
             addXP={addWorkoutXP}
             onGoBack={() => {
-              if (sessionXPRef.current > 0) {
-                setXP(prev => Math.max(0, prev - sessionXPRef.current))
-                sessionXPRef.current = 0
+              // The session is thrown away: its XP goes back, and so does a
+              // level it crossed — held for a summary that will never come,
+              // it must not turn up in the next session's.
+              const refund = sessionXPRef.current
+              sessionXPRef.current = 0
+              pendingLevelRef.current = null
+              if (refund > 0) {
+                setXP(prev => {
+                  const back = Math.max(0, prev - refund)
+                  prevLevelRef.current = levelFromXP(back)
+                  return back
+                })
               }
               setActive(null); setShowRest(false); setSessionOpen(false); setTab('home')
             }}

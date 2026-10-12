@@ -103,6 +103,10 @@ const writeMotion = (sid, part) => {
 // How long a showing's intro stays on offer: the full one to the ring's
 // first breath (WorkingArea's T.breathe), the sheen a little past its end.
 const INTRO_LIFE_MS = { full: 2400, sheen: 900 }
+// The raise belongs to the machine in an exercise's place, not to the
+// place: swapped for its alternative (same id, new name), the new machine
+// gets its own prefill, intro and breathing ring.
+const raiseKey = (e) => `${e.id}:${e.name}`
 
 const firstUnfinished = (list, from = 0) => {
   const n = list.length
@@ -155,12 +159,15 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
   }
 }
 
-// A second tap of the thumb that dismissed «جاهز» must not log a set:
-// the field unmounts under the finger and «تمّت المجموعة» mounts in its
-// place, so the dock ignores taps for this long after a rest closes.
+// A second tap of the thumb that dismissed «جاهز» (or saved an edit)
+// must not log a set: the field unmounts under the finger and «تمّت
+// المجموعة» mounts in its place, so the dock ignores taps for this long.
 const REST_CLOSE_GUARD_MS = 400
 
-// How long the button's copy stays over the growing rest panel.
+// How long the button's copy stays over the growing rest panel. The dock
+// ignores taps for as long: the rest's controls are already there under
+// the copy (which takes no taps), so a thumb bouncing on «تمّت المجموعة»
+// would otherwise land on «تخطي» or ±15 it can't see yet.
 const MORPH_MS = 520
 
 // After the last set, the next exercise comes on screen by itself — in
@@ -179,6 +186,7 @@ export default function WorkoutPlayer({
   const [index, setIndex] = useState(() => Math.max(0, firstUnfinished(exercises)))
   const [editingSet, setEditingSet] = useState(null)   // { exId, si }
   const [celebrating, setCelebrating] = useState(null) // { exId }
+  const [stay, setStay] = useState(false)              // he took over this celebration: no move on by itself
   const [peek, setPeek] = useState(null)               // ex id whose stage was reopened
   const [fresh, setFresh] = useState(null)             // { exId, si } — the check to draw
   const [pr, setPr] = useState(null)                   // the record on screen: { exId, si, from, to, name }
@@ -204,7 +212,7 @@ export default function WorkoutPlayer({
   const intro = useRef(new Map())                      // exId → { kind, at, showing, ran } — this showing's raise reminder
   const scrollRef = useRef(null)
   const dockRef = useRef(null)
-  const restClosedAt = useRef(0)
+  const dockQuietUntil = useRef(0)                     // the dock takes no tap before this (performance.now())
   const handoff = useRef({ token: 0, done: 0, dir: 0, at: -Infinity })
   const morph = useRef({ token: 0, done: 0 })
   const [ghost, setGhost] = useState(0)                // the morph whose button copy is on screen (0: none)
@@ -322,6 +330,7 @@ export default function WorkoutPlayer({
     if (!ex || !exComplete || celebratedRef.current.has(ex.id)) return
     celebratedRef.current.add(ex.id)
     setCelebrating({ exId: ex.id })
+    setStay(false)
     // Its segment fills, then one sheen crosses it.
     const seg = document.querySelectorAll('.s-seg')[safeIndex]?.querySelector('b')
     if (seg && !reducedMotion()) {
@@ -337,20 +346,30 @@ export default function WorkoutPlayer({
   // record's moment holds the move until its trophy has landed, and then
   // the wait is the shorter one — only when that moment held this
   // completion, not for a record set earlier in the exercise.
+  //
+  // He can take over before it comes: opening ⋯ or the exercise's info,
+  // or tapping a done row to correct it, calls the move off for good (he
+  // moves on by hand, with «التمرين التالي»), so a sheet's actions or the
+  // numbers he types still land on the exercise he finished. At the
+  // moment it would come, any sheet up, an exercise no longer complete
+  // (a set added) or the screen elsewhere also keep it where it is.
   const exercisesRef = useRef(exercises)
   exercisesRef.current = exercises
   const prBusy = !!pr && pr.exId === celebrating?.exId
+  const holdAuto = () => { if (celebrating) setStay(true) }
   useEffect(() => {
-    if (!celebrating) return
+    if (!celebrating || stay) return
     if (prBusy) { prHeld.current = celebrating.exId; return }
     const t = setTimeout(() => {
       const list = exercisesRef.current
       const at = list.findIndex(e => e.id === celebrating.exId)
+      const done = at !== -1 && list[at].sets.length > 0 && list[at].sets.every(s => s.done)
       const next = firstUnfinished(list, at + 1)
-      if (next !== -1 && list[indexRef.current]?.id === celebrating.exId) jump(next)
+      const sheetUp = !!document.querySelector('.k-sheet:not(.k-leaving)')
+      if (done && !sheetUp && next !== -1 && list[indexRef.current]?.id === celebrating.exId) jump(next)
     }, prHeld.current === celebrating.exId ? AUTO_NEXT_AFTER_PR_MS : AUTO_NEXT_MS)
     return () => clearTimeout(t)
-  }, [celebrating?.exId, prBusy]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [celebrating?.exId, prBusy, stay]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep the live block in view as sets go by — clear of the dock, its
   // fade, and whatever the dock currently is (the 56pt button, the taller
@@ -409,7 +428,7 @@ export default function WorkoutPlayer({
   useEffect(() => {
     if (!ex || !raiseOn || base == null || raisedW == null) return
     if (ex.sets.some(s => s.done)) return
-    const key = `${sessionId}:${ex.id}`
+    const key = `${sessionId}:${raiseKey(ex)}`
     if (raiseSeen(key)) return
     markRaiseSeen(key)
     ex.sets.forEach((s, i) => {
@@ -419,9 +438,9 @@ export default function WorkoutPlayer({
         onUpdateSet(ex.id, i, 'weight', kg(raisedW))
       }
     })
-  }, [ex?.id, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ex?.id, ex?.name, raiseOn, base]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const touchRaise = (exId) => setTouched(t => (t.has(exId) ? t : new Set(t).add(exId)))
+  const touchRaise = (k) => setTouched(t => (t.has(k) ? t : new Set(t).add(k)))
   useEffect(() => { writeMotion(sessionId, { touched: [...touched] }) }, [touched]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const keepBase = () => {
@@ -441,33 +460,34 @@ export default function WorkoutPlayer({
   const liveSet = ex && liveIndex >= 0 ? ex.sets[liveIndex] : null
   const liveRaised = raiseOn && base != null && liveSet && parseFloat(liveSet.weight) > base
   const started = !!ex && ex.sets.some(s => s.done)
+  const rk = ex ? raiseKey(ex) : null
   if (ex && liveRaised && editing == null) {
-    const showing = `${ex.id}|${handoff.current.token}`
-    const cur = intro.current.get(ex.id)
+    const showing = `${rk}|${handoff.current.token}`
+    const cur = intro.current.get(rk)
     if (!cur || cur.showing !== showing) {
       const kind = started ? null
-        : !introPlayed.current.has(ex.id) ? 'full'
-        : touched.has(ex.id) ? null : 'sheen'
+        : !introPlayed.current.has(rk) ? 'full'
+        : touched.has(rk) ? null : 'sheen'
       const arriving = performance.now() - handoff.current.at < 600
-      intro.current.set(ex.id, { kind, at: performance.now() + (kind === 'full' && arriving ? 450 : 0), showing, ran: false })
+      intro.current.set(rk, { kind, at: performance.now() + (kind === 'full' && arriving ? 450 : 0), showing, ran: false })
     }
   }
-  const introNow = ex ? intro.current.get(ex.id) : null
+  const introNow = ex ? intro.current.get(rk) : null
   // Over once a set is done, or once it has had its time.
   if (introNow?.kind && (started || performance.now() > introNow.at + INTRO_LIFE_MS[introNow.kind])) introNow.kind = null
   // The first live block to ask plays it; any later one (or a re-run) is told no.
-  const claimIntro = (exId) => () => {
-    const e = intro.current.get(exId)
+  const claimIntro = (k) => () => {
+    const e = intro.current.get(k)
     if (!e || !e.kind || e.ran) return false
     e.ran = true
-    if (e.kind === 'full' && !introPlayed.current.has(exId)) {
-      introPlayed.current.add(exId)
+    if (e.kind === 'full' && !introPlayed.current.has(k)) {
+      introPlayed.current.add(k)
       writeMotion(sessionId, { intro: [...introPlayed.current] })
     }
     return true
   }
   // The ring breathes until the weight is touched — or a set is done on it.
-  const breathing = !!ex && !started && !touched.has(ex.id)
+  const breathing = !!ex && !started && !touched.has(rk)
 
   // A set heavier than anything on record: the heaviest such done set.
   const prIndex = useMemo(
@@ -525,9 +545,11 @@ export default function WorkoutPlayer({
     animate(copy.querySelector('.s-ghost-label'), [{ opacity: 1 }, { opacity: 0 }], { d: 120, fill: 'forwards' })
     animate(copy.querySelector('.s-ghost-ok path'), [{ strokeDashoffset: 30 }, { strokeDashoffset: 0 }], { d: 180, delay: 40 })
     animate(copy, [{ opacity: 1 }, { opacity: 0 }], { d: 180, delay: 200, e: EASE.exit, fill: 'forwards' })
-    // The next set's block rises into place — at once: the block it
-    // replaces is already gone, so a later start would leave a hole.
-    animate(scrollRef.current?.querySelector('[data-testid="live-block"]'), rise(10), { d: 240, delay: 30 })
+    // The next set's block rises into place — at once, and from half-seen:
+    // the block it replaces is already gone, so a start from nothing (or a
+    // later one) would leave a hole where the set should be.
+    animate(scrollRef.current?.querySelector('[data-testid="live-block"]'),
+      [{ opacity: 0.5, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { d: 240 })
     if (!panel) return
     // The button's footprint grows up into the panel.
     const cut = Math.max(0, panel.offsetHeight - copy.offsetHeight)
@@ -550,14 +572,20 @@ export default function WorkoutPlayer({
 
   if (!ex) return null
 
-  // Closing the rest (a tap on «جاهز» or «تخطي») starts the guard.
-  const closeRest = () => {
-    restClosedAt.current = performance.now()
-    onCloseRest?.()
+  // Whenever what is under the thumb changes in the dock, it stays quiet
+  // for a moment, so the second tap of a double tap lands on nothing:
+  // closing the rest (a tap on «جاهز» or «تخطي»), «حفظ التعديل» giving
+  // way, and the button turning into the rest. One guard for everything
+  // in the dock, taken before any of its buttons sees the tap.
+  const quietDock = (ms) => { dockQuietUntil.current = Math.max(dockQuietUntil.current, performance.now() + ms) }
+  const swallowIfQuiet = (e) => {
+    if (performance.now() >= dockQuietUntil.current) return
+    e.stopPropagation()
+    e.preventDefault()
   }
-  const guarded = (fn) => () => {
-    if (performance.now() - restClosedAt.current < REST_CLOSE_GUARD_MS) return
-    fn()
+  const closeRest = () => {
+    quietDock(REST_CLOSE_GUARD_MS)
+    onCloseRest?.()
   }
 
   const name = arabicName(ex.name, mapping) || ex.name
@@ -587,9 +615,10 @@ export default function WorkoutPlayer({
     } else {
       haptic('set')
     }
-    touchRaise(ex.id)
+    touchRaise(raiseKey(ex))
     setPeek(null)
     setFresh({ exId: ex.id, si })
+    quietDock(MORPH_MS)
     morph.current.token += 1
     setGhost(morph.current.token)
     onDoneSet(ex.id, si, true)
@@ -630,9 +659,9 @@ export default function WorkoutPlayer({
       raise={raiseOn && base != null && editing == null ? {
         base, raised: raisedW,
         intro: introNow?.kind || null, introAt: introNow?.at || 0,
-        claimIntro: claimIntro(ex.id),
+        claimIntro: claimIntro(rk),
         breathe: breathing,
-        onTouch: () => touchRaise(ex.id),
+        onTouch: () => touchRaise(rk),
       } : null}
       deloadPct={deloadPct}
       onUpdateSet={(si, f, v) => onUpdateSet(ex.id, si, f, v)}
@@ -644,15 +673,16 @@ export default function WorkoutPlayer({
   // ── The dock: one green action, or the rest in its place ──
   let dock = null
   if (editing != null) {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => setEditingSet(null)}>حفظ التعديل</Button>
+    // «تمّت المجموعة» (or the rest) takes its place under the thumb.
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => { quietDock(REST_CLOSE_GUARD_MS); setEditingSet(null) }}>حفظ التعديل</Button>
   } else if (isResting) {
     dock = null   // InlineRest below
   } else if (currentSetIndex >= 0) {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(complete)} data-testid="complete-set">تمّت المجموعة</Button>
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={complete} data-testid="complete-set">تمّت المجموعة</Button>
   } else if (nextIdx !== -1) {
-    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={guarded(() => jump(nextIdx))}>التمرين التالي</Button>
+    dock = <Button variant="primary" size="lg" full icon={CaretLeft} onClick={() => jump(nextIdx)}>التمرين التالي</Button>
   } else {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={guarded(onRequestFinish)}>إنهاء الجلسة</Button>
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => onRequestFinish()}>إنهاء الجلسة</Button>
   }
   const phrase = summary ? setsPhrase(summary.sets) : null
   const celebratingHere = celebrating?.exId === ex.id
@@ -699,6 +729,7 @@ export default function WorkoutPlayer({
           moveTargets={exercises.filter(o => o.id !== ex.id).map(o => ({ id: o.id, name: o.name }))}
           onAddExercise={onAddExercise}
           onDiscard={onDiscard}
+          onSheet={holdAuto}
           onSwipe={swipeTo}
           onDrag={drag}
         />
@@ -713,7 +744,7 @@ export default function WorkoutPlayer({
             freshIndex={fresh && fresh.exId === ex.id ? fresh.si : null}
             prIndex={prIndex}
             holdIndex={pr && pr.exId === ex.id ? pr.si : null}
-            onEdit={(si) => { setFresh(null); setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si })) }}
+            onEdit={(si) => { setFresh(null); holdAuto(); setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si })) }}
             live={live}
           />
         ) : (
@@ -762,7 +793,7 @@ export default function WorkoutPlayer({
         />
       </div>
 
-      <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'}>
+      <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'} onClickCapture={swallowIfQuiet}>
         {isResting && (
           <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} morph={!!ghost} />
         )}

@@ -58,11 +58,14 @@ export default function TabBar({ items, current, onSelect }) {
   // changes (and the view transition's new snapshot carries its slide).
   useLayoutEffect(() => { place(last.current.id !== undefined) }, [current]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A width change (rotation, a wider window) puts it back without motion.
+  // A width change (rotation, a wider window) puts it back without motion
+  // — under the tab current now, not the one of the first render.
+  const placeNow = useRef(place)
+  placeNow.current = place
   useLayoutEffect(() => {
     const nav = navRef.current
     if (!nav || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => place(false))
+    const ro = new ResizeObserver(() => placeNow.current(false))
     ro.observe(nav)
     return () => ro.disconnect()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

@@ -282,19 +282,23 @@ img[data-wait], video[data-wait] {
 /* Phase 5 · a tab switch (App.jsx goTab, as a view transition): the old
    page leaves 14px towards where it came from and fades — quickly, so
    the two pages barely overlap (150ms, ease-out); the new one comes in
-   from the tapped tab's side (220ms, 70ms later). The bar
-   and the live bar are their own layers, shown live and not animated, so
-   they hold still and the capsule's slide shows through. «fwd» is a tab
-   further along — to the left, in Arabic. */
+   from the tapped tab's side (220ms, 70ms later). The bar, the live bar
+   and the floating rest card over them are their own layers, shown live
+   and not animated, so they hold still and the capsule's slide shows
+   through. «fwd» is a tab further along — to the left, in Arabic. */
 html[data-tabnav] .f-tabs { view-transition-name: f-tabs; }
 html[data-tabnav] .f-livebar { view-transition-name: f-livebar; }
+html[data-tabnav] .rt-bar { view-transition-name: rt-bar; }
 html[data-tabnav]::view-transition { pointer-events: none; }
 html[data-tabnav]::view-transition-old(f-tabs),
-html[data-tabnav]::view-transition-old(f-livebar) { display: none; }
+html[data-tabnav]::view-transition-old(f-livebar),
+html[data-tabnav]::view-transition-old(rt-bar) { display: none; }
 html[data-tabnav]::view-transition-group(f-tabs),
 html[data-tabnav]::view-transition-group(f-livebar),
+html[data-tabnav]::view-transition-group(rt-bar),
 html[data-tabnav]::view-transition-new(f-tabs),
-html[data-tabnav]::view-transition-new(f-livebar) { animation: none; }
+html[data-tabnav]::view-transition-new(f-livebar),
+html[data-tabnav]::view-transition-new(rt-bar) { animation: none; }
 html[data-tabnav]::view-transition-image-pair(root) { isolation: auto; }
 html[data-tabnav]::view-transition-old(root),
 html[data-tabnav]::view-transition-new(root) { mix-blend-mode: normal; }

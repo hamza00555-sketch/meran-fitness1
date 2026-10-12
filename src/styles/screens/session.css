@@ -533,9 +533,13 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 .s-rest[data-arrive="morph"] { animation: none; }
 .s-dock-ghost {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; pointer-events: none;
-  display: grid; place-items: center;
 }
+/* stacked, so the check takes the words' place (over .k-btn's inline-flex,
+   which comes later in the bundle) */
+.k-btn.s-dock-ghost { display: grid; place-items: center; }
 .s-dock-ghost > * { grid-area: 1 / 1; }
+/* reduced motion: the copy simply fades with its words; no check drawing */
+@media (prefers-reduced-motion: reduce) { .s-dock-ghost .s-ghost-ok { display: none; } }
 .s-ghost-label { display: inline-flex; align-items: center; gap: 8px; }
 .s-ghost-ok path { stroke-dasharray: 30; stroke-dashoffset: 0; }
 

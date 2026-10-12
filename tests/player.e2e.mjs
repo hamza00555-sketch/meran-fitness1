@@ -155,7 +155,7 @@ function glInstruments(noGL) {
 
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
   sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false,
-  unlocked = null, noGL = false } = {}) {
+  unlocked = null, noGL = false, xp = null } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -172,7 +172,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   // Seeded history unlocks achievements on the first paint, each one
   // adds XP, and the level-up screen would cover the session — so a
   // context with history starts with them already unlocked.
-  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping]) => {
+  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping, xp]) => {
     if (sessions || unlocked.length < 40) localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
@@ -183,7 +183,8 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
     if (sessions) localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     if (lastWeights) localStorage.setItem('hf_last_weights', JSON.stringify(lastWeights))
     if (mapping) localStorage.setItem('hf_exercise_mapping', JSON.stringify(mapping))
-  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping])
+    if (xp != null) localStorage.setItem('hf_xp', JSON.stringify(xp))
+  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping, xp])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   // A stored session opens the full-screen cover by itself.
@@ -962,6 +963,61 @@ async function dragHead(page, dx = 40) {
   await ctx.close()
 }
 
+// ══ 4a. The move on by itself waits for him ════════════════════
+// Opening ⋯ (or the info) or tapping a done row to correct it, in the
+// second and a half after an exercise's last set, calls the move off:
+// the sheet's actions and the numbers he types land on the exercise he
+// finished, never on the next one that would have slid in under them.
+{
+  const TWO = () => ({
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [
+      { id: 'p', muscle: 'Legs', name: 'Leg Press', sets: [{ weight: '40', reps: '12', done: false }] },
+      { id: 'c', muscle: 'Legs', name: 'Leg Curl',
+        sets: [{ weight: '30', reps: '12', done: false }, { weight: '30', reps: '12', done: false }] },
+    ],
+  })
+  {
+    const { ctx, page, errors } = await open({ active: TWO() })
+    const n0 = await page.getByTestId('exercise-name').textContent()
+    await completeBtn(page).click()
+    await page.waitForTimeout(500)
+    await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+    await page.waitForTimeout(1600)
+    const title = await page.locator('.k-sheet-h h2').textContent().catch(() => null)
+    ok('wait: with ⋯ open the next exercise does not slide in under it',
+      (await page.getByTestId('exercise-name').textContent()) === n0 && title === n0, `${n0} / sheet ${title}`)
+    await page.getByText('إضافة مجموعة').click()
+    await page.waitForTimeout(2000)
+    const st = await activeStored(page)
+    ok('wait: «إضافة مجموعة» adds to the exercise he finished, and the screen stays on it',
+      st.exercises[0].sets.length === 2 && st.exercises[1].sets.length === 2
+      && (await page.getByTestId('exercise-name').textContent()) === n0,
+      `${st.exercises.map(e => e.sets.length)}`)
+    ok('wait/⋯: no page errors', errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+  {
+    const { ctx, page, errors } = await open({ active: TWO() })
+    const n0 = await page.getByTestId('exercise-name').textContent()
+    await completeBtn(page).click()
+    await page.waitForTimeout(600)
+    await page.locator('.s-trow[data-state="done"]').first().click()
+    await page.waitForTimeout(1500)
+    ok('wait: correcting a done set keeps the screen on it, still editing',
+      (await page.getByTestId('exercise-name').textContent()) === n0
+      && await page.getByRole('button', { name: 'حفظ التعديل' }).count() === 1)
+    await page.getByTestId('reps-input').fill('10')
+    await page.waitForTimeout(300)
+    const st = await activeStored(page)
+    ok('wait: the corrected reps land on the set being corrected',
+      st.exercises[0].sets[0].reps === '10' && st.exercises[1].sets.every(s => s.reps === '12'),
+      JSON.stringify(st.exercises.map(e => e.sets.map(s => `${s.weight}x${s.reps}${s.done ? '✓' : ''}`))))
+    ok('wait/edit: no page errors', errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+}
+
 // ══ 4b. A double tap on «جاهز» does not log the next set ═══════
 {
   const THREE = {
@@ -992,6 +1048,84 @@ async function dragHead(page, dx = 40) {
   ok('guard: a moment later the button logs as usual',
     (await activeStored(page)).exercises[0].sets.filter(s => s.done).length === 2)
   ok('guard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 4b″. A double tap on «حفظ التعديل» logs nothing else ═════════
+// «تمّت المجموعة» comes back in the very spot «حفظ التعديل» leaves.
+{
+  const { ctx, page, errors } = await open()
+  await completeBtn(page).click()
+  await page.waitForTimeout(600)
+  await endRest(page)
+  await page.getByTestId('rest-ready').click({ timeout: 5000 })
+  await page.waitForTimeout(700)
+  const bad = []
+  for (const gap of [80, 250]) {
+    await page.locator('.s-trow[data-state="done"]').first().click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'زد العدّات' }).click()
+    await page.waitForTimeout(300)
+    const at = await centre(page.getByRole('button', { name: 'حفظ التعديل' }))
+    await finger(page, ctx, at, { holdMs: 30 })
+    await page.waitForTimeout(gap)
+    await finger(page, ctx, at, { holdMs: 30 })
+    await page.waitForTimeout(700)
+    const sets = (await activeStored(page)).exercises[0].sets
+    const rest = await page.getByTestId('rest-bar').count()
+    if (sets.filter(s => s.done).length !== 1 || rest) { bad.push(`${gap}ms: ${JSON.stringify(sets.map(s => `${s.reps}${s.done ? '✓' : ''}`))} rest ${rest}`); break }
+  }
+  const reps = (await activeStored(page)).exercises[0].sets[0].reps
+  ok('save guard: a double tap on «حفظ التعديل» saves and logs no set it never did', bad.length === 0, bad.join('; '))
+  ok('save guard: both edits landed on the set being corrected', bad.length || reps === '14', String(reps))
+  await page.waitForTimeout(300)
+  await completeBtn(page).click({ timeout: 3000 }).catch(() => {})
+  await page.waitForTimeout(300)
+  ok('save guard: a moment later the button logs as usual', (await activeStored(page)).exercises[0].sets.filter(s => s.done).length === 2)
+  ok('save guard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 4b′. A double tap on «تمّت المجموعة» leaves the rest alone ════
+// For the moment the button turns into the rest, only its copy shows (it
+// takes no taps) while the rest's «تخطي» and ±15 are already under it.
+// A thumb bouncing on the button — at its start, middle or end, 60 or
+// 150ms later — must not skip the rest or move its end.
+{
+  const SIX = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
+    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press',
+      sets: Array.from({ length: 7 }, () => ({ weight: '40', reps: '12', done: false })) }],
+  }
+  const { ctx, page, errors } = await open({ active: SIX, viewport: { width: 390, height: 664 } })
+  const b = await completeBtn(page).boundingBox()
+  const bad = []
+  for (const fx of [0.1, 0.5, 0.9]) {
+    for (const gap of [60, 150]) {
+      const x = b.x + b.width * fx, y = b.y + b.height / 2
+      await finger(page, ctx, { x, y }, { holdMs: 30 })
+      const t0 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt ?? null)
+      await page.waitForTimeout(gap)
+      await finger(page, ctx, { x, y }, { holdMs: 30 })
+      await page.waitForTimeout(600)
+      const t1 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt ?? null)
+      const panel = await page.getByTestId('rest-bar').count()
+      if (t0 == null || t1 !== t0 || panel !== 1) bad.push(`${fx}@${gap}ms: ${t0} → ${t1}, panel ${panel}`)
+      // Next round: skip the rest (after the morph), then wait out the guard.
+      await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 1500 }).catch(() => {})
+      await page.waitForTimeout(500)
+    }
+  }
+  ok('morph guard: a second tap through the turning button neither skips the rest nor moves its end', bad.length === 0, bad.join('; '))
+  const done = (await activeStored(page)).exercises[0].sets.filter(s => s.done).length
+  ok('morph guard: each double tap logged one set', done === 6, String(done))
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  const e0 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
+  await page.getByRole('button', { name: 'زد 15 ثانية' }).click()
+  const e1 = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
+  ok('morph guard: once the rest is up, +15 works as usual', e1 - e0 === 15000, String(e1 - e0))
+  ok('morph guard: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -1565,6 +1699,41 @@ const RAISE_SESSIONS = [
   }
 }
 
+// ══ 6b. A swapped-in machine due a raise gets its own ═══════════
+// Both the hammer press (75) and its alternative, the chest press (60),
+// are due a raise. Swapped from ⋯ before the first set, the chest press
+// is offered 62.5 on the number, with its ring — as when the session
+// starts on it — not just in the coach line.
+{
+  const day = (n, name, w) => ({
+    id: n, date: new Date(2026, 8, n, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'x' + n, muscle: 'Chest', name, sets: [[w, 15], [w, 15], [w, 14]].map(([w, r]) => ({ weight: String(w), reps: String(r), done: true })) }],
+  })
+  const H = 'Hammer Strength Machine Bench Press', C = 'Chest Press Machine'
+  const SESS = [day(1, H, 75), day(2, C, 60), day(3, H, 75), day(4, C, 60), day(5, H, 75), day(6, C, 60)]
+  const ACT = {
+    id: Date.now() - 60000, date: new Date().toISOString(), name: 'Push',
+    exercises: [{ id: 'a', muscle: 'Chest', name: H, sets: [{ weight: '75', reps: '12', done: false }, { weight: '75', reps: '12', done: false }] }],
+  }
+  const { ctx, page, errors } = await open({ sessions: SESS, active: ACT })
+  await page.waitForTimeout(2600)
+  const v0 = await inputs(page)
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /استبدال التمرين/ }).click()
+  await page.waitForTimeout(2600)
+  const v1 = await inputs(page)
+  const ring = await page.locator('.s-field[data-raise="1"]').count()
+  const st = await activeStored(page)
+  ok('swap raise: the hammer press opens raised to 77.5', v0[0] === '77.5', JSON.stringify(v0))
+  ok('swap raise: the chest press swapped in is raised to 62.5 on the number, ring and all',
+    st.exercises[0].name === C && v1[0] === '62.5' && ring === 1 && st.exercises[0].sets.every(s => s.weight === '62.5'),
+    `${JSON.stringify(v1)} ring=${ring} ${JSON.stringify(st.exercises[0].sets)}`)
+  ok('swap raise: «خلّها 60» is there for it', await page.getByRole('button', { name: /خلّها\s*60/ }).count() === 1)
+  ok('swap raise: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 7. Finishing asks; throwing away lives in ⋯ ═══════════════
 {
   const { ctx, page, errors } = await open()
@@ -1632,6 +1801,63 @@ const RAISE_SESSIONS = [
   await ctx.close()
 }
 
+// ══ 7b. A level crossed in a thrown-away session is forgotten ══
+// 4125 XP is level 3 (4 starts at 4200). Eight sets take it to 4205 and
+// hold «مستوى جديد · 4» for the summary; throwing the session away gives
+// the XP back — and the level with it. A short session after that (60 XP,
+// 4185) is still level 3: its summary claims no new level, and «تم» goes
+// home without the level-up screen.
+{
+  const EIGHT = {
+    id: Date.now() - 5 * 60000, date: new Date().toISOString(), name: 'Legs',
+    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press', sets: Array.from({ length: 8 }, () => ({ weight: '40', reps: '12', done: false })) }],
+  }
+  // (sessions: [] seeds every achievement as earned, so none adds XP here)
+  const { ctx, page, errors } = await open({ active: EIGHT, xp: 4125, sessions: [] })
+  const xpNow = () => page.evaluate(() => JSON.parse(localStorage.getItem('hf_xp')))
+  for (let i = 0; i < 8; i++) {
+    await completeBtn(page).click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 2000 }).catch(() => {})
+    await page.waitForTimeout(450)
+  }
+  const x1 = await xpNow()
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /إلغاء التمرين/ }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: 'احذف الجلسة' }).click()
+  await page.waitForTimeout(900)
+  const x2 = await xpNow()
+  ok('level: the thrown-away session took its XP back', x1 === 4205 && x2 === 4125, `${x1} → ${x2}`)
+  // A new, short session from Home, without a reload.
+  await page.getByRole('button', { name: 'ابدأ التمرين' }).first().click()
+  await page.waitForTimeout(900)
+  await page.getByRole('button', { name: 'أضف أول تمرين' }).click()
+  await page.waitForTimeout(700)
+  await page.getByText('Cable Fly', { exact: true }).click()
+  await page.waitForTimeout(300)
+  await page.locator('.k-sheet button').filter({ hasText: /أضف/ }).last().click()
+  await page.waitForTimeout(900)
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 2000 }).catch(() => {})
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: /^إنهاء$/ }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: 'احفظ وأنهِ' }).click()
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(3500)
+  const x3 = await xpNow()
+  const sum = await page.getByTestId('session-summary').innerText().catch(() => '')
+  ok('level: the next summary claims no level it hasn\'t reached', x3 < 4200 && !/مستوى جديد/.test(sum), `${x3}: ${sum.replace(/\s+/g, ' ').slice(0, 200)}`)
+  await page.getByRole('button', { name: /^تم$/ }).click({ timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(1500)
+  ok('level: «تم» goes home, no level-up screen', await page.getByTestId('level-up').count() === 0)
+  ok('level: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 8. Chrome: ⌄, the live bar, the screen stays awake ════════
 {
   const { ctx, page, errors } = await open()
@@ -1646,6 +1872,35 @@ const RAISE_SESSIONS = [
   await page.waitForTimeout(300)
   ok('clock: reopening shows the true elapsed time, no jump', (await clockDrift(page)) <= 2, String(await clockSecs(page)))
   ok('chrome: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 8b. The rest card holds still through a tab switch ═════════
+// The session docked with a rest running: the floating rest card is its
+// own layer in the tab switch, like the tab bar and the live bar, so it
+// isn't captured with the old page and faded out with it.
+{
+  const { ctx, page, errors } = await open()
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  await page.getByRole('button', { name: 'صغّر الجلسة' }).filter({ visible: true }).click()
+  await page.waitForTimeout(700)
+  await page.evaluate(() => {
+    window.__vtNames = null
+    new MutationObserver(() => {
+      if (window.__vtNames || !document.documentElement.dataset.tabnav) return
+      const name = (sel) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).viewTransitionName : null }
+      window.__vtNames = { card: name('.rt-bar'), live: name('.f-livebar'), tabs: name('.f-tabs') }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-tabnav'] })
+  })
+  ok('rest card: on screen with the session docked', await page.locator('.rt-bar').count() === 1)
+  await page.locator('nav.f-tabs > button').nth(2).click()
+  await page.waitForTimeout(700)
+  const names = await page.evaluate(() => window.__vtNames)
+  ok('rest card: a layer of its own in the tab switch, beside the live bar and the tab bar',
+    names?.card === 'rt-bar' && names.live === 'f-livebar' && names.tabs === 'f-tabs', JSON.stringify(names))
+  ok('rest card: still there after the switch', await page.locator('.rt-bar').count() === 1)
+  ok('rest card: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -1838,6 +2093,13 @@ const clipTop = (clip) => {
       ghost: !!ghost, ghostOp: ghost ? +getComputedStyle(ghost).opacity : null,
       rest: !!rest, clip: rest ? getComputedStyle(rest).clipPath : null, restOp: rest ? +getComputedStyle(rest).opacity : null,
       cssAnim: rest ? getComputedStyle(rest).animationName : null,
+      liveOp: (() => { const l = document.querySelector('[data-testid="live-block"]'); return l ? +getComputedStyle(l).opacity : null })(),
+      // where the copy's words and check sit, against the copy's own centre
+      stack: ghost ? (() => {
+        const g = ghost.getBoundingClientRect(), mid = g.left + g.width / 2
+        const c = (el) => { const r = el.getBoundingClientRect(); return Math.round(r.left + r.width / 2 - mid) }
+        return { display: getComputedStyle(ghost).display, label: c(ghost.querySelector('.s-ghost-label')), ok: c(ghost.querySelector('.s-ghost-ok')) }
+      })() : null,
     }
   })
   await page.waitForTimeout(50)
@@ -1863,12 +2125,16 @@ const clipTop = (clip) => {
     after.filter(f => f.t - first.t > 300).every(f => f.restOp === 1) && after.every(f => f.cssAnim === 'none'),
     JSON.stringify(after.filter(f => f.restOp !== 1 || f.cssAnim !== 'none').slice(0, 3)))
   ok('morph: never a frame without the button, its copy or the rest', mf.every(f => f.btn || f.ghost || f.rest))
+  ok('morph: the copy\'s words and its check are stacked in its centre — the check replaces the words',
+    first.stack?.display === 'grid' && Math.abs(first.stack.label) <= 3 && Math.abs(first.stack.ok) <= 3, JSON.stringify(first.stack))
+  ok('morph: the next set\'s block is never a hole — it rises from half-seen, at once',
+    after.length > 5 && after.every(f => f.liveOp != null && f.liveOp >= 0.45), JSON.stringify(after.slice(0, 6).map(f => [f.t, f.liveOp])))
   const endsAt = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
   ok('morph: the rest\'s clock starts at the tap, not after the motion', Math.abs(endsAt - tapAt - 90000) < 400, String(endsAt - tapAt))
   const parts = await page.evaluate(() => ({
     tint: getComputedStyle(document.querySelector('.s-trow[data-state="done"]')).animationName,
     fresh: document.querySelector('.s-trow[data-state="done"]')?.dataset.fresh,
-    live: window.__anims.filter(a => a.testid === 'live-block' && /translateY\(10px\)/.test(a.kf)).length,
+    live: window.__anims.filter(a => a.testid === 'live-block' && /translateY\(10px\)/.test(a.kf) && !a.delay).length,
     order: ['s-rest-label', 's-rest-time', 's-rest-nudges', 's-rest-bar']
       .map(c => window.__anims.find(a => a.cls.split(' ').includes(c))?.delay ?? null),
     check: window.__anims.some(a => /strokeDashoffset/.test(a.kf) && a.rest),
@@ -1890,6 +2156,11 @@ const clipTop = (clip) => {
   const { ctx, page, errors } = await open({ reduced: true })
   await page.evaluate(() => { window.__anims = [] })
   await completeBtn(page).click()
+  const copy = await page.evaluate(() => {
+    const g = document.querySelector('[data-testid="dock-ghost"]')
+    return g ? [...g.children].filter(el => getComputedStyle(el).display !== 'none').length : null
+  })
+  ok('morph/reduced: the fading copy shows its words alone, not «✓ تمّت المجموعة ✓»', copy === 1, String(copy))
   await page.waitForTimeout(700)
   const r = await page.evaluate(() => ({
     clip: window.__anims.filter(a => /clipPath/.test(a.kf)).length,
@@ -2085,6 +2356,48 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
   await ctx.close()
 }
 
+// ══ 14a. A form with changes isn't flicked away ════════════════
+// «تعديل الجلسة» in History: once a weight is changed, the flick down on
+// its list (the way back to the top) scrolls, it never closes the sheet
+// and throws the change away. Unchanged, the same flick closes it.
+{
+  const HIST = [{ id: 1001, date: new Date(2026, 9, 9, 18).toISOString(), duration: 50,
+    exercises: ['Pec Deck', 'Cable Fly', 'Machine Shoulder Press', 'Lateral Raise', 'Triceps Pushdown', 'Leg Press'].map((name, i) => ({
+      id: 'e' + i, muscle: 'Chest', name, sets: [1, 2, 3, 4].map(() => ({ weight: '50', reps: '12', done: true })) })) }]
+  const { ctx, page, errors } = await open({ active: null, sessions: HIST })
+  const openEdit = async () => {
+    await page.getByRole('button', { name: /خيارات جلسة/ }).first().click()
+    await page.waitForTimeout(600)
+    await page.getByText('تعديل الجلسة').first().click()
+    await page.waitForTimeout(800)
+  }
+  const flickDown = async () => {
+    await page.evaluate(() => { document.querySelector('.k-sheet-body').scrollTop = 0 })
+    await page.waitForTimeout(200)
+    const body = await page.locator('.k-sheet-body').boundingBox()
+    await finger(page, ctx, { x: body.x + 40, y: body.y + 120 }, { dy: 260, steps: 8 })
+    await page.waitForTimeout(800)
+  }
+  await page.locator('nav.f-tabs > button').nth(1).click()
+  await page.waitForTimeout(700)
+  await openEdit()
+  await flickDown()
+  ok('edit sheet: unchanged, a flick down on the list closes it as any sheet', await page.locator('.k-sheet').count() === 0)
+  await openEdit()
+  await page.getByRole('textbox', { name: 'وزن المجموعة 1' }).first().fill('52.5')
+  await page.waitForTimeout(200)
+  await flickDown()
+  ok('edit sheet: with a change, the same flick keeps it open and the change in it',
+    await page.locator('.k-sheet').count() === 1
+    && await page.getByRole('textbox', { name: 'وزن المجموعة 1' }).first().inputValue() === '52.5')
+  await page.locator('.k-sheet').getByRole('button', { name: 'حفظ التعديلات' }).click({ timeout: 2000 }).catch(() => {})
+  await page.waitForTimeout(600)
+  const w = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_sessions'))[0].exercises[0].sets[0].weight)
+  ok('edit sheet: and «حفظ التعديلات» saves it', w === '52.5', String(w))
+  ok('edit sheet: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 14b. The tab bar: one capsule that slides; pages that slide ═══
 {
   const HIST = Array.from({ length: 6 }, (_, i) => ({ id: 100 + i, date: new Date(2026, 7, 1 + i, 18).toISOString(), duration: 50,
@@ -2114,6 +2427,16 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
       main: getComputedStyle(document.querySelector('main')).transform, mainStyle: document.querySelector('main').getAttribute('style'),
     }))
     ok(`${label}: the capsule lands under the tapped tab`, c1.dx === 0 && c1.dy === 0 && c1.op === 1, JSON.stringify(c1))
+    // A rotation and back (a width change) leaves it under the same tab.
+    const vp = page.viewportSize()
+    await page.setViewportSize({ width: vp.height, height: vp.width })
+    await page.waitForTimeout(400)
+    const cWide = await capsule()
+    await page.setViewportSize(vp)
+    await page.waitForTimeout(400)
+    const cBack = await capsule()
+    ok(`${label}: after a rotation and back, the capsule is still under the current tab`,
+      [cWide, cBack].every(c => c.dx === 0 && c.dy === 0 && c.w === 0 && c.op === 1), JSON.stringify({ cWide, cBack }))
     if (!reduced) {
       ok('tabs: the capsule slides there and the icon swells once', r.slide === 1 && r.swell === 1, JSON.stringify(r))
       ok('tabs: the page changes as a view transition, entering from the tab\'s side', r.vt === vt0 + 1 && during === 'fwd', JSON.stringify({ ...r, during }))
@@ -2290,6 +2613,43 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   await ctx.close()
 }
 
+// A short phone (320×568): the medal stage pushes «أعلى وزن», the streak
+// and the level out of view. Their moments wait to be seen instead of
+// playing unseen, the medals don't wait for them, and scrolling down
+// plays each one as it comes into view.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'),
+    device: 'iPhone SE', viewport: { width: 320, height: 568 } })
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  const t = Date.now()
+  await page.waitForFunction(() => /playing|landed/.test(document.querySelector('[data-testid="medal-reveal"]')?.dataset.state || ''),
+    null, { timeout: 4000, polling: 50 }).catch(() => {})
+  const medalsAt = Date.now() - t
+  await page.waitForTimeout(Math.max(0, 2600 - (Date.now() - t)))
+  const lines = () => page.evaluate(() => {
+    const sc = document.querySelector('.sum'), foot = document.querySelector('.sum-foot').getBoundingClientRect()
+    return [...document.querySelectorAll('.sum-sec:not(.sum-ach-sec)')].map(el => {
+      const r = el.getBoundingClientRect()
+      return { go: el.dataset.go || null, seen: r.top >= sc.getBoundingClientRect().top && r.bottom <= foot.top + 1,
+        text: el.innerText.replace(/\s+/g, ' ').slice(0, 60) }
+    })
+  })
+  const before = await lines()
+  ok('summary 320: the lines pushed out of view hold their moments', before.length === 3 && before.every(l => l.seen || !l.go), JSON.stringify(before))
+  ok('summary 320: the hidden streak still shows where it stood, the level its +0',
+    /0 ← 0/.test(before[1].text) && /\+0 XP/.test(before[2].text), JSON.stringify(before.map(l => l.text)))
+  ok('summary 320: the medals start without waiting for lines nobody can see', medalsAt < 1700, `${medalsAt}ms`)
+  await page.evaluate(() => { const sc = document.querySelector('.sum'); sc.scrollTop = sc.scrollHeight })
+  await page.waitForTimeout(1800)
+  const after = await lines()
+  ok('summary 320: scrolled into view, each one plays — the new best, the streak, the level',
+    after.every(l => l.go === '1') && /140/.test(after[0].text) && /0 ← 1/.test(after[1].text) && !/\+0 XP/.test(after[2].text),
+    JSON.stringify(after))
+  ok('summary 320: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // No medal earned: the module is never fetched.
 {
   const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY })
@@ -2337,15 +2697,74 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   await ctx.close()
 }
 
+// The medal's picture can't be built (iOS refuses a 2D canvas once its
+// canvas memory is spent): the flat medals take over and land, with their
+// titles and sounds, instead of an empty stage that never finishes.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  await page.evaluate(() => {
+    window.__sounds = []
+    const gc = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+  })
+  await finishNow(page)
+  await waitLanded(page, 12000)
+  const r = await reveal(page)
+  ok('summary, picture fails: the flat medals take over and land', r?.mode === 'flat' && r.flat === 2 && r.state === 'landed', JSON.stringify(r))
+  const sounds = await medalSounds(page)
+  ok('summary, picture fails: with their sounds', sounds.join(',') === 'medal-heavy,medal', sounds.join(','))
+  ok('summary, picture fails: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+// The same, with a tap on the summary before they come (a skip): the
+// flat medals stand there at once.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  await page.evaluate(() => {
+    const gc = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+  })
+  await finishNow(page)
+  await page.waitForTimeout(450)
+  await page.locator('.sum-title').click()
+  await waitLanded(page, 6000)
+  const r = await reveal(page)
+  ok('summary, picture fails, skipped: the flat medals are down', r?.mode === 'flat' && r.state === 'landed', JSON.stringify(r))
+  ok('summary, picture fails, skipped: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // Reduced motion: no spin, a fade; the numbers are there from the start.
 {
   const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), reduced: true })
+  // Every frame from the tap: once «أعلى وزن» or the streak can be seen at
+  // all, it already says the new best and the new streak, the flame lit.
+  await page.evaluate(() => {
+    window.__sumFrames = []
+    const t0 = performance.now()
+    const tick = () => {
+      const secs = [...document.querySelectorAll('.sum-sec:not(.sum-ach-sec)')]
+      if (secs.length >= 2) {
+        const [pr, st] = secs
+        window.__sumFrames.push({ t: Math.round(performance.now() - t0),
+          pr: [+getComputedStyle(pr).opacity, pr.querySelector('.sum-pr-v')?.innerText.replace(/\s+/g, ' ')],
+          st: [+getComputedStyle(st).opacity, st.querySelector('.sum-streak-n')?.innerText.replace(/\s+/g, ' '),
+            !!st.querySelector('.lf-fill')] })
+      }
+      if (performance.now() - t0 < 4000) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
   await finishNow(page)
   await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
   const early = await setsShown(page)
   await waitLanded(page, 12000)
   const r = await reveal(page)
   ok('summary, reduced: the numbers are final from the first frame', early === '3', String(early))
+  const frames = await page.evaluate(() => window.__sumFrames)
+  const wrong = frames.filter(f => (f.pr[0] > 0.01 && !/^140 /.test(f.pr[1] || '')) || (f.st[0] > 0.01 && (!/0 ← 1/.test(f.st[1] || '') || !f.st[2])))
+  ok('summary, reduced: the new best and the streak never show an old number first',
+    frames.length > 10 && wrong.length === 0, JSON.stringify(wrong.slice(0, 2)))
   ok('summary, reduced: the medals fade in, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && r?.state === 'landed', JSON.stringify(r))
   ok('summary, reduced: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()

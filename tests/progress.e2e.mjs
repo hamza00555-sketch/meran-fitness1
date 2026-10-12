@@ -23,6 +23,7 @@ import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index
 import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { FIXTURES } from '../scripts/screens.manifest.mjs'
+import sharp from 'sharp'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-progress-e2e'
@@ -464,7 +465,62 @@ const states = async (page, ms) => {
   const seen = await states(page, 8000)
   const r = await sheetReveal(page)
   ok('ach spin, reduced: a fade, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && seen[seen.length - 1] === 'landed', `${JSON.stringify(r)} ${seen.join(' → ')}`)
+  // Turned by a finger, it faces front again once let go: with nothing
+  // springing back under reduced motion, it must not stay edge-on.
+  if (r?.mode === 'gl') {
+    await page.waitForTimeout(1500)   // the landing's glint has passed
+    const box = await page.locator('.k-sheet [data-testid="medal-reveal"] canvas').boundingBox()
+    const pixels = async () => sharp(await page.screenshot({ clip: box })).raw().toBuffer()
+    const front = await pixels()
+    const x = box.x + box.width / 2, y = box.y + box.height * 0.41
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 60, y, { steps: 6 })
+    await page.mouse.move(x + 120, y, { steps: 6 })
+    await page.mouse.up()
+    await page.waitForTimeout(1500)
+    const after = await pixels()
+    let d = 0
+    for (let i = 0; i < front.length; i++) d += Math.abs(front[i] - after[i])
+    d /= front.length
+    ok('ach spin, reduced: dragged and let go, the medal faces front again', d < 1, `mean pixel change ${d.toFixed(2)}`)
+  }
   ok('ach spin, reduced: no page errors', !errors.length, errors.join('; '))
+  await ctx.close()
+}
+
+// 7c. Opening medal after medal doesn't pile up their pictures: only the
+// last few medals' (a face and a 1024px back plate each, ~5 MB) are kept.
+{
+  const track = () => {
+    const ce = Document.prototype.createElement
+    window.__cv = []
+    Document.prototype.createElement = function (t, ...a) {
+      const el = ce.call(this, t, ...a)
+      if (String(t).toLowerCase() === 'canvas') window.__cv.push(new WeakRef(el))
+      return el
+    }
+  }
+  const { ctx, page, errors } = await open('veteran', { hf_unlocked: ['a1', 'a2', 'c7'], hf_xp: 9100 }, { init: track })
+  await page.waitForTimeout(2500)
+  const b = page.getByRole('button', { name: 'كمّل' })
+  if (await b.count()) { await b.click(); await page.waitForTimeout(300) }
+  await toProgress(page, 'الإنجازات')
+  const tiles = page.locator('.pg-tile.on')
+  const n = Math.min(8, await tiles.count())
+  for (let i = 0; i < n; i++) {
+    await tiles.nth(i).click()
+    await states(page, 8000)
+    await page.getByRole('button', { name: 'إغلاق' }).click()
+    await page.waitForTimeout(400)
+  }
+  const cdp = await ctx.newCDPSession(page)
+  await cdp.send('HeapProfiler.collectGarbage')
+  await page.waitForTimeout(200)
+  await cdp.send('HeapProfiler.collectGarbage')
+  const plates = await page.evaluate(() => window.__cv.map(r => r.deref()).filter(c => c && c.width === 1024).length)
+  ok('ach memory: after opening 8 medals, at most 4 medals\' pictures are kept', n === 8 && plates <= 4, `${n} opened, ${plates} back plates alive`)
+  ok('ach memory: no page errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
 
