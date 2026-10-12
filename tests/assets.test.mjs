@@ -57,6 +57,58 @@ test('a baseUrl without a trailing slash still joins correctly', async () => {
   assert.equal(parseManifest(raw).assets[0].url, 'https://cdn.test/packs/v3/i/flame.webp')
 })
 
+// The self-hosted pack's base is a path, "/pack/": the same build
+// serves production, previews and localhost.
+test('a path base stays a path on its own site, and resolves against the manifest URL', async () => {
+  const raw = await makeManifest(['flame'])
+  raw.baseUrl = '/pack/'
+  // Parsed without a source (a manifest read back from IndexedDB): a
+  // path, which the page resolves against its own origin.
+  assert.equal(parseManifest(raw).assets[0].url, '/pack/i/flame.webp')
+  // Fetched from a deployed site by a dev server elsewhere: that site.
+  assert.equal(
+    parseManifest(raw, { from: 'https://meran.example/pack/manifest.json' }).assets[0].url,
+    'https://meran.example/pack/i/flame.webp')
+  // An absolute base is never re-pointed.
+  raw.baseUrl = 'https://cdn.test/'
+  assert.equal(parseManifest(raw, { from: 'https://meran.example/pack/manifest.json' }).assets[0].url,
+    'https://cdn.test/i/flame.webp')
+})
+
+test('fetchManifest resolves a path base against where the manifest came from', async () => {
+  const { fetchManifest } = await import('../src/assets/manifest.js')
+  const raw = await makeManifest(['flame'])
+  raw.baseUrl = '/pack/'
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async (url) => {
+    const res = new Response(JSON.stringify(raw), { status: 200, headers: { 'content-type': 'application/json' } })
+    Object.defineProperty(res, 'url', { value: String(url) })
+    return res
+  }
+  try {
+    const m = await fetchManifest('https://meran.example/pack/manifest.json')
+    assert.equal(m.assets[0].url, 'https://meran.example/pack/i/flame.webp')
+    assert.equal(m.baseUrl, 'https://meran.example/pack/')
+  } finally { globalThis.fetch = realFetch }
+})
+
+test('both designs read the self-hosted manifest by default', async () => {
+  // In Node there is no Vite env, so this is the code default; the
+  // build sets the same URL for both bundles (scripts/build.mjs) and
+  // reads it back out of them.
+  const { readFile } = await import('node:fs/promises')
+  const src = await readFile(new URL('../src/assets/pack.js', import.meta.url), 'utf8')
+  assert.match(src, /\|\|\s*'\/pack\/manifest\.json'/)
+  const build = await readFile(new URL('../scripts/build.mjs', import.meta.url), 'utf8')
+  assert.match(build, /const SELF_HOSTED = '\/pack\/manifest\.json'/)
+  assert.match(build, /process\.env\.VITE_ASSETS_MANIFEST_URL = MANIFEST_URL/)
+  // …set before either Vite build starts.
+  const set = build.indexOf('process.env.VITE_ASSETS_MANIFEST_URL = MANIFEST_URL')
+  assert.ok(set > 0 && set < build.indexOf("step('new design") && set < build.indexOf("step('old design"))
+  const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.equal(pkg.scripts.build, 'node scripts/build.mjs')
+})
+
 test('a newer schema is refused outright, not half-read', async () => {
   const raw = await makeManifest(['flame'], { schemaVersion: SUPPORTED_SCHEMA + 1 })
   assert.throws(() => parseManifest(raw), /manifest-too-new/)
