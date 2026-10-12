@@ -138,6 +138,20 @@ export const fmtDuration = (minutes) => {
   return r ? `${hoursAr(h)} و${r} دقيقة` : hoursAr(h)
 }
 
+/** Minutes, counted in Arabic: دقيقة، دقيقتين، 3 دقايق، 11 دقيقة. */
+export const minutesAr = (m) =>
+  m === 1 ? 'دقيقة' : m === 2 ? 'دقيقتين' : m >= 3 && m <= 10 ? `${m} دقايق` : `${m} دقيقة`
+
+/** A length of time in words, for a list of figures: «20 ساعة و50 دقيقة»,
+ *  «ساعة و3 دقايق», «45 دقيقة». Never «20:50 ساعة», which reads as a
+ *  clock (ten to nine at night) rather than a duration. */
+export const durationWords = (minutes) => {
+  const m = Math.max(0, Math.round(Number(minutes) || 0))
+  if (m < 60) return minutesAr(m)
+  const h = Math.floor(m / 60), r = m % 60
+  return r ? `${hoursAr(h)} و${minutesAr(r)}` : hoursAr(h)
+}
+
 /** For a big-number tile, number and unit apart: «45» «دقيقة», «1:15» «ساعة». */
 export const durationParts = (minutes) => {
   const m = Math.max(0, Math.round(Number(minutes) || 0))

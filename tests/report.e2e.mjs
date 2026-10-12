@@ -422,6 +422,9 @@ async function shoot(page, name) {
   // Only today's XP is stored: a finished month names the level as today's.
   const allRows = await page.evaluate(() => [...document.querySelectorAll('#rp-all .rp-row-t')].map(e => e.textContent.trim()))
   ok('all numbers: a finished month calls the level today\'s', allRows.includes('مستواك اليوم') && !allRows.includes('المستوى'), allRows.join(' | '))
+  // «20:50 ساعة» reads as a clock: time spent is said in words.
+  const allText = await page.evaluate(() => document.querySelector('#rp-all')?.innerText.replace(/\s+/g, ' ') || '')
+  ok('all numbers: time spent is said in words, not as a clock', !/\d+:\d{2}/.test(allText) && /\d+ ساعة و/.test(allText), allText)
 
   ok('report: no page errors', errors.length === 0, errors.join('; '))
 

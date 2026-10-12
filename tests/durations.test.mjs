@@ -3,7 +3,7 @@
 // that sheets share, so two overlapping can't leave the app frozen.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fmtDuration, durationParts, durationShort, hoursAr } from '../src/utils.js'
+import { fmtDuration, durationParts, durationShort, hoursAr, durationWords, minutesAr } from '../src/utils.js'
 
 test('a duration under an hour is minutes; from 60 on it is hours', () => {
   assert.equal(fmtDuration(45), '45 دقيقة')
@@ -25,6 +25,17 @@ test('a tile gets the number and the unit apart', () => {
   assert.deepEqual(durationParts(60), { value: '1:00', unit: 'ساعة' })
   assert.deepEqual(durationParts(75), { value: '1:15', unit: 'ساعة' })
   assert.deepEqual(durationParts(605), { value: '10:05', unit: 'ساعة' })
+})
+
+test('a list of figures says a duration in words, never as a clock', () => {
+  assert.equal(durationWords(1250), '20 ساعة و50 دقيقة')
+  assert.equal(durationWords(63), 'ساعة و3 دقايق')
+  assert.equal(durationWords(122), 'ساعتين ودقيقتين')
+  assert.equal(durationWords(61), 'ساعة ودقيقة')
+  assert.equal(durationWords(45), '45 دقيقة')
+  assert.equal(durationWords(180), '3 ساعات')
+  assert.ok(![1250, 63, 605].some(m => /\d:\d\d/.test(durationWords(m))))
+  assert.deepEqual([1, 2, 3, 10, 11, 50].map(minutesAr), ['دقيقة', 'دقيقتين', '3 دقايق', '10 دقايق', '11 دقيقة', '50 دقيقة'])
 })
 
 test('a meta line gets the compact form', () => {
