@@ -5,6 +5,8 @@ import { Trophy, Medal as MedalIcon, ArrowUp } from '../kit/icons.js'
 import LiveFlame from '../streak/LiveFlame.jsx'
 import RollNumber from '../RollNumber.jsx'
 import MedalReveal from '../progress/MedalReveal.jsx'
+import { summaryDate } from '../progress/medalStage.js'
+import { BEAT, summaryBeats } from './summaryBeats.js'
 import MedalBadge from '../progress/Medal.jsx'
 import { medalQueue, heaviestFeel } from '../progress/medalQueue.js'
 import { achText } from '../progress/achievementMeta.js'
@@ -15,6 +17,7 @@ import { play as playSound, load as loadSound } from '../../sound.js'
 import { haptic } from '../../haptics.js'
 import '../../styles/summary.css'
 import { lockScroll } from '../../scrollLock.js'
+import { mark, resetMarks } from '../../perf.js'
 
 // ── The end of a workout ──────────────────────────────────────
 // Finishing used to fire up to five effects in different places and
@@ -29,29 +32,26 @@ import { lockScroll } from '../../scrollLock.js'
 //   • «أعلى وزن»: the trophy hops and the weight rolls from the old best;
 //   • the streak: the flame lights and the number rolls up;
 //   • the level bar fills from where the session started, the XP counts;
-//   • «إنجازات جديدة» sits right under the numbers, and after the last
-//     line the medals arrive and spin on their metal edge (MedalReveal):
-//     the rarer first, the second when the first has landed; three or
-//     more (rare) — the two rarest spin, the rest sit in a row under
-//     them. Each landing has its sound and buzz, the bell from rare up.
-// «تم» works from the first frame, the medal module loads beside the
-// summary and never holds it up, and a tap anywhere lands everything —
-// a tap on a landed medal spins it again instead.
+//   • «إنجازات جديدة» sits right under the numbers, and the medals come
+//     on their own beat, right after the numbers (~0.7 s in), and spin
+//     on their metal edge (MedalReveal): the rarer first, the second as
+//     the first lands, about a second behind it; three or more (rare) —
+//     the two rarest spin, the rest sit in a row under them. Each landing
+//     has its sound and buzz, the bell from rare up. The lines under them
+//     come on their own beats meanwhile.
+// «تم» works from the first frame, the medal stage is built before the
+// summary opens (medalStage.js) and never holds the beat up — not ready
+// in time, the flat medal plays instead — and a tap anywhere lands
+// everything; a tap on a landed medal spins it again instead.
 //
 // A moment plays where it can be seen. The medal stage is tall, and on a
 // short phone it pushes «أعلى وزن», the streak and the level below the
 // fold or under «تم»: a line that isn't wholly in view (above the foot)
 // when its beat comes holds its old numbers, and plays the moment it is
-// scrolled into view. The medals wait only for the lines that are seen.
+// scrolled into view. The medals wait for none of them.
 // Reduced motion: the numbers are there from the start, the medals fade.
 
-const BEAT = 320
 const easeOut = (t) => 1 - Math.pow(1 - t, 3)
-
-const LOCALE = 'ar-u-ca-gregory-nu-latn'
-const today = () => {
-  try { return new Date().toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) } catch { return '' }
-}
 
 /** True once `at` ms have passed since the summary opened (re-armed if `at` moves first). */
 function useAt(t0, at, skip) {
@@ -102,7 +102,9 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const [skipped, setSkipped] = useState(false)
   const skippedRef = useRef(false)
   skippedRef.current = skipped
-  const t0 = useRef(performance.now()).current
+  const t0Ref = useRef(null)
+  if (t0Ref.current == null) { resetMarks(); mark('sum:open'); t0Ref.current = performance.now() }
+  const t0 = t0Ref.current
   const still = skipped || reducedMotion()
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') onDone() }
@@ -114,14 +116,11 @@ export default function SessionSummary({ summary, xp, onDone }) {
   const s = summary
   const queue = useMemo(() => medalQueue(s?.achievements || []), [s?.achievements])
   const hasMedals = queue.stage.length > 0
+  if (hasMedals) mark('sum:medals')
 
-  // The beats, in order: what is on screen decides the numbering.
-  let beat = 0
-  const B = {}
-  B.eyebrow = beat++; B.title = beat++; B.stats = beat++
-  if (hasMedals) B.medals = beat++
-  if (s?.prs?.length) B.prs = beat++
-  B.streak = beat++; B.xp = beat++; B.foot = beat++
+  // The beats, in order: what is on screen decides the numbering
+  // (summaryBeats.js — the medals right behind the numbers).
+  const B = summaryBeats({ medals: hasMedals, prs: !!s?.prs?.length })
   const at = (k) => B[k] * BEAT
   const b = (k) => ({ '--b': B[k] })
 
@@ -178,11 +177,10 @@ export default function SessionSummary({ summary, xp, onDone }) {
   }, [beatIn.prs, beatIn.streak, beatIn.xp, vis]) // eslint-disable-line react-hooks/exhaustive-deps
   const prGo = still || goAt.prs != null
   const streakGo = still || goAt.streak != null
-  // The medals arrive after the last line in view has come in: all of
-  // them on a tall phone; straight after their own beat when the stage
-  // has pushed every line out of view.
-  const cue = [...SEEN_LINES].reverse().find(k => B[k] != null && vis?.includes(k)) || 'medals'
-  const medalGo = useAt(t0, (hasMedals ? at(cue) : at('xp')) + 240, skipped)
+  // The medals come on their own beat — never after the lines under them.
+  const medalGo = useAt(t0, hasMedals ? at('medals') : at('xp'), skipped)
+  if (medalGo && hasMedals) mark('sum:medal-go')
+  if (beatIn.xp) mark('sum:xp-beat')
 
   // The medal sounds, decoded ahead of the landing.
   useEffect(() => { if (hasMedals) { loadSound('medal'); loadSound('medal-heavy') } }, [hasMedals])
@@ -253,7 +251,7 @@ export default function SessionSummary({ summary, xp, onDone }) {
   }
   const tons = s.volume / 1000
   const streakUp = s.streakBefore !== s.streakAfter
-  const date = today()
+  const date = summaryDate()
 
   return createPortal(
     <div className={`sum${skipped ? ' sum-skip' : ''}`} role="dialog" aria-modal="true" aria-label="ملخص الجلسة"

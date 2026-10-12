@@ -155,7 +155,7 @@ function glInstruments(noGL) {
 
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
   sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false,
-  unlocked = null, noGL = false, xp = null } = {}) {
+  unlocked = null, noGL = false, xp = null, perf = false, route = null } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -166,6 +166,9 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   page.on('pageerror', e => errors.push(String(e)))
   if (blockRemote) await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
   if (blockSounds) await page.route('**/sounds/**', r => r.abort())
+  if (route) await page.route(route.url, route.handler)
+  // the app's own timing marks (src/perf.js), read back by the medal checks
+  if (perf) await page.addInitScript(() => localStorage.setItem('meran_perf', '1'))
 
   await page.addInitScript(instruments, audio)
   await page.addInitScript(glInstruments, noGL)
@@ -2567,9 +2570,23 @@ const waitLanded = (page, ms = 12000) => page.waitForFunction(
   () => document.querySelector('[data-testid="medal-reveal"]')?.dataset.state === 'landed', null, { timeout: ms }).catch(() => {})
 const medalSounds = (page) => page.evaluate(() => window.__sounds.filter(s => /^medal/.test(s.name) && !s.stopped).map(s => s.name))
 const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-stats span:nth-child(2) b')?.textContent.trim())
+// The summary's timeline (ms from its opening), from the app's own marks:
+// the medals' beat, the first frame a medal is drawn (3D) or the flat
+// medal setting off, each landing, and the level line's beat.
+const timeline = (page) => page.evaluate(() => {
+  const all = performance.getEntriesByType('mark').filter(m => m.name.startsWith('meran:'))
+  const t0 = all.filter(m => m.name === 'meran:sum:open').pop()?.startTime
+  if (t0 == null) return null
+  const at = (n) => { const m = all.find(x => x.name === `meran:${n}` && x.startTime >= t0); return m ? Math.round(m.startTime - t0) : null }
+  const r = { go: at('sum:medal-go'), drawn: at('m3:frame:0'), flat: at('medal:play-flat'), late: at('medal:late'), xp: at('sum:xp-beat'),
+    land0: at('m3:land:0') ?? at('flat:land:0'), land1: at('m3:land:1') ?? at('flat:land:1') }
+  // the flat medal is on screen the frame after it sets off (its turn starts from opacity 0)
+  r.seen = r.drawn ?? (r.flat != null ? r.flat + 17 : null)
+  return r
+})
 
 {
-  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), perf: true })
   const chunks = []
   page.on('request', r => { if (/medal3d/.test(r.url())) chunks.push(r.url()) })
   await page.evaluate(() => { window.__sounds = []; window.__vibes = [] })
@@ -2591,6 +2608,14 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   ok('summary count: and land on the number done', await setsShown(page) === '3', String(await setsShown(page)))
   ok('summary medals: the medal module arrives as its own chunk', chunks.length >= 1, String(chunks.length))
   ok('summary medals: both land', r1?.state === 'landed', JSON.stringify(r1))
+  // On time: the stage was built while «إنهاء» was asked, so the medal sets
+  // off on its own beat, right behind the numbers, and is on screen within
+  // a second — it never waits for the lines under it, the level's least of all.
+  const tl = await timeline(page)
+  ok('summary medals: the first medal is on screen within a second of the summary opening', tl?.seen != null && tl.seen < 1000, JSON.stringify(tl))
+  ok('summary medals: it sets off on its own beat (~0.7 s), not after the level line', tl?.go != null && tl.go < 900 && (tl.xp == null || tl.go < tl.xp), JSON.stringify(tl))
+  ok('summary medals: the 3D stage was ready for the beat (built ahead)', r1?.mode === 'gl' ? tl?.late == null : true, JSON.stringify(tl))
+  ok('summary medals: one, then the other, about a second apart', tl?.land0 != null && tl.land1 - tl.land0 > 600 && tl.land1 - tl.land0 < 1700, JSON.stringify(tl))
   ok(`summary medals: drawn (${r1?.mode}) — the 3D stage, or the flat medal — never a broken image`,
     ((r1?.mode === 'gl' && r1.canvas) || (r1?.mode === 'flat' && r1.flat === 2)) && r1.broken === 0, JSON.stringify(r1))
   const sounds = await medalSounds(page)
@@ -2639,7 +2664,7 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   ok('summary 320: the lines pushed out of view hold their moments', before.length === 3 && before.every(l => l.seen || !l.go), JSON.stringify(before))
   ok('summary 320: the hidden streak still shows where it stood, the level its +0',
     /0 ← 0/.test(before[1].text) && /\+0 XP/.test(before[2].text), JSON.stringify(before.map(l => l.text)))
-  ok('summary 320: the medals start without waiting for lines nobody can see', medalsAt < 1700, `${medalsAt}ms`)
+  ok('summary 320: the medals start without waiting for lines nobody can see', medalsAt < 1300, `${medalsAt}ms`)
   await page.evaluate(() => { const sc = document.querySelector('.sum'); sc.scrollTop = sc.scrollHeight })
   await page.waitForTimeout(1800)
   const after = await lines()
@@ -2647,6 +2672,51 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
     after.every(l => l.go === '1') && /140/.test(after[0].text) && /0 ← 1/.test(after[1].text) && !/\+0 XP/.test(after[2].text),
     JSON.stringify(after))
   ok('summary 320: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// A tall phone (390×1400): every line is in view from the start. The
+// medals still set off on their own beat, not after the level line, and
+// the lines under them play on theirs meanwhile.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), perf: true,
+    viewport: { width: 390, height: 1400 } })
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(2600)
+  const lines = await page.evaluate(() => [...document.querySelectorAll('.sum-sec:not(.sum-ach-sec)')].map(el => el.dataset.go || null))
+  await waitLanded(page)
+  const tl = await timeline(page)
+  ok('summary tall: every line under the medals has played by 2.6 s', lines.length === 3 && lines.every(g => g === '1'), JSON.stringify(lines))
+  ok('summary tall: the medals set off before the level line\'s beat, never after it', tl?.go != null && tl.xp != null && tl.go < tl.xp && tl.go < 900, JSON.stringify(tl))
+  ok('summary tall: the first medal is on screen within a second', tl?.seen != null && tl.seen < 1000, JSON.stringify(tl))
+  ok('summary tall: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// The 3D stage not ready on the beat (its module held up for 2.5 s): the
+// flat medals set off on time instead of waiting, land with their sounds,
+// and the 3D stage, when it comes, is let go — its context with it.
+{
+  const slow = { url: '**/assets/medal3d-*.js', handler: async (r) => { await new Promise(res => setTimeout(res, 2500)); r.continue().catch(() => {}) } }
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2'), perf: true, route: slow })
+  await page.evaluate(() => { window.__sounds = [] })
+  await finishNow(page)
+  await waitLanded(page, 12000)
+  const r = await reveal(page)
+  const tl = await timeline(page)
+  ok('summary, stage late: the flat medals set off on the beat', r?.mode === 'flat' && tl?.flat != null && tl.flat < 900, JSON.stringify({ r, tl }))
+  ok('summary, stage late: they land, one then the other, about a second apart', r?.state === 'landed' && tl.land1 - tl.land0 > 700 && tl.land1 - tl.land0 < 1500, JSON.stringify(tl))
+  const sounds = await medalSounds(page)
+  ok('summary, stage late: with their sounds', sounds.join(',') === 'medal-heavy,medal', sounds.join(','))
+  await page.waitForTimeout(3000)
+  const left = await page.evaluate(() => ({ inReveal: document.querySelectorAll('[data-testid="medal-reveal"] canvas').length, any: document.querySelectorAll('canvas').length }))
+  ok('summary, stage late: the 3D stage that came after is let go', left.inReveal === 0 && left.any === 0, JSON.stringify(left))
+  await page.getByRole('button', { name: 'تم' }).click()
+  await page.waitForTimeout(700)
+  const gl = await page.evaluate(() => window.__gl)
+  ok('summary, stage late: every GL context given back', gl.lost >= gl.made, JSON.stringify(gl))
+  ok('summary, stage late: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
@@ -2705,7 +2775,7 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   await page.evaluate(() => {
     window.__sounds = []
     const gc = HTMLCanvasElement.prototype.getContext
-    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 512 ? null : gc.call(this, t, o) }
   })
   await finishNow(page)
   await waitLanded(page, 12000)
@@ -2716,13 +2786,32 @@ const setsShown = (page) => page.evaluate(() => document.querySelector('.sum-sta
   ok('summary, picture fails: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
-// The same, with a tap on the summary before they come (a skip): the
-// flat medals stand there at once.
+// Only the sharp back plate refused (made at 1024 once the medals are
+// down): they spin and land as ever, the back stays at 512.
+{
+  const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  await page.evaluate(() => {
+    window.__sounds = []
+    const gc = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+  })
+  await finishNow(page)
+  await waitLanded(page, 12000)
+  await page.waitForTimeout(1500)   // still: the sharp plate is tried
+  const r = await reveal(page)
+  ok('summary, sharp plate refused: the medals land all the same', r?.state === 'landed' && (r.mode === 'gl' ? r.canvas : r.flat === 2), JSON.stringify(r))
+  const sounds = await medalSounds(page)
+  ok('summary, sharp plate refused: with their sounds', sounds.join(',') === 'medal-heavy,medal', sounds.join(','))
+  ok('summary, sharp plate refused: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+// The pictures refused, with a tap on the summary before they come (a
+// skip): the flat medals stand there at once.
 {
   const { ctx, page, errors } = await open({ sessions: MEDAL_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
   await page.evaluate(() => {
     const gc = HTMLCanvasElement.prototype.getContext
-    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 1024 ? null : gc.call(this, t, o) }
+    HTMLCanvasElement.prototype.getContext = function (t, o) { return t === '2d' && this.width >= 512 ? null : gc.call(this, t, o) }
   })
   await finishNow(page)
   await page.waitForTimeout(450)

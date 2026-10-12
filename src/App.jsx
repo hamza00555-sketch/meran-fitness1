@@ -64,6 +64,7 @@ import LiveBar          from './components/frame/LiveBar.jsx'
 import TabBar           from './components/frame/TabBar.jsx'
 import { reducedMotion } from './motion.js'
 import SessionSummary   from './components/frame/SessionSummary.jsx'
+import { warmMedals, dropWarm } from './components/progress/medalStage.js'
 import Onboarding       from './components/frame/Onboarding.jsx'
 import ProgressPage     from './pages/ProgressPage.jsx'
 import { LargeTitle, NavBar, IconButton } from './components/kit/index.jsx'
@@ -122,6 +123,27 @@ if (!ls.get('hf_history_restored_v2', false)) {
   }
   ls.set('hf_history_cleaned_v1', true)
   ls.set('hf_history_restored_v2', true)
+}
+
+// The achievements a check would award now: met, and not yet unlocked.
+// The award (checkAchievements) and the look-ahead that builds the medal
+// stage before the summary opens (medalsIfFinished) both ask this, so
+// they can't disagree.
+function newlyEarned(sessions, xp, streak, unlocked = []) {
+  return ACHIEVEMENTS.filter(a => {
+    if (unlocked.includes(a.id)) return false
+    try { return !!a.check(sessions, xp, streak) } catch { return false }
+  })
+}
+
+// Later, when the page has a moment (requestIdleCallback where there is one).
+const whenIdle = (fn) => {
+  if (typeof requestIdleCallback === 'function') {
+    const id = requestIdleCallback(fn, { timeout: 2000 })
+    return () => cancelIdleCallback(id)
+  }
+  const t = setTimeout(fn, 200)
+  return () => clearTimeout(t)
 }
 
 // Default profile
@@ -282,6 +304,12 @@ export default function App() {
   xpRef.current = xp
   const activeRef     = useRef(active)
   useEffect(() => { activeRef.current = active }, [active])
+  const sessionsRef = useRef(sessions)
+  sessionsRef.current = sessions
+  const unlockedRef = useRef(unlockedAchievements)
+  unlockedRef.current = unlockedAchievements
+  const recoveryRef = useRef(recoveryCfg)
+  recoveryRef.current = recoveryCfg
 
   // ── Persist to localStorage ───────────────────────────────────
   useEffect(() => { ls.set('hf_sessions', sessions) },             [sessions])
@@ -429,17 +457,13 @@ export default function App() {
       const newUnlocked = [...prev]
       const stamps = {}
       let gained = 0
-      ACHIEVEMENTS.forEach(a => {
-        if (newUnlocked.includes(a.id)) return
-        try {
-          if (a.check(newSessions, newXP, newStreak)) {
-            newUnlocked.push(a.id)
-            stamps[a.id] = Date.now()
-            gained += a.xp
-            if (collectRef.current) setSummary(sm => (sm ? { ...sm, achievements: [...sm.achievements, a] } : sm))
-            else pushAlert('🏆', `إنجاز: ${a.title}`)
-          }
-        } catch {}
+      newlyEarned(newSessions, newXP, newStreak, prev).forEach(a => {
+        newUnlocked.push(a.id)
+        stamps[a.id] = Date.now()
+        gained += a.xp
+        // (finishSession already put the session's own into the summary)
+        if (collectRef.current) setSummary(sm => (sm && !sm.achievements.some(x => x.id === a.id) ? { ...sm, achievements: [...sm.achievements, a] } : sm))
+        else pushAlert('🏆', `إنجاز: ${a.title}`)
       })
       if (Object.keys(stamps).length) {
         setUnlockedAt(p2 => ({ ...p2, ...stamps }))
@@ -529,6 +553,48 @@ export default function App() {
     setSessionOpen(true)
   }, [recoveryCfg])
 
+  // ── The medals a session would earn if it were finished now ──
+  // The same check, with the same numbers, finishSession hands the award:
+  // the session as it stands, its finish bonus, today's streak with it.
+  const medalsIfFinished = useCallback((cur) => {
+    if (!cur) return []
+    try {
+      const duration = Math.round((Date.now() - cur.id) / 60000)
+      const finished = normalizeSession({ ...cur, duration })
+      if (!finished) return []
+      const newSessions = [finished, ...sessionsRef.current]
+      const streak = computeRecovery(newSessions, recoveryRef.current).consistencyStreak
+      const finishBonus = 50 + Math.floor(duration / 30) * 30
+      return newlyEarned(newSessions, xpRef.current + sessionXPRef.current + finishBonus, streak, unlockedRef.current)
+    } catch { return [] }
+  }, [])
+
+  // While the session runs, at a quiet moment after each change: if
+  // finishing now would earn a medal, its module and pictures are made
+  // ready (no GPU context yet). Once every set is done — the session is
+  // as good as finished — the whole stage is built and parked, so the
+  // summary's medal sets off on its beat.
+  useEffect(() => {
+    if (!active) return
+    let cancel = () => {}
+    const t = setTimeout(() => {
+      cancel = whenIdle(() => {
+        const cur = activeRef.current
+        const earned = medalsIfFinished(cur)
+        if (!earned.length) return
+        const sets = (cur.exercises || []).flatMap(e => e.sets || [])
+        warmMedals(earned, { gl: sets.length > 0 && sets.every(x => x.done) })
+      })
+    }, 1500)
+    return () => { clearTimeout(t); cancel() }
+  }, [active, medalsIfFinished])
+
+  // «إنهاء» asked: the stage for what it would earn, built now, while the
+  // finish sheet is up.
+  const finishing = useCallback(() => {
+    warmMedals(medalsIfFinished(activeRef.current), { gl: true })
+  }, [medalsIfFinished])
+
   const finishSession = useCallback(() => {
     if (!active) return
     const duration = Math.round((Date.now() - active.id) / 60000)
@@ -582,8 +648,17 @@ export default function App() {
       today: dayNow,
     })
 
+    // The medals this session earns, known now — the same check the award
+    // below runs (after the bonus XP lands) — so the summary opens with
+    // them, and their stage (built ahead while «إنهاء» was asked, or now)
+    // is ready for their beat.
+    const finishBonus = 50 + Math.floor(duration / 30) * 30
+    const earned = newlyEarned([finished, ...sessions], xp + sessionXPRef.current + finishBonus, recoveryAfter.consistencyStreak, unlockedRef.current)
+    if (earned.length) warmMedals(earned, { gl: true })
+    else dropWarm()   // a stage built for medals the session didn't earn after all
+
     // The summary: what was done, any best weights, what it did to the
-    // streak; XP, a level-up and achievements arrive into it as they are
+    // streak, the medals; XP and a level-up arrive into it as they are
     // awarded below.
     const doneSets = (finished.exercises || []).flatMap(e => (e.sets || []).filter(setCounts))
     const prs = (finished.exercises || []).map(ex => {
@@ -600,7 +675,7 @@ export default function App() {
       streakAfter: recoveryAfter.consistencyStreak,
       xp: sessionXPRef.current,
       levelUp: pendingLevelRef.current,
-      achievements: [],
+      achievements: earned,
     })
 
     setSessions(prev => {
@@ -608,7 +683,6 @@ export default function App() {
       const streak = computeRecovery(newSessions, recoveryCfg).consistencyStreak
 
       // Bonus XP at session finish (per-set XP already awarded live)
-      const finishBonus = 50 + Math.floor(duration / 30) * 30
       setTimeout(() => {
         addXP(finishBonus, '✓ جلسة مكتملة')
         checkAchievements(newSessions, xp + sessionXPRef.current + finishBonus, streak)
@@ -1192,6 +1266,7 @@ export default function App() {
             planIndex={planIndex}
             onUpdateActive={updateActive}
             onFinish={finishSession}
+            onFinishing={finishing}
             onShowRest={() => { ls.remove('hf_rest_timer'); setShowRest(true); setRestKey(k => k + 1) }}
             onCloseRest={() => { ls.remove('hf_rest_timer'); setShowRest(false) }}
             onStartPlannedWorkout={startPlannedWorkout}
@@ -1203,6 +1278,7 @@ export default function App() {
               const refund = sessionXPRef.current
               sessionXPRef.current = 0
               pendingLevelRef.current = null
+              dropWarm()   // no summary is coming for the medal stage built ahead
               if (refund > 0) {
                 setXP(prev => {
                   const back = Math.max(0, prev - refund)

@@ -1,6 +1,8 @@
 // Specs for motion phases 2 and 4: which medals spin and in what order,
 // how each one lands, which way a medal is drawn when the phone can't
-// (or doesn't want to) spin it, when the streak's flame lights, and the
+// (or doesn't want to) spin it, when the summary's medals come in (on
+// their own beat, never after the lines under them), how the stage built
+// ahead describes a medal, when the streak's flame lights, and the
 // ladder the level-up screen climbs.
 //
 //   node --test tests/medal.test.mjs
@@ -13,6 +15,7 @@ import { medalQueue, landingFeel, heaviestFeel, revealMode, rarityRank } from '.
 import { flameIgnition, FLAME_LIT_KEY } from '../src/components/streak/flameLit.js'
 import { haptic } from '../src/haptics.js'
 import { SOUNDS } from '../src/sound.js'
+import { BEAT, MEDAL_BEAT, summaryBeats } from '../src/components/frame/summaryBeats.js'
 
 const ROOT = new URL('..', import.meta.url).pathname
 const src = (p) => readFileSync(path.join(ROOT, p), 'utf8')
@@ -78,11 +81,85 @@ test('how a medal is drawn: spin, fade, or the flat medal turning', () => {
 })
 
 test('the medal module is its own chunk: nothing imports it except on demand', () => {
-  for (const f of ['src/components/frame/SessionSummary.jsx', 'src/pages/AchievementsPage.jsx', 'src/components/progress/MedalReveal.jsx', 'src/App.jsx']) {
+  for (const f of ['src/components/frame/SessionSummary.jsx', 'src/pages/AchievementsPage.jsx', 'src/components/progress/MedalReveal.jsx',
+    'src/components/progress/medalStage.js', 'src/pages/WorkoutPage.jsx', 'src/App.jsx']) {
     const s = src(f)
     assert.ok(!/import\s[^;]*from\s+['"][^'"]*medal3d(\.js)?['"]/.test(s), `${f} imports medal3d.js statically`)
   }
-  assert.match(src('src/components/progress/MedalReveal.jsx'), /import\(\s*['"]\.\/medal3d\.js['"]\s*\)/)
+  assert.match(src('src/components/progress/medalStage.js'), /import\(\s*['"]\.\/medal3d\.js['"]\s*\)/)
+})
+
+test('the summary\'s medals come right behind the numbers — never after the lines under them', () => {
+  const plain = summaryBeats({ prs: true })
+  const B = summaryBeats({ medals: true, prs: true })
+  // on their own beat, within ~0.7 s of the summary opening, after the numbers
+  assert.ok(B.medals * BEAT <= 700, `${B.medals * BEAT} ms`)
+  assert.ok(B.medals > B.stats && B.medals < B.stats + 1)
+  // before every line under them, the level's above all
+  for (const k of ['prs', 'streak', 'xp', 'foot']) assert.ok(B.medals < B[k], k)
+  // the lines keep their beats with medals or without: nothing waits on the stage
+  for (const k of ['eyebrow', 'title', 'stats', 'prs', 'streak', 'xp', 'foot']) assert.equal(B[k], plain[k], k)
+  assert.equal(summaryBeats({ medals: true }).xp, summaryBeats().xp)
+  assert.equal(MEDAL_BEAT, B.medals)
+  // and the summary starts them on that beat alone — no line is its cue
+  const s = src('src/components/frame/SessionSummary.jsx')
+  assert.match(s, /const medalGo = useAt\(t0, hasMedals \? at\('medals'\)/)
+  assert.ok(!/\bcue\b/.test(s), 'the medals must not wait for a line')
+})
+
+test('the stage built ahead describes a medal exactly as the reveal does', async () => {
+  const { glyphPath, medalItems, stageKey } = await import('../src/components/progress/medalStage.js')
+  const { medalFace } = await import('../src/components/progress/achievementMeta.js')
+  const { ACHIEVEMENTS } = await import('../src/constants.js')
+  const React = (await import('react')).default
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  // the glyph's outline, read from the icon's definition, is what rendering it draws
+  for (const a of ACHIEVEMENTS) {
+    const G = medalFace(a).glyph
+    const drawn = [...renderToStaticMarkup(React.createElement(G, { weight: 'fill', size: 256 })).matchAll(/ d="([^"]+)"/g)].map(m => m[1]).join(' ')
+    assert.ok(drawn, `${a.id}: no path`)
+    assert.equal(glyphPath(G), drawn, `${a.id}: the composed face would draw another glyph`)
+  }
+  const [it] = medalItems([ACHIEVEMENTS.find(a => a.id === 'b2')])
+  assert.equal(it.id, 'b2')
+  assert.equal(it.rarity, 'rare')
+  assert.equal(it.art, null)   // no pack in node: the composed face
+  assert.ok(it.glyph.length > 20)
+  // the same medals and date are the same stage; another medal or date is not
+  const k = stageKey(medalItems(ACHIEVEMENTS.slice(0, 2)), '12 أكتوبر 2026')
+  assert.equal(k, stageKey(medalItems(ACHIEVEMENTS.slice(0, 2)), '12 أكتوبر 2026'))
+  assert.notEqual(k, stageKey(medalItems(ACHIEVEMENTS.slice(1, 3)), '12 أكتوبر 2026'))
+  assert.notEqual(k, stageKey(medalItems(ACHIEVEMENTS.slice(0, 2)), '13 أكتوبر 2026'))
+})
+
+test('the medal is built ahead: as the session would earn it, as «إنهاء» is asked, as it is saved', () => {
+  const app = src('src/App.jsx')
+  // one check decides both the award and the look-ahead
+  assert.match(app, /function newlyEarned\(/)
+  assert.match(app, /newlyEarned\(newSessions, newXP, newStreak, prev\)/)
+  assert.match(app, /const earned = newlyEarned\(\[finished, \.\.\.sessions\]/)
+  assert.match(app, /achievements: earned,/)
+  assert.match(app, /warmMedals\(earned, \{ gl: true \}\)/)
+  assert.match(app, /onFinishing=\{finishing\}/)
+  assert.match(src('src/pages/WorkoutPage.jsx'), /if \(askFinish\) onFinishing\?\.\(\)/)
+  // the award that follows doesn't add the summary's medals a second time
+  assert.match(app, /!sm\.achievements\.some\(x => x\.id === a\.id\)/)
+})
+
+test('the stage: warmed and shown once while built, the back plate sharpened only once landed', () => {
+  const m = src('src/components/progress/medal3d.js')
+  assert.match(m, /function warmUp\(/)
+  assert.match(m, /await frames\(2\)/)
+  assert.match(m, /engrave\(it, 512, font, date\)/)
+  assert.match(m, /function sharpen\(\)/)
+  assert.match(m, /if \(idling\(\)\) sharpen\(\)/)
+  // the second of a pair: about a second behind the first
+  assert.match(m, /this\.second \? \(this\.R\.heavy \? 1\.2 : 1\)/)
+  assert.match(m, /a\.onLand = \(\) => at\(\.06,/)
+  const r = src('src/components/progress/MedalReveal.jsx')
+  assert.match(r, /const FLAT_APART = 1000/)
+  // not ready on the beat: the flat medal, on time
+  assert.match(r, /if \(mode === 'wait'\) \{\s*S\.late = true/)
 })
 
 test('the medal module frees its GL context and hands a lost one back to the host', () => {
@@ -96,7 +173,12 @@ test('the medal module frees its GL context and hands a lost one back to the hos
   assert.match(m, /function face\(/)
   const r = src('src/components/progress/MedalReveal.jsx')
   assert.match(r, /destroy\(\)/)
-  assert.match(r, /urlFor\(achSlot\(/)
+  assert.match(src('src/components/progress/medalStage.js'), /urlFor\(achSlot\(/)
+  // the stage kept ready is freed: hidden, unused, replaced, and with the medal wall
+  const w = src('src/components/progress/medalStage.js')
+  assert.match(w, /visibilitychange/)
+  assert.match(w, /KEEP_MS/)
+  assert.match(src('src/pages/AchievementsPage.jsx'), /useEffect\(\(\) => \(\) => dropWarm\(\), \[\]\)/)
 })
 
 test('the flame lights once a day, when today counts and Home can be seen', () => {

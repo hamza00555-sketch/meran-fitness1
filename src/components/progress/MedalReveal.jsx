@@ -1,25 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Medal from './Medal.jsx'
-import { medalFace, achText } from './achievementMeta.js'
+import { achText } from './achievementMeta.js'
 import { revealMode } from './medalQueue.js'
-import { achSlot } from '../../assets/slots.js'
-import { urlFor } from '../../assets/registry.js'
+import { FONT, loadStage, medalItems, stageKey, takeStage, giveBack } from './medalStage.js'
 import { RARITY_COLORS } from '../../constants.js'
 import { animate, reducedMotion } from '../../motion.js'
+import { mark, resetMarks } from '../../perf.js'
 import '../../styles/medal-reveal.css'
 
 // ── A medal that spins ────────────────────────────────────────
 //
 // The medal itself, in its own art, coming out of the depth and turning
 // on its metal edge (medal3d.js, hand-written WebGL). The module is a
-// separate chunk, fetched the moment this mounts — so a summary with no
-// medal never loads it — and nothing waits for it: the stage is there
-// and lit from the first frame, the medal arrives when `play` turns true.
+// separate chunk (medalStage.js loads it) — a summary with no medal never
+// fetches it — and nothing waits for it: the stage is there and lit from
+// the first frame, the medal arrives when `play` turns true.
 //
 //   items    achievements, already in the order they should play
 //            (medalQueue.js); one or two
-//   play     start the reveal (the summary: after its last line; the
-//            medal sheet: as it opens — every time it opens)
+//   play     start the reveal — the caller's beat (the summary: right
+//            after its numbers; the medal sheet: as it opens, every time)
 //   skip     land everything now, facing front (the summary's tap)
 //   onLand(items, { skipped })  as medals land: one by one, or all the
 //            ones still in the air at once when skipped — the caller
@@ -27,38 +27,41 @@ import '../../styles/medal-reveal.css'
 //   variant  'summary' (titles under the medals) · 'sheet' (the sheet
 //            has the title already)
 //
+// The beat never waits for the 3D stage. The stage kept ready
+// (medalStage.js: built ahead as the session finishes, or the medal
+// sheet's, parked between openings) is taken — as it is if it was built
+// for these medals, else with these medals prepared on it; with none
+// kept, one is built now. If it is not ready when `play` comes —
+// pictures baked, GPU pipelines warm — the flat medal plays this showing,
+// on time, and the 3D one is let go when it arrives (switching renderers
+// mid-flight would show as a jump).
+//
 // Fallbacks, each a decision in medalQueue.js revealMode():
 //   no WebGL, the chunk can't load, the medal's picture can't be built
-//   (a 2D canvas refused — iOS caps canvas memory), or the context is
-//   lost and doesn't come back within 3 s (iOS drops them in the
-//   background) → the app's own flat medal (Medal.jsx) turning on a CSS
-//   rotateY instead (already standing, if a skip was asked for);
+//   (a 2D canvas refused — iOS caps canvas memory), the stage isn't ready
+//   on the beat, or the context is lost and doesn't come back within 3 s
+//   (iOS drops them in the background) → the app's own flat medal
+//   (Medal.jsx) turning on a CSS rotateY instead (already standing, if a
+//   skip was asked for);
 //   the phone asks for less motion → no spin, a fade (both kinds);
 //   no art pack → the module composes the face from Medal.jsx's parts
 //   (disc, glyph, engraved number), so nothing is ever a broken image.
 //
-// The GL context is freed (WEBGL_lose_context) on unmount: iOS allows only
-// a handful at once, and every sheet opening makes a new one.
+// The GL context is freed (WEBGL_lose_context) when the summary closes:
+// iOS allows only a handful at once. The sheet's is parked for the next
+// medal instead — one context for the whole medal wall, freed with it.
 
-const FONT = "'Meran Latin','Meran Arabic',sans-serif"
-
-let loader = null
-const loadStage = () => loader || (loader = import('./medal3d.js')
-  .then(m => m.default)
-  .catch((e) => { loader = null; throw e }))
-
-/** The SVG path(s) of a rendered Phosphor glyph, as one string for Path2D. */
-const pathOf = (root, id) => {
-  const el = root?.querySelector(`[data-glyph="${id}"]`)
-  return el ? [...el.querySelectorAll('path')].map(p => p.getAttribute('d')).filter(Boolean).join(' ') : ''
-}
+// The flat medal's turn, and how far apart a pair turns: the second sets
+// off a second after the first (the 3D pair lands about a second apart too).
+const FLAT_TURN = 1500
+const FLAT_APART = 1000
 
 export default function MedalReveal({ items, date = '', variant = 'summary', play = false, skip = false, onLand, className = '' }) {
   const host = useRef(null)
-  const glyphs = useRef(null)
   const stage = useRef(null)
+  const abandon = useRef(null)
   const flatRefs = useRef([])
-  const st = useRef({ played: false, landed: new Set(), skipped: false, anims: [] })
+  const st = useRef({ played: false, landed: new Set(), skipped: false, anims: [], late: false })
   const land = useRef(onLand)
   land.current = onLand
   const [mode, setMode] = useState('wait')        // wait · gl · flat
@@ -66,19 +69,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
   const reduced = reducedMotion()
   const motion = revealMode({ webgl: mode !== 'flat', reduced })
   const ids = items.map(a => a.id).join(',')
-
-  const list = () => items.map(a => {
-    const mark = medalFace(a).mark
-    return {
-      id: a.id,
-      title: achText(a).title,
-      word: RARITY_COLORS[a.rarity]?.label || 'عادي',
-      rarity: a.rarity || 'common',
-      art: urlFor(achSlot(a.id)) || null,
-      glyph: pathOf(glyphs.current, a.id),
-      n: mark?.n || '',
-    }
-  })
+  const list = useMemo(() => medalItems(items), [ids]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const landed = (idx, skipped) => {
     const s = st.current
@@ -100,10 +91,15 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
     setMode('flat')
   }
 
-  // The stage: fetched and built at once, the art prepared ahead of time.
+  // The stage: the one kept ready, or one built now. It is handed the
+  // reveal only once it is ready to play.
   useEffect(() => {
     let alive = true
-    const flat = () => { if (alive) setMode('flat') }
+    let building = null
+    let owned = false
+    const S = st.current
+    const labels = variant !== 'sheet'
+    if (variant === 'sheet') resetMarks()   // (timing marks: each opening its own timeline)
     // The phone turned, the sheet changed width: the stage re-measures, so
     // the medals and their titles stay centred on it.
     let ro = null
@@ -111,44 +107,101 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
       ro = new ResizeObserver(() => { try { stage.current?.resize() } catch {} })
       ro.observe(host.current)
     } catch { ro = null }
-    loadStage().then((MedalStage) => {
-      if (!alive || !host.current) return
-      let s = null
-      try {
-        s = MedalStage(host.current, {
-          font: FONT, date, reduced: reducedMotion, labels: variant !== 'sheet',
-          onLand: (i) => landed([i], false),
-          onFallback: () => {
-            // lost for good: the flat medal takes over, already landed if it had
-            if (stage.current === s) { stage.current = null; s.destroy() }
-            flat()
-          },
-        })
-      } catch { s = null }
-      if (!s || !s.webgl) { try { s?.destroy() } catch {} flat(); return }
+    const own = (s) => {
+      if (!s) { if (alive) setMode('flat'); return }
+      owned = true   // from here this reveal frees it, parks it, or plays it
+      // too late — the beat came and the flat medal has this showing — or gone
+      if (!alive || S.late || !host.current) {
+        if (variant === 'sheet') giveBack(s)   // ready for the next medal opened
+        else { try { s.destroy() } catch {} }
+        taken?.release()
+        return
+      }
+      s.set({
+        labels,
+        onLand: (i) => landed([i], false),
+        onFallback: () => {
+          // lost for good: the flat medal takes over, already landed if it had
+          if (stage.current === s) { stage.current = null; s.destroy() }
+          if (alive) setMode('flat')
+        },
+      })
+      s.mount(host.current)
+      taken?.release()
       stage.current = s
+      mark('medal:ready')
       setMode('gl')
-      s.prepare(list()).catch(() => { if (alive) giveUp(s) })
-    }, flat)
+    }
+    // prepared on a stage kept ready, or on one built now
+    const prepareOn = (s) => {
+      building = s
+      s.prepare(list, { warm: true }).then(
+        () => { building = null; own(s) },
+        () => { building = null; try { s.destroy() } catch {} own(null) },
+      )
+    }
+    const build = () => {
+      loadStage().then((m) => {
+        if (!alive || !host.current || (S.late && variant !== 'sheet')) return
+        let s = null
+        try { s = m.default(host.current, { font: FONT, date, reduced: reducedMotion, labels }) } catch { s = null }
+        if (!s || !s.webgl) { try { s?.destroy() } catch {} own(null); return }
+        mark('medal:stage')
+        prepareOn(s)
+      }, () => own(null))
+    }
+    // The summary's medals went flat (the stage missed the beat): stop
+    // building it now rather than finish and throw it away — that work
+    // would land in the middle of the flat medals' flight. (The sheet's
+    // is finished and parked for the next medal.)
+    abandon.current = () => {
+      if (variant === 'sheet') return
+      try { building?.destroy() } catch {}
+      building = null
+      if (taken && !owned) taken.dispose()
+    }
+    const taken = takeStage(stageKey(list, date))
+    if (taken) {
+      mark(taken.fresh ? 'medal:warm-taken' : 'medal:kept-taken')
+      taken.ready.then((s) => {
+        if (!alive) { taken.dispose(); return }
+        if (!s) { taken.dispose(); build(); return }
+        if (taken.fresh) own(s)
+        else { s.set({ date }); prepareOn(s) }
+      })
+    } else build()
     return () => {
       alive = false
       try { ro?.disconnect() } catch {}
-      st.current.anims.forEach(a => { try { a.cancel() } catch {} })
+      S.anims.forEach(a => { try { a.cancel() } catch {} })
       const s = stage.current
       stage.current = null
-      try { s?.destroy() } catch {}
+      // the sheet's stage waits for the next medal; the summary's is freed
+      if (s) { if (variant === 'sheet') giveBack(s); else { try { s.destroy() } catch {} } }
+      try { building?.destroy() } catch {}
+      if (taken && !owned) taken.dispose()
     }
   }, [ids]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Play (and skip) on the GL stage.
+  // On the beat: the 3D stage plays if it is ready; if it isn't, the flat
+  // medal plays now instead of waiting for it.
   useEffect(() => {
-    const s = stage.current
     const S = st.current
+    if (!play && !skip) return
+    if (mode === 'wait') {
+      S.late = true
+      mark('medal:late')
+      abandon.current?.()
+      setMode('flat')
+      return
+    }
+    const s = stage.current
     if (mode !== 'gl' || !s) return
-    if ((play || skip) && !S.played) {
+    if (!S.played) {
       S.played = true
+      mark('medal:play-gl')
       setState('playing')
-      s.play(list()).then(() => {
+      s.play(list, { delay: 0 }).then(() => {
         if (stage.current !== s) return
         if (S.skipped) { s.skip(); landed(items.map((_, i) => i), true) }
       }, () => giveUp(s))
@@ -180,6 +233,7 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
     if (!play || S.flatPlayed) return
     S.flatPlayed = true
     S.played = true
+    mark('medal:play-flat')
     setState('playing')
     const fade = revealMode({ webgl: false, reduced: reducedMotion() }) === 'flat-fade'
     // (lost mid-flight on the GL stage: only the ones still in the air turn)
@@ -187,15 +241,15 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
       const i = els.indexOf(el)
       if (!el) return
       const a = fade
-        ? animate(el, [{ opacity: 0 }, { opacity: 1 }], { d: 500, delay: 150 + k * 120, e: 'linear', fill: 'both' })
+        ? animate(el, [{ opacity: 0 }, { opacity: 1 }], { d: 500, delay: k * 150, e: 'linear', fill: 'both' })
         : animate(el, [
           { opacity: 0, transform: 'perspective(600px) translateY(-18px) rotateY(-720deg) scale(.55)' },
           { opacity: 1, offset: 0.18 },
           { opacity: 1, transform: 'perspective(600px) rotateY(0deg) scale(1)' },
-        ], { d: 1500, delay: 200 + k * 1700, e: 'cubic-bezier(.16,.84,.3,1)', fill: 'both' })
+        ], { d: FLAT_TURN, delay: k * FLAT_APART, e: 'cubic-bezier(.16,.84,.3,1)', fill: 'both' })
       if (!a) { el.style.opacity = '1'; landed([i], false); return }
       S.anims.push(a)
-      a.finished.then(() => landed([i], false), () => {})
+      a.finished.then(() => { mark(`flat:land:${i}`); landed([i], false) }, () => {})
     })
   }, [mode, play, skip, ids]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -238,13 +292,6 @@ export default function MedalReveal({ items, date = '', variant = 'summary', pla
           {items.map(a => <li key={a.id}>{achText(a).title} · {RARITY_COLORS[a.rarity]?.label || 'عادي'}</li>)}
         </ul>
       )}
-      {/* The glyphs the composed face is drawn from (no art pack). */}
-      <span ref={glyphs} hidden>
-        {items.map(a => {
-          const G = medalFace(a).glyph
-          return <span key={a.id} data-glyph={a.id}><G weight="fill" size={256} /></span>
-        })}
-      </span>
     </div>
   )
 }

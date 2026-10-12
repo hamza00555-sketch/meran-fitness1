@@ -444,12 +444,20 @@ const states = async (page, ms) => {
   ok('ach spin: it spins again every time it opens', again.includes('playing') && again[again.length - 1] === 'landed', again.join(' → '))
   await page.getByRole('button', { name: 'إغلاق' }).click()
   await page.waitForTimeout(500)
+  // One 3D stage for the whole wall: parked between openings (a corner
+  // pixel), never one per opening — and gone with the page.
+  const kept = await page.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, parked: document.querySelectorAll('[data-medal-park] canvas').length }))
+  ok('ach spin: one stage for the whole wall, parked between openings', kept.canvases <= 1 && kept.canvases === kept.parked, JSON.stringify(kept))
   await page.locator('.pg-tile:not(.on)').first().click()
   await page.waitForTimeout(600)
   ok('ach spin: a locked medal stays flat', await page.locator('.k-sheet [data-testid="medal-reveal"]').count() === 0
     && await page.locator('.k-sheet .md-off').count() === 1)
   await page.getByRole('button', { name: 'إغلاق' }).click()
   await page.waitForTimeout(400)
+  await page.locator('nav > button').first().click()
+  await page.waitForTimeout(600)
+  ok('ach spin: leaving the medal wall frees its stage', await page.evaluate(() => document.querySelectorAll('canvas').length) === 0,
+    String(await page.evaluate(() => document.querySelectorAll('canvas').length)))
   ok('ach spin: no page errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
@@ -490,7 +498,8 @@ const states = async (page, ms) => {
 }
 
 // 7c. Opening medal after medal doesn't pile up their pictures: only the
-// last few medals' (a face and a 1024px back plate each, ~5 MB) are kept.
+// last few medals' (a face, a 512px back plate, and the 1024px one once a
+// medal has landed — up to ~5 MB each) are kept.
 {
   const track = () => {
     const ce = Document.prototype.createElement
@@ -518,8 +527,12 @@ const states = async (page, ms) => {
   await cdp.send('HeapProfiler.collectGarbage')
   await page.waitForTimeout(200)
   await cdp.send('HeapProfiler.collectGarbage')
-  const plates = await page.evaluate(() => window.__cv.map(r => r.deref()).filter(c => c && c.width === 1024).length)
-  ok('ach memory: after opening 8 medals, at most 4 medals\' pictures are kept', n === 8 && plates <= 4, `${n} opened, ${plates} back plates alive`)
+  const alive = await page.evaluate(() => {
+    const cv = window.__cv.map(r => r.deref()).filter(Boolean)
+    return { plates: cv.filter(c => c.width === 1024).length, pictures: cv.filter(c => c.width >= 512).length }
+  })
+  ok('ach memory: after opening 8 medals, at most 4 medals\' pictures are kept', n === 8 && alive.plates <= 4 && alive.pictures <= 12,
+    `${n} opened, ${JSON.stringify(alive)} alive`)
   ok('ach memory: no page errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
