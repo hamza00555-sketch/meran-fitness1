@@ -995,6 +995,41 @@ async function dragHead(page, dx = 40) {
   await ctx.close()
 }
 
+// ══ 4b″. A double tap on «حفظ التعديل» logs nothing else ═════════
+// «تمّت المجموعة» comes back in the very spot «حفظ التعديل» leaves.
+{
+  const { ctx, page, errors } = await open()
+  await completeBtn(page).click()
+  await page.waitForTimeout(600)
+  await endRest(page)
+  await page.getByTestId('rest-ready').click({ timeout: 5000 })
+  await page.waitForTimeout(700)
+  const bad = []
+  for (const gap of [80, 250]) {
+    await page.locator('.s-trow[data-state="done"]').first().click()
+    await page.waitForTimeout(400)
+    await page.getByRole('button', { name: 'زد العدّات' }).click()
+    await page.waitForTimeout(300)
+    const at = await centre(page.getByRole('button', { name: 'حفظ التعديل' }))
+    await finger(page, ctx, at, { holdMs: 30 })
+    await page.waitForTimeout(gap)
+    await finger(page, ctx, at, { holdMs: 30 })
+    await page.waitForTimeout(700)
+    const sets = (await activeStored(page)).exercises[0].sets
+    const rest = await page.getByTestId('rest-bar').count()
+    if (sets.filter(s => s.done).length !== 1 || rest) { bad.push(`${gap}ms: ${JSON.stringify(sets.map(s => `${s.reps}${s.done ? '✓' : ''}`))} rest ${rest}`); break }
+  }
+  const reps = (await activeStored(page)).exercises[0].sets[0].reps
+  ok('save guard: a double tap on «حفظ التعديل» saves and logs no set it never did', bad.length === 0, bad.join('; '))
+  ok('save guard: both edits landed on the set being corrected', bad.length || reps === '14', String(reps))
+  await page.waitForTimeout(300)
+  await completeBtn(page).click({ timeout: 3000 }).catch(() => {})
+  await page.waitForTimeout(300)
+  ok('save guard: a moment later the button logs as usual', (await activeStored(page)).exercises[0].sets.filter(s => s.done).length === 2)
+  ok('save guard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 4b′. A double tap on «تمّت المجموعة» leaves the rest alone ════
 // For the moment the button turns into the rest, only its copy shows (it
 // takes no taps) while the rest's «تخطي» and ±15 are already under it.

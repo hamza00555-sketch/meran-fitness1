@@ -155,9 +155,9 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
   }
 }
 
-// A second tap of the thumb that dismissed «جاهز» must not log a set:
-// the field unmounts under the finger and «تمّت المجموعة» mounts in its
-// place, so the dock ignores taps for this long after a rest closes.
+// A second tap of the thumb that dismissed «جاهز» (or saved an edit)
+// must not log a set: the field unmounts under the finger and «تمّت
+// المجموعة» mounts in its place, so the dock ignores taps for this long.
 const REST_CLOSE_GUARD_MS = 400
 
 // How long the button's copy stays over the growing rest panel. The dock
@@ -555,9 +555,9 @@ export default function WorkoutPlayer({
 
   // Whenever what is under the thumb changes in the dock, it stays quiet
   // for a moment, so the second tap of a double tap lands on nothing:
-  // closing the rest (a tap on «جاهز» or «تخطي»), and the button turning
-  // into the rest. One guard for everything in the dock, taken before any
-  // of its buttons sees the tap.
+  // closing the rest (a tap on «جاهز» or «تخطي»), «حفظ التعديل» giving
+  // way, and the button turning into the rest. One guard for everything
+  // in the dock, taken before any of its buttons sees the tap.
   const quietDock = (ms) => { dockQuietUntil.current = Math.max(dockQuietUntil.current, performance.now() + ms) }
   const swallowIfQuiet = (e) => {
     if (performance.now() >= dockQuietUntil.current) return
@@ -654,7 +654,8 @@ export default function WorkoutPlayer({
   // ── The dock: one green action, or the rest in its place ──
   let dock = null
   if (editing != null) {
-    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => setEditingSet(null)}>حفظ التعديل</Button>
+    // «تمّت المجموعة» (or the rest) takes its place under the thumb.
+    dock = <Button variant="primary" size="lg" full icon={Check} onClick={() => { quietDock(REST_CLOSE_GUARD_MS); setEditingSet(null) }}>حفظ التعديل</Button>
   } else if (isResting) {
     dock = null   // InlineRest below
   } else if (currentSetIndex >= 0) {
