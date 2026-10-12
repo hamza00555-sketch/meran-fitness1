@@ -155,7 +155,7 @@ function glInstruments(noGL) {
 
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
   sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false,
-  unlocked = null, noGL = false } = {}) {
+  unlocked = null, noGL = false, xp = null } = {}) {
   const ctx = await browser.newContext({
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -172,7 +172,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   // Seeded history unlocks achievements on the first paint, each one
   // adds XP, and the level-up screen would cover the session — so a
   // context with history starts with them already unlocked.
-  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping]) => {
+  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping, xp]) => {
     if (sessions || unlocked.length < 40) localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
@@ -183,7 +183,8 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
     if (sessions) localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     if (lastWeights) localStorage.setItem('hf_last_weights', JSON.stringify(lastWeights))
     if (mapping) localStorage.setItem('hf_exercise_mapping', JSON.stringify(mapping))
-  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping])
+    if (xp != null) localStorage.setItem('hf_xp', JSON.stringify(xp))
+  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping, xp])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   // A stored session opens the full-screen cover by itself.
@@ -1762,6 +1763,63 @@ const RAISE_SESSIONS = [
   }))
   ok('discard: the session is gone and nothing was saved', after.active === null && after.sessions.length === 0)
   ok('discard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 7b. A level crossed in a thrown-away session is forgotten ══
+// 4125 XP is level 3 (4 starts at 4200). Eight sets take it to 4205 and
+// hold «مستوى جديد · 4» for the summary; throwing the session away gives
+// the XP back — and the level with it. A short session after that (60 XP,
+// 4185) is still level 3: its summary claims no new level, and «تم» goes
+// home without the level-up screen.
+{
+  const EIGHT = {
+    id: Date.now() - 5 * 60000, date: new Date().toISOString(), name: 'Legs',
+    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press', sets: Array.from({ length: 8 }, () => ({ weight: '40', reps: '12', done: false })) }],
+  }
+  // (sessions: [] seeds every achievement as earned, so none adds XP here)
+  const { ctx, page, errors } = await open({ active: EIGHT, xp: 4125, sessions: [] })
+  const xpNow = () => page.evaluate(() => JSON.parse(localStorage.getItem('hf_xp')))
+  for (let i = 0; i < 8; i++) {
+    await completeBtn(page).click()
+    await page.waitForTimeout(600)
+    await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 2000 }).catch(() => {})
+    await page.waitForTimeout(450)
+  }
+  const x1 = await xpNow()
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /إلغاء التمرين/ }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: 'احذف الجلسة' }).click()
+  await page.waitForTimeout(900)
+  const x2 = await xpNow()
+  ok('level: the thrown-away session took its XP back', x1 === 4205 && x2 === 4125, `${x1} → ${x2}`)
+  // A new, short session from Home, without a reload.
+  await page.getByRole('button', { name: 'ابدأ التمرين' }).first().click()
+  await page.waitForTimeout(900)
+  await page.getByRole('button', { name: 'أضف أول تمرين' }).click()
+  await page.waitForTimeout(700)
+  await page.getByText('Cable Fly', { exact: true }).click()
+  await page.waitForTimeout(300)
+  await page.locator('.k-sheet button').filter({ hasText: /أضف/ }).last().click()
+  await page.waitForTimeout(900)
+  await completeBtn(page).click()
+  await page.waitForTimeout(700)
+  await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 2000 }).catch(() => {})
+  await page.waitForTimeout(500)
+  await page.getByRole('button', { name: /^إنهاء$/ }).click()
+  await page.waitForTimeout(500)
+  await page.locator('.k-sheet').last().getByRole('button', { name: 'احفظ وأنهِ' }).click()
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForTimeout(3500)
+  const x3 = await xpNow()
+  const sum = await page.getByTestId('session-summary').innerText().catch(() => '')
+  ok('level: the next summary claims no level it hasn\'t reached', x3 < 4200 && !/مستوى جديد/.test(sum), `${x3}: ${sum.replace(/\s+/g, ' ').slice(0, 200)}`)
+  await page.getByRole('button', { name: /^تم$/ }).click({ timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(1500)
+  ok('level: «تم» goes home, no level-up screen', await page.getByTestId('level-up').count() === 0)
+  ok('level: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

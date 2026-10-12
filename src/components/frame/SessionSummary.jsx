@@ -238,7 +238,7 @@ export default function SessionSummary({ summary, xp, onDone }) {
             <span className="sum-xp-gain"><Tally to={s.xp} t0={t0} at={at('xp') + 120} dur={800} skip={skipped} fmt={(v) => `+${Math.round(v)} XP`} /></span>
           </div>
           <div ref={gauge}><Gauge value={currentXP} max={neededXP} tone="accent" label="التقدم للمستوى الجاي" /></div>
-          {s.levelUp && <p className="sum-levelup">مستوى جديد · <Num>{s.levelUp}</Num></p>}
+          {s.levelUp && level >= s.levelUp && <p className="sum-levelup">مستوى جديد · <Num>{s.levelUp}</Num></p>}
         </section>
       </div>
       <div className="sum-foot sum-beat" style={b('foot')} onClick={e => e.stopPropagation()}>
