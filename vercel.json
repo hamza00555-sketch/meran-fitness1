@@ -25,7 +25,27 @@
       }
     },
     {
+      "src": "/pack/i/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Access-Control-Allow-Origin": "*"
+      },
+      "continue": true
+    },
+    {
+      "src": "/pack/manifest\\.json",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "Access-Control-Allow-Origin": "*"
+      },
+      "continue": true
+    },
+    {
       "handle": "filesystem"
+    },
+    {
+      "src": "/pack/(.*)",
+      "status": 404
     },
     {
       "src": "/classic/(.*)",

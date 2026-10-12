@@ -5,6 +5,18 @@
 //                                   [--base https://assets.meran.app/]
 //                                   [--size 512] [--version 2026.08.11-1]
 //
+// `npm run build` runs this on every deploy (scripts/build.mjs):
+//   --src assets-cut --out dist/pack --base /pack/
+// so the pack is served from the app's own site, next to the app.
+//
+// --version is optional and normally left out. Without it the version
+// is derived from the content: the newest generation date among the
+// sources (from scripts/pack-sources.json) plus a short hash of what
+// goes in — each slot's source bytes, its frame and the encoder
+// settings. The same assets-cut gives the same version on every
+// deploy, so the app never offers an update that changes nothing; any
+// changed, added or removed piece gives a new one.
+//
 // --size is only a fallback: each slot in src/assets/slots.js states its
 // own width and height, and that is what a piece is resized to.
 //
@@ -33,16 +45,23 @@ const SRC     = path.resolve(arg('src', 'assets-src'))
 const OUT     = path.resolve(arg('out', 'pack'))
 const BASE    = arg('base', process.env.ASSETS_BASE_URL || 'https://assets.meran.app/')
 const SIZE    = Number(arg('size', 512))
-const VERSION = arg('version', new Date().toISOString().slice(0, 10).replace(/-/g, '.') + '-1')
+const VERSION_ARG = arg('version', null)
 const SCHEMA  = 1
+const started = Date.now()
 
 const sha256 = (buf) => createHash('sha256').update(buf).digest('hex')
 
-// sharp is optional. Without it the source files are published as-is,
-// which still produces a valid pack — just a heavier one.
+// sharp is required. The sources are ~50 MB of PNG; publishing them
+// unconverted would make a 14 MB download four times heavier on the
+// phone, so a machine without sharp stops here instead. It is a
+// devDependency with its prebuilt binaries for every platform in the
+// lockfile, so `npm ci` on the deploy machine installs it.
 let sharp = null
-try { sharp = (await import('sharp')).default } catch {
-  console.warn('! sharp not installed — publishing source files unchanged')
+try { sharp = (await import('sharp')).default } catch (e) {
+  console.error('✗ sharp is not installed — refusing to publish unconverted PNGs')
+  console.error(`  ${e.message}`)
+  console.error('  Run `npm ci` (sharp is in devDependencies).')
+  process.exit(1)
 }
 
 // The slot list is the contract; anything outside it is a typo. It also
@@ -73,6 +92,7 @@ const problems = []
 // bars down the side of a full-bleed image are worse than a tighter crop.
 const CONTAIN = { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }
 const COVER   = { fit: 'cover', position: 'centre' }
+const ENCODE  = { still: { quality: 88, effort: 4 }, cover: { quality: 82, effort: 4 } }
 
 const todo = []
 for (const file of files.sort()) {
@@ -83,9 +103,14 @@ for (const file of files.sort()) {
   todo.push({ id, file })
 }
 
+// What the version is derived from: per slot, the source bytes and the
+// frame they are fitted to. Filled in by convert().
+const inputs = new Map()
+
 async function convert({ id, file }) {
   const source = await readFile(path.join(SRC, file))
   const dim = DIMS.get(id) || {}
+  inputs.set(id, `${id}\t${path.extname(file)}\t${sha256(source)}\t${dim.w || SIZE}x${dim.h || SIZE}\t${dim.kind || ''}`)
   const w = dim.w || SIZE
   const h = dim.h || SIZE
   const isCover = dim.kind === 'cover'
@@ -101,12 +126,10 @@ async function convert({ id, file }) {
     return { id, file: `i/${vidSha}.mp4`, sha256: vidSha, bytes: source.length, w, h, type: 'video/mp4' }
   }
 
-  const webp = sharp
-    ? await sharp(source)
-        .resize(w, h, isCover ? COVER : CONTAIN)
-        .webp({ quality: isCover ? 82 : 88, effort: 4 })
-        .toBuffer()
-    : source
+  const webp = await sharp(source)
+    .resize(w, h, isCover ? COVER : CONTAIN)
+    .webp(isCover ? ENCODE.cover : ENCODE.still)
+    .toBuffer()
 
   const webpSha = sha256(webp)
   await writeFile(path.join(OUT, 'i', `${webpSha}.webp`), webp)
@@ -137,19 +160,48 @@ assets.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
 
 const missing = ALL_SLOT_IDS.filter(id => !seen.has(id))
 
+// Nothing but WebP and MP4 leaves this script: a PNG in the output
+// would mean a source slipped through unconverted.
+const stray = assets.filter(a => !/\.(webp|mp4)$/.test(a.file))
+for (const a of stray) problems.push(`${a.id}: published as ${a.file}, not converted`)
+
+// ── The version, from the content ─────────────────────────────
+// The date is when the newest piece was generated, read from the
+// Higgsfield URL recorded for it (hf_YYYYMMDD_…) — not the clock and
+// not file times, which a fresh clone resets. The hash covers the
+// inputs rather than the encoded bytes, so a deploy machine whose
+// encoder rounds a pixel differently still announces the same version.
+async function sourceDate(ids) {
+  try {
+    const rec = JSON.parse(await readFile(path.resolve('scripts/pack-sources.json'), 'utf8'))
+    let newest = ''
+    for (const id of ids) {
+      const m = /hf_(\d{4})(\d{2})(\d{2})_/.exec(rec.slots?.[id]?.url || '')
+      if (m && `${m[1]}-${m[2]}-${m[3]}` > newest) newest = `${m[1]}-${m[2]}-${m[3]}`
+    }
+    return newest || null
+  } catch { return null }
+}
+
+const DATE = await sourceDate(assets.map(a => a.id))
+const RECIPE = JSON.stringify({ SCHEMA, CONTAIN, COVER, ENCODE })
+const contentHash = sha256([RECIPE, ...[...inputs.keys()].sort().map(id => inputs.get(id))].join('\n')).slice(0, 6)
+const VERSION = VERSION_ARG || `${(DATE || '1970-01-01').replace(/-/g, '.')}-${contentHash}`
+
 const manifest = {
   schemaVersion: SCHEMA,
   packVersion: VERSION,
   baseUrl: BASE.endsWith('/') ? BASE : BASE + '/',
   totalBytes: assets.reduce((n, a) => n + a.bytes, 0),
-  generatedAt: new Date().toISOString(),
+  ...(DATE ? { sourceDate: DATE } : {}),
   assets,
 }
 
 await writeFile(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2))
 
 const mb = (manifest.totalBytes / 1048576).toFixed(2)
-console.log(`✓ ${assets.length} assets · ${mb} MB · v${VERSION}`)
+const secs = ((Date.now() - started) / 1000).toFixed(1)
+console.log(`✓ ${assets.length} assets · ${mb} MB · v${VERSION} · ${secs}s`)
 console.log(`  ${path.join(OUT, 'manifest.json')}`)
 
 // A partial pack publishes fine — the app falls back per icon — but

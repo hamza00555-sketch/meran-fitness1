@@ -12,12 +12,15 @@ import {
 import { ensureDownload, cancel as cancelDownload, isRunning } from './download.js'
 import * as registry from './registry.js'
 
-// Where the pack lives. The default is the live bucket, so a plain
-// build works with no environment set; VITE_ASSETS_MANIFEST_URL
-// overrides it for a staging bucket or a future custom domain.
+// Where the pack lives: on this site, at /pack/. `npm run build`
+// (scripts/build.mjs) builds it into dist/pack from assets-cut on every
+// deploy, and sets VITE_ASSETS_MANIFEST_URL once for both designs —
+// they share one pack store on the phone, so they must read the same
+// manifest, or each install would delete the other's files. Setting
+// the variable yourself points both at another host, an R2 bucket say.
 export const MANIFEST_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_ASSETS_MANIFEST_URL) ||
-  'https://pub-189be0412bdd4092aa44be319badfd91.r2.dev/manifest.json'
+  '/pack/manifest.json'
 
 const POINTER = 'hf_pack'          // tiny localStorage hint, never the truth
 const PROMPTED = 'hf_pack_prompted'
