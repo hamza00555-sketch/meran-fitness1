@@ -547,13 +547,20 @@ export function muscleSets(sessions = [], month, { today = todayKey(), firstEver
     .sort((a, b) => b.perWeek - a.perWeek)
 }
 
-/** «الظهر أخذ أقل من حقه.» */
+// The groups whose Arabic name is a plural: «الأرجل», «الأكتاف». A
+// plural of things takes the feminine verb — «الأرجل أخذت أقل من حقها»
+// — where «الظهر» and «البايسبس» take «أخذ … حقه».
+const PLURAL_GROUPS = new Set(['Legs', 'Shoulders'])
+const tookVerb = (key) => (PLURAL_GROUPS.has(key) ? 'أخذت' : 'أخذ')
+const itsDue = (key) => (PLURAL_GROUPS.has(key) ? 'حقها' : 'حقه')
+
+/** «الظهر أخذ أقل من حقه.» / «الأرجل أخذت أقل من حقها.» */
 export function musclesLine(muscles = []) {
   const judged = muscles.filter(m => m.status)
   if (!judged.length) return ''
   const low = judged.filter(m => m.status === 'low').sort((a, b) => a.perWeek - b.perWeek)
   if (!low.length) return 'كل عضلاتك أخذت حقها.'
-  if (low.length === 1) return `${low[0].label} أخذ أقل من حقه.`
+  if (low.length === 1) return `${low[0].label} ${tookVerb(low[0].key)} أقل من ${itsDue(low[0].key)}.`
   if (low.length === 2) return `${low[0].label} و${low[1].label} أخذوا أقل من حقهم.`
   return `${countWord(low.length, 'muscle')} أخذت أقل من حقها.`
 }
@@ -633,7 +640,7 @@ export function nextCopy(item, mapping = {}) {
     const took = per < 1 ? 'أقل من مجموعة' : countWord(per, 'set')
     return {
       title: `زِد مجموعات ${item.label}`,
-      reason: `${item.label} أخذ ${took} بالأسبوع، والمناسب من ${item.min} إلى ${item.max}.`,
+      reason: `${item.label} ${tookVerb(item.muscle)} ${took} بالأسبوع، والمناسب من ${item.min} إلى ${item.max}.`,
     }
   }
   return null

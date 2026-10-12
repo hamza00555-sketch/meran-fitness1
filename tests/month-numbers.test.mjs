@@ -762,6 +762,20 @@ test('the poster\'s figures take the word their number asks for', async () => {
   assert.equal(reps.figs.at(-1).l, 'تكرار')
 })
 
+// ══ plural muscle names take a plural verb ════════════════════
+
+test('«الأرجل أخذت», «الأكتاف أخذت» — not «الأرجل أخذ»', () => {
+  const m = (key, label) => ({ key, label, status: 'low', perWeek: 7 })
+  assert.equal(musclesLine([m('Legs', 'الأرجل')]), 'الأرجل أخذت أقل من حقها.')
+  assert.equal(musclesLine([m('Shoulders', 'الأكتاف')]), 'الأكتاف أخذت أقل من حقها.')
+  assert.equal(musclesLine([m('Back', 'الظهر')]), 'الظهر أخذ أقل من حقه.')
+  assert.equal(musclesLine([m('Biceps', 'البايسبس')]), 'البايسبس أخذ أقل من حقه.')
+  const reason = (key, label) => nextCopy({ kind: 'sets', muscle: key, label, perWeek: 7, min: 10, max: 20 }).reason
+  assert.equal(reason('Legs', 'الأرجل'), 'الأرجل أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+  assert.equal(reason('Shoulders', 'الأكتاف'), 'الأكتاف أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+  assert.equal(reason('Back', 'الظهر'), 'الظهر أخذ 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+})
+
 // ══ a ticked set at body weight is a set ══════════════════════
 
 test('«مجموعات كاملة» and «تكرارات» count ticked body-weight sets, as the muscle bars do', () => {
