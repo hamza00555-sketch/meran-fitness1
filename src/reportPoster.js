@@ -159,6 +159,17 @@ export function posterFigures(report, { liveStreak = null, today } = {}) {
   return { figs: figs.slice(0, 4), attended: a.attended ?? report.sessionCount, planned: a.planned || 0 }
 }
 
+/** Who the poster is from: the name, and the level only while it is
+ *  the month's own. A finished month's poster would otherwise print
+ *  today's level as that month's (only today's XP is stored). */
+export function posterFooter(report, profile = {}) {
+  const name = (profile?.name || '').trim()
+  const p = report?.progress
+  if (!p || p.levelIsToday || !Number.isFinite(p.level)) return { name, level: '' }
+  const rank = p.rank?.label
+  return { name, level: `المستوى ${AR(p.level)}${rank ? ` · ${rank}` : ''}` }
+}
+
 // ── The poster ────────────────────────────────────────────────
 
 export async function drawPoster(canvas, { report, profile = {}, mapping = {}, liveStreak = null, today } = {}) {
@@ -258,13 +269,13 @@ export async function drawPoster(canvas, { report, profile = {}, mapping = {}, l
   // ── Who this is, and the mark ──
   const FOOT = 1452
   hairline(ctx, FOOT)
-  const name = (profile.name || '').trim()
-  const rank = report.progress?.rank?.label
-  const level = `المستوى ${AR(report.progress?.level)}${rank ? ` · ${rank}` : ''}`
-  if (name) {
+  const { name, level } = posterFooter(report, profile)
+  if (name && level) {
     text(ctx, name, R, FOOT + 76, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
     text(ctx, level, R, FOOT + 128, { size: 34, weight: 600, color: C.ink3, maxWidth: COL - 260 })
-  } else {
+  } else if (name) {
+    text(ctx, name, R, FOOT + 104, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
+  } else if (level) {
     text(ctx, level, R, FOOT + 98, { size: 38, weight: 600, color: C.ink2, maxWidth: COL - 260 })
   }
   if (mark) {

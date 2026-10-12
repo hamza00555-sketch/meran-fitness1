@@ -32,7 +32,10 @@ export default function AllNumbers({ report, id = 'rp-all' }) {
         <Row label="تكرارات" value={AR(reps.total)} />
         {time.known && <Row label="وقت التمرين" value={total.value} unit={total.unit} />}
         {time.known && <Row label="متوسط الجلسة" value={avg.value} unit={avg.unit} />}
-        <Row label="المستوى" value={progress.level} sub={progress.rank?.label ? `الرتبة: ${progress.rank.label}` : ''} />
+        {/* Only today's XP is kept: in a month that has ended, the level
+            is today's, and is named that way. */}
+        <Row label={progress.levelIsToday ? 'مستواك اليوم' : 'المستوى'} value={progress.level}
+             sub={progress.rank?.label ? `الرتبة: ${progress.rank.label}` : ''} />
         {got.length > 0 && (
           <Row label="إنجازات فتحتها" value={got.length} sub={got.slice(0, 3).map(a => a.title).join('، ') + (got.length > 3 ? '…' : '')} />
         )}

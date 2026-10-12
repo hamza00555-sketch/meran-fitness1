@@ -392,6 +392,10 @@ async function shoot(page, name) {
   ok('next month: three things at most, each with one reason', next.length >= 1 && next.length <= 3 && next.every(n => n.title && n.why), JSON.stringify(next))
   ok('next month: from the progression engine', next.some(n => n.kind === 'raise') && next.some(n => n.kind === 'lower') && next.some(n => n.kind === 'sets'), JSON.stringify(next))
 
+  // Only today's XP is stored: a finished month names the level as today's.
+  const allRows = await page.evaluate(() => [...document.querySelectorAll('#rp-all .rp-row-t')].map(e => e.textContent.trim()))
+  ok('all numbers: a finished month calls the level today\'s', allRows.includes('مستواك اليوم') && !allRows.includes('المستوى'), allRows.join(' | '))
+
   ok('report: no page errors', errors.length === 0, errors.join('; '))
 
   const [ran, loops] = await motion(page)

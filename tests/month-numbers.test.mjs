@@ -701,3 +701,21 @@ test('a muscle at 9.5–9.9 sets a week reads «10», in range — never «10 ·
   // And over the top only when the shown number is over 20.
   assert.equal(muscleSets(backSets(93), MAR, { today: TODAY })[0].status, 'high', '21 a week')
 })
+
+// ══ the level is today's, and says so ═════════════════════════
+// Only today's XP is stored, so a finished month cannot know the level
+// it ended on. Its report names the level as today's, and its poster
+// leaves it off rather than print it as that month's.
+
+test('a finished month does not pass today\'s level off as its own', async () => {
+  const s = [1, 3, 5].map(d => on(FEB, d, 'Bench Press', three(60)))
+  const feb = build(s, { month: FEB, today: '2026-10-11', xp: 999999 })
+  assert.equal(feb.progress.levelIsToday, true)
+  const live = build([on('2026-10', 3, 'Bench Press', three(60))], { month: '2026-10', today: '2026-10-11', xp: 999999 })
+  assert.equal(live.progress.levelIsToday, false, 'the month still running: today\'s level is the month\'s')
+
+  const { posterFooter } = await import('../src/reportPoster.js')
+  assert.deepEqual(posterFooter(feb, { name: 'حمزة' }), { name: 'حمزة', level: '' })
+  assert.deepEqual(posterFooter(feb, {}), { name: '', level: '' })
+  assert.match(posterFooter(live, { name: 'حمزة' }).level, /^المستوى \d+/)
+})

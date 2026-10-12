@@ -782,7 +782,11 @@ export function buildMonthReport({
   const muscles = muscleSets(sessions, month, { today: day, firstEver })
 
   // ── Progress ──
+  // Only today's XP is stored, so the level is today's. For the month
+  // still running that is the month's own; for one that has finished it
+  // is not, and the report says so rather than passing it off as then.
   const { level } = xpProgress(xp)
+  const levelIsToday = day > lastDayOf(month)
   const achievements = Object.entries(unlockedAt)
     .filter(([, at]) => monthKey(new Date(at)) === month)
     .map(([id]) => ACHIEVEMENTS.find(a => a.id === id))
@@ -830,6 +834,7 @@ export function buildMonthReport({
     progress: {
       level,
       rank: getRank(level),
+      levelIsToday,
       achievements,
     },
   }
