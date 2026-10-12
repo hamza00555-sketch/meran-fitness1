@@ -87,7 +87,12 @@ async function newPage(ctx) {
   return page
 }
 
-const ctxOpts = { ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh' }
+// No service worker here. The root worker answers /pack/manifest.json
+// and /pack/i/*.webp itself (vite.config.js), and page.route never sees
+// a request a worker answers: the test pack, the dropped connections and
+// the corrupt files above would never reach the downloader. The worker's
+// own pack rules are checked in tests/pack-install.e2e.mjs.
+const ctxOpts = { ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', serviceWorkers: 'block' }
 
 async function boot(page) {
   await page.addInitScript((v) => {
