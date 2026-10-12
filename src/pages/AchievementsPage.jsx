@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ACHIEVEMENTS, ACHIEVEMENT_CATS, RARITY_COLORS } from '../constants.js'
 import { getRank, xpProgress } from '../utils.js'
 import { Num, Gauge, Chip, Sheet, Chapter } from '../components/kit/index.jsx'
 import Medal from '../components/progress/Medal.jsx'
 import MedalReveal from '../components/progress/MedalReveal.jsx'
+import { warmMedals, dropWarm } from '../components/progress/medalStage.js'
 import RankLadder from '../components/progress/RankLadder.jsx'
 import RankCrest from '../components/progress/RankCrest.jsx'
 import Numify from '../components/progress/Numify.jsx'
@@ -19,6 +20,12 @@ import '../styles/screens/progress.css'
 // three columns. Tapping a medal opens it in a sheet — an earned one
 // spins there on its metal edge every time it opens (حمزة: «كل ما
 // أفتحها»), and a tap on it spins it again; a locked one stays flat.
+// Once the page has settled, the 3D stage is built for the medal earned
+// last, and parked; each sheet takes it, prepares its own medal on it (a
+// medal's pictures start being made as a finger lands on its tile) and
+// parks it again on closing — one GL context for the whole wall, freed
+// with the page. So the sheet's medal is ready for its beat (SHEET_BEAT);
+// when it isn't, the flat medal turns in its place, on time.
 //
 // No gold on this page at all: gold means «raise the weight». XP and
 // the level are neutral or accent.
@@ -48,6 +55,25 @@ export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, un
   const next = nearestLocked(ACHIEVEMENTS, isEarned, ctx, 3)
   const shown = cat === 'all' ? ACHIEVEMENTS : ACHIEVEMENTS.filter(a => a.cat === cat)
   const openA = open && ACHIEVEMENTS.find(a => a.id === open)
+
+  // An earned medal will spin here: its stage, built ahead (never when
+  // there is nothing earned to open), and freed with the page.
+  const sheetOpen = useRef(false)
+  sheetOpen.current = !!open
+  useEffect(() => {
+    if (!earnedCount) return
+    const t = setTimeout(() => {
+      if (sheetOpen.current) return   // a sheet already has its own
+      const last = ACHIEVEMENTS.filter(a => isEarned(a.id))
+        .sort((x, y) => (unlockedAt[y.id] || 0) - (unlockedAt[x.id] || 0))[0]
+      if (last) warmMedals([last], { queue: false, variant: 'sheet', date: sheetDate(unlockedAt[last.id]) })
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [earnedCount > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => dropWarm(), [])
+  const press = (a) => () => {
+    if (isEarned(a.id)) warmMedals([a], { gl: false, queue: false, variant: 'sheet', date: sheetDate(unlockedAt[a.id]) })
+  }
 
   return (
     <div className="pg" data-testid="achievements">
@@ -114,6 +140,7 @@ export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, un
             const { title } = achText(a)
             return (
               <button key={a.id} type="button" className={`pg-tile${earned ? ' on' : ''}`}
+                onPointerDown={earned ? press(a) : undefined}
                 onClick={() => setOpen(a.id)}
                 aria-label={`${title} — ${earned ? 'محققة' : 'مقفلة'}`}>
                 <Medal achievement={a} earned={earned} />
@@ -137,6 +164,21 @@ export default function AchievementsPage({ sessions = [], xp = 0, streak = 0, un
   )
 }
 
+// The date engraved on the back of a medal in its sheet.
+const sheetDate = (earnedAt) => (earnedAt ? fmtDate(earnedAt) : '')
+
+// The medal's beat in the sheet: the sheet is most of the way up. Its 3D
+// stage has until then; not ready, the flat medal turns instead.
+const SHEET_BEAT = 320
+function SheetMedal({ m, date }) {
+  const [go, setGo] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setGo(true), SHEET_BEAT)
+    return () => clearTimeout(t)
+  }, [])
+  return <MedalReveal items={[m]} variant="sheet" play={go} date={date} />
+}
+
 function MedalSheet({ a, open, earned, earnedAt, progress, opens, onClose }) {
   // Keep the last medal while the sheet animates out.
   const last = useRef(a)
@@ -151,8 +193,7 @@ function MedalSheet({ a, open, earned, earnedAt, progress, opens, onClose }) {
     <Sheet open={open} onClose={onClose} title={<Numify>{title}</Numify>}>
       <div className="pg-sheet">
         {earned
-          ? <MedalReveal key={`${m.id}:${opens}`} items={[m]} variant="sheet" play
-              date={earnedAt ? fmtDate(earnedAt) : ''} />
+          ? <SheetMedal key={`${m.id}:${opens}`} m={m} date={sheetDate(earnedAt)} />
           : <Medal achievement={m} earned={false} size={132} showUnit />}
         <p className="pg-sheet-desc"><Numify>{desc}</Numify></p>
         <div className="pg-sheet-chips">

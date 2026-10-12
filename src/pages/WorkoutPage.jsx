@@ -25,7 +25,7 @@ import '../styles/screens/session.css'
 // platform has it), so the rest countdown and its tones keep running.
 
 export default function WorkoutPage({
-  active, sessions, onUpdateActive, onFinish, onShowRest, onCloseRest, addXP, onGoBack,
+  active, sessions, onUpdateActive, onFinish, onFinishing, onShowRest, onCloseRest, addXP, onGoBack,
   onMinimize, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET,
   exerciseSubs = {}, onCycleSub,
 }) {
@@ -33,6 +33,10 @@ export default function WorkoutPage({
   const [showRoutines,  setShowRoutines]  = useState(false)
   const [askFinish,     setAskFinish]     = useState(false)
   const [askDiscard,    setAskDiscard]    = useState(false)
+
+  // «إنهاء» asked: whatever the summary will show starts getting ready
+  // while the sheet is up (App builds the medal stage ahead).
+  useEffect(() => { if (askFinish) onFinishing?.() }, [askFinish]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The session clock lives in SessionBar (wall-clock since active.id,
   // the same number finishSession saves), so this page — and the player

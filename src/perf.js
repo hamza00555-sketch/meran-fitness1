@@ -23,9 +23,9 @@ export function mark(name, again = false) {
   try { performance.mark(`meran:${name}`) } catch { /* old Safari */ }
 }
 
-/** Forget the once-only names (a new summary is a new timeline). */
+/** Forget the once-only names (a new summary is a new timeline; the marks
+ *  before it — the stage built ahead — stay readable). */
 export function resetMarks() {
   if (!on) return
   done.clear()
-  try { performance.clearMarks() } catch { /* old Safari */ }
 }

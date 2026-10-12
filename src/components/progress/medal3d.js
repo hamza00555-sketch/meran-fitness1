@@ -5,14 +5,29 @@
 //
 //   const stage = MedalStage(host, { font, date, reduced, labels, onLand, onFallback })
 //   stage.webgl          false → no WebGL here: the host draws its flat medal
-//   stage.prepare(list)  build the geometry + bake the relief ahead of time
-//   stage.play(list)     list: [{ title, word, rarity, art, glyph, n }]
+//   stage.prepare(list, { warm })  build the geometry + bake the relief ahead of
+//                        time; warm: also draw every program once, unseen, and
+//                        wait for that frame to be shown, so the GPU builds its
+//                        pipelines now and not on the first frame of the reveal
+//                        (a stall of up to a second); keep the canvas on the
+//                        page meanwhile, if only in a corner pixel
+//   stage.play(list, { delay })  list: [{ title, word, rarity, art, glyph, n }]
 //                        art = image URL from the pack, or null → a composed face
 //                        glyph = an SVG path (256 box), n = the engraved number
+//                        delay: seconds before the first medal starts (.3; the
+//                        host that times its own beat passes 0)
+//   stage.mount(el)      move the canvas and labels into another host (a stage
+//                        built ahead of time, parked, taken by the reveal)
+//   stage.set(o)         new options for the new host: onLand, onFallback,
+//                        labels, date (a stage used again for another medal)
+//   stage.reset()        put away: nothing moving, nothing drawn, no labels
 //   stage.skip()         land everything now, facing front, labels shown
 //   stage.resize()       after the host changes size
 //   stage.pause()/resume()  stop drawing while off screen
 //   stage.destroy()      free every GPU object and the context
+//
+//   preload(list, { font, date })  (named export) the CPU half alone — the
+//                        pictures, outline and back plate, into the shared cache
 //
 //   onLand(i, item)      each medal as it lands (sound, haptic) — not on skip()
 //   onFallback()         the context was lost and never came back: the GPU
@@ -175,15 +190,19 @@ function engrave(it, n, font, date) {
   x.lineWidth = 4; x.beginPath(); x.arc(256, 256, 168, 0, TAU); x.stroke()
   return cv
 }
-// The pictures a medal is built from (its face, its 1024px back plate and
-// the outline), kept for the few medals seen last so reopening one is
-// instant — never all of them: each holds ~5 MB of canvas, and an iOS
+// The pictures a medal is built from (its face, its back plate and the
+// outline), kept for the few medals seen last so reopening one is instant
+// — never all of them: each holds up to ~5 MB of canvas, and an iOS
 // home-screen app lives for days (iOS also refuses new canvases past its
 // memory cap). A stage still showing an older one keeps its own copy.
+// The back plate is engraved at 512 px — enough while the medal spins in —
+// and at 1024 (`eng2`, made by the stage that needs it) only once it has
+// landed and stands still: it was the largest single cost of building one.
 const ASSETS_KEPT = 4
 const assets = new Map()
+const assetKey = (it, date) => (it.art || `face:${it.rarity}:${it.n}:${it.glyph}`) + '|' + it.title + '|' + date
 function load(it, font, date) {
-  const key = (it.art || `face:${it.rarity}:${it.n}:${it.glyph}`) + '|' + it.title + '|' + date
+  const key = assetKey(it, date)
   if (assets.has(key)) {
     const hit = assets.get(key)
     assets.delete(key); assets.set(key, hit)   // the most recently used goes last
@@ -201,12 +220,18 @@ function load(it, font, date) {
     for (let i = 0; i < m * m; i++) A[i] = px[i * 4 + 3] / 255
     const r = rim(contours(A, m, .5), m, px)
     mark('m3:alpha', true)
-    const eng = engrave(it, 1024, font, date)
+    const eng = engrave(it, 512, font, date)
     mark('m3:engrave', true)
     return { key, src, eng, ...r }
   })()
   assets.set(key, p); p.catch(() => assets.delete(key))
   return p
+}
+const fontsLoad = (font) => document.fonts ? Promise.all([document.fonts.load(`800 58px ${font}`, 'مران ٠1'), document.fonts.load(`600 30px ${font}`, 'أكتوبر 2026')]).catch(() => {}) : Promise.resolve()
+/** The pictures a list of medals is built from, made now and kept in the shared cache. */
+export async function preload(list, { font = 'sans-serif', date = '' } = {}) {
+  await fontsLoad(font)
+  return Promise.all(list.map(it => load(it, font, date)))
 }
 
 // ── tiny matrix kit (column-major) ──────────────────────────────────
@@ -293,7 +318,8 @@ vec3 c=mix(vec3(1.,.55,.15),vec3(1.,.95,.8),vC.y)*a;gl_FragColor=vec4(c,a);}`
 
 // ── one stage ───────────────────────────────────────────────────────
 export default function MedalStage(host, o = {}) {
-  const font = o.font || 'sans-serif', DATE = o.date || ''
+  const font = o.font || 'sans-serif'
+  let DATE = o.date || ''
   const reduced = typeof o.reduced === 'function' ? o.reduced : () => !!o.reduced
   const MANUAL = !!o.manual, FIXED = !!o.fixedQuality
   const cv = document.createElement('canvas'), labs = document.createElement('div')
@@ -388,25 +414,45 @@ export default function MedalStage(host, o = {}) {
       bb: buf(new Float32Array([-1, -1, 0, 1, -1, 0, -1, 1, 0, 1, 1, 0])), pt: gl.createBuffer(),
     }
   }
+  // one full-screen pass into a new n² texture (mipmapped)
+  function pass(n, p, u) {
+    const fb = gl.createFramebuffer(), t = tex(null, false, n)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0)
+    gl.viewport(0, 0, n, n); gl.disable(gl.BLEND)
+    use(p, u); gl.bindBuffer(gl.ARRAY_BUFFER, bufs.bb); attribs(3, [[3, 0]]); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fb); gl.enable(gl.BLEND)
+    gl.bindTexture(gl.TEXTURE_2D, t); gl.generateMipmap(gl.TEXTURE_2D); return t
+  }
+  const bake = (g, B, n, eng) => pass(n, progs.bake, { uA: { tex: g.art, unit: 0 }, uE: { tex: eng, unit: 1 }, uBl: { tex: g.bl, unit: 2 }, uB: B, uPx: 1 / n, uLb: Math.log2(n / 512) })
   function gpu(a) {
     let g = gpuMap.get(a.key); if (g) return g
-    const art = tex(a.src, true), eng = tex(a.eng, false), fb = gl.createFramebuffer()
-    const pass = (n, p, u) => {
-      const t = tex(null, false, n); gl.bindFramebuffer(gl.FRAMEBUFFER, fb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0)
-      gl.viewport(0, 0, n, n); gl.disable(gl.BLEND)
-      use(p, u); gl.bindBuffer(gl.ARRAY_BUFFER, bufs.bb); attribs(3, [[3, 0]]); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.bindTexture(gl.TEXTURE_2D, t); gl.generateMipmap(gl.TEXTURE_2D); return t
-    }
+    const art = tex(a.src, true), eng = tex(a.eng, false)
     const b1 = pass(512, progs.blur, { uT: { tex: art, unit: 0 }, uD: [2 / 512, 0], uL: 1 })
-    const bl = pass(512, progs.blur, { uT: { tex: b1, unit: 0 }, uD: [0, 2 / 512], uL: 0 })
-    const bake = (B, n) => pass(n, progs.bake, { uA: { tex: art, unit: 0 }, uE: { tex: eng, unit: 1 }, uBl: { tex: bl, unit: 2 }, uB: B, uPx: 1 / n, uLb: Math.log2(n / 512) })
-    g = { art, nf: bake(0, 512), nb: bake(1, 1024), vb: buf(a.V), ib: buf(a.I, 1), n: a.I.length }
-    ;[eng, b1, bl].forEach(t => gl.deleteTexture(t)); gl.deleteFramebuffer(fb); gl.enable(gl.BLEND)
+    g = { art, bl: pass(512, progs.blur, { uT: { tex: b1, unit: 0 }, uD: [0, 2 / 512], uL: 0 }), vb: buf(a.V), ib: buf(a.I, 1), n: a.I.length, sharp: false }
+    g.nf = bake(g, 0, 512, eng); g.nb = bake(g, 1, 512, eng)
+    gl.deleteTexture(eng); gl.deleteTexture(b1)
     gpuMap.set(a.key, g); return g
   }
+  // The back plate at 1024, once the medals are down and still (one medal a
+  // frame): seen up close only when a finger turns the medal over. A 2D
+  // canvas refused (iOS memory) keeps the 512 one.
+  function sharpen() {
+    if (!gl || lost || !medals.length || medals.some(m => !m.landed)) return
+    const m = medals.find(x => { const g = gpuMap.get(x.a.key); return g && !g.sharp })
+    if (!m) return
+    const g = gpuMap.get(m.a.key)
+    g.sharp = true
+    let c = m.a.eng2
+    if (!c) { try { c = m.a.eng2 = engrave(m.it, 1024, font, DATE) } catch (e) { c = null } }
+    if (!c) return
+    const eng = tex(c, false), nb = bake(g, 1, 1024, eng)
+    gl.deleteTexture(eng); gl.deleteTexture(g.nb); g.nb = nb
+    mark('m3:sharp', true)
+  }
+  const freeOne = (g) => { gl.deleteTexture(g.art); gl.deleteTexture(g.bl); gl.deleteTexture(g.nf); gl.deleteTexture(g.nb); gl.deleteBuffer(g.vb); gl.deleteBuffer(g.ib) }
   function freeGL() {
     if (!gl || gl.isContextLost()) return
-    for (const g of gpuMap.values()) { gl.deleteTexture(g.art); gl.deleteTexture(g.nf); gl.deleteTexture(g.nb); gl.deleteBuffer(g.vb); gl.deleteBuffer(g.ib) }
+    for (const g of gpuMap.values()) freeOne(g)
     for (const k in progs) gl.deleteProgram(progs[k])
     for (const k in bufs) gl.deleteBuffer(bufs[k])
   }
@@ -433,8 +479,10 @@ export default function MedalStage(host, o = {}) {
       this.on = true; this.t0 = clock
       mark(`m3:start:${this.i}`)
       if (RM) return
-      this.tc = this.R.heavy ? 2.25 : 2
-      this.th = { t0: clock, tc: this.tc, from: 0, to: this.R.turns * TAU, p: 2, vc: 1.7 }
+      // the second of a pair: a turn fewer, in about half the time, so the
+      // two land about a second apart and still read one, then the other
+      this.tc = this.second ? (this.R.heavy ? 1.2 : 1) : this.R.heavy ? 2.25 : 2
+      this.th = { t0: clock, tc: this.tc, from: 0, to: (this.second ? Math.max(1, this.R.turns - 1) : this.R.turns) * TAU, p: 2, vc: 1.7 }
     }
     land() {
       const R = this.R
@@ -513,21 +561,48 @@ export default function MedalStage(host, o = {}) {
   }
 
   // ── reveal ──
-  const fontsReady = () => document.fonts ? Promise.all([document.fonts.load(`800 58px ${font}`, 'مران ٠1'), document.fonts.load(`600 30px ${font}`, 'أكتوبر 2026')]).catch(() => {}) : Promise.resolve()
-  async function prepare(list) {
+  // the last list prepared, kept so play() on it starts in the same task
+  let prepared = null
+  const listKey = (list) => list.map(it => assetKey(it, DATE)).join('\n')
+  async function prepare(list, { warm = false } = {}) {
     mark('m3:prepare')
-    await fontsReady()
+    await fontsLoad(font)
     mark('m3:fonts')
     const as = await Promise.all(list.map(it => load(it, font, DATE)))
     mark('m3:assets')
-    if (gl && !lost && !dead) as.forEach(gpu)
-    mark('m3:gpu')
+    if (gl && !lost && !dead) {
+      // a stage used again (the medal sheet's): the medals it showed before go
+      for (const [k, g] of gpuMap) if (!as.some(a => a.key === k) && !medals.some(m => m.a.key === k)) { freeOne(g); gpuMap.delete(k) }
+      as.forEach(gpu)
+      mark('m3:gpu')
+      if (warm) {
+        warmUp(list, as); mark('m3:warm')
+        // …and shown once: some GPUs only do the work when the canvas is
+        // first composited (the host keeps it on the page, if only in a
+        // corner pixel), so that frame is paid for here, not on the beat
+        await frames(2); mark('m3:presented')
+      }
+    }
+    prepared = { k: listKey(list), as }
     return as
   }
-  async function play(list) {
+  const frames = (n) => new Promise((r) => { const f = () => (--n > 0 ? requestAnimationFrame(f) : r()); requestAnimationFrame(f) })
+  // Every program drawn once with nothing showing (opacity and intensity 0),
+  // in the same blend and depth states as a frame: the GPU compiles the
+  // pipelines here, ahead of the reveal, instead of on its first frames —
+  // where it held the page for up to a second.
+  function warmUp(list, as) {
+    if (!gl || lost || dead || medals.length) return
+    const keep = medals
+    medals = as.map((a, i) => { const m = new Medal(list[i], a, i); m.update(0); return m })
+    try { draw(camera(0, 0), true) } finally { medals = keep }
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    gl.flush()   // to the GPU now, not with the next frame
+  }
+  async function play(list, { delay = .3 } = {}) {
     const my = ++token
     if (!gl || flat) return
-    const as = await prepare(list)
+    const as = prepared && prepared.k === listKey(list) && !lost ? prepared.as : await prepare(list)
     if (my !== token || dead || flat) return
     RM = reduced()
     medals = as.map((a, i) => new Medal(list[i], a, i)); timers = []; sparks = []; clock = 0
@@ -544,10 +619,13 @@ export default function MedalStage(host, o = {}) {
     }
     const [a, b] = medals
     if (b) {
-      if (RM) { a.layout(...SLOT[0], 1); b.layout(...SLOT[1], 1); at(.3 + .15, () => b.start()) }   // reduced: both fade in where they stay
-      else { a.layout(0, 0, 1, 1); b.layout(...SLOT[1], 1); a.onLand = () => at(.55, () => { a.layout(...SLOT[0]); b.start() }) }
+      // the second follows the first by about a second: it sets off as the
+      // first lands and steps aside, on a shorter flight of its own (start())
+      b.second = true
+      if (RM) { a.layout(...SLOT[0], 1); b.layout(...SLOT[1], 1); at(delay + .15, () => b.start()) }   // reduced: both fade in where they stay
+      else { a.layout(0, 0, 1, 1); b.layout(...SLOT[1], 1); a.onLand = () => at(.06, () => { a.layout(...SLOT[0]); b.start() }) }
     }
-    at(.3, () => a.start())
+    at(delay, () => a.start())
     mark('m3:play')
     measure(); wake()
   }
@@ -581,7 +659,7 @@ export default function MedalStage(host, o = {}) {
       m.lab.style.transform = `translate(${p[0].toFixed(1)}px,${(p[1] + 12 + (RM ? 0 : 10 * (1 - ease(l)))).toFixed(1)}px) translateX(-50%)`
     }
   }
-  function draw(C) {
+  function draw(C, warm = false) {
     const want = clamp(Math.min(o.maxDpr || 3, (window.devicePixelRatio || 1) * kScale) * quality, 1, 3)
     const bw = Math.round(W * want), bh = Math.round(SH * want)
     if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh }
@@ -601,9 +679,9 @@ export default function MedalStage(host, o = {}) {
     // rays behind (epic / legendary)
     gl.blendFunc(gl.ONE, gl.ONE)
     for (const m of medals) {
-      if (!m.R.rays || !m.landed || RM) continue
+      if (!warm && (!m.R.rays || !m.landed || RM)) continue
       const d = clock - m.tl, k = m.rayKick ? clock - m.rayKick : 9
-      const I = m.R.rays * m.op * clamp(d / .08) * (.22 + 1.1 * Math.exp(-d / .5) + .5 * Math.exp(-k / .4)) * (.5 + .5 * Math.max(m.ia, clamp(1 - d)))
+      const I = warm ? 0 : m.R.rays * m.op * clamp(d / .08) * (.22 + 1.1 * Math.exp(-d / .5) + .5 * Math.exp(-k / .4)) * (.5 + .5 * Math.max(m.ia, clamp(1 - d)))
       const sz = 1.55 * m.s, c = [m.wx, m.wy, m.z - .4]
       use(progs.rays, { uVP: C.VP, uC: c, uX: C.x.map(v => v * sz), uY: C.y.map(v => v * sz), uT: clock, uI: I, uCol: [1, .72, .3], uClip: clip })
       gl.bindBuffer(gl.ARRAY_BUFFER, bufs.bb); attribs(3, [[3, 0]]); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
@@ -612,8 +690,8 @@ export default function MedalStage(host, o = {}) {
     // the medals
     gl.enable(gl.DEPTH_TEST)
     for (const m of medals) {
-      if (!m.on || m.op <= 0) continue
-      mark(`m3:frame:${m.i}`)
+      if (!warm && (!m.on || m.op <= 0)) continue
+      if (!warm) mark(`m3:frame:${m.i}`)
       const g = gpu(m.a), { R, M } = pose(m), u = { uVP: C.VP, uM: M, uR: R, uEye: C.e, uTint: m.R.tint, uOp: m.op, uSw: m.sweep(), uGs: m.R.gs, uMet: m.R.met, uA: { tex: g.art, unit: 0 } }
       gl.disable(gl.CULL_FACE)
       use(progs.rim, u); gl.bindBuffer(gl.ARRAY_BUFFER, g.vb); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.ib)
@@ -626,20 +704,20 @@ export default function MedalStage(host, o = {}) {
     }
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.blendFunc(gl.ONE, gl.ONE)
     // sparks: 3 points per spark along its velocity = a short streak
-    if (sparks.length) {
-      const D = new Float32Array(sparks.length * 18)
+    if (sparks.length || warm) {
+      const D = new Float32Array(Math.max(1, sparks.length) * 18)   // warm: one spark, size and light 0
       sparks.forEach((s, i) => {
         const f = 1 - s.life / s.max
         for (let j = 0; j < 3; j++) D.set([s.p[0] - s.v[0] * j * .012, s.p[1] - s.v[1] * j * .012, s.p[2] - s.v[2] * j * .012, s.sz * (1 - j * .25), f * (1 - j * .3), f], (i * 3 + j) * 6)
       })
       use(progs.pt, { uVP: C.VP, uPx: bh / 2 * C.f, uClip: clip })
-      gl.bindBuffer(gl.ARRAY_BUFFER, bufs.pt); gl.bufferData(gl.ARRAY_BUFFER, D, gl.DYNAMIC_DRAW); attribs(6, [[3, 0], [3, 3]]); gl.drawArrays(gl.POINTS, 0, sparks.length * 3)
+      gl.bindBuffer(gl.ARRAY_BUFFER, bufs.pt); gl.bufferData(gl.ARRAY_BUFFER, D, gl.DYNAMIC_DRAW); attribs(6, [[3, 0], [3, 3]]); gl.drawArrays(gl.POINTS, 0, Math.max(1, sparks.length) * 3)
     }
     // glint: a star on the tip as the light band crosses it (rare and up)
     for (const m of medals) {
-      const sw = m.sweep(); if (!m.R.flare || sw > 8) continue
-      const tp = m.a.tip, I = Math.exp(-Math.pow((sw - (tp[0] * .83 + tp[1] * .55)) / .45, 2)) * m.op
-      if (I < .01) continue
+      const sw = m.sweep(); if (!warm && (!m.R.flare || sw > 8)) continue
+      const tp = m.a.tip, I = warm ? 0 : Math.exp(-Math.pow((sw - (tp[0] * .83 + tp[1] * .55)) / .45, 2)) * m.op
+      if (!warm && I < .01) continue
       const { M } = pose(m), w = [M[0] * tp[0] + M[4] * tp[1] + M[8] * H + M[12], M[1] * tp[0] + M[5] * tp[1] + M[9] * H + M[13], M[2] * tp[0] + M[6] * tp[1] + M[10] * H + M[14] + .05]
       const sz = .75 * m.s * (.6 + .4 * I)
       use(progs.flare, { uVP: C.VP, uC: w, uX: C.x.map(v => v * sz), uY: C.y.map(v => v * sz), uI: I * 1.3, uCol: m.r === 'rare' ? [.75, .88, 1.2] : [1.2, .95, .7], uClip: clip })
@@ -671,6 +749,7 @@ export default function MedalStage(host, o = {}) {
     // dynamic resolution: a phone that can't hold ~40 fps while it moves renders fewer pixels
     if (last && !FIXED && !idling() && ++nFr > 4) { slow = slow * .85 + (ts - last > 25) * .15; if (slow > .6 && quality > .7) { quality *= .8; slow = 0 } }
     last = ts
+    if (idling()) sharpen()
     const c0 = performance.now(); update(dt); render(); o.onFrame && o.onFrame(ts, performance.now() - c0)
     if (!busy()) return
     if (idling()) { rafIsTimeout = true; raf = setTimeout(() => { rafIsTimeout = false; raf = requestAnimationFrame(tick) }, 24) }
@@ -728,9 +807,22 @@ export default function MedalStage(host, o = {}) {
     cv.remove(); labs.remove(); medals = []; gpuMap.clear()
   }
   function resize() { measure(); if (!raf && medals.length) render() }
+  // built ahead of time in a host of its own, taken by the reveal: the canvas
+  // (and its context, which survives the move) goes into the reveal's stage
+  function mount(el) {
+    if (dead || !el || el === host) return
+    host = el; host.append(cv, labs); resize()
+  }
+  function set(opts) { Object.assign(o, opts); if ('date' in opts) DATE = opts.date || '' }
+  // put away for another showing: nothing moving, nothing drawn, no titles
+  function reset() {
+    if (dead) return
+    token++; stop(); medals = []; timers = []; sparks = []; drag = null; labs.textContent = ''
+    if (gl && !lost) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT) }
+  }
 
   return {
-    prepare, play, skip, destroy, resize, render,
+    prepare, play, skip, destroy, resize, render, mount, set, reset,
     pause: stop, resume: wake,   // off screen / hidden: stop drawing; back: carry on from the same frame
     step(dt, quiet) { update(dt); quiet || render() },   // a virtual clock for recordings (manual: true)
     get clock() { return clock }, get quality() { return quality }, get medals() { return medals },
