@@ -751,3 +751,21 @@ test('the poster\'s figures take the word their number asks for', async () => {
   const reps = posterFigures({ ...report, attendance: { attended: 16, planned: 0 }, prs: [], reps: { total: 1152 } }, { today: '2026-04-02' })
   assert.equal(reps.figs.at(-1).l, 'تكرار')
 })
+
+// ══ a ticked set at body weight is a set ══════════════════════
+
+test('«مجموعات كاملة» and «تكرارات» count ticked body-weight sets, as the muscle bars do', () => {
+  const set = (w, r, done = true) => ({ weight: String(w), reps: String(r), done })
+  const s = [{
+    id: 1, date: new Date(2026, 2, 3, 18).toISOString(), duration: 45,
+    exercises: [
+      { id: 'a', name: 'Pull-Up', muscle: 'Back', sets: [set(0, 10), set(0, 10), set(0, 10)] },
+      { id: 'b', name: 'Bench Press', muscle: 'Chest', sets: [set(60, 12), set(60, 12), set(60, 12)] },
+      { id: 'c', name: 'Plank', muscle: 'Core', sets: [set('', 1, false)] },
+    ],
+  }]
+  const r = build(s, { today: '2026-04-03' })
+  assert.equal(r.sets.completed, 6, 'three pull-ups and three bench sets')
+  assert.equal(r.muscles.reduce((n, m) => n + m.sets, 0), r.sets.completed, 'the same number the muscle bars add up to')
+  assert.equal(r.reps.total, 30 + 36)
+})

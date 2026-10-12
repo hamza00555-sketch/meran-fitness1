@@ -751,7 +751,9 @@ export function buildMonthReport({
         const counted = set.done || parseFloat(set.weight) > 0
         if (!counted) continue
         setsTotal++
-        if (isCompleted(set)) { setsCompleted++; repsTotal += parseInt(set.reps) || 0 }
+        // Ticked is done, a pull-up or a plank at body weight included:
+        // the rule the muscle bars count by (sets.js).
+        if (setCounts(set)) { setsCompleted++; repsTotal += parseInt(set.reps) || 0 }
       }
     }
   }
