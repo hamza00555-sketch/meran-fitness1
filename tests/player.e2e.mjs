@@ -2861,6 +2861,71 @@ const timeline = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// ══ «كسبت يوم راحة»: earned by the session, announced after it ══
+// Three workouts, then the plan's own rest day yesterday: four counted
+// days. The session finished today is the fifth — an optional rest day.
+// The moment waits for the summary (and a level-up screen, if one comes)
+// and plays once: the flame filled, the count, the medal's library sound
+// and its light buzz.
+{
+  // The training day in Riyadh (it turns at 03:00, UTC+3): the UTC date of now.
+  const rday = new Date().toISOString().slice(0, 10)
+  const back = (k) => new Date(Date.parse(`${rday}T12:00:00Z`) - k * 86400000).toISOString().slice(0, 10)
+  const EARN_HISTORY = [4, 3, 2].map((k, i) => ({
+    id: 900 + i, date: new Date(`${back(k)}T18:00:00+03:00`).toISOString(), duration: 45,
+    exercises: [{ id: 'r' + i, muscle: 'Chest', name: 'Bench Press',
+      sets: [{ weight: '80', reps: '10', done: true }, { weight: '80', reps: '10', done: true }] }],
+  }))
+  const { ctx, page, errors } = await open({ sessions: EARN_HISTORY, active: HEAVY, unlocked: allBut('b1', 'b2') })
+  const seeded = await page.evaluate(() => localStorage.getItem('meran_rest_announced'))
+  ok('rest day earned: before, nothing held and the list starts empty', seeded === '[]', String(seeded))
+  ok('rest day earned: before, the flame is an outline', await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="streak-number"]')
+    return !b || b.dataset.restDays === '0'
+  }))
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 6000 }).catch(() => {})
+  await waitLanded(page)
+  await page.waitForTimeout(1200)
+  ok('rest day earned: not over the summary', await page.locator('[data-testid="rest-earned"]').count() === 0)
+  await page.evaluate(() => { window.__vibes = []; window.__sounds = [] })
+  await page.getByRole('button', { name: 'تم' }).click()
+  // a level-up screen, if the session crossed one, comes first
+  await page.waitForTimeout(600)
+  if (await page.locator('[data-testid="level-up"]').count()) {
+    await page.waitForTimeout(1500)
+    ok('rest day earned: not over the level-up screen', await page.locator('[data-testid="rest-earned"]').count() === 0)
+    await page.getByRole('button', { name: 'كمّل' }).click()
+  }
+  const shown = await page.waitForSelector('[data-testid="rest-earned"]', { timeout: 5000 }).then(() => true, () => false)
+  ok('rest day earned: announced after the summary', shown)
+  await page.waitForTimeout(1500)
+  const txt = shown ? await page.getByTestId('rest-earned').innerText() : ''
+  ok('rest day earned: «كسبت يوم راحة», he holds one now', /كسبت يوم راحة/.test(txt) && /صار عندك يوم راحة اختياري واحد/.test(txt), txt)
+  const feel = await page.evaluate(() => ({ sounds: window.__sounds.filter(x => !x.stopped).map(x => x.name), vibes: window.__vibes }))
+  ok('rest day earned: the medal\'s library sound, once', feel.sounds.join(',') === 'medal', JSON.stringify(feel))
+  ok('rest day earned: and its light buzz', JSON.stringify(feel.vibes) === '[14]', JSON.stringify(feel))
+  await page.getByTestId('rest-earned-ok').click()
+  await page.waitForTimeout(600)
+  const after = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="streak-number"]')
+    return { rest: b?.dataset.restDays, filled: !!b?.querySelector('.lf-fill'), glow: !!b?.querySelector('.lf-glow'),
+      list: JSON.parse(localStorage.getItem('meran_rest_announced') || 'null') }
+  })
+  ok('rest day earned: Home\'s flame is filled now, with its glow', after.rest === '1' && after.filled && after.glow, JSON.stringify(after))
+  ok('rest day earned: remembered as announced', Array.isArray(after.list) && after.list.length === 1 && after.list[0] === rday, JSON.stringify(after))
+  // This suite re-seeds storage on every load; keep what the app wrote.
+  const kept = await page.evaluate(() => localStorage.getItem('hf_sessions'))
+  await page.addInitScript((v) => { localStorage.setItem('hf_sessions', v); localStorage.removeItem('hf_active') }, kept)
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  const again = await page.evaluate(() => ({ rest: document.querySelector('[data-testid="streak-number"]')?.dataset.restDays,
+    shown: document.querySelectorAll('[data-testid="rest-earned"]').length }))
+  ok('rest day earned: once — not again after opening the app again', again.rest === '1' && again.shown === 0, JSON.stringify(again))
+  ok('rest day earned: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT}\n`)

@@ -34,7 +34,7 @@ export default function RestDayEarned({ days, count, onClose }) {
 
   return (
     <Sheet open onClose={onClose} labelledBy="re-title"
-      footer={<Button size="lg" full onClick={onClose} autoFocus data-testid="rest-earned-ok">تمام</Button>}>
+      footer={<Button size="lg" full onClick={onClose} data-testid="rest-earned-ok">تمام</Button>}>
       <div className="re" data-testid="rest-earned" role="status" aria-label={c.aria}>
         <span className="re-flame"><LiveFlame size={64} filled glow ignite sway /></span>
         <p className="re-eyebrow">يوم راحة جديد</p>

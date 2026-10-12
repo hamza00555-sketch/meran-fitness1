@@ -20,6 +20,8 @@ import { deloadWeight } from '../src/deload.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
+// The rest-day shots (flame 0 / ≥1, the sheet, the announcement).
+const SHOTS = process.env.SHOTS || OUT
 mkdirSync(OUT, { recursive: true })
 
 const results = []
@@ -525,8 +527,9 @@ async function openDeloadSettings(page) {
 // ══ The streak on Home is its number, nothing else ════════════
 //
 // حمزة: «انا اللي همني فقط رقم الستريك لا اكثر». Home shows the flame,
-// the number and «يوم/أيام» — filled once today counts, an outline while
-// it is owed — and none of the scoreboard around it. The status line,
+// the number and «يوم/أيام» — the flame filled (with a glow) while he
+// holds an optional rest day, an outline at none — and none of the
+// scoreboard around it. The status line,
 // the 03:00 deadline, the cost of a miss, the seven days and the tickets
 // live in «ليش N؟», which the number opens (App's sheet).
 
@@ -543,6 +546,10 @@ const streakOnHome = (page) => page.evaluate((ids) => {
     count: document.querySelectorAll('[data-testid="streak-number"]').length,
     number: btn?.querySelector('b')?.textContent.trim() ?? null,
     counted: !!btn?.classList.contains('counted'),
+    filled: !!btn?.querySelector('.lf-fill'),
+    glow: !!btn?.querySelector('.lf-glow'),
+    hollow: !!btn?.querySelector('.lf-hollow'),
+    rest: btn?.dataset.restDays ?? null,
     firstInTop: document.querySelector('.h-top-text')?.firstElementChild === btn,
     board: ids.map(id => document.querySelectorAll(`[data-testid="${id}"]`).length).reduce((a, b) => a + b, 0),
     text: col?.innerText || '',
@@ -586,13 +593,14 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   ok('streak: the number is on Home, once', st.count === 1, String(st.count))
   ok('streak: it is the first thing in the top bar', st.firstInTop)
   ok('credit: the number held at 10', st.number === '10', String(st.number))
-  ok('credit: today still owed — the flame is an outline', !st.counted)
+  ok('credit: today still owed', !st.counted)
+  ok('credit: one rest day left — the flame is filled, with its glow', st.rest === '1' && st.filled && st.glow && !st.hollow, JSON.stringify(st))
   ok('streak: no scoreboard on Home (status, note, cost, tickets)', st.board === 0, String(st.board))
   ok('streak: no deadline, cost or ticket line on Home',
     !/3 الفجر|لو فاتك|تذكرة غطّت|تذاكر|باقي تمرين اليوم/.test(st.text), st.text.slice(0, 200))
   // The flame's own label says what tapping it does.
   const label = await page.locator('[data-testid="streak-number"]').getAttribute('aria-label')
-  ok('streak: the number is a button that says it opens the details', /الستريك 10 أيام — اضغط تشوف التفاصيل/.test(label || ''), label)
+  ok('streak: the number is a button that says how many rest days and that it opens the details', /^الستريك 10 أيام، وعندك يوم راحة اختياري واحد — اضغط تشوف التفاصيل$/.test(label || ''), label)
 
   // The number comes before Today's button.
   const order = await page.evaluate(() => {
@@ -633,6 +641,10 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   // number (the cost is the sheet's to say), with the flame an outline.
   const st = await streakOnHome(page)
   ok('credit: an empty balance — Home still shows just the number', st.number === '10' && !st.counted, JSON.stringify({ n: st.number, c: st.counted }))
+  ok('rest days: none left — the flame is only an outline, no glow', st.rest === '0' && st.hollow && !st.filled && !st.glow, JSON.stringify(st))
+  const label0 = await page.locator('[data-testid="streak-number"]').getAttribute('aria-label')
+  ok('rest days: the label says there are none', /وما عندك ولا يوم راحة اختياري/.test(label0 || ''), label0)
+  await page.screenshot({ path: `${SHOTS}/flame-0.png`, clip: { x: 0, y: 0, width: 390, height: 240 } })
   ok('credit: no scoreboard and no cost line on Home', st.board === 0 && !/يرجع 10 إلى صفر|خلصت تذاكرك/.test(st.text), st.text.slice(0, 200))
   ok('credit: the old folded warning is gone',
     await page.locator('[data-testid="credit-warning"]').count() === 0)
@@ -943,6 +955,84 @@ for (const device of ['iPhone 13', 'iPhone SE']) {
   await page.waitForTimeout(700)
   ok(`active (${device}): it opens the session`, await page.getByRole('button', { name: 'صغّر الجلسة' }).count() === 1)
   ok(`active (${device}): no page errors`, errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ Optional rest days: the flame, «ليش N؟», «كسبت يوم راحة» ══════
+// حمزة found a rest day he did not know he had. The flame on Home is
+// filled (with a glow) while he holds one; the sheet lists each one with
+// the day it was earned and the ones used; earning one is announced,
+// once.
+{
+  // The 12th: earned the 5th and the 10th, the 11th used one — one left.
+  const { ctx, page, errors } = await open('2026-07-12T10:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9), recovery: CLEAN_RECOVERY,
+  })
+  await page.waitForTimeout(400)
+  const st = await streakOnHome(page)
+  ok('rest days: one held — the flame is filled', st.rest === '1' && st.filled && st.glow, JSON.stringify(st))
+  const glow = await page.evaluate(() => getComputedStyle(document.querySelector('.h-streak .lf-glow .lf-fill')).filter)
+  ok('rest days: with a soft glow in the streak\'s orange', /drop-shadow/.test(glow) && /249, 115, 22/.test(glow), glow)
+  ok('rest days: Home still says only the number', /^\d+ (يوم|أيام)$/.test(
+    await page.evaluate(() => document.querySelector('[data-testid="streak-number"]').innerText.replace(/\s+/g, ' ').trim())))
+  ok('rest days: nothing announced for one he already had (first run)', await page.locator('[data-testid="rest-earned"]').count() === 0)
+  await page.screenshot({ path: `${SHOTS}/flame-1.png`, clip: { x: 0, y: 0, width: 390, height: 240 } })
+
+  await page.locator('[data-testid="streak-number"]').click()
+  await page.waitForTimeout(700)
+  const block = page.locator('[data-testid="rest-days"]')
+  const t = (await block.count()) ? await block.innerText() : ''
+  ok('sheet: «أيام الراحة الاختيارية: 1» at the top', /أيام الراحة الاختيارية:\s*1/.test(t), t.slice(0, 120))
+  const held = await page.locator('[data-testid="rest-day-held"]').allInnerTexts()
+  ok('sheet: the one held, with the day it was earned', held.length === 1 && /كسبته الجمعة 10 يوليو لما وصل ستريكك 10/.test(held[0]), JSON.stringify(held))
+  const used = await page.locator('[data-testid="rest-day-used"]').allInnerTexts()
+  ok('sheet: the one used, with the day', used.length === 1 && /استخدمته السبت 11 يوليو/.test(used[0]), JSON.stringify(used))
+  ok('sheet: and that it does not run out', /ما ينتهي/.test(t), t)
+  const mark = await page.locator('[data-testid="streak-today-mark"]').innerText()
+  ok('sheet: says today is still needed (it left the flame)', /اليوم لسا يبي تمرين/.test(mark), mark)
+  const order = await page.evaluate(() => {
+    const top = (sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? null
+    return { mark: top('[data-testid="streak-today-mark"]'), rd: top('[data-testid="rest-days"]'), month: top('.ss-month') }
+  })
+  ok('sheet: the rest days come before the calendar', order.rd != null && order.rd < order.month, JSON.stringify(order))
+  await page.screenshot({ path: `${SHOTS}/sheet.png` })
+  ok('rest days, sheet: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  // The 10th: a scheduled rest day, counted from 03:00 — the tenth
+  // counted day, so a rest day is earned this morning. He had seen the
+  // one from the 5th. It is announced once, never again.
+  const { ctx, page, errors } = await open('2026-07-10T09:00:00+03:00', {
+    sessions: julySessions(1, 3, 5, 7, 9), recovery: CLEAN_RECOVERY,
+    extra: { meran_rest_announced: ['2026-07-05'] },
+  })
+  const shown = await page.waitForSelector('[data-testid="rest-earned"]', { timeout: 5000 }).then(() => true, () => false)
+  ok('earned: «كسبت يوم راحة» comes on its own', shown)
+  await page.waitForTimeout(1500)
+  const txt = shown ? await page.locator('[data-testid="rest-earned"]').innerText() : ''
+  ok('earned: says it, and how many he holds now', /كسبت يوم راحة/.test(txt) && /صار عندك يومين راحة اختيارية/.test(txt), txt)
+  ok('earned: no emoji', !/\p{Extended_Pictographic}/u.test(txt), txt)
+  const flame = await page.evaluate(() => {
+    const re = document.querySelector('[data-testid="rest-earned"]')
+    return { filled: !!re?.querySelector('.lf-fill'), glow: !!re?.querySelector('.lf-glow'), n: re?.querySelector('.re-n')?.innerText.trim() }
+  })
+  ok('earned: the flame filled, the count landed on 2', flame.filled && flame.glow && flame.n === '2', JSON.stringify(flame))
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('meran_rest_announced')))
+  ok('earned: remembered', JSON.stringify(stored) === '["2026-07-05","2026-07-10"]', JSON.stringify(stored))
+  await page.screenshot({ path: `${SHOTS}/announcement.png` })
+  await page.getByTestId('rest-earned-ok').click()
+  await page.waitForTimeout(500)
+  ok('earned: «تمام» closes it', await page.locator('[data-testid="rest-earned"]').count() === 0)
+  await page.waitForTimeout(2000)
+  ok('earned: closed, it does not come back', await page.locator('[data-testid="rest-earned"]').count() === 0)
+  // This suite re-seeds storage on every load; keep what the app wrote.
+  const kept = await page.evaluate(() => localStorage.getItem('meran_rest_announced'))
+  await page.addInitScript((v) => localStorage.setItem('meran_rest_announced', v), kept)
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(2600)
+  ok('earned: once — opening again does not announce it again', await page.locator('[data-testid="rest-earned"]').count() === 0)
+  ok('rest days, earned: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

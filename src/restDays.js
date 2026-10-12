@@ -107,7 +107,7 @@ export function earnedCopy(days = [], count = 0) {
   const last = days[k - 1]
   return {
     title: k > 1 ? `كسبت ${countAr(k, 'restday')}` : 'كسبت يوم راحة',
-    line: last ? `وصل ستريكك ${last.streak} — كل ${REST_CREDIT_EVERY} أيام محسوبة تعطيك يوم.` : '',
+    line: last ? `${REST_CREDIT_EVERY} أيام محسوبة جديدة — وصل ستريكك ${last.streak}` : '',
     total: `صار عندك ${restDaysAr(count)}`,
     hint: 'لو فاتك يوم تمرين ينصرف لحاله، والستريك ما ينكسر.',
     aria: `كسبت ${k > 1 ? countAr(k, 'restday') : 'يوم راحة'}، صار عندك ${restDaysAr(count)}`,
