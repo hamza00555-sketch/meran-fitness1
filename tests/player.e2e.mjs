@@ -2030,6 +2030,12 @@ const clipTop = (clip) => {
       rest: !!rest, clip: rest ? getComputedStyle(rest).clipPath : null, restOp: rest ? +getComputedStyle(rest).opacity : null,
       cssAnim: rest ? getComputedStyle(rest).animationName : null,
       liveOp: (() => { const l = document.querySelector('[data-testid="live-block"]'); return l ? +getComputedStyle(l).opacity : null })(),
+      // where the copy's words and check sit, against the copy's own centre
+      stack: ghost ? (() => {
+        const g = ghost.getBoundingClientRect(), mid = g.left + g.width / 2
+        const c = (el) => { const r = el.getBoundingClientRect(); return Math.round(r.left + r.width / 2 - mid) }
+        return { display: getComputedStyle(ghost).display, label: c(ghost.querySelector('.s-ghost-label')), ok: c(ghost.querySelector('.s-ghost-ok')) }
+      })() : null,
     }
   })
   await page.waitForTimeout(50)
@@ -2055,6 +2061,8 @@ const clipTop = (clip) => {
     after.filter(f => f.t - first.t > 300).every(f => f.restOp === 1) && after.every(f => f.cssAnim === 'none'),
     JSON.stringify(after.filter(f => f.restOp !== 1 || f.cssAnim !== 'none').slice(0, 3)))
   ok('morph: never a frame without the button, its copy or the rest', mf.every(f => f.btn || f.ghost || f.rest))
+  ok('morph: the copy\'s words and its check are stacked in its centre — the check replaces the words',
+    first.stack?.display === 'grid' && Math.abs(first.stack.label) <= 3 && Math.abs(first.stack.ok) <= 3, JSON.stringify(first.stack))
   ok('morph: the next set\'s block is never a hole — it rises from half-seen, at once',
     after.length > 5 && after.every(f => f.liveOp != null && f.liveOp >= 0.45), JSON.stringify(after.slice(0, 6).map(f => [f.t, f.liveOp])))
   const endsAt = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_rest_timer'))?.endsAt)
@@ -2084,6 +2092,11 @@ const clipTop = (clip) => {
   const { ctx, page, errors } = await open({ reduced: true })
   await page.evaluate(() => { window.__anims = [] })
   await completeBtn(page).click()
+  const copy = await page.evaluate(() => {
+    const g = document.querySelector('[data-testid="dock-ghost"]')
+    return g ? [...g.children].filter(el => getComputedStyle(el).display !== 'none').length : null
+  })
+  ok('morph/reduced: the fading copy shows its words alone, not «✓ تمّت المجموعة ✓»', copy === 1, String(copy))
   await page.waitForTimeout(700)
   const r = await page.evaluate(() => ({
     clip: window.__anims.filter(a => /clipPath/.test(a.kf)).length,
