@@ -76,17 +76,23 @@ ok('a file that is not there is a 404, not the app\'s page', gone.status === 404
 
 // ── The app, installing from that site ────────────────────────
 const browser = await chromium.launch()
-const ctx = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh' })
+// No service worker here: what it fetches never reaches a route, so the
+// stills would come from the local preview instead of the live site. The
+// worker has its own suites (offline, pack-install) and its deployed
+// sw.js is read directly below.
+const ctx = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', serviceWorkers: 'block' })
 const page = await ctx.newPage()
 
 const errors = []
 page.on('pageerror', e => errors.push(e.message))
 
 let hits = 0
+const seen = []
 let fileHits = 0
 await page.route(u => u.pathname.startsWith('/pack/'), async (route) => {
   hits++
   const { pathname, search } = new URL(route.request().url())
+  seen.push(pathname)
   if (pathname.startsWith('/pack/i/')) fileHits++
   const res = await fetch(new URL(pathname + search, LIVE), { headers: AS_BROWSER })
   await route.fulfill({
@@ -171,8 +177,11 @@ await page.screenshot({ path: `${process.env.OUT || '/tmp'}/live-awards.png` })
 const before = hits
 await page.reload({ waitUntil: 'networkidle' })
 await page.waitForTimeout(1800)
-ok('a reload re-uses local storage and touches the network zero times',
-  hits === before, `${hits} vs ${before}`)
+// The one request a reload may make is syncPack's quiet look at the
+// published version (src/assets/pack.js, since 45ad962): no file moves.
+const after = seen.slice(before)
+ok('a reload re-uses local storage: no pack file is fetched again, only the version check',
+  after.every(p => p === '/pack/manifest.json') && after.length <= 1, `${after.length} requests: ${after.join(' ')}`)
 
 ok('no uncaught page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
 

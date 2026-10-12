@@ -160,6 +160,11 @@ const took = ((Date.now() - t0) / 1000).toFixed(1)
 ok('it installs from the site\'s own /pack/', phase === 'ready', `phase=${phase} in ${took}s`)
 await page.waitForTimeout(800)
 ok('every distinct file verified and stored', (await blobCount()) === unique, `${await blobCount()}/${unique}`)
+// The download keeps its own copy of every file; the worker's stills
+// cache must not keep a second (~10 MB): it holds only what was shown
+// before the download (the one still above).
+const remoteKept = await page.evaluate(async () => (await (await caches.open('meran-pack-remote')).keys()).length)
+ok('the download leaves no second copy in the worker\'s stills cache', remoteKept <= 3, `${remoteKept} stills cached by the worker`)
 const pointer = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_pack') || 'null'))
 ok('the installed version is the deployed one', pointer?.packVersion === manifest.packVersion && pointer?.count === manifest.assets.length,
   JSON.stringify(pointer))

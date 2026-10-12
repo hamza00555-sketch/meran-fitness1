@@ -210,13 +210,15 @@ test('stills are CacheFirst from this site, the manifest NetworkFirst, nothing e
   // Workbox copies each urlPattern into sw.js as source text, so each
   // must work with nothing from vite.config.js around it.
   const patterns = rules.map(r => new Function(`return (${r.urlPattern.toString()})`)())
-  const which = (href, sameOrigin = true) => {
+  const which = (href, sameOrigin = true, cache = 'default') => {
     const url = new URL(href)
-    const i = patterns.findIndex(p => p({ url, sameOrigin }))
+    const i = patterns.findIndex(p => p({ url, sameOrigin, request: { cache } }))
     return i < 0 ? null : rules[i].handler
   }
   const hash = 'a'.repeat(64)
   assert.equal(which(`https://meran.app/pack/i/${hash}.webp`), 'CacheFirst')
+  // The pack's own download keeps its files itself: no second copy here.
+  assert.equal(which(`https://meran.app/pack/i/${hash}.webp`, true, 'no-store'), null)
   assert.equal(which('https://meran.app/pack/manifest.json'), 'NetworkFirst')
   // Loops play from the downloaded pack; a video is not CacheFirst work.
   assert.equal(which(`https://meran.app/pack/i/${hash}.mp4`), null)

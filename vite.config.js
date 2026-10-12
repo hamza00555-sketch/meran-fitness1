@@ -49,7 +49,11 @@ export const PACK_RUNTIME_CACHING = [
     // loops play from the downloaded pack, and a video's range
     // requests are no job for CacheFirst. The cache name is the
     // one the bucket's stills used, so its size cap retires them.
-    urlPattern: ({ url, sameOrigin }) => sameOrigin && /^\/pack\/i\/[0-9a-f]{64}\.webp$/.test(url.pathname),
+    // The pack's own download (src/assets/download.js asks with
+    // cache:'no-store') goes past this cache: it keeps every file it
+    // fetches itself, and a second copy here would be ~10 MB for nothing.
+    urlPattern: ({ url, sameOrigin, request }) => sameOrigin && request?.cache !== 'no-store' &&
+      /^\/pack\/i\/[0-9a-f]{64}\.webp$/.test(url.pathname),
     handler: 'CacheFirst',
     options: {
       cacheName: 'meran-pack-remote',
