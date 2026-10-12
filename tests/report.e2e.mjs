@@ -361,6 +361,19 @@ async function shoot(page, name) {
   // cover tell the same story about it.
   const when = await page.evaluate(() => document.querySelector('#rp-when .rp-ch-lead')?.textContent.trim())
   ok('calendar: its sentence agrees with the cover about the skipped day', when === 'مشيت على خطتك، إلا الأربعاء 18.', when)
+  // …and that day can be found on the calendar: the ticket's mark, in
+  // the rest blue, explained in the key.
+  const paid = await page.evaluate(() => {
+    const cell = [...document.querySelectorAll('.rp-cal-cell')].find(c => c.querySelector('.rp-cal-n')?.textContent.trim() === '18')
+    const mark = cell?.querySelector('.is-paid svg')
+    const keyMark = document.querySelector('.rp-key .is-paid svg')
+    return {
+      kind: cell?.className, mark: !!mark, color: mark ? getComputedStyle(mark.parentElement).color : '',
+      keyMark: !!keyMark, key: document.querySelector('.rp-key')?.innerText.replace(/\s+/g, ' ').trim(),
+    }
+  })
+  ok('calendar: the day a ticket paid for carries the ticket mark', /k-paid/.test(paid.kind || '') && paid.mark && paid.color === 'rgb(59, 157, 232)', JSON.stringify(paid))
+  ok('calendar: and the key says what that mark is', paid.keyMark && /تذكرة بدل يوم فاتك/.test(paid.key || ''), JSON.stringify(paid))
   const lit = await page.evaluate(() => [...document.querySelectorAll('.rp-cal-cell.k-trained')].every(c => c.dataset.level))
   ok('calendar: every ordinary trained day is lit', lit)
 
