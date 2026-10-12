@@ -3,13 +3,14 @@
 //
 //   node tests/make-test-pack.mjs /tmp/src  0
 //   node tests/make-test-pack.mjs /tmp/srcb 7
-//   node scripts/build-manifest.mjs --src /tmp/src  --out /tmp/pack  --version test.1
-//   node scripts/build-manifest.mjs --src /tmp/srcb --out /tmp/pack2 --version test.2
+//   node scripts/build-manifest.mjs --src /tmp/src  --out /tmp/pack  --base /pack/ --version test.1
+//   node scripts/build-manifest.mjs --src /tmp/srcb --out /tmp/pack2 --base /pack/ --version test.2
 //   npm run build && npx vite preview --port 4173 &
 //   PACK=/tmp/pack PACK2=/tmp/pack2 node tests/pack.e2e.mjs
 //
-// The CDN is intercepted rather than served, so every scenario can
-// count requests, drop the network mid-flight, and corrupt a file.
+// The site's /pack/ is intercepted rather than served from dist/pack,
+// so every scenario can count requests, drop the network mid-flight,
+// and corrupt a file.
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { readFile } from 'node:fs/promises'
@@ -24,10 +25,11 @@ const PACK  = process.env.PACK  || '/tmp/pack'
 const PACK2 = process.env.PACK2 || null
 const APP   = process.env.APP   || 'http://localhost:4173/'
 // Derived from the app's own manifest URL so the interception keeps
-// matching if the bucket ever moves.
+// matching if the pack ever moves. It is a path on the app's own site
+// (/pack/manifest.json), so it is resolved against the preview.
 const { MANIFEST_URL } = await import(pathToFileURL(new URL('../src/assets/pack.js', import.meta.url).pathname).href)
-  .catch(() => ({ MANIFEST_URL: 'https://assets.meran.app/manifest.json' }))
-const HOST = MANIFEST_URL.replace(/manifest\.json$/, '')
+  .catch(() => ({ MANIFEST_URL: '/pack/manifest.json' }))
+const HOST = new URL(MANIFEST_URL.replace(/manifest\.json$/, ''), APP).href
 
 const results = []
 const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])

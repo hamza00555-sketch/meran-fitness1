@@ -9,8 +9,11 @@
 //
 //   node scripts/fetch-sources.mjs assets-src
 //   node scripts/cut-white.mjs     assets-src assets-cut
-//   npm run pack:build -- --src assets-cut --base https://<domain>/
-//   npm run pack:publish
+//   npm run build        # builds the pack into dist/pack with the site
+//
+// (assets-cut is committed, and it is what every deploy builds from;
+// the hand-cut corrected stills marked "cut": "square-688" in
+// pack-sources.json are kept as they are rather than re-cut.)
 //
 // Re-running is cheap: a slot already on disk is skipped, so an
 // interrupted fetch resumes rather than starting over.
