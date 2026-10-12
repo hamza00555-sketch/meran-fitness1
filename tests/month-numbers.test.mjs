@@ -631,3 +631,41 @@ test('a ticket spent in the month stays a ticket after a later reset', () => {
   assert.equal(kind(reset), 'paid', 'the May reset does not turn March\'s ticket into a miss')
   assert.equal(reset.consistency.endStreak, plain.consistency.endStreak)
 })
+
+// ══ a deload ended early ══════════════════════════════════════
+// Each session's stamp carries the end that was planned when it began.
+// When the deload was cut short, the stored history says where it
+// really stopped, and the cover must say what the calendar rims.
+
+test('a deload ended early ends where the history says, not where its stamps planned', () => {
+  const dl = { pct: 40, from: '2026-03-25', until: '2026-03-31' }
+  const s = [
+    ...[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23].map(d => on(MAR, d, 'Bench Press', three(60))),
+    on(MAR, 25, 'Bench Press', three(40), { deload: dl }),
+    on(MAR, 27, 'Bench Press', three(40), { deload: dl }),
+    on(MAR, 29, 'Bench Press', three(65)),
+    on(MAR, 31, 'Bench Press', three(65)),
+  ]
+  const config = { ...CFG, deload: null, deloadHistory: [{ from: '2026-03-25', plannedUntil: '2026-03-31', until: '2026-03-27', pct: 40, endedEarly: true }] }
+  const r = build(s, { config, today: '2026-04-03' })
+  assert.deepEqual(r.deload.ranges, [{ from: '2026-03-25', to: '2026-03-27' }])
+  assert.equal(deloadLine(r.deload.ranges, MAR), 'فيه تخفيف من 25 إلى 27. خفيف عن قصد، وما ينحسب ضدك.')
+  const rimmed = r.consistency.calendar.filter(d => d.deload).map(d => d.date)
+  assert.deepEqual(rimmed, ['2026-03-25', '2026-03-26', '2026-03-27'], 'the calendar rims the days the cover names')
+  assert.equal(r.deload.days, 3)
+
+  // The same stamps with the history lost (an import): the ordinary
+  // session on the 29th shows the deload was over by then.
+  const stampsOnly = build(s, { config: CFG, today: '2026-04-03' })
+  assert.deepEqual(stampsOnly.deload.ranges, [{ from: '2026-03-25', to: '2026-03-27' }])
+  assert.deepEqual(stampsOnly.consistency.calendar.filter(d => d.deload).map(d => d.date), rimmed)
+})
+
+test('a deload run to term keeps its whole week, from the stamp alone too', () => {
+  const dl = { pct: 40, from: '2026-03-18', until: '2026-03-24' }
+  const s = [on(MAR, 16, 'Bench Press', three(60)), on(MAR, 20, 'Bench Press', three(40), { deload: dl }), on(MAR, 26, 'Bench Press', three(60))]
+  const r = build(s, { today: '2026-04-03' })
+  assert.deepEqual(r.deload.ranges, [{ from: '2026-03-18', to: '2026-03-24' }], 'no ordinary session inside it: the planned end stands')
+  assert.equal(r.consistency.calendar.filter(d => d.deload).length, 7, 'and the calendar rims the same seven days')
+  assert.equal(deloadLine(r.deload.ranges, MAR), 'فيه أسبوع تخفيف من 18 إلى 24. خفيف عن قصد، وما ينحسب ضدك.')
+})

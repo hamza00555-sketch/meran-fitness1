@@ -28,7 +28,7 @@ import { setCounts } from './sets.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
 import { computeRecovery, addDays, dayDiff } from './recovery.js'
 import { countAr, fmtDayAr } from './streak.js'
-import { isDeloadSession, wasDeloadDay } from './deload.js'
+import { isDeloadSession } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
 import { arabicName } from './exerciseMedia.js'
 
@@ -177,7 +177,7 @@ export function dayLevels(series = [], bins = DAY_LEVELS) {
 // its last day is judged like any other (the replay's own "today" is
 // never called a miss). For the month still running it stops at today,
 // and the days after it are «ahead» — not misses, not rests.
-function consistencyIn(sessions, config, month, today) {
+function consistencyIn(sessions, config, month, today, deloadRanges = []) {
   const first = firstDayOf(month)
   const last = lastDayOf(month)
   const running = today <= last
@@ -194,7 +194,7 @@ function consistencyIn(sessions, config, month, today) {
   const calendar = []
   for (let d = first; d <= last; d = addDays(d, 1)) {
     const r = rows.get(d)
-    const deload = wasDeloadDay(config, d)
+    const deload = inRanges(deloadRanges, d)
     if (!r) {
       // After today: the plan for tomorrow is known, beyond it is not.
       if (running && d > today) {
@@ -317,24 +317,48 @@ export function strongerLine(newCount) {
 // ── Deload, as the report says it ─────────────────────────────
 // From the stored history and from the sessions' own stamps, so a
 // deload is found even when only one of the two survived an import.
+//
+// The stored entry decides where a deload ended. A session's stamp
+// carries the end that was PLANNED when the session started, so a
+// deload cut short on day three still has stamps saying day seven; read
+// alongside the history, they would call ordinary training days light.
+// A stamp only speaks for a deload the history has no entry for, and
+// then an ordinary (unstamped) session inside its planned days shows it
+// had already ended: it stops at the last stamped day before that.
 
 export function deloadRangesIn(config = {}, month, sessions = []) {
   const first = firstDayOf(month)
   const last = lastDayOf(month)
-  const found = new Map()
-  const add = (from, to) => {
-    if (!from || !to || from > last || to < first) return
-    const prev = found.get(from)
-    if (!prev || to > prev.to) found.set(from, { from, to })
+  const stored = new Map()
+  const keep = (from, to) => {
+    if (from && to && !(stored.get(from) >= to)) stored.set(from, to)
   }
-  for (const h of config?.deloadHistory || []) add(h?.from, h?.until || h?.plannedUntil)
-  if (config?.deload?.from) add(config.deload.from, config.deload.plannedUntil)
-  for (const s of sessions) {
-    if (!isDeloadSession(s) || monthKey(s.date) !== month) continue
-    add(s.deload.from, s.deload.until)
+  for (const h of config?.deloadHistory || []) keep(h?.from, h?.until || h?.plannedUntil)
+  if (config?.deload?.from) keep(config.deload.from, config.deload.plannedUntil)
+
+  // Stamp-only deloads, keyed by their own start.
+  const stamped = new Map()
+  const days = sessions.map(s => ({ s, day: dayKey(s.date) })).sort((a, b) => (a.day < b.day ? -1 : 1))
+  for (const { s, day } of days) {
+    if (!isDeloadSession(s) || !s.deload.from || !s.deload.until || stored.has(s.deload.from)) continue
+    const row = stamped.get(s.deload.from) || { from: s.deload.from, until: s.deload.until, lastDay: day }
+    if (s.deload.until > row.until) row.until = s.deload.until
+    if (day > row.lastDay) row.lastDay = day
+    stamped.set(s.deload.from, row)
   }
-  return [...found.values()].sort((a, b) => (a.from < b.from ? -1 : 1))
+  for (const row of stamped.values()) {
+    const ordinary = days.find(({ s, day }) => !isDeloadSession(s) && day > row.lastDay && day <= row.until)
+    stored.set(row.from, ordinary ? row.lastDay : row.until)
+  }
+
+  return [...stored.entries()]
+    .filter(([from, to]) => from <= last && to >= first)
+    .map(([from, to]) => ({ from, to }))
+    .sort((a, b) => (a.from < b.from ? -1 : 1))
 }
+
+/** Is this day inside one of the ranges deloadRangesIn found? */
+const inRanges = (ranges, day) => ranges.some(r => day >= r.from && day <= r.to)
 
 /** «فيه أسبوع تخفيف من 25 إلى 31. خفيف عن قصد، وما ينحسب ضدك.» */
 export function deloadLine(ranges = [], month) {
@@ -725,7 +749,8 @@ export function buildMonthReport({
   const levels = dayLevels(series)
 
   // ── The plan, the calendar, the streak ──
-  const consistency = consistencyIn(sessions, config, month, day)
+  const deloadRanges = deloadRangesIn(config, month, inMonth)
+  const consistency = consistencyIn(sessions, config, month, day, deloadRanges)
   const kgOn = new Map(series.map(p => [p.date, p]))
   for (const d of consistency.calendar) {
     const p = kgOn.get(d.date)
@@ -736,7 +761,6 @@ export function buildMonthReport({
     if (p?.deload) d.deload = true
   }
   const attendance = attendanceOf(consistency.calendar)
-  const deloadRanges = deloadRangesIn(config, month, inMonth)
 
   // ── Lifts ──
   const gains = liftGains(sessions, month, { mapping, resetAt })
