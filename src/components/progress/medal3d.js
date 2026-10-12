@@ -674,7 +674,8 @@ export default function MedalStage(host, o = {}) {
     const up = (e) => {
       if (!drag) return
       const m = drag.m, moved = Math.hypot(drag.x - drag.x0, drag.y - drag.y0); m.drag = false
-      if (RM) { m.yv = 0; m.yT = Math.round(m.yaw / TAU) * TAU; m.th = null; m.glint(clock) }
+      // reduced motion: nothing springs back, so it is simply facing front again (no turn back)
+      if (RM) { m.yv = 0; m.yT = m.yaw = Math.round(m.yaw / TAU) * TAU; m.pitch = 0; m.pv = 0; m.th = null; m.glint(clock) }
       else if (moved < 6 && e.type === 'pointerup') m.spin(2)
       else { m.yv = drag.v; m.yT = Math[drag.v > 0 ? 'ceil' : 'floor']((m.yaw + drag.v * .3) / TAU - (drag.v > 0 ? .25 : -.25)) * TAU; m.idle0 = clock + .8 }
       drag = null; wake()

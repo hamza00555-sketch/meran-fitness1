@@ -23,6 +23,7 @@ import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index
 import { mkdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { FIXTURES } from '../scripts/screens.manifest.mjs'
+import sharp from 'sharp'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-progress-e2e'
@@ -464,6 +465,26 @@ const states = async (page, ms) => {
   const seen = await states(page, 8000)
   const r = await sheetReveal(page)
   ok('ach spin, reduced: a fade, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && seen[seen.length - 1] === 'landed', `${JSON.stringify(r)} ${seen.join(' → ')}`)
+  // Turned by a finger, it faces front again once let go: with nothing
+  // springing back under reduced motion, it must not stay edge-on.
+  if (r?.mode === 'gl') {
+    await page.waitForTimeout(1500)   // the landing's glint has passed
+    const box = await page.locator('.k-sheet [data-testid="medal-reveal"] canvas').boundingBox()
+    const pixels = async () => sharp(await page.screenshot({ clip: box })).raw().toBuffer()
+    const front = await pixels()
+    const x = box.x + box.width / 2, y = box.y + box.height * 0.41
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 60, y, { steps: 6 })
+    await page.mouse.move(x + 120, y, { steps: 6 })
+    await page.mouse.up()
+    await page.waitForTimeout(1500)
+    const after = await pixels()
+    let d = 0
+    for (let i = 0; i < front.length; i++) d += Math.abs(front[i] - after[i])
+    d /= front.length
+    ok('ach spin, reduced: dragged and let go, the medal faces front again', d < 1, `mean pixel change ${d.toFixed(2)}`)
+  }
   ok('ach spin, reduced: no page errors', !errors.length, errors.join('; '))
   await ctx.close()
 }
