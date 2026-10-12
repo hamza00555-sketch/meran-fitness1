@@ -71,6 +71,8 @@ import { LargeTitle, NavBar, IconButton } from './components/kit/index.jsx'
 import { House, ClockCounterClockwise, ChartLineUp, Books, GearSix, CaretDown } from './components/kit/icons.js'
 import SkipSheet        from './components/streak/SkipSheet.jsx'
 import StreakSheet      from './components/streak/StreakSheet.jsx'
+import RestDayEarned    from './components/streak/RestDayEarned.jsx'
+import { restDaysView, toAnnounce, markAnnounced, REST_ANNOUNCED_KEY } from './restDays.js'
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
@@ -928,6 +930,33 @@ export default function App() {
     // congratulations screen about a week they have forgotten.
     && dayDiff(lastDeload.until || lastDeload.plannedUntil, today) <= 3
 
+  // ── «كسبت يوم راحة», once per rest day earned ─────────────────
+  // Anything that covers Home holds it: the session summary (with its
+  // medals) and the level-up screen first, then a short pause so the
+  // streak number rolls up on Home before the moment comes. Which days
+  // were announced is remembered (meran_rest_announced, a key of the new
+  // design's own); the first time there is no list, the rest days he
+  // already holds are written down as known, silently — the flame on
+  // Home already shows them.
+  const homeCovered = !!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
+    || showDeloadEnd || showWhatsNew || packOffer
+  const restHeld = restDaysView(recovery).held
+  const restHeldKey = restHeld.map(h => h.earnedOn).join(',')
+  const [restEarned, setRestEarned] = useState(null)
+  useEffect(() => {
+    const held = restHeldKey ? restHeld : []
+    const stored = ls.get(REST_ANNOUNCED_KEY, null)
+    if (!Array.isArray(stored)) { ls.set(REST_ANNOUNCED_KEY, markAnnounced([], held.map(h => h.earnedOn))); return }
+    if (homeCovered || restEarned) return
+    const fresh = toAnnounce(held, stored)
+    if (!fresh.length) return
+    const t = setTimeout(() => {
+      ls.set(REST_ANNOUNCED_KEY, markAnnounced(ls.get(REST_ANNOUNCED_KEY, []), fresh.map(f => f.earnedOn)))
+      setRestEarned({ days: fresh, count: held.length })
+    }, reducedMotion() ? 300 : 1400)
+    return () => clearTimeout(t)
+  }, [restHeldKey, homeCovered, restEarned]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // The lift the end screen names: the heaviest weight still on record.
   //
   // Read from the sessions rather than from hf_last_weights, because
@@ -1314,6 +1343,9 @@ export default function App() {
       )}
       {showLevelUp && !summary && <LevelUpScreen level={levelUpNum} from={levelUpFrom} onDismiss={() => { setShowLevelUp(false); setLevelUpFrom(null) }} />}
       {summary && <SessionSummary summary={summary} xp={xp} onDone={closeSummary} />}
+      {restEarned && !summary && !showLevelUp && (
+        <RestDayEarned days={restEarned.days} count={restEarned.count} onClose={() => setRestEarned(null)} />
+      )}
       {onboarding && (
         <Onboarding
           initialName={profile?.name && profile.name !== DEFAULT_PROFILE.name ? profile.name : ''}

@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Sheet, Num, Gauge } from '../kit/index.jsx'
-import { explainerView, dayLine } from '../../streak.js'
+import { explainerView, dayLine, todayMark } from '../../streak.js'
+import { restDaysView, restDaysCopy } from '../../restDays.js'
 import { Flame, Moon, Ticket, Cross } from './StreakIcons.jsx'
+import { Check, Hourglass } from '../kit/icons.js'
 import '../../styles/streak-sheet.css'
 
 // ── «ليش 60؟» ─────────────────────────────────────────────────
@@ -9,8 +11,14 @@ import '../../styles/streak-sheet.css'
 // had to wait for an investigation to get when his 30 became a 6: the
 // number as a sum, where the run began and why, what did not count,
 // why it is not the calendar-day count, every day on a calendar, the
-// tickets, the records and the rules — all read from the ledger that
-// produced the number.
+// records and the rules — all read from the ledger that produced the
+// number.
+//
+// At the top, under the number: whether today is counted or still
+// needed (Home's flame used to say it), and «أيام الراحة الاختيارية: N»
+// — every rest day he holds with the day he earned it, and the last ones
+// used (حمزة found one he never knew he had). The flame here means what
+// it means on Home: filled while he holds one.
 
 const WEEK = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] // Sunday first
 
@@ -33,15 +41,49 @@ export default function StreakSheet({ open, onClose, recovery, config, active, d
   const [picked, setPicked] = useState(null)
   const pickedRow = picked ? (recovery?.ledger || []).find(r => r.date === picked) : null
   const v = e.view
+  const rd = useMemo(() => restDaysCopy(restDaysView(recovery), e.today), [recovery, e.today])
+  const mark = todayMark(v.kind)
 
   return (
     <Sheet open={open} onClose={onClose} tall title={`ليش ${e.n}؟`}>
       <div className="ss">
         <div className="ss-hero">
-          <span className="ss-flame"><Flame size={34} filled={v.counted} /></span>
+          <span className={`ss-flame${rd.count > 0 ? ' glow' : ''}`}><Flame size={34} filled={rd.count > 0} /></span>
           <b className={`ss-big${e.n === 0 ? ' zero' : ''}`}><Num>{e.n}</Num></b>
           <span className="ss-unit">{e.unit}{e.stage && <> · {e.stage}</>}</span>
         </div>
+        <p className={`ss-mark${mark.done ? ' done' : ''}`} data-testid="streak-today-mark">
+          {mark.done ? <Check size={16} weight="bold" aria-hidden="true" /> : <Hourglass size={16} weight="bold" aria-hidden="true" />}
+          {mark.text}
+        </p>
+
+        <section className="ss-rd" data-testid="rest-days" aria-labelledby="ss-rd-h">
+          <h3 id="ss-rd-h" className="ss-rd-h">
+            <span className={`ss-rd-flame${rd.count > 0 ? ' on' : ''}`}><Flame size={20} filled={rd.count > 0} /></span>
+            أيام الراحة الاختيارية: <b><Num>{rd.count}</Num></b>
+          </h3>
+          <p className="ss-rd-lead">{rd.lead}</p>
+          {rd.held.length > 0 && (
+            <ul className="ss-rd-list">
+              {rd.held.map(h => (
+                <li key={h.date} data-testid="rest-day-held"><span className="ss-rd-ic"><Moon size={14} /></span>{h.text}</li>
+              ))}
+            </ul>
+          )}
+          {rd.keep && <p className="ss-sub">{rd.keep}</p>}
+          <Gauge value={e.tickets.progress} max={e.tickets.every} tone="rest" label="التقدم ليوم الراحة الجاي" />
+          <p className="ss-sub">{rd.next} · {rd.every}</p>
+          {rd.used.length > 0 && (
+            <>
+              <h4 className="ss-rd-h4">آخر ما استخدمت</h4>
+              <ul className="ss-rd-list used">
+                {rd.used.map(u => (
+                  <li key={u.date} data-testid="rest-day-used"><span className="ss-rd-ic"><Ticket size={14} /></span>{u.text}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
         {e.sentence && <p className="ss-lead">{e.sentence}</p>}
         <p className="ss-sub">{e.startLine}</p>
 
@@ -87,19 +129,10 @@ export default function StreakSheet({ open, onClose, recovery, config, active, d
           ))}
           <p className="ss-picked" aria-live="polite">{pickedRow ? dayLine(pickedRow, e.today) : 'اضغط على يوم تشوف وش صار فيه.'}</p>
           <p className="ss-key">
-            <i className="ss-dot" /> تمرين +1 · <span className="ss-rest"><Moon size={12} /></span> راحة مجدولة +1 · <span className="ss-rest"><Ticket size={12} /></span> تذكرة 0 · <span className="ss-miss"><Cross size={10} /></span> انكسر
+            <i className="ss-dot" /> تمرين +1 · <span className="ss-rest"><Moon size={12} /></span> راحة مجدولة +1 · <span className="ss-rest"><Ticket size={12} /></span> راحة اختيارية 0 · <span className="ss-miss"><Cross size={10} /></span> انكسر
           </p>
         </section>
 
-        <section className="ss-sec">
-          <h3>التذاكر</h3>
-          <p className="ss-tix"><Ticket size={18} /> {e.tickets.text}</p>
-          <Gauge value={e.tickets.progress} max={e.tickets.every} tone="rest" label="التقدم للتذكرة الجاية" />
-          <p className="ss-sub">كل <Num>{e.tickets.every}</Num> أيام محسوبة = تذكرة · باقي {e.tickets.toNext === 1 ? 'يوم واحد' : <><Num>{e.tickets.toNext}</Num> أيام</>} للجاية</p>
-          {e.tickets.spentInRun > 0 && (
-            <p className="ss-sub">انصرفت في هالستريك <Num>{e.tickets.spentInRun}</Num>{e.tickets.lastPaid ? <>، آخرها {fmt(e.tickets.lastPaid)}</> : null}.</p>
-          )}
-        </section>
 
         <section className="ss-sec">
           <h3>الأرقام</h3>

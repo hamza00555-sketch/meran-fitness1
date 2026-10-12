@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState } from 'react'
 import { streakView, unitAr } from '../../streak.js'
+import { restDayCount, restDaysAr } from '../../restDays.js'
 import { Num } from '../kit/index.jsx'
 import RollNumber from '../RollNumber.jsx'
 import LiveFlame from './LiveFlame.jsx'
@@ -10,15 +11,20 @@ import { reducedMotion } from '../../motion.js'
 // حمزة: «انا اللي همني فقط رقم الستريك لا اكثر». The scoreboard put a
 // status line, a 03:00 countdown, the cost of a miss, seven days,
 // tickets and a milestone around it, and that was too much. So Home
-// shows the flame and the number. The flame is filled once today counts
-// and an outline while it is still owed — a state you can read without
-// a word. Everything else is one tap away, in «ليش 39؟».
+// shows the flame and the number.
+//
+// The flame says whether he holds an optional rest day (حمزة: «الشعلة
+// … لما تكون بس ستروك معناها ما عندي ولا يوم راحة اختياري، لكن لما
+// يكون عندي يوم راحة اختياري يصير فيها فل، ممكن حتى شوية جلو بسيط»):
+// an outline at none, filled with a soft glow at one or more. (It used
+// to say whether today counted; that is now said in words at the top of
+// «ليش N؟».) How many, and since when, is one tap away, in «ليش 39؟».
 //
 // The flame is alive: it moves gently all the time («يتحرك بهدوء
-// دايماً»), and the first time Home sees today counted it lights — fills
-// from the bottom, hops, three embers — and after a workout the number
-// rolls up to its new value (useFlameIgnition, once a day). The rolling
-// digits sit over the number, which stays the button's text throughout.
+// دايماً»), and the first time Home sees today counted it hops and lets
+// off three embers, and after a workout the number rolls up to its new
+// value (useFlameIgnition, once a day). The rolling digits sit over the
+// number, which stays the button's text throughout.
 
 /**
  * Once a day, when today counts and nothing covers Home.
@@ -48,6 +54,8 @@ export function useFlameIgnition(v, hold = false) {
 
 export default function StreakNumber({ recovery, config, active, deload, today, onOpen, ignite = null }) {
   const v = streakView({ recovery, config, active, deload, today })
+  const rest = restDayCount(recovery)
+  const restSays = rest > 0 ? `وعندك ${restDaysAr(rest)}` : 'وما عندك ولا يوم راحة اختياري'
   const lighting = !!ignite?.on
   const waiting = !!ignite?.pending
   const roll = lighting && ignite.from != null && ignite.from !== v.number
@@ -56,10 +64,10 @@ export default function StreakNumber({ recovery, config, active, deload, today, 
   // still covered: the flame unlit and the number as it was, until it lights
   const shown = waiting && ignite.from != null ? ignite.from : v.number
   return (
-    <button type="button" className={`h-streak${v.counted ? ' counted' : ''}`} onClick={onOpen}
-      aria-label={`الستريك ${v.number} ${unitAr(v.number, 'day')} — اضغط تشوف التفاصيل`}
-      data-testid="streak-number">
-      <span className="h-streak-flame"><LiveFlame size={30} filled={v.counted && !waiting} ignite={lighting} sway /></span>
+    <button type="button" className={`h-streak${v.counted ? ' counted' : ''}${rest > 0 ? ' h-streak-rest' : ''}`} onClick={onOpen}
+      aria-label={`الستريك ${v.number} ${unitAr(v.number, 'day')}، ${restSays} — اضغط تشوف التفاصيل`}
+      data-testid="streak-number" data-rest-days={rest}>
+      <span className="h-streak-flame"><LiveFlame size={30} filled={rest > 0} glow ignite={lighting} sweep={false} sway /></span>
       <span className="h-streak-n">
         <b className={`${shown === 0 ? 'zero' : ''}${rolling ? ' h-streak-ghost' : ''}`}><Num>{shown}</Num></b>
         {rolling && (

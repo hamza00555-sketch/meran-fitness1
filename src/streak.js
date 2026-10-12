@@ -34,6 +34,8 @@ const NOUNS = {
   ticket:  { one: 'تذكرة وحدة', two: 'تذكرتين', few: 'تذاكر',  many: 'تذكرة' },
   workout: { one: 'تمرين واحد', two: 'تمرينين', few: 'تمارين', many: 'تمرين' },
   session: { one: 'جلسة وحدة',  two: 'جلستين',  few: 'جلسات',  many: 'جلسة' },
+  // The same thing as a ticket, in حمزة's words: «يوم راحة اختياري».
+  restday: { one: 'يوم راحة واحد', two: 'يومين راحة', few: 'أيام راحة', many: 'يوم راحة' },
 }
 export const countAr = (n, noun) => {
   const f = NOUNS[noun]
@@ -103,6 +105,18 @@ export function todayStreak(recovery, { config = {}, active = null, today } = {}
 }
 
 export const COUNTED = new Set(['counted-trained', 'counted-rest', 'override', 'held'])
+
+/**
+ * Is today counted, or still needed? Home's flame used to say this
+ * (filled / outline); since حمزة gave the flame to the rest days, it is
+ * said in words at the top of «ليش N؟». { done, text }
+ */
+export function todayMark(kind) {
+  if (COUNTED.has(kind)) return { done: true, text: 'اليوم انحسب' }
+  if (kind === 'reset') return { done: false, text: 'اليوم ما ينحسب — العدّ يبدأ بكرة' }
+  if (kind === 'running') return { done: false, text: 'اليوم ينحسب لما تنهي الجلسة' }
+  return { done: false, text: 'اليوم لسا يبي تمرين' }
+}
 
 /** What a miss today would cost: a ticket, the streak, or nothing. */
 export const missWouldCost = (recovery) =>

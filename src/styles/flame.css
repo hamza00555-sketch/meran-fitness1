@@ -10,6 +10,10 @@
 .lf-sway .lf-a { animation: lf-sway 3.6s var(--ease-io) infinite; }
 .lf-sway .lf-b { animation: lf-flick 1.9s var(--ease-io) infinite; }
 
+/* Holding a rest day: filled, with a soft glow — on the fill only, so an
+   outline never glows. A drop-shadow follows the flame's own shape. */
+.lf-glow .lf-fill { filter: drop-shadow(0 0 5px rgba(var(--streak-rgb), 0.55)) drop-shadow(0 0 12px rgba(var(--streak-rgb), 0.22)); }
+
 .lf-ember {
   position: absolute; left: 50%; top: 14%; border-radius: var(--r-pill);
   background: var(--streak); opacity: 0; pointer-events: none;

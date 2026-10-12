@@ -60,6 +60,9 @@ export const PER_USER_KEYS = [
   // person's flame must not use up another's on a shared phone, and a
   // data reset starts it over. New in the redesign as well.
   'meran_flame_lit',
+  // Which earned rest days «كسبت يوم راحة» already announced
+  // (restDays.js), so none is announced twice. New in the redesign too.
+  'meran_rest_announced',
 ]
 
 export const deleteUserData = (id) => {
