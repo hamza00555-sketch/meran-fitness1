@@ -2305,6 +2305,16 @@ const lockState = (page) => page.evaluate(() => ({ overflow: document.body.style
       main: getComputedStyle(document.querySelector('main')).transform, mainStyle: document.querySelector('main').getAttribute('style'),
     }))
     ok(`${label}: the capsule lands under the tapped tab`, c1.dx === 0 && c1.dy === 0 && c1.op === 1, JSON.stringify(c1))
+    // A rotation and back (a width change) leaves it under the same tab.
+    const vp = page.viewportSize()
+    await page.setViewportSize({ width: vp.height, height: vp.width })
+    await page.waitForTimeout(400)
+    const cWide = await capsule()
+    await page.setViewportSize(vp)
+    await page.waitForTimeout(400)
+    const cBack = await capsule()
+    ok(`${label}: after a rotation and back, the capsule is still under the current tab`,
+      [cWide, cBack].every(c => c.dx === 0 && c.dy === 0 && c.w === 0 && c.op === 1), JSON.stringify({ cWide, cBack }))
     if (!reduced) {
       ok('tabs: the capsule slides there and the icon swells once', r.slide === 1 && r.swell === 1, JSON.stringify(r))
       ok('tabs: the page changes as a view transition, entering from the tab\'s side', r.vt === vt0 + 1 && during === 'fwd', JSON.stringify({ ...r, during }))
