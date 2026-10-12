@@ -27,8 +27,8 @@ import {
 import { setCounts } from './sets.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
 import { computeRecovery, addDays, dayDiff } from './recovery.js'
-import { countAr, fmtDayAr } from './streak.js'
-import { isDeloadSession, wasDeloadDay } from './deload.js'
+import { countAr, unitAr, fmtDayAr } from './streak.js'
+import { isDeloadSession } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
 import { arabicName } from './exerciseMedia.js'
 
@@ -96,19 +96,42 @@ export function monthReportWindow(today) {
 // own nouns, on the same rule: 1 and 2 are words, 3–10 the plural,
 // 11 and up the singular.
 const NOUNS = {
-  set:    { one: 'مجموعة وحدة', two: 'مجموعتين', few: 'مجموعات', many: 'مجموعة' },
-  rep:    { one: 'عدّة وحدة',   two: 'عدّتين',   few: 'عدّات',   many: 'عدّة' },
-  muscle: { one: 'عضلة وحدة',   two: 'عضلتين',   few: 'عضلات',   many: 'عضلة' },
-  thing:  { one: 'شي واحد',     two: 'شيئين',    few: 'أشياء',   many: 'شي' },
+  set:       { one: 'مجموعة وحدة', two: 'مجموعتين',   few: 'مجموعات',     many: 'مجموعة' },
+  rep:       { one: 'عدّة وحدة',   two: 'عدّتين',     few: 'عدّات',       many: 'عدّة' },
+  muscle:    { one: 'عضلة وحدة',   two: 'عضلتين',     few: 'عضلات',       many: 'عضلة' },
+  thing:     { one: 'شي واحد',     two: 'شيئين',      few: 'أشياء',       many: 'شي' },
+  newWeight: { one: 'وزن جديد',    two: 'وزنين جداد', few: 'أوزان جديدة', many: 'وزن جديد' },
 }
+const fewForm = (k) => { const r = k % 100; return k === 0 || (r >= 3 && r <= 10) }
 export const countWord = (n, noun) => {
   if (!NOUNS[noun]) return countAr(n, noun)
   const f = NOUNS[noun]
   const k = Math.max(0, Math.round(Number(n) || 0))
   if (k === 1) return f.one
   if (k === 2) return f.two
-  const r = k % 100
-  return `${k} ${k === 0 || (r >= 3 && r <= 10) ? f.few : f.many}`
+  return `${k} ${fewForm(k) ? f.few : f.many}`
+}
+
+/** The plural or the singular, for a number drawn apart from its word
+ *  (a figure on the poster): «5 أوزان جديدة», «12 وزن جديد», «1 وزن جديد».
+ *  Pass the two forms, or a noun this file or streak.js knows. */
+export const unitWord = (n, few, many) => {
+  const k = Math.max(0, Math.round(Number(n) || 0))
+  if (many === undefined) {
+    if (!NOUNS[few]) return unitAr(k, few)
+    return fewForm(k) ? NOUNS[few].few : NOUNS[few].many
+  }
+  return fewForm(k) ? few : many
+}
+
+/** Home's row for the report: «5 جلسات حضرتها من 28 · 8 أوزان جديدة». */
+export function reportRowLine(report) {
+  if (!report?.hasData) return ''
+  const attended = report.attendance?.attended ?? report.sessionCount ?? 0
+  let line = `${attended} ${unitAr(attended, 'session')} حضرتها`
+  if (report.attendance?.planned) line += ` من ${report.attendance.planned}`
+  if (report.prs?.length) line += ` · ${countWord(report.prs.length, 'newWeight')}`
+  return line
 }
 
 /** «60» or «62.5» — a weight as a person writes it. */
@@ -140,11 +163,14 @@ const topOf = (ex) => {
 }
 
 // ── Each day, as light ────────────────────────────────────────
-// The calendar lights a trained day by how many kilos it moved, in five
-// steps from the month's lightest day to its heaviest. Deload days are
-// left out of the scale: they are light on purpose, and letting them
-// set the bottom would make every ordinary day look heavy — or, put at
-// the bottom themselves, would read as slacking.
+// The calendar lights a trained day by how many kilos it moved, as a
+// share of the month's heaviest day, in five steps: a day with 90% of
+// the heaviest is lit almost as bright, one with a third of it is dim.
+// Measured from zero, never from the month's lightest day — stretched
+// between the two, days 4% apart read as «أخف يوم» and «أثقل يوم», and
+// an arms day always looked like slacking beside a legs day.
+// Deload days are left out of the scale: they are light on purpose, and
+// a deload day is never what sets the heaviest.
 
 export const DAY_LEVELS = 5
 
@@ -152,18 +178,10 @@ export const DAY_LEVELS = 5
 export function dayLevels(series = [], bins = DAY_LEVELS) {
   const scale = series.filter(p => !p.deload)
   const out = {}
-  if (!scale.length) {
-    for (const p of series) out[p.date] = null
-    return out
-  }
-  const lo = Math.min(...scale.map(p => p.value))
-  const hi = Math.max(...scale.map(p => p.value))
+  const hi = scale.length ? Math.max(...scale.map(p => p.value)) : 0
   for (const p of series) {
-    if (p.deload) { out[p.date] = null; continue }
-    // One day, or every day the same: they are all the month's heaviest.
-    out[p.date] = hi === lo
-      ? bins
-      : 1 + Math.min(bins - 1, Math.floor(((p.value - lo) / (hi - lo)) * bins))
+    if (p.deload || !(hi > 0)) { out[p.date] = p.deload ? null : bins; continue }
+    out[p.date] = Math.min(bins, Math.max(1, Math.ceil((p.value / hi) * bins)))
   }
   return out
 }
@@ -177,19 +195,24 @@ export function dayLevels(series = [], bins = DAY_LEVELS) {
 // its last day is judged like any other (the replay's own "today" is
 // never called a miss). For the month still running it stops at today,
 // and the days after it are «ahead» — not misses, not rests.
-function consistencyIn(sessions, config, month, today) {
+function consistencyIn(sessions, config, month, today, deloadRanges = []) {
   const first = firstDayOf(month)
   const last = lastDayOf(month)
   const running = today <= last
   const until = running ? today : addDays(last, 1)
-  const recovery = computeRecovery(sessions, config, until)
+  // A streak reset (a second plan change inside 30 days) voids every day
+  // up to it. One that came after the month had not happened when the
+  // month closed, so it cannot take that month's streak or tickets away.
+  const resetAt = config?.streakResetAt
+  const asOf = resetAt && resetAt > last ? { ...config, streakResetAt: null } : config
+  const recovery = computeRecovery(sessions, asOf, until)
   const rows = new Map((recovery.ledger || []).filter(r => r.date.startsWith(month)).map(r => [r.date, r]))
   const trainedOn = new Set(sessions.map(s => dayKey(s.date)))
 
   const calendar = []
   for (let d = first; d <= last; d = addDays(d, 1)) {
     const r = rows.get(d)
-    const deload = wasDeloadDay(config, d)
+    const deload = inRanges(deloadRanges, d)
     if (!r) {
       // After today: the plan for tomorrow is known, beyond it is not.
       if (running && d > today) {
@@ -312,24 +335,48 @@ export function strongerLine(newCount) {
 // ── Deload, as the report says it ─────────────────────────────
 // From the stored history and from the sessions' own stamps, so a
 // deload is found even when only one of the two survived an import.
+//
+// The stored entry decides where a deload ended. A session's stamp
+// carries the end that was PLANNED when the session started, so a
+// deload cut short on day three still has stamps saying day seven; read
+// alongside the history, they would call ordinary training days light.
+// A stamp only speaks for a deload the history has no entry for, and
+// then an ordinary (unstamped) session inside its planned days shows it
+// had already ended: it stops at the last stamped day before that.
 
 export function deloadRangesIn(config = {}, month, sessions = []) {
   const first = firstDayOf(month)
   const last = lastDayOf(month)
-  const found = new Map()
-  const add = (from, to) => {
-    if (!from || !to || from > last || to < first) return
-    const prev = found.get(from)
-    if (!prev || to > prev.to) found.set(from, { from, to })
+  const stored = new Map()
+  const keep = (from, to) => {
+    if (from && to && !(stored.get(from) >= to)) stored.set(from, to)
   }
-  for (const h of config?.deloadHistory || []) add(h?.from, h?.until || h?.plannedUntil)
-  if (config?.deload?.from) add(config.deload.from, config.deload.plannedUntil)
-  for (const s of sessions) {
-    if (!isDeloadSession(s) || monthKey(s.date) !== month) continue
-    add(s.deload.from, s.deload.until)
+  for (const h of config?.deloadHistory || []) keep(h?.from, h?.until || h?.plannedUntil)
+  if (config?.deload?.from) keep(config.deload.from, config.deload.plannedUntil)
+
+  // Stamp-only deloads, keyed by their own start.
+  const stamped = new Map()
+  const days = sessions.map(s => ({ s, day: dayKey(s.date) })).sort((a, b) => (a.day < b.day ? -1 : 1))
+  for (const { s, day } of days) {
+    if (!isDeloadSession(s) || !s.deload.from || !s.deload.until || stored.has(s.deload.from)) continue
+    const row = stamped.get(s.deload.from) || { from: s.deload.from, until: s.deload.until, lastDay: day }
+    if (s.deload.until > row.until) row.until = s.deload.until
+    if (day > row.lastDay) row.lastDay = day
+    stamped.set(s.deload.from, row)
   }
-  return [...found.values()].sort((a, b) => (a.from < b.from ? -1 : 1))
+  for (const row of stamped.values()) {
+    const ordinary = days.find(({ s, day }) => !isDeloadSession(s) && day > row.lastDay && day <= row.until)
+    stored.set(row.from, ordinary ? row.lastDay : row.until)
+  }
+
+  return [...stored.entries()]
+    .filter(([from, to]) => from <= last && to >= first)
+    .map(([from, to]) => ({ from, to }))
+    .sort((a, b) => (a.from < b.from ? -1 : 1))
 }
+
+/** Is this day inside one of the ranges deloadRangesIn found? */
+const inRanges = (ranges, day) => ranges.some(r => day >= r.from && day <= r.to)
 
 /** «فيه أسبوع تخفيف من 25 إلى 31. خفيف عن قصد، وما ينحسب ضدك.» */
 export function deloadLine(ranges = [], month) {
@@ -406,13 +453,19 @@ export function liftGains(sessions = [], month, { mapping = {}, resetAt = 0 } = 
   return rows.sort((a, b) => b.gain - a.gain || b.sessions - a.sessions)
 }
 
-/** The new weights only, biggest jump first — the report's «وزن جديد». */
+/** The new weights only, biggest jump first — the report's «وزن جديد».
+ *  firstTime: the lift was started this month, so prevBest is its first
+ *  session's weight, not a best from before. */
 export const newWeights = (gains = []) => gains
   .filter(g => g.gain > 0)
   .map(g => ({
     exercise: g.exercise, lift: g.lift, weight: g.top, prevBest: g.before,
-    gain: g.gain, date: g.date, steps: g.steps,
+    gain: g.gain, date: g.date, steps: g.steps, firstTime: !!g.firstTime,
   }))
+
+/** What a new weight is measured from: «كان 60» for a best from before
+ *  the month, «بدأته على 40» for a lift first done in it. */
+export const fromWord = (pr) => (pr?.firstTime ? 'بدأته على' : 'كان')
 
 // ── One lift, week by week ────────────────────────────────────
 // The heaviest ticked set of a lift in each of the last `weeks` weeks,
@@ -481,22 +534,33 @@ export function muscleSets(sessions = [], month, { today = todayKey(), firstEver
   return [...by.values()]
     .map(m => {
       const perWeek = Math.round((m.sets / weeks) * 10) / 10
+      // Judged on the whole number the screen shows: 9.7 is drawn as
+      // «10», and «10 · أقل من اللازم» beside a range that starts at 10
+      // would contradict itself.
+      const shown = Math.round(perWeek)
       const status = m.key === OTHER.key ? null
-        : perWeek < WEEKLY_SETS.min ? 'low'
-        : perWeek > WEEKLY_SETS.max ? 'high'
+        : shown < WEEKLY_SETS.min ? 'low'
+        : shown > WEEKLY_SETS.max ? 'high'
         : 'ok'
-      return { ...m, perWeek, status }
+      return { ...m, perWeek, shown, status }
     })
     .sort((a, b) => b.perWeek - a.perWeek)
 }
 
-/** «الظهر أخذ أقل من حقه.» */
+// The groups whose Arabic name is a plural: «الأرجل», «الأكتاف». A
+// plural of things takes the feminine verb — «الأرجل أخذت أقل من حقها»
+// — where «الظهر» and «البايسبس» take «أخذ … حقه».
+const PLURAL_GROUPS = new Set(['Legs', 'Shoulders'])
+const tookVerb = (key) => (PLURAL_GROUPS.has(key) ? 'أخذت' : 'أخذ')
+const itsDue = (key) => (PLURAL_GROUPS.has(key) ? 'حقها' : 'حقه')
+
+/** «الظهر أخذ أقل من حقه.» / «الأرجل أخذت أقل من حقها.» */
 export function musclesLine(muscles = []) {
   const judged = muscles.filter(m => m.status)
   if (!judged.length) return ''
   const low = judged.filter(m => m.status === 'low').sort((a, b) => a.perWeek - b.perWeek)
   if (!low.length) return 'كل عضلاتك أخذت حقها.'
-  if (low.length === 1) return `${low[0].label} أخذ أقل من حقه.`
+  if (low.length === 1) return `${low[0].label} ${tookVerb(low[0].key)} أقل من ${itsDue(low[0].key)}.`
   if (low.length === 2) return `${low[0].label} و${low[1].label} أخذوا أقل من حقهم.`
   return `${countWord(low.length, 'muscle')} أخذت أقل من حقها.`
 }
@@ -544,7 +608,7 @@ export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = 
   const sets = muscles
     .filter(m => m.status === 'low')
     .sort((a, b) => a.perWeek - b.perWeek)
-    .map(m => ({ kind: 'sets', muscle: m.key, label: m.label, perWeek: m.perWeek, min: WEEKLY_SETS.min, max: WEEKLY_SETS.max }))
+    .map(m => ({ kind: 'sets', muscle: m.key, label: m.label, perWeek: m.perWeek, shown: m.shown ?? Math.round(m.perWeek), min: WEEKLY_SETS.min, max: WEEKLY_SETS.max }))
 
   const out = []
   const queues = [raise, sets, lower]
@@ -572,11 +636,11 @@ export function nextCopy(item, mapping = {}) {
     }
   }
   if (item.kind === 'sets') {
-    const per = Math.round(item.perWeek)
+    const per = item.shown ?? Math.round(item.perWeek)
     const took = per < 1 ? 'أقل من مجموعة' : countWord(per, 'set')
     return {
       title: `زِد مجموعات ${item.label}`,
-      reason: `${item.label} أخذ ${took} بالأسبوع، والمناسب من ${item.min} إلى ${item.max}.`,
+      reason: `${item.label} ${tookVerb(item.muscle)} ${took} بالأسبوع، والمناسب من ${item.min} إلى ${item.max}.`,
     }
   }
   return null
@@ -695,7 +759,9 @@ export function buildMonthReport({
         const counted = set.done || parseFloat(set.weight) > 0
         if (!counted) continue
         setsTotal++
-        if (isCompleted(set)) { setsCompleted++; repsTotal += parseInt(set.reps) || 0 }
+        // Ticked is done, a pull-up or a plank at body weight included:
+        // the rule the muscle bars count by (sets.js).
+        if (setCounts(set)) { setsCompleted++; repsTotal += parseInt(set.reps) || 0 }
       }
     }
   }
@@ -720,7 +786,8 @@ export function buildMonthReport({
   const levels = dayLevels(series)
 
   // ── The plan, the calendar, the streak ──
-  const consistency = consistencyIn(sessions, config, month, day)
+  const deloadRanges = deloadRangesIn(config, month, inMonth)
+  const consistency = consistencyIn(sessions, config, month, day, deloadRanges)
   const kgOn = new Map(series.map(p => [p.date, p]))
   for (const d of consistency.calendar) {
     const p = kgOn.get(d.date)
@@ -731,7 +798,6 @@ export function buildMonthReport({
     if (p?.deload) d.deload = true
   }
   const attendance = attendanceOf(consistency.calendar)
-  const deloadRanges = deloadRangesIn(config, month, inMonth)
 
   // ── Lifts ──
   const gains = liftGains(sessions, month, { mapping, resetAt })
@@ -749,7 +815,11 @@ export function buildMonthReport({
   const muscles = muscleSets(sessions, month, { today: day, firstEver })
 
   // ── Progress ──
+  // Only today's XP is stored, so the level is today's. For the month
+  // still running that is the month's own; for one that has finished it
+  // is not, and the report says so rather than passing it off as then.
   const { level } = xpProgress(xp)
+  const levelIsToday = day > lastDayOf(month)
   const achievements = Object.entries(unlockedAt)
     .filter(([, at]) => monthKey(new Date(at)) === month)
     .map(([id]) => ACHIEVEMENTS.find(a => a.id === id))
@@ -797,6 +867,7 @@ export function buildMonthReport({
     progress: {
       level,
       rank: getRank(level),
+      levelIsToday,
       achievements,
     },
   }

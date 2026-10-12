@@ -69,12 +69,21 @@ const three = (w, r = 12) => [[w, r], [w, r], [w, r]]
 
 // ══ each day as light ═════════════════════════════════════════
 
-test('five steps of light, from the lightest ordinary day to the heaviest', () => {
+test('five steps of light, as a share of the month\'s heaviest day', () => {
   const lv = dayLevels([
-    { date: 'a', value: 1000 }, { date: 'b', value: 1250 }, { date: 'c', value: 1500 },
-    { date: 'd', value: 1750 }, { date: 'e', value: 2000 },
+    { date: 'a', value: 400 }, { date: 'b', value: 800 }, { date: 'c', value: 1200 },
+    { date: 'd', value: 1600 }, { date: 'e', value: 2000 },
   ])
   assert.deepEqual(Object.values(lv), [1, 2, 3, 4, 5])
+})
+
+test('days a few percent apart are lit alike, not as the lightest and the heaviest', () => {
+  // The same workout with the bench at 60 and then at 65: 3,960 and
+  // 4,140 kg. Stretched between the two they read as 1 and 5.
+  assert.deepEqual(dayLevels([{ date: 'a', value: 3960 }, { date: 'b', value: 4140 }]), { a: 5, b: 5 })
+  // An arms day beside a legs day: dimmer by what it moved, not the floor.
+  assert.deepEqual(dayLevels([{ date: 'arms', value: 4900 }, { date: 'legs', value: 13500 }]), { arms: 2, legs: 5 })
+  assert.equal(dayLevels([{ date: 'a', value: 1 }, { date: 'b', value: 2000 }]).a, 1, 'never below the first step')
 })
 
 test('a deload day sits outside the scale, whatever it weighed', () => {
@@ -82,7 +91,7 @@ test('a deload day sits outside the scale, whatever it weighed', () => {
     { date: 'a', value: 1000 }, { date: 'b', value: 2000 },
     { date: 'c', value: 200, deload: true }, { date: 'd', value: 5000, deload: true },
   ])
-  assert.equal(lv.a, 1)
+  assert.equal(lv.a, 3, 'half the heaviest ordinary day')
   assert.equal(lv.b, 5, 'the 5000 deload day does not make 2000 look light')
   assert.equal(lv.c, null)
   assert.equal(lv.d, null)
@@ -261,9 +270,11 @@ test('completed sets per muscle, per week of the month', () => {
   const chest = m.find(x => x.key === 'Chest')
   assert.equal(back.sets, 44)
   assert.equal(back.perWeek, 9.9)
-  assert.equal(back.status, 'low')
+  assert.equal(back.shown, 10, 'drawn as a whole number')
+  assert.equal(back.status, 'ok', 'judged on the 10 it shows, not on 9.9')
   assert.equal(chest.perWeek, Math.round((90 / (31 / 7)) * 10) / 10)
-  assert.equal(chest.status, 'high', 'over twenty a week')
+  assert.equal(chest.perWeek, 20.3)
+  assert.equal(chest.status, 'ok', '20.3 is drawn as 20, the top of the range')
   assert.deepEqual([WEEKLY_SETS.min, WEEKLY_SETS.max], [10, 20], 'the plan builder\'s range')
 })
 
@@ -492,7 +503,8 @@ test('a month that ENDS in a deload week', () => {
   const tail = r.consistency.calendar.filter(d => d.date >= '2026-03-25')
   assert.ok(tail.every(d => d.deload), 'the whole last week is rimmed')
   assert.ok(tail.every(d => d.level === null))
-  assert.equal(r.consistency.calendar.find(d => d.date === '2026-03-01').level, 1, 'the lightest ORDINARY day is the bottom')
+  assert.equal(r.consistency.calendar.find(d => d.date === '2026-03-23').level, 5, 'the heaviest ORDINARY day is the top')
+  assert.equal(r.consistency.calendar.find(d => d.date === '2026-03-01').level, 4, '60 against 87.5: two thirds of it')
 
   // Stronger: the taper is not a step back, and not a new weight.
   assert.equal(r.prs.length, 1)
@@ -583,4 +595,218 @@ test('counting words follow the app\'s rule', () => {
   assert.equal(countWord(14, 'set'), '14 مجموعة')
   assert.equal(countWord(3, 'thing'), '3 أشياء')
   assert.equal(countWord(15, 'rep'), '15 عدّة')
+})
+
+// ══ a streak reset after the month ════════════════════════════
+// A second plan change inside 30 days resets the streak. A reset that
+// came after the month had not happened when the month closed: it must
+// not zero that month's «الستريك آخر <شهر>», nor turn its tickets into
+// misses, nor drop the streak from the poster.
+
+const everyOtherDay = () => {
+  const s = []
+  for (let d = 1; d <= 27; d += 2) s.push(on(FEB, d, 'Bench Press', three(60)))
+  for (let d = 1; d <= 31; d += 2) s.push(on(MAR, d, 'Bench Press', three(d >= 15 ? 65 : 60)))
+  return s
+}
+
+test('a reset after the month leaves that month\'s streak as it closed', async () => {
+  const s = everyOtherDay()
+  const plain = build(s, { today: '2026-04-03' })
+  assert.equal(plain.consistency.endStreak, 59, 'February 1 to March 31, all kept')
+
+  const later = build(s, { today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-04-02' } })
+  assert.equal(later.consistency.endStreak, 59, 'an April reset does not reach back into March')
+  assert.equal(later.consistency.endStreak, plain.consistency.endStreak)
+
+  const feb = build(s, { month: FEB, today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-03-20' } })
+  assert.equal(feb.consistency.endStreak, 28, 'February\'s streak, before the March reset')
+
+  const nextDay = build(s, { today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-04-01' } })
+  assert.equal(nextDay.consistency.endStreak, 59, 'a reset on the first of the next month is still after it')
+
+  // A reset inside the month still counts from the day after it.
+  const inside = build(s, { today: '2026-04-03', config: { ...CFG, streakResetAt: '2026-03-20' } })
+  assert.equal(inside.consistency.endStreak, 11, 'March 21 to 31')
+
+  const { posterFigures } = await import('../src/reportPoster.js')
+  const figs = posterFigures(later, { liveStreak: 1, today: '2026-04-03' }).figs
+  assert.ok(figs.some(f => f.flame && f.v === '59'), JSON.stringify(figs))
+})
+
+test('a ticket spent in the month stays a ticket after a later reset', () => {
+  const s = everyOtherDay().filter(x => monthKey(x.date) !== MAR || new Date(x.date).getDate() !== 9)
+  const plain = build(s, { today: '2026-05-12' })
+  const reset = build(s, { today: '2026-05-12', config: { ...CFG, streakResetAt: '2026-05-10' } })
+  const kind = (r) => r.consistency.calendar.find(d => d.date === '2026-03-09').kind
+  assert.equal(kind(plain), 'paid')
+  assert.equal(kind(reset), 'paid', 'the May reset does not turn March\'s ticket into a miss')
+  assert.equal(reset.consistency.endStreak, plain.consistency.endStreak)
+})
+
+// ══ a deload ended early ══════════════════════════════════════
+// Each session's stamp carries the end that was planned when it began.
+// When the deload was cut short, the stored history says where it
+// really stopped, and the cover must say what the calendar rims.
+
+test('a deload ended early ends where the history says, not where its stamps planned', () => {
+  const dl = { pct: 40, from: '2026-03-25', until: '2026-03-31' }
+  const s = [
+    ...[1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23].map(d => on(MAR, d, 'Bench Press', three(60))),
+    on(MAR, 25, 'Bench Press', three(40), { deload: dl }),
+    on(MAR, 27, 'Bench Press', three(40), { deload: dl }),
+    on(MAR, 29, 'Bench Press', three(65)),
+    on(MAR, 31, 'Bench Press', three(65)),
+  ]
+  const config = { ...CFG, deload: null, deloadHistory: [{ from: '2026-03-25', plannedUntil: '2026-03-31', until: '2026-03-27', pct: 40, endedEarly: true }] }
+  const r = build(s, { config, today: '2026-04-03' })
+  assert.deepEqual(r.deload.ranges, [{ from: '2026-03-25', to: '2026-03-27' }])
+  assert.equal(deloadLine(r.deload.ranges, MAR), 'فيه تخفيف من 25 إلى 27. خفيف عن قصد، وما ينحسب ضدك.')
+  const rimmed = r.consistency.calendar.filter(d => d.deload).map(d => d.date)
+  assert.deepEqual(rimmed, ['2026-03-25', '2026-03-26', '2026-03-27'], 'the calendar rims the days the cover names')
+  assert.equal(r.deload.days, 3)
+
+  // The same stamps with the history lost (an import): the ordinary
+  // session on the 29th shows the deload was over by then.
+  const stampsOnly = build(s, { config: CFG, today: '2026-04-03' })
+  assert.deepEqual(stampsOnly.deload.ranges, [{ from: '2026-03-25', to: '2026-03-27' }])
+  assert.deepEqual(stampsOnly.consistency.calendar.filter(d => d.deload).map(d => d.date), rimmed)
+})
+
+test('a deload run to term keeps its whole week, from the stamp alone too', () => {
+  const dl = { pct: 40, from: '2026-03-18', until: '2026-03-24' }
+  const s = [on(MAR, 16, 'Bench Press', three(60)), on(MAR, 20, 'Bench Press', three(40), { deload: dl }), on(MAR, 26, 'Bench Press', three(60))]
+  const r = build(s, { today: '2026-04-03' })
+  assert.deepEqual(r.deload.ranges, [{ from: '2026-03-18', to: '2026-03-24' }], 'no ordinary session inside it: the planned end stands')
+  assert.equal(r.consistency.calendar.filter(d => d.deload).length, 7, 'and the calendar rims the same seven days')
+  assert.equal(deloadLine(r.deload.ranges, MAR), 'فيه أسبوع تخفيف من 18 إلى 24. خفيف عن قصد، وما ينحسب ضدك.')
+})
+
+// ══ a muscle is judged on the number it shows ═════════════════
+
+/** `n` single back sets spread over March (31 days = 31/7 weeks). */
+const backSets = (n) => [...Array(n)].map((_, i) => on(MAR, 1 + (i % 31), 'Lat Pulldown', [[50, 10]], { muscle: 'Back' }))
+
+test('a muscle at 9.5–9.9 sets a week reads «10», in range — never «10 · أقل من اللازم»', () => {
+  const r = build(backSets(43), { today: '2026-04-03' })
+  const back = r.muscles.find(m => m.key === 'Back')
+  assert.equal(back.sets, 43)
+  assert.equal(back.perWeek, 9.7)
+  assert.equal(back.shown, 10)
+  assert.equal(back.status, 'ok')
+  assert.ok(!r.next.some(n => n.kind === 'sets'), 'no «زِد مجموعات الظهر» at 10 a week')
+  assert.equal(musclesLine(r.muscles), 'كل عضلاتك أخذت حقها.')
+
+  const half = muscleSets(backSets(42), MAR, { today: TODAY })[0]
+  assert.equal(half.perWeek, 9.5)
+  assert.deepEqual([half.shown, half.status], [10, 'ok'], 'half rounds up, as the screen does')
+
+  // 9.3 is drawn as 9: under the range, and the reason says 9.
+  const low = muscleSets(backSets(41), MAR, { today: TODAY })
+  assert.equal(low[0].perWeek, 9.3)
+  assert.deepEqual([low[0].shown, low[0].status], [9, 'low'])
+  const [item] = nextMonthPlan({ sessions: [], month: MAR, muscles: low })
+  assert.match(nextCopy(item).reason, /أخذ(ت)? 9 مجموعات بالأسبوع/)
+
+  // And over the top only when the shown number is over 20.
+  assert.equal(muscleSets(backSets(93), MAR, { today: TODAY })[0].status, 'high', '21 a week')
+})
+
+// ══ the level is today's, and says so ═════════════════════════
+// Only today's XP is stored, so a finished month cannot know the level
+// it ended on. Its report names the level as today's, and its poster
+// leaves it off rather than print it as that month's.
+
+test('a finished month does not pass today\'s level off as its own', async () => {
+  const s = [1, 3, 5].map(d => on(FEB, d, 'Bench Press', three(60)))
+  const feb = build(s, { month: FEB, today: '2026-10-11', xp: 999999 })
+  assert.equal(feb.progress.levelIsToday, true)
+  const live = build([on('2026-10', 3, 'Bench Press', three(60))], { month: '2026-10', today: '2026-10-11', xp: 999999 })
+  assert.equal(live.progress.levelIsToday, false, 'the month still running: today\'s level is the month\'s')
+
+  const { posterFooter } = await import('../src/reportPoster.js')
+  assert.deepEqual(posterFooter(feb, { name: 'حمزة' }), { name: 'حمزة', level: '' })
+  assert.deepEqual(posterFooter(feb, {}), { name: '', level: '' })
+  assert.match(posterFooter(live, { name: 'حمزة' }).level, /^المستوى \d+/)
+})
+
+// ══ counting on Home's row and the poster ═════════════════════
+// «5 جلسة حضرتها» and «8 وزن جديد» were printed raw next to their
+// numbers. Every place that puts a word beside a count follows the rule.
+
+test('Home\'s report row counts in Arabic, like the cover it opens', () => {
+  const { reportRowLine } = R
+  const row = (attended, planned, prs) => reportRowLine({ hasData: true, sessionCount: attended, attendance: { attended, planned }, prs: Array(prs).fill({}) })
+  assert.equal(row(5, 28, 8), '5 جلسات حضرتها من 28 · 8 أوزان جديدة')
+  assert.equal(row(16, 16, 1), '16 جلسة حضرتها من 16 · وزن جديد')
+  assert.equal(row(16, 16, 2), '16 جلسة حضرتها من 16 · وزنين جداد')
+  assert.equal(row(20, 21, 12), '20 جلسة حضرتها من 21 · 12 وزن جديد')
+  assert.equal(row(3, 0, 0), '3 جلسات حضرتها')
+  assert.equal(reportRowLine({ hasData: false }), '')
+  assert.equal(countWord(1, 'newWeight'), 'وزن جديد')
+  assert.equal(countWord(5, 'newWeight'), '5 أوزان جديدة')
+})
+
+test('the poster\'s figures take the word their number asks for', async () => {
+  const { posterFigures } = await import('../src/reportPoster.js')
+  const report = {
+    month: MAR, monthLabel: 'مارس 2026', sessionCount: 5,
+    attendance: { attended: 5, planned: 8 }, sets: { completed: 9 }, reps: { total: 108 },
+    prs: Array(3).fill({}), consistency: { endStreak: 0 },
+  }
+  const figs = posterFigures(report, { today: '2026-04-02' }).figs.map(f => `${f.v} ${f.l}`)
+  assert.deepEqual(figs, ['5 جلسات حضرتها', '9 مجموعات مكتملة', '3 أوزان جديدة', '8 جلسات في خطتك'])
+  const big = posterFigures({ ...report, attendance: { attended: 16, planned: 0 }, sets: { completed: 96 }, prs: Array(12).fill({}) }, { today: '2026-04-02' })
+  assert.deepEqual(big.figs.map(f => `${f.v} ${f.l}`), ['16 جلسة حضرتها', '96 مجموعة مكتملة', '12 وزن جديد', '108 تكرارات'], '103–110 take the plural')
+  const reps = posterFigures({ ...report, attendance: { attended: 16, planned: 0 }, prs: [], reps: { total: 1152 } }, { today: '2026-04-02' })
+  assert.equal(reps.figs.at(-1).l, 'تكرار')
+})
+
+// ══ plural muscle names take a plural verb ════════════════════
+
+test('«الأرجل أخذت», «الأكتاف أخذت» — not «الأرجل أخذ»', () => {
+  const m = (key, label) => ({ key, label, status: 'low', perWeek: 7 })
+  assert.equal(musclesLine([m('Legs', 'الأرجل')]), 'الأرجل أخذت أقل من حقها.')
+  assert.equal(musclesLine([m('Shoulders', 'الأكتاف')]), 'الأكتاف أخذت أقل من حقها.')
+  assert.equal(musclesLine([m('Back', 'الظهر')]), 'الظهر أخذ أقل من حقه.')
+  assert.equal(musclesLine([m('Biceps', 'البايسبس')]), 'البايسبس أخذ أقل من حقه.')
+  const reason = (key, label) => nextCopy({ kind: 'sets', muscle: key, label, perWeek: 7, min: 10, max: 20 }).reason
+  assert.equal(reason('Legs', 'الأرجل'), 'الأرجل أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+  assert.equal(reason('Shoulders', 'الأكتاف'), 'الأكتاف أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+  assert.equal(reason('Back', 'الظهر'), 'الظهر أخذ 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+})
+
+// ══ a ticked set at body weight is a set ══════════════════════
+
+test('«مجموعات كاملة» and «تكرارات» count ticked body-weight sets, as the muscle bars do', () => {
+  const set = (w, r, done = true) => ({ weight: String(w), reps: String(r), done })
+  const s = [{
+    id: 1, date: new Date(2026, 2, 3, 18).toISOString(), duration: 45,
+    exercises: [
+      { id: 'a', name: 'Pull-Up', muscle: 'Back', sets: [set(0, 10), set(0, 10), set(0, 10)] },
+      { id: 'b', name: 'Bench Press', muscle: 'Chest', sets: [set(60, 12), set(60, 12), set(60, 12)] },
+      { id: 'c', name: 'Plank', muscle: 'Core', sets: [set('', 1, false)] },
+    ],
+  }]
+  const r = build(s, { today: '2026-04-03' })
+  assert.equal(r.sets.completed, 6, 'three pull-ups and three bench sets')
+  assert.equal(r.muscles.reduce((n, m) => n + m.sets, 0), r.sets.completed, 'the same number the muscle bars add up to')
+  assert.equal(r.reps.total, 30 + 36)
+})
+
+// ══ a lift started this month ═════════════════════════════════
+// There was no weight before the month: the bar is its first session,
+// and the gold card and the poster must say «بدأته على», never «كان».
+
+test('a new weight in a lift started this month says where it started', () => {
+  const s = []
+  for (let d = 10; d <= 31; d += 2) s.push(on(MAR, d, 'Bench Press', three(d >= 20 ? 50 : 40)))
+  s.push(on(FEB, 20, 'Squat', three(100), { muscle: 'Legs' }), on(MAR, 11, 'Squat', three(110), { muscle: 'Legs' }))
+  const r = build(s, { today: '2026-04-03' })
+  const bench = r.prs.find(p => p.lift === 'bench press')
+  const squat = r.prs.find(p => p.lift === 'squat')
+  assert.deepEqual([bench.firstTime, bench.prevBest, bench.weight], [true, 40, 50])
+  assert.equal(squat.firstTime, false)
+  assert.equal(R.fromWord(bench), 'بدأته على')
+  assert.equal(R.fromWord(squat), 'كان')
 })

@@ -436,9 +436,9 @@ test('deload days are marked in the series and kept off the light scale', () => 
   assert.equal(r.volume.deloadDays, 4)
   assert.equal(r.volume.deloadSessions, 4)
 
-  // The lightest ORDINARY day is the bottom of the scale, not the taper.
+  // Lit as a share of the heaviest ORDINARY day; the taper is off the scale.
   const lit = (d) => r.consistency.calendar.find(c => c.date === `2026-03-${String(d).padStart(2, '0')}`).level
-  assert.equal(lit(1), 1, 'the lightest ordinary day')
+  assert.equal(lit(1), 4, '1000 of 1250 kg')
   assert.equal(lit(11), 5, 'the heaviest day')
   for (const d of TAPER_DAYS) assert.equal(lit(d), null, `day ${d} is drawn by its blue rim, not its light`)
 })
@@ -452,8 +452,8 @@ test('the same month without the stamps puts the light days at the bottom', () =
   const r = build([...heavy, ...light])
   assert.equal(r.volume.deloadDays, 0)
   const lit = (d) => r.consistency.calendar.find(c => c.date === `2026-03-${String(d).padStart(2, '0')}`).level
-  assert.equal(lit(20), 1)
-  assert.ok(lit(1) > 1, 'with the taper counted, the first heavy day is no longer the lightest')
+  assert.equal(lit(20), 2, 'unstamped, the light days are lit by their kilos (400 of 1250)')
+  assert.equal(lit(1), 4)
 })
 
 test('the poster total still counts the deload, because it was lifted', () => {

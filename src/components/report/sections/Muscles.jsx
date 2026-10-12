@@ -10,7 +10,7 @@
 // add to a plan, «45% of the volume» and «1.52 : 1» are not.
 
 import { Num } from '../../kit/index.jsx'
-import { musclesLine, WEEKLY_SETS } from '../../../monthReport.js'
+import { musclesLine, countWord, WEEKLY_SETS } from '../../../monthReport.js'
 import { Section } from '../parts.jsx'
 
 export default function Muscles({ report, id = 'rp-muscles' }) {
@@ -37,14 +37,14 @@ export default function Muscles({ report, id = 'rp-muscles' }) {
         <ul>
           {rows.map((m, i) => {
             const low = m.status === 'low'
-            const n = Math.round(m.perWeek)
+            const n = m.shown ?? Math.round(m.perWeek)
             return (
               <li key={m.key} className={`rp-sets-row${low ? ' is-low' : ''}`}
-                  aria-label={`${m.label}: ${n} مجموعة بالأسبوع${low ? '، أقل من اللازم' : ''}`}>
+                  aria-label={`${m.label}: ${n < 1 ? 'أقل من مجموعة' : countWord(n, 'set')} بالأسبوع${low ? '، أقل من اللازم' : ''}`}>
                 <span className="rp-sets-l">{m.label}</span>
                 <span className="rp-sets-track" aria-hidden="true">
                   {m.status && <i className="rp-sets-band" style={band} />}
-                  <i className="rp-sets-fill" style={{ width: at(Math.max(m.perWeek, 0.4)), '--i': i }} />
+                  <i className="rp-sets-fill" style={{ width: at(Math.max(n, 0.4)), '--i': i }} />
                 </span>
                 <span className="rp-sets-v"><Num>{n}</Num></span>
                 {low && <span className="rp-sets-note">أقل من اللازم</span>}

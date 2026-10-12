@@ -139,3 +139,22 @@ test('every device shape reaches a rung', () => {
   )
   delete globalThis.document
 })
+
+// ══ one deload blue ═══════════════════════════════════════════
+// The report marks a deload in the glacier blue and a ticket in the rest
+// blue: two meanings, two tokens. The deload one used to be a hex typed
+// into three files; it is a token now, so the two can never drift.
+
+test('the deload blue is one token, and the ticket keeps the rest blue', async () => {
+  const { readFileSync } = await import('node:fs')
+  const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
+  const tokens = read('src/styles/tokens.css')
+  const root = tokens.slice(tokens.indexOf(':root {'), tokens.indexOf('}', tokens.indexOf(':root {')))
+  assert.match(root, /--deload:\s*#5CC9EE;/)
+  const deloadTheme = tokens.slice(tokens.indexOf(':root[data-deload="1"]'))
+  assert.ok(!/--deload:/.test(deloadTheme.slice(0, deloadTheme.indexOf('}'))), 'the same in and out of a deload')
+  for (const f of ['src/styles/screens/report.css', 'src/components/report/parts.jsx', 'src/components/report/Cover.jsx', 'src/components/report/sections/Consistency.jsx']) {
+    assert.ok(!/#5CC9EE/i.test(read(f)), `${f} uses the token, not the hex`)
+  }
+  assert.match(read('src/styles/screens/report.css'), /\.rp-tickets svg \{[^}]*var\(--rest\)/)
+})

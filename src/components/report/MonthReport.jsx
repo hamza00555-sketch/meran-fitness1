@@ -71,14 +71,20 @@ export default function MonthReport({
   const closeBtn = useRef(null)
   const [scrolled, setScrolled] = useState(false)
   const [pastCover, setPastCover] = useState(false)
+  // Said once, politely, when another month opens in place.
+  const [announce, setAnnounce] = useState('')
+  const shownMonth = useRef(report?.month)
 
   // Escape closes, the page behind must not scroll while this is up,
-  // and keyboard focus starts inside the layer. Once, on open: the
-  // caller hands a fresh onClose every render, and re-running this on
-  // each one would keep pulling focus back to the close button.
+  // and keyboard focus starts inside the layer — and goes back to what
+  // opened it (Home's row) when it closes, never to the page itself.
+  // Once, on open: the caller hands a fresh onClose every render, and
+  // re-running this on each one would keep pulling focus back to the
+  // close button.
   const closeRef = useRef(onClose)
   closeRef.current = onClose
   useEffect(() => {
+    const opener = typeof document !== 'undefined' ? document.activeElement : null
     const onKey = (e) => { if (e.key === 'Escape') closeRef.current?.() }
     window.addEventListener('keydown', onKey)
     const release = lockScroll()
@@ -86,12 +92,19 @@ export default function MonthReport({
     return () => {
       window.removeEventListener('keydown', onKey)
       release()
+      if (opener && opener !== document.body && opener.isConnected) opener.focus?.({ preventScroll: true })
     }
   }, [])
 
-  // Another month opens at its own cover.
+  // Another month opens at its own cover. The button that opened it went
+  // with the old month's report, so focus moves to the new cover's title
+  // rather than dropping to the page, and the change is said out loud.
   useEffect(() => {
     if (scroller.current) scroller.current.scrollTop = 0
+    if (!report?.month || report.month === shownMonth.current) return
+    shownMonth.current = report.month
+    setAnnounce(`تقرير ${report.monthLabel}`)
+    scroller.current?.querySelector('.rp-cover-title')?.focus?.({ preventScroll: true })
   }, [report?.month])
 
   // The bar's hairline, and its title once the cover is gone.
@@ -131,6 +144,8 @@ export default function MonthReport({
         </span>
         {has ? <ShareIcon onShare={onShare} sharing={sharing} /> : <span style={{ width: 44 }} />}
       </header>
+
+      <p className="rp-sr" role="status" aria-live="polite">{announce}</p>
 
       <div ref={scroller} className="rp-scroll">
         {has ? (

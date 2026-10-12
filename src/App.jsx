@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
-  scheduleNotificationsForToday, applySubsToDay, getHistoricalMax, sessionVolume,
+  scheduleNotificationsForToday, applySubsToDay, getHistoricalMax, sessionVolume, restoreMonthGoals,
 } from './utils.js'
 import {
   NAV_TABS, ACHIEVEMENTS,
@@ -1166,6 +1166,7 @@ export default function App() {
                 // rest day. Older backups have no `recovery` key; they keep
                 // whatever is configured on the device.
                 if (data.recovery)                         setRecoveryCfg(prev => ({ ...prev, ...data.recovery }))
+                restoreMonthGoals(data)
                 pushAlert('✅', 'تم استيراد البيانات بنجاح!')
               }}
             />

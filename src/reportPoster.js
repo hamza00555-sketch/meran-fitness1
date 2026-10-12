@@ -24,6 +24,7 @@
 import { urlFor } from './assets/registry.js'
 import { arabicName } from './exerciseMedia.js'
 import { todayKey } from './day.js'
+import { unitWord, fromWord } from './monthReport.js'
 
 export const POSTER_W = 1080
 export const POSTER_H = 1920
@@ -146,17 +147,30 @@ export function posterFigures(report, { liveStreak = null, today } = {}) {
   const over = isMonthOver(report.month, today)
   const streak = over ? c.endStreak : liveStreak
 
+  const attended = a.attended ?? report.sessionCount
+  // Each figure's word follows its number: «5 جلسات», «16 جلسة».
   const figs = [
-    { v: AR(a.attended ?? report.sessionCount), l: 'جلسة حضرتها' },
-    { v: AR(report.sets?.completed), l: 'مجموعة مكتملة' },
+    { v: AR(attended), l: `${unitWord(attended, 'session')} حضرتها` },
+    { v: AR(report.sets?.completed), l: unitWord(report.sets?.completed, 'مجموعات مكتملة', 'مجموعة مكتملة') },
   ]
-  if (report.prs?.length) figs.push({ v: AR(report.prs.length), l: 'وزن جديد', color: C.raise })
+  if (report.prs?.length) figs.push({ v: AR(report.prs.length), l: unitWord(report.prs.length, 'أوزان جديدة', 'وزن جديد'), color: C.raise })
   if (Number.isFinite(streak) && streak > 0) {
     figs.push({ v: AR(streak), l: over ? `ستريك آخر ${monthName(report.monthLabel)}` : 'ستريك لين اليوم', color: C.streak, flame: true })
   }
-  if (figs.length < 4 && a.planned) figs.push({ v: AR(a.planned), l: 'جلسة في خطتك' })
-  if (figs.length < 4) figs.push({ v: AR(report.reps?.total), l: 'تكرار' })
+  if (figs.length < 4 && a.planned) figs.push({ v: AR(a.planned), l: `${unitWord(a.planned, 'session')} في خطتك`, planned: true })
+  if (figs.length < 4) figs.push({ v: AR(report.reps?.total), l: unitWord(report.reps?.total, 'تكرارات', 'تكرار') })
   return { figs: figs.slice(0, 4), attended: a.attended ?? report.sessionCount, planned: a.planned || 0 }
+}
+
+/** Who the poster is from: the name, and the level only while it is
+ *  the month's own. A finished month's poster would otherwise print
+ *  today's level as that month's (only today's XP is stored). */
+export function posterFooter(report, profile = {}) {
+  const name = (profile?.name || '').trim()
+  const p = report?.progress
+  if (!p || p.levelIsToday || !Number.isFinite(p.level)) return { name, level: '' }
+  const rank = p.rank?.label
+  return { name, level: `المستوى ${AR(p.level)}${rank ? ` · ${rank}` : ''}` }
 }
 
 // ── The poster ────────────────────────────────────────────────
@@ -248,23 +262,23 @@ export async function drawPoster(canvas, { report, profile = {}, mapping = {}, l
     text(ctx, ar || best.exercise, R, blockTop + 76, { size: 54, weight: 700, color: C.ink, maxWidth: nameW, dir: ar ? 'rtl' : 'ltr' })
     if (ar) text(ctx, best.exercise, R, blockTop + 124, { size: 34, weight: 600, stretch: 85, color: C.ink3, maxWidth: nameW, dir: 'ltr' })
     const gain = Math.round((best.weight - best.prevBest) * 10) / 10
-    text(ctx, `كان ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
-  } else if (planned && !figs.some(f => f.l === 'جلسة في خطتك')) {
+    text(ctx, `${fromWord(best)} ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
+  } else if (planned && !figs.some(f => f.planned)) {
     text(ctx, 'حضورك', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
     text(ctx, `${AR(attended)} / ${AR(planned)}`, R, blockTop + 140, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
-    text(ctx, 'جلسة حضرتها من اللي في خطتك', R, blockTop + 196, { size: 34, weight: 600, color: C.ink3 })
+    text(ctx, `${unitWord(attended, 'session')} حضرتها من اللي في خطتك`, R, blockTop + 196, { size: 34, weight: 600, color: C.ink3 })
   }
 
   // ── Who this is, and the mark ──
   const FOOT = 1452
   hairline(ctx, FOOT)
-  const name = (profile.name || '').trim()
-  const rank = report.progress?.rank?.label
-  const level = `المستوى ${AR(report.progress?.level)}${rank ? ` · ${rank}` : ''}`
-  if (name) {
+  const { name, level } = posterFooter(report, profile)
+  if (name && level) {
     text(ctx, name, R, FOOT + 76, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
     text(ctx, level, R, FOOT + 128, { size: 34, weight: 600, color: C.ink3, maxWidth: COL - 260 })
-  } else {
+  } else if (name) {
+    text(ctx, name, R, FOOT + 104, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
+  } else if (level) {
     text(ctx, level, R, FOOT + 98, { size: 38, weight: 600, color: C.ink2, maxWidth: COL - 260 })
   }
   if (mark) {

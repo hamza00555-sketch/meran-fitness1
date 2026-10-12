@@ -1,10 +1,12 @@
 // ── When did you train? ───────────────────────────────────────
 // The streak as one number — the flame, the number, «يوم/أيام», exactly
 // as Home shows it — then the month on a calendar. A trained day is lit,
-// and lit brighter the more kilos it moved (five steps, the month's
-// lightest ordinary day to its heaviest). A rest day is empty, a missed
-// workout day has a ✕, a deload day has the blue rim and stays out of
-// the light scale. One line of key instead of four symbols explained.
+// and lit brighter the more kilos it moved (five steps, as a share of
+// the month's heaviest ordinary day). A rest day is empty, a missed
+// workout day has a ✕, a missed one a ticket paid for has the small
+// blue ticket (the sentence above names it, so it has to be findable),
+// a deload day has the blue rim and stays out of the light scale. One
+// line of key instead of the symbols explained one by one.
 //
 // Every day is classified by the recovery engine, not by this file. The
 // session-run rows, the 100% «of plan days», the four counts and the
@@ -22,14 +24,15 @@ const WEEK = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] // Sunday first
 const KIND = {
   trained: 'تمرّنت',
   rest:    'راحة',
-  paid:    'راحة بتذكرة',
+  paid:    'تذكرة بدل يوم فاتك',
   miss:    'فاتك',
   ahead:   'لسا ما جا',
   none:    'قبل ما تبدأ',
 }
 
 // Words for the light step, for anyone who cannot see it.
-const LIGHT = ['', 'أخف يوم', 'خفيف', 'متوسط', 'ثقيل', 'أثقل يوم']
+// Several days can share a step, so none of them is «the» lightest.
+const LIGHT = ['', 'خفيف جداً', 'خفيف', 'متوسط', 'ثقيل', 'ثقيل جداً']
 
 function cellLabel(day) {
   const parts = [fmtDayAr(day.date), KIND[day.kind] || '']
@@ -85,6 +88,7 @@ export default function Consistency({ report, id = 'rp-when', liveStreak = null,
                      style={day.level ? undefined : { background: DELOAD_INK }} />
                 )}
                 {day.kind === 'miss' && <span className="is-miss"><Cross size={11} /></span>}
+                {day.kind === 'paid' && <span className="is-paid"><Ticket size={12} /></span>}
               </span>
             </span>
           ))}
@@ -93,6 +97,7 @@ export default function Consistency({ report, id = 'rp-when', liveStreak = null,
           <span><i className="rp-lit" data-level="3" /> تمرّنت، وكل ما نوّر أكثر كان أثقل</span>
           <span><i className="rp-key-empty" /> راحة</span>
           <span><span className="is-miss"><Cross size={10} /></span> فاتك</span>
+          {c.paidRests > 0 && <span><span className="is-paid"><Ticket size={11} /></span> تذكرة بدل يوم فاتك</span>}
           {hasDeload && <span><i className="rp-key-deload" style={{ borderColor: DELOAD_INK }} /> تخفيف</span>}
         </p>
       </div>

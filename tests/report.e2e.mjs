@@ -218,6 +218,20 @@ for (const [iso, expect, label] of WINDOW) {
   await ctx.close()
 }
 
+// …in Arabic: «5 جلسات», «8 أوزان جديدة», as the cover it opens says it.
+{
+  const { ctx, page } = await open('2026-04-02T18:00:00+03:00', { sessions: SESSIONS.filter(s => s.date < '2026-03-10') })
+  const row = await page.evaluate(() =>
+    [...document.querySelectorAll('.k-row')].find(e => /تقرير مارس 2026/.test(e.textContent || ''))?.innerText.replace(/\s+/g, ' ') || '')
+  ok('home: the row counts in Arabic (3–10 take the plural)', /\b([3-9]|10) جلسات حضرتها/.test(row) && /أوزان جديدة|وزن جديد|وزنين جداد/.test(row) && !/\b([3-9]|10) (جلسة|وزن جديد)/.test(row), row)
+  await openReport(page)
+  const cover = await page.evaluate(() => document.querySelector('.rp-hero-unit')?.textContent.trim())
+  ok('home: the row and the cover use the same word', !!cover && row.includes(` ${cover}`), `${row} | ${cover}`)
+  const labels = await page.evaluate(() => [...document.querySelectorAll('.rp-sets-row')].map(r => r.getAttribute('aria-label')))
+  ok('muscles: the spoken label counts in Arabic too', labels.length > 0 && labels.every(l => !/\b([3-9]|10) مجموعة/.test(l)), labels.join(' | '))
+  await ctx.close()
+}
+
 // ══ 2. The report ═════════════════════════════════════════════
 
 const QUESTIONS = ['متى تمرّنت؟', 'صرت أقوى؟', 'وين راح شغلك؟', 'خطة أبريل', 'كل الأرقام', 'الشهور اللي فاتت']
@@ -361,6 +375,19 @@ async function shoot(page, name) {
   // cover tell the same story about it.
   const when = await page.evaluate(() => document.querySelector('#rp-when .rp-ch-lead')?.textContent.trim())
   ok('calendar: its sentence agrees with the cover about the skipped day', when === 'مشيت على خطتك، إلا الأربعاء 18.', when)
+  // …and that day can be found on the calendar: the ticket's mark, in
+  // the rest blue, explained in the key.
+  const paid = await page.evaluate(() => {
+    const cell = [...document.querySelectorAll('.rp-cal-cell')].find(c => c.querySelector('.rp-cal-n')?.textContent.trim() === '18')
+    const mark = cell?.querySelector('.is-paid svg')
+    const keyMark = document.querySelector('.rp-key .is-paid svg')
+    return {
+      kind: cell?.className, mark: !!mark, color: mark ? getComputedStyle(mark.parentElement).color : '',
+      keyMark: !!keyMark, key: document.querySelector('.rp-key')?.innerText.replace(/\s+/g, ' ').trim(),
+    }
+  })
+  ok('calendar: the day a ticket paid for carries the ticket mark', /k-paid/.test(paid.kind || '') && paid.mark && paid.color === 'rgb(59, 157, 232)', JSON.stringify(paid))
+  ok('calendar: and the key says what that mark is', paid.keyMark && /تذكرة بدل يوم فاتك/.test(paid.key || ''), JSON.stringify(paid))
   const lit = await page.evaluate(() => [...document.querySelectorAll('.rp-cal-cell.k-trained')].every(c => c.dataset.level))
   ok('calendar: every ordinary trained day is lit', lit)
 
@@ -391,6 +418,13 @@ async function shoot(page, name) {
   })))
   ok('next month: three things at most, each with one reason', next.length >= 1 && next.length <= 3 && next.every(n => n.title && n.why), JSON.stringify(next))
   ok('next month: from the progression engine', next.some(n => n.kind === 'raise') && next.some(n => n.kind === 'lower') && next.some(n => n.kind === 'sets'), JSON.stringify(next))
+
+  // Only today's XP is stored: a finished month names the level as today's.
+  const allRows = await page.evaluate(() => [...document.querySelectorAll('#rp-all .rp-row-t')].map(e => e.textContent.trim()))
+  ok('all numbers: a finished month calls the level today\'s', allRows.includes('مستواك اليوم') && !allRows.includes('المستوى'), allRows.join(' | '))
+  // «20:50 ساعة» reads as a clock: time spent is said in words.
+  const allText = await page.evaluate(() => document.querySelector('#rp-all')?.innerText.replace(/\s+/g, ' ') || '')
+  ok('all numbers: time spent is said in words, not as a clock', !/\d+:\d{2}/.test(allText) && /\d+ ساعة و/.test(allText), allText)
 
   ok('report: no page errors', errors.length === 0, errors.join('; '))
 
@@ -430,6 +464,42 @@ async function shoot(page, name) {
   const back = await page.evaluate(() => document.querySelector('.rp-cover .rp-eyebrow')?.textContent)
   ok('months: and back again', /مارس 2026/.test(back || ''), back)
   ok('months: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 3b. The same, by keyboard ═════════════════════════════════
+// Picking a month replaces the report, button and all: focus must land
+// on the new cover, not drop to the page, and the change is said. Escape
+// gives focus back to the row on Home that opened the report.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { reduced: true })
+  const row = page.locator('.k-row', { hasText: 'تقرير مارس 2026' }).first()
+  await row.focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(900)
+  await page.locator('.rp-scroll').evaluate(el => { el.scrollTop = el.scrollHeight })
+  await page.waitForTimeout(300)
+  await page.locator('.rp-month', { hasText: 'فبراير' }).focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(900)
+  const after = await page.evaluate(() => ({
+    active: document.activeElement === document.body ? 'BODY' : `${document.activeElement?.className} ${document.activeElement?.textContent?.trim()}`,
+    said: document.querySelector('.rp [aria-live="polite"]')?.textContent.trim() || '',
+  }))
+  ok('months, keyboard: focus lands on the new month\'s cover', /rp-cover-title/.test(after.active) && /فبراير 2026/.test(after.active), JSON.stringify(after))
+  ok('months, keyboard: the new month is announced', after.said === 'تقرير فبراير 2026', JSON.stringify(after))
+  await page.keyboard.press('Tab')
+  const next = await page.evaluate(() => document.activeElement?.closest('.rp') ? 'inside' : 'outside')
+  ok('months, keyboard: Tab goes on from inside the report', next === 'inside', next)
+  await page.locator('.rp-bar button[aria-label="إغلاق"]').focus()
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(500)
+  const back = await page.evaluate(() => {
+    const a = document.activeElement
+    return !a || a === document.body ? 'BODY' : `${a.className} ${a.textContent.replace(/\s+/g, ' ').trim()}`
+  })
+  ok('report, keyboard: Escape gives focus back to the row that opened it', /تقرير مارس 2026/.test(back), back)
+  ok('months, keyboard: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

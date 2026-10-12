@@ -72,7 +72,8 @@ export default function Cover({ report, onShare, sharing = false, today }) {
              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
       )}
       <div className="rp-cover-body">
-        <p className="rp-eyebrow rp-in" style={{ '--i': 0 }}>
+        {/* Where focus lands when another month opens in place. */}
+        <p className="rp-eyebrow rp-cover-title rp-in" style={{ '--i': 0 }} tabIndex={-1}>
           تقرير الشهر · <Bidi text={report.monthLabel} />
         </p>
 
@@ -88,7 +89,7 @@ export default function Cover({ report, onShare, sharing = false, today }) {
 
         {report.deload && (
           <p className="rp-cover-note is-deload rp-in" style={{ '--i': 3 }}>
-            <Drop size={16} weight="fill" color={DELOAD_INK} aria-hidden="true" />
+            <Drop size={16} weight="fill" aria-hidden="true" />
             <span><Bidi text={deloadLine(report.deload.ranges, report.month)} /></span>
           </p>
         )}
