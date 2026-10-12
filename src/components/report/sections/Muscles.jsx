@@ -10,7 +10,7 @@
 // add to a plan, «45% of the volume» and «1.52 : 1» are not.
 
 import { Num } from '../../kit/index.jsx'
-import { musclesLine, WEEKLY_SETS } from '../../../monthReport.js'
+import { musclesLine, countWord, WEEKLY_SETS } from '../../../monthReport.js'
 import { Section } from '../parts.jsx'
 
 export default function Muscles({ report, id = 'rp-muscles' }) {
@@ -40,7 +40,7 @@ export default function Muscles({ report, id = 'rp-muscles' }) {
             const n = m.shown ?? Math.round(m.perWeek)
             return (
               <li key={m.key} className={`rp-sets-row${low ? ' is-low' : ''}`}
-                  aria-label={`${m.label}: ${n} مجموعة بالأسبوع${low ? '، أقل من اللازم' : ''}`}>
+                  aria-label={`${m.label}: ${n < 1 ? 'أقل من مجموعة' : countWord(n, 'set')} بالأسبوع${low ? '، أقل من اللازم' : ''}`}>
                 <span className="rp-sets-l">{m.label}</span>
                 <span className="rp-sets-track" aria-hidden="true">
                   {m.status && <i className="rp-sets-band" style={band} />}

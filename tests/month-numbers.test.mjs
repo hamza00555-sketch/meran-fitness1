@@ -719,3 +719,35 @@ test('a finished month does not pass today\'s level off as its own', async () =>
   assert.deepEqual(posterFooter(feb, {}), { name: '', level: '' })
   assert.match(posterFooter(live, { name: 'حمزة' }).level, /^المستوى \d+/)
 })
+
+// ══ counting on Home's row and the poster ═════════════════════
+// «5 جلسة حضرتها» and «8 وزن جديد» were printed raw next to their
+// numbers. Every place that puts a word beside a count follows the rule.
+
+test('Home\'s report row counts in Arabic, like the cover it opens', () => {
+  const { reportRowLine } = R
+  const row = (attended, planned, prs) => reportRowLine({ hasData: true, sessionCount: attended, attendance: { attended, planned }, prs: Array(prs).fill({}) })
+  assert.equal(row(5, 28, 8), '5 جلسات حضرتها من 28 · 8 أوزان جديدة')
+  assert.equal(row(16, 16, 1), '16 جلسة حضرتها من 16 · وزن جديد')
+  assert.equal(row(16, 16, 2), '16 جلسة حضرتها من 16 · وزنين جداد')
+  assert.equal(row(20, 21, 12), '20 جلسة حضرتها من 21 · 12 وزن جديد')
+  assert.equal(row(3, 0, 0), '3 جلسات حضرتها')
+  assert.equal(reportRowLine({ hasData: false }), '')
+  assert.equal(countWord(1, 'newWeight'), 'وزن جديد')
+  assert.equal(countWord(5, 'newWeight'), '5 أوزان جديدة')
+})
+
+test('the poster\'s figures take the word their number asks for', async () => {
+  const { posterFigures } = await import('../src/reportPoster.js')
+  const report = {
+    month: MAR, monthLabel: 'مارس 2026', sessionCount: 5,
+    attendance: { attended: 5, planned: 8 }, sets: { completed: 9 }, reps: { total: 108 },
+    prs: Array(3).fill({}), consistency: { endStreak: 0 },
+  }
+  const figs = posterFigures(report, { today: '2026-04-02' }).figs.map(f => `${f.v} ${f.l}`)
+  assert.deepEqual(figs, ['5 جلسات حضرتها', '9 مجموعات مكتملة', '3 أوزان جديدة', '8 جلسات في خطتك'])
+  const big = posterFigures({ ...report, attendance: { attended: 16, planned: 0 }, sets: { completed: 96 }, prs: Array(12).fill({}) }, { today: '2026-04-02' })
+  assert.deepEqual(big.figs.map(f => `${f.v} ${f.l}`), ['16 جلسة حضرتها', '96 مجموعة مكتملة', '12 وزن جديد', '108 تكرارات'], '103–110 take the plural')
+  const reps = posterFigures({ ...report, attendance: { attended: 16, planned: 0 }, prs: [], reps: { total: 1152 } }, { today: '2026-04-02' })
+  assert.equal(reps.figs.at(-1).l, 'تكرار')
+})

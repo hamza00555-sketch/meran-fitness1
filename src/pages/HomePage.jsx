@@ -10,6 +10,7 @@ import { countAr, todayStreak, fmtDayAr, streakView } from '../streak.js'
 import { todayKey } from '../day.js'
 import { DEFAULT_REP_TARGET } from '../progression.js'
 import { withNums } from '../components/home/HomeBits.jsx'
+import { reportRowLine } from '../monthReport.js'
 import { setsUnit } from '../components/home/dayParts.js'
 
 // ── Home — «تحت الأضواء» ──────────────────────────────────────
@@ -213,11 +214,7 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
             <ListRow
               leading={ChartBar}
               title={withNums(`تقرير ${monthReport.monthLabel}`)}
-              subtitle={<>
-                <Num>{monthReport.attendance?.attended ?? monthReport.sessionCount}</Num> جلسة حضرتها
-                {monthReport.attendance?.planned ? <> من <Num>{monthReport.attendance.planned}</Num></> : null}
-                {monthReport.prs?.length ? <> · <Num>{monthReport.prs.length}</Num> وزن جديد</> : null}
-              </>}
+              subtitle={withNums(reportRowLine(monthReport))}
               chevron
               onClick={onShowMonthReport}
             />

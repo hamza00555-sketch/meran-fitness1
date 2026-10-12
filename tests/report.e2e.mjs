@@ -218,6 +218,20 @@ for (const [iso, expect, label] of WINDOW) {
   await ctx.close()
 }
 
+// …in Arabic: «5 جلسات», «8 أوزان جديدة», as the cover it opens says it.
+{
+  const { ctx, page } = await open('2026-04-02T18:00:00+03:00', { sessions: SESSIONS.filter(s => s.date < '2026-03-10') })
+  const row = await page.evaluate(() =>
+    [...document.querySelectorAll('.k-row')].find(e => /تقرير مارس 2026/.test(e.textContent || ''))?.innerText.replace(/\s+/g, ' ') || '')
+  ok('home: the row counts in Arabic (3–10 take the plural)', /\b([3-9]|10) جلسات حضرتها/.test(row) && /أوزان جديدة|وزن جديد|وزنين جداد/.test(row) && !/\b([3-9]|10) (جلسة|وزن جديد)/.test(row), row)
+  await openReport(page)
+  const cover = await page.evaluate(() => document.querySelector('.rp-hero-unit')?.textContent.trim())
+  ok('home: the row and the cover use the same word', !!cover && row.includes(` ${cover}`), `${row} | ${cover}`)
+  const labels = await page.evaluate(() => [...document.querySelectorAll('.rp-sets-row')].map(r => r.getAttribute('aria-label')))
+  ok('muscles: the spoken label counts in Arabic too', labels.length > 0 && labels.every(l => !/\b([3-9]|10) مجموعة/.test(l)), labels.join(' | '))
+  await ctx.close()
+}
+
 // ══ 2. The report ═════════════════════════════════════════════
 
 const QUESTIONS = ['متى تمرّنت؟', 'صرت أقوى؟', 'وين راح شغلك؟', 'خطة أبريل', 'كل الأرقام', 'الشهور اللي فاتت']

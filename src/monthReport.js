@@ -27,7 +27,7 @@ import {
 import { setCounts } from './sets.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
 import { computeRecovery, addDays, dayDiff } from './recovery.js'
-import { countAr, fmtDayAr } from './streak.js'
+import { countAr, unitAr, fmtDayAr } from './streak.js'
 import { isDeloadSession } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
 import { arabicName } from './exerciseMedia.js'
@@ -96,19 +96,42 @@ export function monthReportWindow(today) {
 // own nouns, on the same rule: 1 and 2 are words, 3–10 the plural,
 // 11 and up the singular.
 const NOUNS = {
-  set:    { one: 'مجموعة وحدة', two: 'مجموعتين', few: 'مجموعات', many: 'مجموعة' },
-  rep:    { one: 'عدّة وحدة',   two: 'عدّتين',   few: 'عدّات',   many: 'عدّة' },
-  muscle: { one: 'عضلة وحدة',   two: 'عضلتين',   few: 'عضلات',   many: 'عضلة' },
-  thing:  { one: 'شي واحد',     two: 'شيئين',    few: 'أشياء',   many: 'شي' },
+  set:       { one: 'مجموعة وحدة', two: 'مجموعتين',   few: 'مجموعات',     many: 'مجموعة' },
+  rep:       { one: 'عدّة وحدة',   two: 'عدّتين',     few: 'عدّات',       many: 'عدّة' },
+  muscle:    { one: 'عضلة وحدة',   two: 'عضلتين',     few: 'عضلات',       many: 'عضلة' },
+  thing:     { one: 'شي واحد',     two: 'شيئين',      few: 'أشياء',       many: 'شي' },
+  newWeight: { one: 'وزن جديد',    two: 'وزنين جداد', few: 'أوزان جديدة', many: 'وزن جديد' },
 }
+const fewForm = (k) => { const r = k % 100; return k === 0 || (r >= 3 && r <= 10) }
 export const countWord = (n, noun) => {
   if (!NOUNS[noun]) return countAr(n, noun)
   const f = NOUNS[noun]
   const k = Math.max(0, Math.round(Number(n) || 0))
   if (k === 1) return f.one
   if (k === 2) return f.two
-  const r = k % 100
-  return `${k} ${k === 0 || (r >= 3 && r <= 10) ? f.few : f.many}`
+  return `${k} ${fewForm(k) ? f.few : f.many}`
+}
+
+/** The plural or the singular, for a number drawn apart from its word
+ *  (a figure on the poster): «5 أوزان جديدة», «12 وزن جديد», «1 وزن جديد».
+ *  Pass the two forms, or a noun this file or streak.js knows. */
+export const unitWord = (n, few, many) => {
+  const k = Math.max(0, Math.round(Number(n) || 0))
+  if (many === undefined) {
+    if (!NOUNS[few]) return unitAr(k, few)
+    return fewForm(k) ? NOUNS[few].few : NOUNS[few].many
+  }
+  return fewForm(k) ? few : many
+}
+
+/** Home's row for the report: «5 جلسات حضرتها من 28 · 8 أوزان جديدة». */
+export function reportRowLine(report) {
+  if (!report?.hasData) return ''
+  const attended = report.attendance?.attended ?? report.sessionCount ?? 0
+  let line = `${attended} ${unitAr(attended, 'session')} حضرتها`
+  if (report.attendance?.planned) line += ` من ${report.attendance.planned}`
+  if (report.prs?.length) line += ` · ${countWord(report.prs.length, 'newWeight')}`
+  return line
 }
 
 /** «60» or «62.5» — a weight as a person writes it. */
