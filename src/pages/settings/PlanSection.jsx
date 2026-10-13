@@ -26,12 +26,12 @@ const weeksAr = (n) => {
 
 // «Push A — صدر، أكتاف» → «دفع A» over «صدر، أكتاف». The day's own
 // muscles are already Arabic; only the type word is English.
-const TYPE_AR = { push: 'دفع', pull: 'سحب', legs: 'أرجل', leg: 'أرجل', upper: 'علوي', lower: 'سفلي', 'full body': 'الجسم كامل', full: 'الجسم كامل', arms: 'ذراعين', core: 'بطن', cardio: 'كارديو' }
+const TYPE_AR = { push: 'دفع', pull: 'سحب', legs: 'أرجل', leg: 'أرجل', upper: 'علوي', lower: 'سفلي', 'full body': 'الجسم كامل', full: 'الجسم كامل', arms: 'ذراعين', core: 'بطن', cardio: 'كارديو', 'chest & back': 'صدر وظهر', chest: 'صدر', back: 'ظهر', shoulders: 'أكتاف' }
 export function dayNameAr(name = '') {
   const [left, ...rest] = String(name).split('—')
   const muscles = rest.join('—').trim()
   const l = left.trim()
-  const m = l.match(/^(full body|push|pull|legs?|upper|lower|full|arms|core|cardio)\b\s*(.*)$/i)
+  const m = l.match(/^(full body|chest & back|push|pull|legs?|upper|lower|full|arms|core|cardio|chest|back|shoulders)\b\s*(.*)$/i)
   return { head: m ? `${TYPE_AR[m[1].toLowerCase()]}${m[2] ? ` ${m[2]}` : ''}` : l, muscles }
 }
 

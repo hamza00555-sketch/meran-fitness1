@@ -25,6 +25,7 @@ const WORDS = {
   explosive: 'انفجاري',
   chest: 'صدر',
   back: 'ظهر',
+  'chest & back': 'صدر وظهر',   // a day of the builder's «حر» system
   shoulders: 'أكتاف',
   arms: 'ذراعين',
   core: 'بطن',
