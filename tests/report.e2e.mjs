@@ -767,6 +767,7 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   await openReport(page)
   const before = await page.evaluate(() => ({
     plan: localStorage.getItem('hf_plan'), weights: localStorage.getItem('hf_last_weights'), goals: localStorage.getItem('hf_month_goal'),
+    prev: localStorage.getItem('hf_plan_prev'), index: localStorage.getItem('hf_plan_index'),
   }))
   await page.locator('#rp-card-next').scrollIntoViewIfNeeded()
   await page.waitForTimeout(1600)
@@ -777,6 +778,8 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
     weights: JSON.parse(localStorage.getItem('hf_last_weights') || '{}'),
     goals: JSON.parse(localStorage.getItem('hf_month_goal') || '{}'),
     toast: document.querySelector('#rp-card-next .rs-undo')?.innerText.replace(/\s+/g, ' ') || '',
+    prev: JSON.parse(localStorage.getItem('hf_plan_prev') || 'null'),
+    index: localStorage.getItem('hf_plan_index'),
   }))
   const curl = after.plan.weeklySchedule[1].exercises[1]
   ok('apply: the muscle under the range gets sets in the plan', curl.name === 'Barbell Curl' && curl.sets > 2 && Number.isInteger(curl.sets), JSON.stringify(curl))
@@ -784,16 +787,22 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   ok('apply: the stalled lift starts lighter', after.weights['barbell squat'] > 0 && after.weights['barbell squat'] < 110, JSON.stringify(after.weights))
   ok('apply: next month\'s goal is set too', after.goals['2026-04']?.kind === 'sessions' && after.goals['2026-04'].target > 0, JSON.stringify(after.goals))
   ok('apply: the plan keeps the shape the old design reads', after.plan.planName === 'PPL' && after.plan.weeklySchedule.every(d => typeof d.name === 'string' && d.exercises.every(e => typeof e.name === 'string' && typeof e.muscle === 'string')), '')
+  // Saved the way the builder saves an edit of his own plan.
+  ok('apply: the plan before it is kept for «رجّع خطتك القديمة», like the builder\'s save',
+    after.prev && JSON.stringify(after.prev.plan) === JSON.stringify(JSON.parse(before.plan)), JSON.stringify(after.prev)?.slice(0, 200))
+  ok('apply: the day he reached is kept', after.index === before.index, `${before.index} → ${after.index}`)
   ok('apply: a toast says what changed, with «تراجع»', /في خطتك/.test(after.toast) && /تراجع/.test(after.toast), after.toast)
   await page.locator('#rp-card-next .rs-undo button').click()
   await page.waitForTimeout(500)
   const undone = await page.evaluate(() => ({
     plan: localStorage.getItem('hf_plan'), weights: localStorage.getItem('hf_last_weights'), goals: localStorage.getItem('hf_month_goal'),
+    prev: localStorage.getItem('hf_plan_prev'),
     button: !!document.querySelector('#rp-card-next .rp-apply'),
   }))
   ok('undo: the plan, the weights and the goal are back as they were',
     JSON.stringify(JSON.parse(undone.plan)) === JSON.stringify(JSON.parse(before.plan)) && undone.weights === before.weights && undone.goals === before.goals,
     JSON.stringify({ before, undone }))
+  ok('undo: the kept old plan is back as it was too', JSON.stringify(JSON.parse(undone.prev || 'null')) === JSON.stringify(JSON.parse(before.prev || 'null')), `${before.prev} → ${undone.prev}`)
   ok('undo: and the button is offered again', undone.button)
 
   // The goal, set by hand: «غيّره» → the sheet → «ثبّت الهدف».
