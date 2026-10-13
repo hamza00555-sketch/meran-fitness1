@@ -334,14 +334,16 @@ async function shoot(page, name) {
   const jump = await page.evaluate(() => document.querySelector('#rp-card-jump')?.innerText.replace(/\s+/g, ' '))
   ok('jump: the biggest jump has its own card, called «وزن جديد»', /أكبر قفزة هالشهر · وزن جديد/.test(jump || ''), jump)
 
-  // Muscles: sets a week against the 10–20 band; biceps fall short.
+  // Muscles: sets a week, each against its own band (the plan builder's
+  // ranges, indirect work counted as half); the calves fall short.
   const sets = await page.evaluate(() => [...document.querySelectorAll('.rp-sets-row')].map(r => ({
     label: r.querySelector('.rp-sets-l')?.textContent, band: !!document.querySelector('#rp-card-muscles .rp-sets-band'),
     low: r.classList.contains('is-low'), note: r.querySelector('.rp-sets-note')?.textContent || '',
   })))
-  ok('muscles: every judged row draws the 10–20 band', sets.length >= 5 && sets.every(s => s.band), JSON.stringify(sets))
-  ok('muscles: the one under the band says «أقل من اللازم»',
-    sets.some(s => s.low && s.label === 'البايسبس' && s.note === 'أقل من اللازم'), JSON.stringify(sets))
+  ok('muscles: every judged row draws its band', sets.length >= 5 && sets.every(s => s.band), JSON.stringify(sets))
+  ok('muscles: the part under its band is named «أقل من اللازم»',
+    sets.some(s => s.low && s.label.startsWith('الأرجل') && /السمانة أقل من اللازم/.test(s.label)), JSON.stringify(sets))
+  ok('muscles: the arms carry the planner\'s plain names', sets.some(s => s.label === 'الذراع الأمامي') && !sets.some(s => /البايسبس|الترايسبس/.test(s.label)), JSON.stringify(sets))
 
   // Next month: at the end, three things at most, each with a reason.
   const next = await page.evaluate(() => [...document.querySelectorAll('.rp-next-item')].map(li => ({
@@ -629,7 +631,7 @@ const PHOTOS = [
 const PLAN = { planName: 'PPL', durationWeeks: 6, weeklySchedule: [
   { name: 'Push', exercises: [{ muscle: 'Chest', name: 'Bench Press', sets: 3, repsMin: 8, repsMax: 12 }, { muscle: 'Shoulders', name: 'Lateral Raise', sets: 3 }] },
   { name: 'Pull', exercises: [{ muscle: 'Back', name: 'Lat Pulldown', sets: 3 }, { muscle: 'Biceps', name: 'Barbell Curl', sets: 2 }] },
-  { name: 'Legs', exercises: [{ muscle: 'Legs', name: 'Barbell Squat', sets: 3 }] },
+  { name: 'Legs', exercises: [{ muscle: 'Legs', name: 'Barbell Squat', sets: 3 }, { muscle: 'Legs', name: 'Standing Calf Raise', sets: 2 }] },
 ] }
 const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { timeout: 2000 }).catch(() => null)
 
@@ -797,9 +799,10 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
     prev: JSON.parse(localStorage.getItem('hf_plan_prev') || 'null'),
     index: localStorage.getItem('hf_plan_index'),
   }))
-  const curl = after.plan.weeklySchedule[1].exercises[1]
-  ok('apply: the muscle under the range gets sets in the plan', curl.name === 'Barbell Curl' && curl.sets > 2 && Number.isInteger(curl.sets), JSON.stringify(curl))
-  ok('apply: the lift ready to go up starts one plate higher', after.weights['lateral raise'] === 15, JSON.stringify(after.weights))
+  const calf = after.plan.weeklySchedule[2].exercises[1]
+  ok('apply: the part under its range gets sets in the plan', calf.name === 'Standing Calf Raise' && calf.sets > 2 && Number.isInteger(calf.sets), JSON.stringify(calf))
+  ok('apply: and only the exercise that works it directly', after.plan.weeklySchedule[2].exercises[0].sets === 3)
+  ok('apply: the lift ready to go up (on the plan\'s 8–12) starts one plate higher', after.weights['bench press'] === 80, JSON.stringify(after.weights))
   ok('apply: the stalled lift starts lighter', after.weights['barbell squat'] > 0 && after.weights['barbell squat'] < 110, JSON.stringify(after.weights))
   ok('apply: next month\'s goal is set too', after.goals['2026-04']?.kind === 'sessions' && after.goals['2026-04'].target > 0, JSON.stringify(after.goals))
   ok('apply: the plan keeps the shape the old design reads', after.plan.planName === 'PPL' && after.plan.weeklySchedule.every(d => typeof d.name === 'string' && d.exercises.every(e => typeof e.name === 'string' && typeof e.muscle === 'string')), '')
