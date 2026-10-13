@@ -464,8 +464,9 @@ async function openDeloadSettings(page) {
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
     localStorage.setItem('hf_seen_version', JSON.stringify('2.2'))
-    localStorage.setItem('hf_weights_reset_v2', 'true')
     localStorage.setItem('hf_xp', '4200')
+    // Read on the summary page: the story (report.e2e.mjs) has been seen.
+    localStorage.setItem('hf_report_seen', JSON.stringify({ '2026-03': true }))
     const real = Date
     const fixed = new real('2026-04-02T10:00:00+03:00').getTime()
     class D extends real {
@@ -485,7 +486,7 @@ async function openDeloadSettings(page) {
     el?.click()
   })
   await page.waitForTimeout(3000)
-  ok('report: it opened', await page.locator('.mr-section').count() > 0)
+  ok('report: it opened', await page.locator('.rs-stack .rs-card').count() > 0)
 
   // Said once, on the cover, in the deload blue. (The daily volume
   // chart that used to shade it is gone from the report.)
@@ -501,15 +502,19 @@ async function openDeloadSettings(page) {
   // that used to read as a decline. Now: the taper is not a step back
   // in «صرت أقوى؟», its days stay off the light scale, and next month's
   // plan does not answer it with «نزّل».
+  // One lift trained: the month's story of it is its «أكبر قفزة» card.
   const taper = await page.evaluate(() => ({
-    stronger: document.querySelector('#rp-stronger .rp-ch-lead')?.textContent.trim() || '',
-    caption: document.querySelector('#rp-stronger .rp-caption')?.textContent || '',
+    stronger: document.querySelector('#rp-card-jump .k-eb')?.textContent.trim() || '',
+    caption: document.querySelector('#rp-card-jump .k-read')?.textContent || '',
+    hollow: document.querySelectorAll('#rp-card-jump .lc .pt.dl').length,
     litTaper: [...document.querySelectorAll('.rp-cal-cell.is-deload[data-level]')].length,
     next: [...document.querySelectorAll('.rp-next-item')].map(li => li.dataset.kind),
     blueDashes: [...document.querySelectorAll('.rp-ring .rp-arc.is-done.is-deload')].length,
   }))
   ok('report: the taper does not turn the month into a decline',
-    /^وزنك زاد/.test(taper.stronger) && /جلسات التخفيف ما تنحسب هنا/.test(taper.caption) &&
+    // No card for a lift that did not go past its best; the taper is
+    // never shown as a lift going down.
+    (!taper.stronger || (/أسبوع التخفيف، ما تنحسب/.test(taper.caption) && taper.hollow >= 1)) &&
     taper.litTaper === 0 && !taper.next.includes('lower'), JSON.stringify(taper))
   ok('report: the deload sessions still count as attended', taper.blueDashes === 4, JSON.stringify(taper))
 
