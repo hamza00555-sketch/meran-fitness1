@@ -30,6 +30,7 @@ import { computeRecovery, addDays, dayDiff, patternFor } from './recovery.js'
 import { countAr, unitAr, fmtDayAr } from './streak.js'
 import { isDeloadSession } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
+import { AREAS, targets, entryForName } from './plan/catalogue.js'
 import { arabicName } from './exerciseMedia.js'
 
 // ── Calendar arithmetic ───────────────────────────────────────
@@ -146,10 +147,12 @@ const nameOf = (exercise, mapping) => arabicName(exercise, mapping) || exercise
 // loses sets is worse than one that says "other".
 const OTHER = { key: 'Other', label: 'أخرى', color: '#6B7280' }
 
+// The planner's plain names, not the loanwords («البايسبس»).
+const PLAIN_LABEL = { Biceps: 'الذراع الأمامي', Triceps: 'الذراع الخلفي', Core: 'البطن' }
 const groupOf = (muscle) => {
   const g = MUSCLE_GROUPS[muscle]
   if (!g) return OTHER
-  return { key: muscle, label: g.label, color: g.color }
+  return { key: muscle, label: PLAIN_LABEL[muscle] || g.label, color: g.color }
 }
 
 /** The heaviest ticked set of one exercise entry, or 0. */
@@ -505,20 +508,56 @@ export function weeklyTop(sessions = [], liftId, weeks = 9, { end, mapping = {},
 // Completed sets, by muscle group, averaged over the weeks the month
 // actually covered — from its first day (or the first session ever, in
 // the month someone started) to its last day (or today, while it runs).
-// The range is the plan builder's: 10–20 sets a week is where a muscle
-// grows. Cardio has no sets in that sense and is left out; an unknown
-// muscle is shown but not judged.
+// Counted and judged by the plan builder's own rules (src/plan/
+// catalogue.js), so the report never disagrees with it about the same
+// plan: a set counts 1 for the area it works directly and ½ for the
+// ones it works on the side (a press gives the back of the arm half a
+// set), and each area has its own range — the belly needs 2 a week,
+// the front of the thigh 6. A group is «low» when one of its areas is
+// under its minimum, and «high» past the top (the builder's «كثير»).
+// Cardio has no sets in that sense and is left out; an unknown muscle
+// is shown but not judged.
 
+/** Kept for old callers: the general 10–20 a week. Judging uses the
+ *  builder's range for each area. */
 export const WEEKLY_SETS = { min: 10, max: 20 }
 
-export function muscleSets(sessions = [], month, { today = todayKey(), firstEver = null } = {}) {
+// The report's groups, as the builder's areas. «front» (the front of
+// the shoulder) is counted but, as in the builder, not judged.
+const GROUP_AREAS = {
+  Chest: ['chest'], Back: ['lats', 'rows'], Shoulders: ['front', 'side', 'rear'],
+  Legs: ['quads', 'hams', 'glutes', 'calves'], Biceps: ['biceps'], Triceps: ['triceps'], Core: ['core'],
+}
+const AREA_GROUP = Object.fromEntries(Object.entries(GROUP_AREAS).flatMap(([g, as]) => as.map(x => [x, g])))
+// The thigh parts a plan exercise may carry (hf_plan «part»).
+const PART_AREA = { quads: 'quads', hamstrings: 'hams', glutes: 'glutes', calves: 'calves' }
+const UNKNOWN_AREA = { Chest: 'chest', Back: 'rows', Shoulders: 'side', Legs: 'quads', Biceps: 'biceps', Triceps: 'triceps', Core: 'core' }
+const GOAL_OF_PLAN = { muscle: 'muscle', strength: 'strength', fat_loss: 'fat', fat: 'fat', maintain: 'maintain' }
+// The builder never caps the two halves of the back on their own.
+const NO_TOP = new Set(['lats', 'rows'])
+
+/** Where one exercise's sets go: { area: credit }, as the builder counts. */
+export function creditsOf(ex) {
+  const e = entryForName(ex?.name)
+  if (e && !e.foreign) return e.cr
+  const part = PART_AREA[ex?.part]
+  if (part) return { [part]: 1 }
+  // One the catalogue does not know: direct work for its group, on the
+  // area the builder gives such an exercise (builder ensureEntry).
+  const area = UNKNOWN_AREA[ex?.muscle]
+  return area ? { [area]: 1 } : null
+}
+
+export function muscleSets(sessions = [], month, { today = todayKey(), firstEver = null, goal = 'muscle' } = {}) {
   const first = firstDayOf(month)
   const last = lastDayOf(month)
   const from = firstEver && firstEver > first ? firstEver : first
   const to = today < last ? today : last
   const weeks = Math.max(1, (dayDiff(from, to) + 1) / 7)
+  const T = targets(GOAL_OF_PLAN[goal] || 'muscle')
 
-  const by = new Map()
+  const by = new Map()       // group → { …g, sets: direct ticked sets }
+  const vol = {}             // area → credited sets
   for (const s of sessions) {
     if (monthKey(s.date) !== month) continue
     for (const ex of s.exercises || []) {
@@ -529,38 +568,79 @@ export function muscleSets(sessions = [], month, { today = todayKey(), firstEver
       const row = by.get(g.key) || { ...g, sets: 0 }
       row.sets += n
       by.set(g.key, row)
+      for (const [area, c] of Object.entries(creditsOf(ex) || {})) {
+        const gk = AREA_GROUP[area]
+        if (!gk) continue
+        vol[area] = (vol[area] || 0) + n * c
+        if (!by.has(gk)) by.set(gk, { ...groupOf(gk), sets: 0 })
+      }
     }
   }
+  const r1 = (x) => Math.round(x * 10) / 10
   return [...by.values()]
     .map(m => {
-      const perWeek = Math.round((m.sets / weeks) * 10) / 10
-      // Judged on the whole number the screen shows: 9.7 is drawn as
-      // «10», and «10 · أقل من اللازم» beside a range that starts at 10
-      // would contradict itself.
-      const shown = Math.round(perWeek)
-      const status = m.key === OTHER.key ? null
-        : shown < WEEKLY_SETS.min ? 'low'
-        : shown > WEEKLY_SETS.max ? 'high'
-        : 'ok'
-      return { ...m, perWeek, shown, status }
+      const areas = GROUP_AREAS[m.key]
+      if (!areas) {
+        const perWeek = r1(m.sets / weeks)
+        return { ...m, perWeek, shown: Math.round(perWeek), status: null, areas: [], lowAreas: [] }
+      }
+      const perWeek = r1(areas.reduce((t, a) => t + (vol[a] || 0), 0) / weeks)
+      const judged = areas.filter(a => T[a]).map(a => {
+        const cur = (vol[a] || 0) / weeks
+        return {
+          area: a, label: AREAS[a].lbl, fem: AREAS[a].pr === 'لها', cur: r1(cur), shown: Math.round(cur),
+          min: T[a][0], good: T[a][1], max: T[a][2],
+          // the builder's own thresholds (findGaps / findWarns)
+          status: cur < T[a][0] - 0.05 ? 'low' : (!NO_TOP.has(a) && cur > T[a][2] + 0.5) ? 'high' : 'ok',
+        }
+      })
+      const lowAreas = judged.filter(x => x.status === 'low')
+      const status = lowAreas.length ? 'low' : judged.some(x => x.status === 'high') ? 'high' : 'ok'
+      return {
+        ...m, perWeek, shown: Math.round(perWeek), status, areas: judged, lowAreas,
+        // the group's band: its areas' ranges added up
+        min: judged.reduce((t, x) => t + x.min, 0), max: judged.reduce((t, x) => t + x.max, 0),
+      }
     })
+    .filter(m => m.perWeek > 0 || m.sets > 0)
     .sort((a, b) => b.perWeek - a.perWeek)
 }
 
 // The groups whose Arabic name is a plural: «الأرجل», «الأكتاف». A
 // plural of things takes the feminine verb — «الأرجل أخذت أقل من حقها»
-// — where «الظهر» and «البايسبس» take «أخذ … حقه».
+// — where «الظهر» and «الذراع الأمامي» take «أخذ … حقه».
 const PLURAL_GROUPS = new Set(['Legs', 'Shoulders'])
-const tookVerb = (key) => (PLURAL_GROUPS.has(key) ? 'أخذت' : 'أخذ')
-const itsDue = (key) => (PLURAL_GROUPS.has(key) ? 'حقها' : 'حقه')
+const tookVerb = (fem) => (fem ? 'أخذت' : 'أخذ')
+const itsDue = (fem) => (fem ? 'حقها' : 'حقه')
 
-/** «الظهر أخذ أقل من حقه.» / «الأرجل أخذت أقل من حقها.» */
+/** What fell short, by its own name, most short first: a group of one
+ *  area is the group («الصدر»), a part of a bigger one is named
+ *  («السمانة»). */
+export function lowParts(muscles = []) {
+  const out = []
+  for (const m of muscles) {
+    if (m.status !== 'low') continue
+    const parts = m.lowAreas || []
+    if ((m.areas || []).length <= 1) {
+      const x = parts[0]
+      out.push({ key: m.key, label: m.label, fem: PLURAL_GROUPS.has(m.key), area: x?.area || null,
+        perWeek: x ? x.cur : m.perWeek, min: x?.min, max: x?.max, ratio: x ? x.cur / x.min : (m.perWeek || 0) / WEEKLY_SETS.min })
+    } else {
+      for (const x of parts) {
+        out.push({ key: m.key, label: x.label, fem: x.fem, area: x.area, perWeek: x.cur, min: x.min, max: x.max, ratio: x.cur / x.min })
+      }
+    }
+  }
+  return out.sort((a, b) => a.ratio - b.ratio)
+}
+
+/** «الظهر أخذ أقل من حقه.» / «السمانة أخذت أقل من حقها.» */
 export function musclesLine(muscles = []) {
   const judged = muscles.filter(m => m.status)
   if (!judged.length) return ''
-  const low = judged.filter(m => m.status === 'low').sort((a, b) => a.perWeek - b.perWeek)
+  const low = lowParts(muscles)
   if (!low.length) return 'كل عضلاتك أخذت حقها.'
-  if (low.length === 1) return `${low[0].label} ${tookVerb(low[0].key)} أقل من ${itsDue(low[0].key)}.`
+  if (low.length === 1) return `${low[0].label} ${tookVerb(low[0].fem)} أقل من ${itsDue(low[0].fem)}.`
   if (low.length === 2) return `${low[0].label} و${low[1].label} أخذوا أقل من حقهم.`
   return `${countWord(low.length, 'muscle')} أخذت أقل من حقها.`
 }
@@ -569,7 +649,7 @@ export function musclesLine(muscles = []) {
 // Straight from the progression engine — the same verdict the session
 // screen shows — plus the muscles that sat under the range:
 //   raise  — held the reps at this weight, time for more
-//   sets   — a muscle under 10 sets a week
+//   sets   — an area under the builder's minimum for it
 //   lower  — missed the bottom of the range twice in a row
 // One of each kind first, so three raises can never bury the muscle
 // that is being skipped. Read as of the month's last day, so an old
@@ -608,10 +688,9 @@ export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = 
   }
   raise.sort((a, b) => b.n - a.n)
   lower.sort((a, b) => b.n - a.n)
-  const sets = muscles
-    .filter(m => m.status === 'low')
-    .sort((a, b) => a.perWeek - b.perWeek)
-    .map(m => ({ kind: 'sets', muscle: m.key, label: m.label, perWeek: m.perWeek, shown: m.shown ?? Math.round(m.perWeek), min: WEEKLY_SETS.min, max: WEEKLY_SETS.max }))
+  // Only what the builder itself calls short: an area under its minimum.
+  const sets = lowParts(muscles)
+    .map(x => ({ kind: 'sets', muscle: x.key, area: x.area, label: x.label, fem: x.fem, perWeek: x.perWeek, shown: Math.round(x.perWeek), min: x.min ?? WEEKLY_SETS.min, max: x.max ?? WEEKLY_SETS.max }))
 
   const out = []
   const queues = [raise, sets, lower]
@@ -645,7 +724,8 @@ export function nextCopy(item, mapping = {}) {
     const took = per < 1 ? 'أقل من مجموعة' : countWord(per, 'set')
     return {
       title: `زِد مجموعات ${item.label}`,
-      reason: `${item.label} ${tookVerb(item.muscle)} ${took} بالأسبوع، والمناسب من ${item.min} إلى ${item.max}.`,
+      // «إلى\u00A020»: the number never starts a line alone (RTL shows «.20»).
+      reason: `${item.label} ${tookVerb(item.fem ?? PLURAL_GROUPS.has(item.muscle))} ${took} بالأسبوع، والمناسب من ${item.min} إلى\u00A0${item.max}.`,
     }
   }
   return null
@@ -877,7 +957,7 @@ export function buildMonthReport({
     const k = dayKey(s.date)
     if (!firstEver || k < firstEver) firstEver = k
   }
-  const muscles = muscleSets(sessions, month, { today: day, firstEver })
+  const muscles = muscleSets(sessions, month, { today: day, firstEver, goal: plan?.goal })
 
   // ── Progress ──
   // Only today's XP is stored, so the level is today's. For the month

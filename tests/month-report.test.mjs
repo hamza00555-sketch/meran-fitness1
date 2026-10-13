@@ -140,8 +140,9 @@ test('every ticked set lands in its muscle, cardio aside', () => {
     session(5, 'Squat', [[100, 5], [100, 5], [100, 5]], { muscle: 'Legs' }),
     session(7, 'Treadmill Run', [[0, 20]], { muscle: 'Cardio' }),
   ])
-  assert.deepEqual(r.muscles.map(m => [m.key, m.sets]), [['Legs', 3], ['Chest', 2], ['Back', 1]],
+  assert.deepEqual(r.muscles.filter(m => m.sets).map(m => [m.key, m.sets]), [['Legs', 3], ['Chest', 2], ['Back', 1]],
     'sorted most sets first; the unticked set and the treadmill are not sets')
+  assert.ok(!r.muscles.some(m => m.key === 'Cardio'))
 })
 
 test('an unknown muscle lands in "other" rather than vanishing', () => {

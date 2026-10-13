@@ -269,13 +269,17 @@ test('completed sets per muscle, per week of the month', () => {
   const back = m.find(x => x.key === 'Back')
   const chest = m.find(x => x.key === 'Chest')
   assert.equal(back.sets, 44)
-  assert.equal(back.perWeek, 9.9)
-  assert.equal(back.shown, 10, 'drawn as a whole number')
-  assert.equal(back.status, 'ok', 'judged on the 10 it shows, not on 9.9')
-  assert.equal(chest.perWeek, Math.round((90 / (31 / 7)) * 10) / 10)
+  // The builder's count: a row is 1 set for the rows and ½ for the lats.
+  assert.equal(back.perWeek, Math.round(((44 + 22) / (31 / 7)) * 10) / 10)
+  assert.equal(back.status, 'ok')
+  assert.deepEqual([back.min, back.max], [6, 20], 'the builder\'s range for the back\'s two halves, added')
   assert.equal(chest.perWeek, 20.3)
-  assert.equal(chest.status, 'ok', '20.3 is drawn as 20, the top of the range')
-  assert.deepEqual([WEEKLY_SETS.min, WEEKLY_SETS.max], [10, 20], 'the plan builder\'s range')
+  assert.equal(chest.status, 'ok', 'over 20 by less than half a set: the builder does not call it «كثير»')
+  // The bench press gives the back of the arm half a set, as in the builder.
+  const tri = m.find(x => x.key === 'Triceps')
+  assert.equal(tri.sets, 0)
+  assert.equal(tri.perWeek, Math.round((45 / (31 / 7)) * 10) / 10)
+  assert.equal(tri.label, 'الذراع الخلفي', 'the planner\'s plain name')
 })
 
 test('in the month he started, the weeks count from his first session', () => {
@@ -284,7 +288,9 @@ test('in the month he started, the weeks count from his first session', () => {
   const [legs] = muscleSets(s, MAR, { today: TODAY, firstEver: '2026-03-18' })
   assert.equal(legs.sets, 21)
   assert.equal(legs.perWeek, Math.round((21 / 2) * 10) / 10)
-  assert.equal(legs.status, 'ok')
+  // Only the front of the thigh was trained: the back of it is short.
+  assert.equal(legs.status, 'low')
+  assert.deepEqual(legs.lowAreas.map(a => a.area), ['hams', 'glutes', 'calves'])
 })
 
 test('the muscles sentence names who fell short', () => {
@@ -333,7 +339,7 @@ test('a lift that keeps missing becomes «نزّل», to the engine\'s own weigh
 test('a muscle under the range becomes «زِد مجموعات»', () => {
   const c = nextCopy({ kind: 'sets', muscle: 'Back', label: 'الظهر', perWeek: 6.2, min: 10, max: 20 })
   assert.equal(c.title, 'زِد مجموعات الظهر')
-  assert.equal(c.reason, 'الظهر أخذ 6 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+  assert.equal(c.reason, 'الظهر أخذ 6 مجموعات بالأسبوع، والمناسب من 10 إلى\u00A020.')
   assert.match(nextCopy({ kind: 'sets', label: 'الكور', perWeek: 0.4, min: 10, max: 20 }).reason, /أقل من مجموعة/)
 })
 
@@ -687,29 +693,23 @@ test('a deload run to term keeps its whole week, from the stamp alone too', () =
 /** `n` single back sets spread over March (31 days = 31/7 weeks). */
 const backSets = (n) => [...Array(n)].map((_, i) => on(MAR, 1 + (i % 31), 'Lat Pulldown', [[50, 10]], { muscle: 'Back' }))
 
-test('a muscle at 9.5–9.9 sets a week reads «10», in range — never «10 · أقل من اللازم»', () => {
-  const r = build(backSets(43), { today: '2026-04-03' })
-  const back = r.muscles.find(m => m.key === 'Back')
-  assert.equal(back.sets, 43)
-  assert.equal(back.perWeek, 9.7)
-  assert.equal(back.shown, 10)
-  assert.equal(back.status, 'ok')
-  assert.ok(!r.next.some(n => n.kind === 'sets'), 'no «زِد مجموعات الظهر» at 10 a week')
+test('a muscle is judged by the builder\'s own line: under its minimum, over its top', () => {
+  // The chest's range in the builder is 6 a week at least, 20 at most.
+  // Pec deck works the chest alone. March is 31/7 weeks.
+  const pec = (n) => [...Array(n)].map((_, i) => on(MAR, 1 + (i % 31), 'Pec Deck', [[50, 10]], { muscle: 'Chest' }))
+  const at = (n) => muscleSets(pec(n), MAR, { today: TODAY })[0]
+  assert.equal(at(26).status, 'low', '5.9 a week')
+  assert.equal(at(27).status, 'ok', '6.1 a week')
+  assert.equal(at(90).status, 'ok', '20.3 a week: not «كثير» yet')
+  assert.equal(at(91).status, 'high', '20.5+ a week')
+  const r = build(pec(27), { today: '2026-04-03' })
+  assert.ok(!r.next.some(n => n.kind === 'sets'), 'no «زِد مجموعات» for a muscle the builder calls covered')
   assert.equal(musclesLine(r.muscles), 'كل عضلاتك أخذت حقها.')
-
-  const half = muscleSets(backSets(42), MAR, { today: TODAY })[0]
-  assert.equal(half.perWeek, 9.5)
-  assert.deepEqual([half.shown, half.status], [10, 'ok'], 'half rounds up, as the screen does')
-
-  // 9.3 is drawn as 9: under the range, and the reason says 9.
-  const low = muscleSets(backSets(41), MAR, { today: TODAY })
-  assert.equal(low[0].perWeek, 9.3)
-  assert.deepEqual([low[0].shown, low[0].status], [9, 'low'])
+  const low = muscleSets(pec(26), MAR, { today: TODAY })
   const [item] = nextMonthPlan({ sessions: [], month: MAR, muscles: low })
-  assert.match(nextCopy(item).reason, /أخذ(ت)? 9 مجموعات بالأسبوع/)
-
-  // And over the top only when the shown number is over 20.
-  assert.equal(muscleSets(backSets(93), MAR, { today: TODAY })[0].status, 'high', '21 a week')
+  assert.equal(item.kind, 'sets')
+  assert.deepEqual([item.min, item.max], [6, 20])
+  assert.match(nextCopy(item).reason, /أخذ 6 مجموعات بالأسبوع، والمناسب من 6 إلى\u00A020\./)
 })
 
 // ══ the level is today's, and says so ═════════════════════════
@@ -771,9 +771,12 @@ test('«الأرجل أخذت», «الأكتاف أخذت» — not «الأر�
   assert.equal(musclesLine([m('Back', 'الظهر')]), 'الظهر أخذ أقل من حقه.')
   assert.equal(musclesLine([m('Biceps', 'البايسبس')]), 'البايسبس أخذ أقل من حقه.')
   const reason = (key, label) => nextCopy({ kind: 'sets', muscle: key, label, perWeek: 7, min: 10, max: 20 }).reason
-  assert.equal(reason('Legs', 'الأرجل'), 'الأرجل أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
-  assert.equal(reason('Shoulders', 'الأكتاف'), 'الأكتاف أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
-  assert.equal(reason('Back', 'الظهر'), 'الظهر أخذ 7 مجموعات بالأسبوع، والمناسب من 10 إلى 20.')
+  assert.equal(reason('Legs', 'الأرجل'), 'الأرجل أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى\u00A020.')
+  assert.equal(reason('Shoulders', 'الأكتاف'), 'الأكتاف أخذت 7 مجموعات بالأسبوع، والمناسب من 10 إلى\u00A020.')
+  assert.equal(reason('Back', 'الظهر'), 'الظهر أخذ 7 مجموعات بالأسبوع، والمناسب من 10 إلى\u00A020.')
+  // A part of the legs is named, with its own gender: «السمانة أخذت».
+  assert.match(nextCopy({ kind: 'sets', muscle: 'Legs', label: 'السمانة', fem: true, perWeek: 2, min: 4, max: 12 }).reason, /^السمانة أخذت مجموعتين/)
+  assert.match(nextCopy({ kind: 'sets', muscle: 'Legs', label: 'الفخذ الخلفي', fem: false, perWeek: 2, min: 4, max: 16 }).reason, /^الفخذ الخلفي أخذ مجموعتين/)
 })
 
 // ══ a ticked set at body weight is a set ══════════════════════

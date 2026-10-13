@@ -31,7 +31,7 @@ import { dayKey } from '../../../day.js'
 import { unitAr, countAr, fmtDayAr } from '../../../streak.js'
 import {
   attendanceLine, deloadLine, calendarLine, musclesLine, nextCopy, countWord,
-  monthName, monthLabel, nextMonth, lastDayOf, kgText, WEEKLY_SETS,
+  monthName, monthLabel, nextMonth, lastDayOf, kgText,
 } from '../../../monthReport.js'
 import {
   ringArcs, liftRows, liftsLine, liftScale, muscleScale, jumpChart, goalSteps, calendarPad,
@@ -341,31 +341,30 @@ export function MusclesCard({ report, playing }) {
       <div className="centerblock">
         <p className="k-t a" style={{ '--d': '160ms' }}>كم مجموعة أخذت كل عضلة بالأسبوع</p>
         <div className="rbc rp-sets">
-          <div className="bh" aria-hidden="true" style={{ height: '9.8cqw' }}>
+          <div className="bh" aria-hidden="true" style={{ height: '5.4cqw' }}>
             <span className="s" style={{ right: 0 }}>0</span>
-            <span style={{ right: at(WEEKLY_SETS.min) }}>{WEEKLY_SETS.min}</span>
-            <span style={{ right: at(WEEKLY_SETS.max) }}>{WEEKLY_SETS.max}</span>
-            <em style={{ right: at((WEEKLY_SETS.min + WEEKLY_SETS.max) / 2), bottom: '5.4cqw' }}>المدى المناسب</em>
           </div>
           <div className="bb">
             <div className="bg" aria-hidden="true">
-              <span className="band rp-sets-band" style={{ right: at(WEEKLY_SETS.min), width: `${((WEEKLY_SETS.max - WEEKLY_SETS.min) / max) * 100}%` }} />
               <i className="z" style={{ right: 0 }} />
-              <i style={{ right: at(WEEKLY_SETS.min) }} />
-              <i style={{ right: at(WEEKLY_SETS.max) }} />
             </div>
             {rows.map((m, i) => {
               const low = m.status === 'low'
               const n = m.shown ?? Math.round(m.perWeek)
               const w = at(Math.max(n, 0.4))
+              // A part of a bigger group that fell short is named under it
+              // («السمانة أقل من اللازم»); a group of one says it on the bar.
+              const part = low && (m.areas || []).length > 1 ? (m.lowAreas || [])[0] : null
+              const hasBand = m.min > 0 && m.max > 0
               return (
                 <div key={m.key} className={`brow rp-sets-row${low ? ' is-low' : ''}`} style={{ '--i': i }}
-                  role="img" aria-label={`${m.label}: ${n < 1 ? 'أقل من مجموعة' : countWord(n, 'set')} بالأسبوع${low ? '، أقل من اللازم' : ''}`}>
-                  <p className="nm rp-sets-l">{m.label}</p>
+                  role="img" aria-label={`${m.label}: ${n < 1 ? 'أقل من مجموعة' : countWord(n, 'set')} بالأسبوع${hasBand ? `، والمناسب من ${m.min} إلى ${m.max}` : ''}${low ? `، ${part ? part.label + ' ' : ''}أقل من اللازم` : ''}`}>
+                  <p className="nm rp-sets-l">{m.label}{part && <small>{part.label} أقل من اللازم</small>}</p>
                   <div className="btrack" aria-hidden="true">
+                    {hasBand && <span className="band rp-sets-band" style={{ right: at(m.min), width: `calc(${at(m.max)} - ${at(m.min)})` }} />}
                     <i className={`bfill${low ? ' hi' : ''}`} style={{ '--w': w }} />
                     <b className="bval" style={{ '--w': w }}><Num>{n}</Num></b>
-                    {low && <span className="bnote rp-sets-note" style={{ right: `calc(${w} + 7.6cqw)` }}>أقل من اللازم</span>}
+                    {low && !part && <span className="bnote rp-sets-note" style={{ right: `calc(${w} + 7.6cqw)` }}>أقل من اللازم</span>}
                   </div>
                 </div>
               )
@@ -373,7 +372,7 @@ export function MusclesCard({ report, playing }) {
           </div>
         </div>
         <p className="k-read a" style={{ '--d': '1800ms' }}>
-          المنطقة الفاتحة من <Num>{WEEKLY_SETS.min}</Num> إلى <Num>{WEEKLY_SETS.max}</Num> مجموعة بالأسبوع: المدى اللي تكبر فيه العضلة.
+          المنطقة الفاتحة: المدى اللي تكبر فيه كل عضلة. والتمرين اللي يشغّلها من بعيد ينحسب لها نص مجموعة، مثل باني الخطط.
         </p>
       </div>
     </Card>

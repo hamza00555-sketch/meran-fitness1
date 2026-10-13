@@ -21,7 +21,7 @@ import { countAr } from './streak.js'
 import { resolveExerciseName, roundToPlate, PLATE_STEP } from './utils.js'
 import {
   firstDayOf, lastDayOf, daysInMonth, monthName, prevMonth, nextMonth, monthKey,
-  countWord, WEEKLY_SETS,
+  countWord, WEEKLY_SETS, creditsOf,
 } from './monthReport.js'
 
 // ── Seen ──────────────────────────────────────────────────────
@@ -112,10 +112,13 @@ export function liftScale(rows = []) {
 
 // ── «وين راح شغلك؟» ───────────────────────────────────────────
 
-/** The muscles ruler: past the 10–20 band, so it reads as a band. */
+/** The muscles ruler: past the biggest bar and past the start of every
+ *  row's band, so each band reads as a band. A band that runs past the
+ *  end (the legs' 17–60) is drawn to the edge. */
 export function muscleScale(rows = []) {
   const most = Math.max(0, ...rows.map(m => m.shown ?? m.perWeek ?? 0))
-  return Math.max(WEEKLY_SETS.max + 4, Math.ceil((most + 2) / 4) * 4)
+  const bands = Math.max(0, ...rows.map(m => Math.min(m.max ?? WEEKLY_SETS.max, Math.max(WEEKLY_SETS.max, (m.min ?? 0) + 6))))
+  return Math.max(bands + 4, Math.ceil((most + 2) / 4) * 4)
 }
 
 // ── «أكبر قفزة» — one lift, week by week ─────────────────────
@@ -321,7 +324,11 @@ export function applyNext({ plan = null, lastWeights = {}, items = [], mapping =
       days.forEach((d, di) => (d.exercises || []).forEach((e, ei) => {
         // Timed moves (the builder's cardio, unit 'min') are one long set:
         // the builder never adds sets to them, and neither does this.
-        if (e.muscle === item.muscle && e.unit !== 'min') slots.push([di, ei])
+        if (e.unit === 'min') return
+        // The exercises that work the short area directly (the builder's
+        // count), else, for an old item with no area, its group's.
+        const hit = item.area ? (creditsOf(e)?.[item.area] || 0) >= 1 : e.muscle === item.muscle
+        if (hit) slots.push([di, ei])
       }))
       if (!slots.length) { skipped.push({ ...item, why: 'not-in-plan' }); continue }
       const perDay = sessionsPerWeek(config) / Math.max(1, days.length)
