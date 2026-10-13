@@ -925,7 +925,12 @@ export function buildMonthReport({
     muscles,
     consistency,
     next: nextMonthPlan({ sessions, month, mapping, repTarget, muscles }),
-    goal: goalResult(monthGoalOf(goals, month), consistency.calendar, { sessions, month, mapping, resetAt }),
+    goal: (() => {
+      const g = goalResult(monthGoalOf(goals, month), consistency.calendar, { sessions, month, mapping, resetAt })
+      // A weight goal is drawn as its lift, week by week through the month.
+      if (g?.kind === 'lift') g.weekly = weeklyTop(sessions, g.lift, 5, { end: lastDayOf(month), mapping, resetAt })
+      return g
+    })(),
     // The goal already set for the month after this one, if any: the
     // «خطة الشهر الجاي» card shows it rather than offering one.
     nextGoal: monthGoalOf(goals, nextMonth(month)),
