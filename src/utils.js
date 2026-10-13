@@ -1,6 +1,7 @@
 import { RANKS, COMMITMENT_LEVELS, GREETINGS } from './constants.js'
 import { STREAK_MILESTONES } from './streak.js'
 import { dayKey, todayKey, calendarKey, dayStart, toWesternDigits } from './day.js'
+import { validatePlan } from './plan/validate.js'
 
 // ── Multi-user storage namespacing ────────────────────────────
 // Every hf_* key is namespaced by the active user so each person
@@ -59,6 +60,8 @@ export const PER_USER_KEYS = [
   // Which months' reports already played as a story (reportStory.js), so
   // each plays once. New in the redesign too; the old design never reads it.
   'hf_report_seen',
+  // The months whose «طبّقها على خطتي» was already used (reportStory.js).
+  'hf_report_applied',
   // The day Home's flame last lit (components/streak/flameLit.js): one
   // person's flame must not use up another's on a shared phone, and a
   // data reset starts it over. New in the redesign as well.
@@ -631,12 +634,16 @@ export const backupData = ({ sessions, xp, profile, unlockedAchievements, challe
 })
 
 /** Put a backup's plan back (and the one before it). Older backups have
- *  none: the plan on the phone is kept. Returns what to set in state. */
+ *  none: the plan on the phone is kept. A plan both designs could not
+ *  open (the check the import and the builder make) is not restored.
+ *  Returns what to set in state — the caller puts all three in, so the
+ *  screen's «رجّع خطتك القديمة» offers the backup's, not the old one. */
 export const restorePlan = (data) => {
   const p = data?.plan
-  if (!p || typeof p !== 'object' || !Array.isArray(p.weeklySchedule) || !p.weeklySchedule.length) return null
-  if (data.planPrev && typeof data.planPrev === 'object') ls.set('hf_plan_prev', data.planPrev)
-  return { plan: p, planIndex: Number.isFinite(data.planIndex) ? data.planIndex : 0 }
+  if (!p || typeof p !== 'object' || validatePlan(p)) return null
+  const prev = data.planPrev && typeof data.planPrev === 'object' && data.planPrev.plan && !validatePlan(data.planPrev.plan)
+    ? data.planPrev : null
+  return { plan: p, planIndex: Number.isFinite(data.planIndex) ? data.planIndex : 0, planPrev: prev }
 }
 
 /** Put a backup's month goals back. Older backups have none: the goals

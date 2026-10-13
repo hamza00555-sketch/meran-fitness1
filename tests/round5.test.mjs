@@ -92,3 +92,33 @@ test('opening his plan and saving it unchanged keeps a back-off row and his card
   assert.ok(rows.includes('Bench Press 2x12-15'), rows.join(' | '))
   assert.ok(rows.some(r => r.startsWith('Treadmill Run 3x')), rows.join(' | '))
 })
+
+const RS = await import('../src/reportStory.js')
+
+test('«طبّقها» is remembered per month, and its undo forgets it', () => {
+  const m = RS.withApplied({}, '2026-09', '2026-10-01')
+  assert.equal(RS.appliedOn(m, '2026-09'), '2026-10-01')
+  assert.equal(RS.appliedOn(m, '2026-08'), null)
+  assert.equal(RS.appliedOn(RS.withApplied(m, '2026-09', null), '2026-09'), null)
+  assert.equal(RS.appliedOn([1], '2026-09'), null)
+})
+
+test('a story seen before its month is over plays once more when it is', () => {
+  const early = RS.withStorySeen({}, '2026-09', '2026-09-29')
+  assert.equal(RS.storySeen(early, '2026-09', '2026-09-30'), true, 'seen while the month runs')
+  assert.equal(RS.storySeen(early, '2026-09', '2026-10-01'), false, 'the finished month plays again')
+  const done = RS.withStorySeen(early, '2026-09', '2026-10-01')
+  assert.equal(RS.storySeen(done, '2026-09', '2026-10-05'), true)
+  // an old mark (true) stays seen
+  assert.equal(RS.storySeen({ '2026-03': true }, '2026-03', '2026-10-01'), true)
+})
+
+test('a backup restore hands back the old plan too, and skips a plan both designs could not open', async () => {
+  const { restorePlan } = await import('../src/utils.js')
+  const plan = { planName: 'A', weeklySchedule: [{ name: 'Push', exercises: [{ name: 'Bench Press', muscle: 'Chest', sets: 3 }] }] }
+  const prev = { plan: { ...plan, planName: 'B' }, planIndex: 2, savedAt: '2026-10-01' }
+  const back = restorePlan({ plan, planIndex: 4, planPrev: prev })
+  assert.deepEqual(back, { plan, planIndex: 4, planPrev: prev })
+  assert.equal(restorePlan({ plan: { weeklySchedule: [{ name: 'x', exercises: [] }] } }), null, 'an empty day')
+  assert.equal(restorePlan({ plan: { weeklySchedule: [{ name: 'x', exercises: [{ name: 'X', muscle: 'Forearms' }] }] } }), null)
+})

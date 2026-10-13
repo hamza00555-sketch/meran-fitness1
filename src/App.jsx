@@ -83,7 +83,7 @@ import {
   buildMonthReport, monthReportWindow, monthsTrail, reportMonths, MONTH_GOAL_KEY,
   monthGoalOf, withMonthGoal, expectedSessions, nextMonth, monthName,
 } from './monthReport.js'
-import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine } from './reportStory.js'
+import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine, REPORT_APPLIED_KEY, appliedOn, withApplied } from './reportStory.js'
 import { validatePlan } from './plan/validate.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
@@ -1236,6 +1236,9 @@ export default function App() {
   // an undo that puts back exactly what was there. Editing the plan this
   // way is not a change of plan: the streak's rule is not involved.
   const applyNextMonth = useCallback((report, items) => {
+    // Once a month: a second time would add the sets again and save the
+    // already-changed plan as «the old plan».
+    if (appliedOn(ls.get(REPORT_APPLIED_KEY, {}), report.month)) return null
     const before = {
       plan,
       planPrev,
@@ -1258,9 +1261,11 @@ export default function App() {
       goalWords = ` وهدف ${monthName(nm)}: ${countAr(target, 'session')}.`
       setGoalsTick(t => t + 1)
     }
+    ls.set(REPORT_APPLIED_KEY, withApplied(ls.get(REPORT_APPLIED_KEY, {}), report.month, todayKey()))
     return {
       text: `${appliedLine(out)}${goalWords}`,
       undo: () => {
+        ls.set(REPORT_APPLIED_KEY, withApplied(ls.get(REPORT_APPLIED_KEY, {}), report.month, null))
         if (setsChanged) { setPlan(before.plan); setPlanPrev(before.planPrev) }
         if (before.weights == null) ls.remove('hf_last_weights')
         else ls.set('hf_last_weights', before.weights)
@@ -1447,7 +1452,7 @@ export default function App() {
                 if (data.recovery)                         setRecoveryCfg(prev => ({ ...prev, ...data.recovery }))
                 restoreMonthGoals(data)
                 const back = restorePlan(data)
-                if (back) { setPlan(back.plan); setPlanIndex(back.planIndex) }
+                if (back) { setPlan(back.plan); setPlanIndex(back.planIndex); if (back.planPrev) setPlanPrev(back.planPrev) }
                 pushAlert('✅', 'تم استيراد البيانات بنجاح!')
               }}
             />
@@ -1611,12 +1616,13 @@ export default function App() {
           onPickMonth={(m) => setReportPick(m === reportMonth ? null : m)}
           onClose={() => { setShowReport(false); setReportPick(null) }}
           // The first time a month's report opens it plays as a story.
-          storyFirst={!storySeen(ls.get(REPORT_SEEN_KEY, {}), shownReport.month)}
-          onStorySeen={(m) => ls.set(REPORT_SEEN_KEY, withStorySeen(ls.get(REPORT_SEEN_KEY, {}), m))}
+          storyFirst={!storySeen(ls.get(REPORT_SEEN_KEY, {}), shownReport.month, today)}
+          onStorySeen={(m) => ls.set(REPORT_SEEN_KEY, withStorySeen(ls.get(REPORT_SEEN_KEY, {}), m, today))}
           photos={photos}
           profile={profile}
           config={recoveryCfg}
           onApplyNext={applyNextMonth}
+          appliedBefore={!!appliedOn(ls.get(REPORT_APPLIED_KEY, {}), shownReport.month)}
           onSetGoal={setMonthGoal}
         />
       )}

@@ -843,6 +843,36 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   }
 }
 
+// «طبّقها» once a month: reopened, the report says it was applied and
+// offers no second tap (which would add the sets again and overwrite the
+// kept old plan).
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { plan: PLAN })
+  await openReport(page)
+  await page.locator('#rp-card-next').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(1600)
+  await page.locator('#rp-card-next .rp-apply').click()
+  await page.waitForTimeout(500)
+  const prev1 = await page.evaluate(() => localStorage.getItem('hf_plan_prev'))
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(700)
+  await openReport(page)
+  await page.locator('#rp-card-next').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(1600)
+  const again = await page.evaluate(() => ({
+    button: !!document.querySelector('#rp-card-next .rp-apply'),
+    note: document.querySelector('#rp-card-next .rp-applied')?.textContent || '',
+    marker: JSON.parse(localStorage.getItem('hf_report_applied') || '{}'),
+    prev: localStorage.getItem('hf_plan_prev'),
+  }))
+  ok('applied once: reopened, no «طبّقها» button', !again.button)
+  ok('applied once: it says it was applied', /طبّقتها/.test(again.note), again.note)
+  ok('applied once: remembered under hf_report_applied', typeof again.marker['2026-03'] === 'string', JSON.stringify(again.marker))
+  ok('applied once: the kept old plan is untouched', again.prev === prev1)
+  ok('applied once: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 await browser.close()
 
 // ── Report ────────────────────────────────────────────────────

@@ -142,6 +142,7 @@ export default function MonthReport({
   profile = {},          // his name, for the poster
   config = {},           // the recovery settings: the next month's sessions
   onApplyNext,           // (report, items) → { text, undo } — «طبّقها على خطتي»
+  appliedBefore = false, // «طبّقها» was already used for this month (hf_report_applied)
   onSetGoal,             // (month, goal) — next month's goal
 }) {
   const root = useRef(null)
@@ -243,6 +244,7 @@ export default function MonthReport({
       goal: nextGoal,
       suggested,
       applied: applied && applied.month === report?.month ? applied : null,
+      appliedBefore,
       onApply: onApplyNext ? (items) => {
         const r = onApplyNext(report, items)
         if (r) setApplied({ month: report.month, ...r })

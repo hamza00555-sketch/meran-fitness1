@@ -32,12 +32,46 @@ import {
 export const REPORT_SEEN_KEY = 'hf_report_seen'
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
 
-export const storySeen = (seen, month) =>
-  !!(seen && typeof seen === 'object' && !Array.isArray(seen) && seen[month])
+// The report opens on the month's last two days too (monthReportWindow),
+// before the month is over. A story seen then is marked 'partial': it
+// stays seen while the month runs, and plays once more, whole, when the
+// month is over (the final goal and streak).
+//   storySeen(seen, month, today?) — `today` omitted: any mark counts.
+//   withStorySeen(seen, month, today?) — `today` past the month (or
+//   omitted): seen for good; otherwise 'partial'.
 
-export function withStorySeen(seen, month) {
-  const next = seen && typeof seen === 'object' && !Array.isArray(seen) ? { ...seen } : {}
-  if (MONTH_RE.test(String(month))) next[month] = true
+const isMap = (v) => !!(v && typeof v === 'object' && !Array.isArray(v))
+const monthOver = (month, today) => !today || String(today).slice(0, 10) > lastDayOf(month)
+
+export const storySeen = (seen, month, today) => {
+  if (!isMap(seen) || !seen[month]) return false
+  return seen[month] === 'partial' ? !monthOver(month, today) : true
+}
+
+export function withStorySeen(seen, month, today) {
+  const next = isMap(seen) ? { ...seen } : {}
+  if (!MONTH_RE.test(String(month))) return next
+  if (next[month] === true) return next
+  next[month] = monthOver(month, today) ? true : 'partial'
+  return next
+}
+
+// ── Applied ───────────────────────────────────────────────────
+// hf_report_applied = { 'YYYY-MM': 'YYYY-MM-DD' }: the day «طبّقها على
+// خطتي» was used for that month's report. A new key; the old design
+// never reads it. Once set, the button is not offered again (a second
+// tap would add the sets twice and overwrite the saved old plan).
+
+export const REPORT_APPLIED_KEY = 'hf_report_applied'
+
+export const appliedOn = (map, month) =>
+  (map && typeof map === 'object' && !Array.isArray(map) && typeof map[month] === 'string') ? map[month] : null
+
+export function withApplied(map, month, day) {
+  const next = map && typeof map === 'object' && !Array.isArray(map) ? { ...map } : {}
+  if (!MONTH_RE.test(String(month))) return next
+  if (day) next[month] = String(day)
+  else delete next[month]
   return next
 }
 

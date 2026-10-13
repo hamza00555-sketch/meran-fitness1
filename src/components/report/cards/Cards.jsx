@@ -573,13 +573,16 @@ export function NextCard({ report, playing, ctx }) {
           <button type="button" onClick={n.onUndo}>تراجع</button>
         </div>
       )}
-      {n.editable && !applied && items.length > 0 && n.onApply && (
+      {n.editable && !applied && items.length > 0 && n.appliedBefore && (
+        <p className="fine a rp-applied" style={{ '--d': '1050ms' }}>طبّقتها على خطتك من قبل.</p>
+      )}
+      {n.editable && !applied && items.length > 0 && n.onApply && !n.appliedBefore && (
         <button type="button" className="gbtn a rp-apply" style={{ '--d': '1050ms' }} onClick={() => n.onApply(items)}>طبّقها على خطتي</button>
       )}
       {n.editable && !applied && !items.length && !goal && n.onSetGoal && shown && (
         <button type="button" className="gbtn a rp-apply" style={{ '--d': '1050ms' }} onClick={() => n.onSetGoal(shown)}>ثبّت هدف {nm}</button>
       )}
-      {n.editable && !applied && (items.length > 0 || !goal) && (
+      {n.editable && !applied && !(items.length > 0 && n.appliedBefore) && (items.length > 0 || !goal) && (
         <p className="fine a" style={{ '--d': '1150ms' }}>
           {items.length ? 'خطتك ما تتغيّر إلا لما تضغط، وتقدر ترجع عنها.' : 'تقرير الشهر الجاي يقول لك حققته ولا لا.'}
         </p>
