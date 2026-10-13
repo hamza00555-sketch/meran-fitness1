@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Art, { useHasArt } from '../assets/Art.jsx'
 import DayPreviewSheet from './DayPreviewSheet.jsx'
 import { Button, IconButton, Num, Weight, Sheet, ListGroup, ListRow } from './kit/index.jsx'
-import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop } from './kit/icons.js'
+import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop, PencilSimple } from './kit/icons.js'
 import { EXERCISE_ALTERNATIVES } from '../constants.js'
 import { substitutedName, getExerciseStats, planDayTitle, durationShort } from '../utils.js'
-import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
 import { deloadWeight } from '../deload.js'
 import { countAr, unitAr } from '../streak.js'
 import { ExerciseThumb, exerciseNames, withNums } from './home/HomeBits.jsx'
@@ -108,7 +108,7 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, d
   const { lastWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
   const onDeload = !!deload?.active
   // Silenced during a deload, exactly as the player silences it.
-  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, repTarget).hint === 'raise'
+  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, planRepTarget(ex) || repTarget).hint === 'raise'
   const today = lastWeight != null && onDeload ? deloadWeight(lastWeight, deload.pct) : lastWeight
   return (
     <li>
@@ -136,7 +136,7 @@ export default function TodayHero({
   isRecoveryDay, completedToday = false, streakKind = null, deload,
   sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
   onStartPlanned, onStartEmpty, onSkip, onGoToWorkout, onOverrideRecovery,
-  repTarget = DEFAULT_REP_TARGET, calm = false,
+  repTarget = DEFAULT_REP_TARGET, calm = false, onEditPlan, onBuildPlan,
 }) {
   const [enter, setEnter] = useState(firstHome)
   const section = useRef(null)
@@ -264,7 +264,14 @@ export default function TodayHero({
           ) : planned ? (
             muscles && <p className="hm-line">{muscles}</p>
           ) : (
-            <p className="hm-line hm-line-sm">بلا خطة — فعّل وحدة من الإعدادات، أو ابدأ جلسة حرة.</p>
+            <p className="hm-line hm-line-sm">بلا خطة — جلسة حرة، أو ابنِ خطتك.</p>
+          )}
+          {/* Door 4 to the plan builder: a quiet link. The green stays on
+              «ابدأ التمرين». */}
+          {free && onBuildPlan && (
+            <button type="button" className="hm-build" onClick={onBuildPlan} data-testid="build-plan">
+              ابنِ خطتك <CaretLeft size={14} weight="bold" aria-hidden="true" />
+            </button>
           )}
 
           {active && ctx ? (
@@ -330,7 +337,7 @@ export default function TodayHero({
 
       {/* ── ⋯ — the rare decisions ── */}
       {planned && (
-        <Sheet key={menuKey} open={showMenu} onClose={() => setShowMenu(false)} title="خيارات اليوم">
+        <Sheet key={`menu${menuKey}`} open={showMenu} onClose={() => setShowMenu(false)} title="خيارات اليوم">
           <ListGroup className="hm-menu">
             <ListRow
               leading={ListChecks}
@@ -346,13 +353,23 @@ export default function TodayHero({
               chevron
               onClick={fromMenu(() => onSkip?.())}
             />
+            {/* Door 3 to the plan builder: on today's day. */}
+            {onEditPlan && (
+              <ListRow
+                leading={PencilSimple}
+                title="عدّل الخطة"
+                subtitle="التمارين والمجموعات والعدّات والراحة"
+                chevron
+                onClick={fromMenu(onEditPlan)}
+              />
+            )}
           </ListGroup>
         </Sheet>
       )}
 
       {currentPlanDay && (
         <DayPreviewSheet
-          key={sheetKey}
+          key={`day${sheetKey}`}
           open={showSheet}
           day={currentPlanDay}
           heading={resting ? 'تمارين بكرة' : 'تمارين اليوم'}

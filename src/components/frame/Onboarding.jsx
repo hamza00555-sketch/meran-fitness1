@@ -19,6 +19,8 @@ const DAYS = [
   { id: 6, title: '6 أيام', sub: '3 تمارين · راحة · 3 تمارين · راحة' },
 ]
 
+const SELF = 'self'
+
 export default function Onboarding({ initialName = '', onDone }) {
   const [step, setStep] = useState(0)
   const [name, setName] = useState(initialName)
@@ -29,6 +31,8 @@ export default function Onboarding({ initialName = '', onDone }) {
     name: name.trim(),
     daysPerWeek: days,
     plan: BUILT_IN_PLANS.find(p => p.planId === planId) || null,
+    // «أبني خطتي بنفسي»: no plan yet; the builder opens after this.
+    build: planId === SELF,
   })
 
   return createPortal(
@@ -78,6 +82,14 @@ export default function Onboarding({ initialName = '', onDone }) {
                 {planId === p.planId && <Check size={20} weight="bold" aria-hidden="true" />}
               </button>
             ))}
+            <button type="button" role="radio" aria-checked={planId === SELF}
+              className={`ob-opt${planId === SELF ? ' on' : ''}`} onClick={() => setPlanId(SELF)}>
+              <span className="ob-opt-text">
+                <b>أبني خطتي بنفسي <span className="ob-new">جديد</span></b>
+                <small>تختار عضلاتك وتمارينك، والتطبيق يقولك وش ناقص</small>
+              </span>
+              {planId === SELF && <Check size={20} weight="bold" aria-hidden="true" />}
+            </button>
             <button type="button" role="radio" aria-checked={planId === null}
               className={`ob-opt${planId === null ? ' on' : ''}`} onClick={() => setPlanId(null)}>
               <span className="ob-opt-text"><b>بدون خطة الحين</b><small>جلسات حرة، وتختار خطة متى ما بغيت</small></span>

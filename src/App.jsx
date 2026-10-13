@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
-  scheduleNotificationsForToday, applySubsToDay, getHistoricalMax, sessionVolume, restoreMonthGoals,
+  scheduleNotificationsForToday, applySubsToDay, getHistoricalMax, sessionVolume, restoreMonthGoals, restorePlan,
 } from './utils.js'
 import {
   NAV_TABS, ACHIEVEMENTS,
@@ -16,7 +16,7 @@ import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayD
 import { streakView, todayStreak, skipCopy, finishToast, spendToast } from './streak.js'
 import { planReminders } from './notify.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
-import { analyzeProgression, DEFAULT_REP_TARGET } from './progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
 
@@ -42,6 +42,9 @@ function PageMain({ vt, children, ...rest }) {
 
 // Pages
 import HomePage        from './pages/HomePage.jsx'
+// The plan builder is a page of its own, loaded only when it opens (it
+// brings the body figure's paths with it).
+const PlannerPage = lazy(() => import('./pages/planner/PlannerPage.jsx'))
 import WorkoutPage     from './pages/WorkoutPage.jsx'
 import HistoryPage     from './pages/HistoryPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
@@ -146,6 +149,20 @@ const whenIdle = (fn) => {
   }
   const t = setTimeout(fn, 200)
   return () => clearTimeout(t)
+}
+
+// A change of weekly frequency, effective from today and never
+// backdated — a change must not rescue a day already missed. The past
+// keeps being judged by the pattern in force then (patternHistory).
+function withFrequency(prev, patch, today) {
+  const next = { ...prev, ...patch }
+  const segment = { from: today, daysPerWeek: next.daysPerWeek, customPattern: next.customPattern }
+  const history = (prev.patternHistory || []).filter(seg => seg.from !== today)
+  // Seed the pre-change era so the past keeps being judged as it was.
+  if (!history.length && !(prev.patternHistory || []).length) {
+    history.push({ from: '1970-01-01', daysPerWeek: prev.daysPerWeek, customPattern: prev.customPattern })
+  }
+  return { ...next, patternHistory: [...history, segment].slice(-40) }
 }
 
 // Default profile
@@ -513,8 +530,20 @@ export default function App() {
       const prevWeight = suggestedWeightFor(ex.name, {
         sessions, mapping: exerciseMapping, transform: lighten,
       })
-      const prog = analyzeProgression(sessions, ex.name, exerciseMapping, repTarget)
-      return buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight, prevReps: prog.suggestedReps })
+      // The plan's own reps and rest (حمزة: «الجلسة تاخذ العدّات والراحة
+      // من الخطة»): the reps aim for its range, the rest counts its
+      // seconds. Both ride on the session's exercise as optional fields
+      // (target, rest) the old design ignores.
+      const planT = planRepTarget(ex)
+      const prog = analyzeProgression(sessions, ex.name, exerciseMapping, planT || repTarget)
+      const built = buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight, prevReps: prog.suggestedReps })
+      const rest = Number(ex.restSeconds)
+      return {
+        ...built,
+        ...(planT ? { target: { min: planT.base, max: planT.top } } : null),
+        ...(rest > 0 ? { rest: Math.round(rest) } : null),
+        ...(ex.unit === 'sec' || ex.unit === 'min' ? { unit: ex.unit } : null),
+      }
     })
     const session = {
       id:           Date.now(),
@@ -1060,31 +1089,11 @@ export default function App() {
   // caller has already confirmed that.
   const applyFrequencyChange = useCallback((patch, { breakStreak = false } = {}) => {
     const today = todayKey()
-    setRecoveryCfg(prev => {
-      const next = { ...prev, ...patch }
-      // Effective from today, never backdated — a change must not rescue
-      // a day already missed.
-      const segment = {
-        from: today,
-        daysPerWeek: next.daysPerWeek,
-        customPattern: next.customPattern,
-      }
-      const history = (prev.patternHistory || []).filter(seg => seg.from !== today)
-      // Seed the pre-change era so the past keeps being judged as it was.
-      if (!history.length && !(prev.patternHistory || []).length) {
-        history.push({
-          from: '1970-01-01',
-          daysPerWeek: prev.daysPerWeek,
-          customPattern: prev.customPattern,
-        })
-      }
-      return {
-        ...next,
-        patternHistory: [...history, segment].slice(-40),
-        lastSettingsChangeAt: today,
-        streakResetAt: breakStreak ? today : prev.streakResetAt,
-      }
-    })
+    setRecoveryCfg(prev => ({
+      ...withFrequency(prev, patch, today),
+      lastSettingsChangeAt: today,
+      streakResetAt: breakStreak ? today : prev.streakResetAt,
+    }))
     pushAlert(breakStreak ? '⚠️' : '✅',
       breakStreak ? 'تم التغيير — بدأ ستريك جديد' : 'تم التغيير — ستريكك محفوظ')
   }, [pushAlert])
@@ -1101,6 +1110,58 @@ export default function App() {
     pushAlert(breakStreak ? '⚠️' : '📋',
       breakStreak ? `${newPlan.planName} — بدأ ستريك جديد` : `تم تفعيل: ${newPlan.planName}`)
   }, [pushAlert])
+
+  // ── The plan builder (src/pages/planner) ────────────────────
+  // A page of its own over any screen, with five doors: Settings › الخطة,
+  // Home › تقدّم البرنامج, Home › ⋯ › عدّل الخطة, Home with no plan, and
+  // the first run's «أبني خطتي بنفسي». `planner` is the door it opened
+  // from, or null.
+  const [planner, setPlanner] = useState(null)
+  const openPlanner = useCallback((door) => setPlanner(door), [])
+  // The plan before the last one the builder put in, for «رجّع خطتك
+  // القديمة» (حمزة: «إيه، احفظها»). A key of the new design's own.
+  const [planPrev, setPlanPrev] = useState(() => ls.get('hf_plan_prev', null))
+  useEffect(() => { ls.set('hf_plan_prev', planPrev) }, [planPrev])
+
+  // Put a plan from the builder in. Editing his own plan is free and
+  // keeps the day he reached (when the number of days in the cycle is the
+  // same); switching to another plan follows the streak rule, like every
+  // switch. Days a week chosen in the builder change with the plan, in
+  // the same stamp: one change, not two. The plan it replaces is kept.
+  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false } = {}) => {
+    const today = todayKey()
+    const daysChange = days != null && days !== recoveryRef.current.daysPerWeek
+    if (plan) setPlanPrev({ plan, planIndex, savedAt: today })
+    setPlan(newPlan)
+    const sameCycle = edit && plan && (plan.weeklySchedule || []).length === newPlan.weeklySchedule.length
+    if (!sameCycle) setPlanIndex(0)
+    if (!edit || daysChange) {
+      setRecoveryCfg(prev => ({
+        ...(daysChange ? withFrequency(prev, { daysPerWeek: days }, today) : prev),
+        lastSettingsChangeAt: today,
+        streakResetAt: breakStreak ? today : prev.streakResetAt,
+      }))
+    }
+    pushAlert(breakStreak ? '⚠️' : '📋',
+      breakStreak ? `${newPlan.planName} — بدأ ستريك جديد`
+        : edit ? 'انحفظ تعديل خطتك' : `تم تفعيل: ${newPlan.planName}`)
+  }, [plan, planIndex, pushAlert])
+
+  // «رجّع خطتك القديمة»: the saved plan back, at the day it had reached,
+  // and the one it replaces saved in its place (so it can go back again).
+  // An undo the same day costs nothing; later it is a switch like any.
+  const restorePrevPlan = useCallback(({ breakStreak = false } = {}) => {
+    const prev = planPrev
+    if (!prev?.plan) return
+    const today = todayKey()
+    setPlanPrev(plan ? { plan, planIndex, savedAt: today } : null)
+    setPlan(prev.plan)
+    setPlanIndex(prev.planIndex || 0)
+    if (prev.savedAt !== today) {
+      setRecoveryCfg(p => ({ ...p, lastSettingsChangeAt: today, streakResetAt: breakStreak ? today : p.streakResetAt }))
+    }
+    pushAlert('↩️', `رجعت خطتك: ${prev.plan.planName}`)
+  }, [planPrev, plan, planIndex, pushAlert])
 
   const overrideRecoveryDay = useCallback(() => {
     const today = todayKey()
@@ -1166,6 +1227,7 @@ export default function App() {
             onStartDeload={beginDeload}
             onDismissDeloadSuggestion={() => setRecoveryCfg(prev => dismissSuggestion(prev, today))}
             onOpenDeload={() => { setSettingsSection('deload'); pushPage('settings') }}
+            onOpenPlanner={openPlanner}
           />
         )}
         {!page && tab === 'history' && (
@@ -1236,6 +1298,7 @@ export default function App() {
               photos={photos}
               plan={plan}
               onImportPlan={applyPlanChange}
+              onOpenPlanner={openPlanner}
               onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
               exerciseMapping={exerciseMapping}
               recoveryCfg={recoveryCfg}
@@ -1270,6 +1333,8 @@ export default function App() {
                 // whatever is configured on the device.
                 if (data.recovery)                         setRecoveryCfg(prev => ({ ...prev, ...data.recovery }))
                 restoreMonthGoals(data)
+                const back = restorePlan(data)
+                if (back) { setPlan(back.plan); setPlanIndex(back.planIndex) }
                 pushAlert('✅', 'تم استيراد البيانات بنجاح!')
               }}
             />
@@ -1349,7 +1414,7 @@ export default function App() {
       {onboarding && (
         <Onboarding
           initialName={profile?.name && profile.name !== DEFAULT_PROFILE.name ? profile.name : ''}
-          onDone={({ name, daysPerWeek, plan: chosen }) => {
+          onDone={({ name, daysPerWeek, plan: chosen, build }) => {
             // Set directly, not through the settings-change paths: a first
             // setup must not spend the one free change per 30 days.
             if (name) setProfile(prev => ({ ...prev, name }))
@@ -1357,8 +1422,33 @@ export default function App() {
             if (chosen) { setPlan(chosen); setPlanIndex(0) }
             ls.set('hf_onboarded', true)
             setOnboarding(false)
+            // «أبني خطتي بنفسي»: the builder opens once the setup is done.
+            if (build) setPlanner('onb')
           }}
         />
+      )}
+      {planner && (
+        <Suspense fallback={null}>
+          <PlannerPage
+            door={planner}
+            plan={plan}
+            planIndex={planIndex}
+            planPrev={planPrev}
+            recoveryCfg={recoveryCfg}
+            profile={profile}
+            changeCooldownLeft={changeCooldownLeft(recoveryCfg)}
+            currentStreak={recovery.consistencyStreak}
+            onActivate={commitPlan}
+            onRestorePrev={restorePrevPlan}
+            onStart={() => {
+              setPlanner(null)
+              const s = plan?.weeklySchedule
+              if (s?.length && !active) startPlannedWorkout(s[planIndex % s.length])
+              else { setPages([]); setTab('home') }
+            }}
+            onClose={() => setPlanner(null)}
+          />
+        </Suspense>
       )}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
 

@@ -147,8 +147,9 @@ const LATE_OK = 0.25
  * absolute context time `when`. Returns a cancel function; with no audio
  * it returns a no-op. `fallback(c, t)` may draw something itself when the
  * file can't be had (the rest's ticks keep a plain tone for that case).
+ * `rate` plays it faster and higher (1 = as recorded).
  */
-export function play(name, { at = 0, when = null, gain = null, fallback = null } = {}) {
+export function play(name, { at = 0, when = null, gain = null, fallback = null, rate = 1 } = {}) {
   const c = ctx
   if (!c || c.state === 'closed' || !SOUNDS[name]) return () => {}
   let cancelled = false
@@ -164,6 +165,8 @@ export function play(name, { at = 0, when = null, gain = null, fallback = null }
       const src = c.createBufferSource()
       const g = c.createGain()
       src.buffer = buf
+      // `rate` lifts the pitch (the plan builder's build climbs with each exercise)
+      if (rate !== 1 && src.playbackRate) src.playbackRate.value = rate
       g.gain.value = gain ?? SOUNDS[name].gain
       src.connect(g)
       g.connect(c.destination)

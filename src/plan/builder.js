@@ -244,12 +244,6 @@ export function daysFromRecovery(rc = {}) {
   }
   return 5
 }
-const SPLIT_HINT = {
-  3: 'جسم كامل، يومين بالتناوب. كل عضلة تقريباً مرتين بالأسبوع.',
-  4: 'علوي وسفلي بالتناوب. كل عضلة تقريباً مرتين بالأسبوع.',
-  5: 'دفع، سحب، أرجل، ثم علوي وسفلي. كل عضلة مرتين بالأسبوع.',
-  6: 'دفع، سحب، أرجل، مرتين. كل عضلة تقريباً مرتين بالأسبوع.',
-}
 const PUSH = ['chest', 'front', 'side', 'triceps']
 const PULL = ['lats', 'rows', 'rear', 'biceps']
 const LOW = ['quads', 'hams', 'glutes', 'calves', 'core']
@@ -887,7 +881,7 @@ export function ensureEntry(name, muscle) {
   if (EXI[id]) return EXI[id]
   const m = MUSCLES.includes(muscle) ? muscle : 'Chest'
   const area = AREA_OF_MUSCLE[m]
-  const e = { id, en: String(name), ar: '', card: CARD_OF_MUSCLE[m], area, eq: 'other', k: m === 'Cardio' ? 'x' : 'c', mv: 'other:' + name, cr: { [area]: 1 }, fat: 1, key: m, ord: 10000, foreign: true }
+  const e = { id, en: String(name), ar: String(name), card: CARD_OF_MUSCLE[m], area, eq: 'other', k: m === 'Cardio' ? 'x' : 'c', mv: 'other:' + name, cr: { [area]: 1 }, fat: 1, key: m, ord: 10000, foreign: true }
   EXI[id] = e
   return e
 }
