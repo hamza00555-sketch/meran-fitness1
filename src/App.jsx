@@ -16,7 +16,7 @@ import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayD
 import { streakView, todayStreak, skipCopy, finishToast, spendToast, countAr } from './streak.js'
 import { planReminders } from './notify.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
-import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from './progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
 
@@ -947,11 +947,13 @@ export default function App() {
     }
     let stalled = 0
     for (const name of names) {
-      const p = analyzeProgression(sessions, name, exerciseMapping, repTarget)
+      // The range the lift's sessions ran on, as the player judged it.
+      const t = liftRepTarget(sessions, name, exerciseMapping, { plan, fallback: repTarget })
+      const p = analyzeProgression(sessions, name, exerciseMapping, t)
       if (p.hint === 'lower' || p.failedAtWeight >= 2) stalled++
     }
     return suggestDeload({ sessions, config: recoveryCfg, today, stalledCount: stalled })
-  }, [sessions, recoveryCfg, today, exerciseMapping, repTarget])
+  }, [sessions, recoveryCfg, today, exerciseMapping, repTarget, plan])
 
   // The closing screen, offered once. `deloadEndSeenAt` holds the end
   // date rather than a boolean, so the next deload gets its own screen
@@ -1038,12 +1040,12 @@ export default function App() {
   const monthGoals = useMemo(() => (showReport ? ls.get(MONTH_GOAL_KEY, {}) : {}), [showReport, goalsTick])
   const reportArgs = {
     sessions, config: recoveryCfg, unlockedAt, xp,
-    mapping: exerciseMapping, repTarget, goals: monthGoals, today,
+    mapping: exerciseMapping, repTarget, plan, goals: monthGoals, today,
   }
   const monthReport = useMemo(
     () => (reportMonth ? buildMonthReport({ ...reportArgs, month: reportMonth }) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reportMonth, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget, monthGoals, today],
+    [reportMonth, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget, plan, monthGoals, today],
   )
   // The month on screen: the offered one, or a past one picked inside it.
   const shownReport = useMemo(
@@ -1051,7 +1053,7 @@ export default function App() {
       ? buildMonthReport({ ...reportArgs, month: reportPick })
       : monthReport),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reportPick, reportMonth, monthReport, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget, monthGoals, today],
+    [reportPick, reportMonth, monthReport, sessions, recoveryCfg, unlockedAt, xp, exerciseMapping, repTarget, plan, monthGoals, today],
   )
   // The past-month picker: six months of bars ending at the offered one,
   // and any older month with training in it.

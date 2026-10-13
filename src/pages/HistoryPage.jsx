@@ -10,7 +10,7 @@ import {
   groupByWeek, weekTotalsText, sessionTitle, sessionDateText, sessionDay, firstBestSessions,
 } from '../components/history/model.js'
 import { buildExercise, suggestedWeightFor, resolveExerciseName, getWeightsResetAt, ls } from '../utils.js'
-import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget } from '../progression.js'
 import { sessionDeloadStamp, deloadWeight } from '../deload.js'
 import { DAY_STATUS } from '../recovery.js'
 import { todayKey } from '../day.js'
@@ -99,11 +99,17 @@ export default function HistoryPage({
     const stamp = sessionDeloadStamp(cfg, today)
     const lighten = stamp ? (w => deloadWeight(w, stamp.pct)) : undefined
     const target = repTarget ?? { ...DEFAULT_REP_TARGET, ...ls.get('hf_rep_target', {}) }
-    const exercises = (routine?.exercises || []).map(ex => buildExercise({
-      muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || ex.sets || 3,
-      prevWeight: suggestedWeightFor(ex.name, { sessions, mapping: exerciseMapping, transform: lighten }),
-      prevReps: analyzeProgression(sessions, ex.name, exerciseMapping, target).suggestedReps,
-    }))
+    // Each lift on the range its own sessions ran on — the player's,
+    // the report's and the deload count's — so the reps here agree.
+    const exercises = (routine?.exercises || []).map(ex => {
+      const t = planRepTarget(ex) || liftRepTarget(sessions, ex.name, exerciseMapping, { plan, fallback: target })
+      const built = buildExercise({
+        muscle: ex.muscle, name: ex.name, numSets: ex.defaultSets || (Array.isArray(ex.sets) ? ex.sets.length : ex.sets) || 3,
+        prevWeight: suggestedWeightFor(ex.name, { sessions, mapping: exerciseMapping, transform: lighten }),
+        prevReps: analyzeProgression(sessions, ex.name, exerciseMapping, t).suggestedReps,
+      })
+      return t.id === 'plan' ? { ...built, target: { min: t.base, max: t.top } } : built
+    })
     onStartWorkout?.(exercises)
   }
   const openPicker = () => setPicker({ open: true, n: ++sheetN.current })

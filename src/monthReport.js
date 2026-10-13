@@ -25,7 +25,7 @@ import {
   xpProgress, getRank, roundToPlate, PLATE_STEP,
 } from './utils.js'
 import { setCounts } from './sets.js'
-import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
+import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET, liftRepTarget } from './progression.js'
 import { computeRecovery, addDays, dayDiff, patternFor } from './recovery.js'
 import { countAr, unitAr, fmtDayAr } from './streak.js'
 import { isDeloadSession } from './deload.js'
@@ -577,7 +577,7 @@ export function musclesLine(muscles = []) {
 
 export const MAX_NEXT = 3
 
-export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = DEFAULT_REP_TARGET, muscles = [] } = {}) {
+export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = DEFAULT_REP_TARGET, muscles = [], plan = null } = {}) {
   const last = lastDayOf(month)
   const upTo = sessions.filter(s => dayKey(s.date) <= last)
 
@@ -596,7 +596,9 @@ export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = 
 
   const raise = [], lower = []
   for (const { name, n } of trained.values()) {
-    const a = analyzeProgression(upTo, name, mapping, repTarget)
+    // Judged on the range its sessions ran on — the player's own verdict.
+    const t = liftRepTarget(upTo, name, mapping, { plan, fallback: repTarget })
+    const a = analyzeProgression(upTo, name, mapping, t)
     if (a.hint === 'raise') {
       // The new weight is the player's own: one plate step up (WorkoutPlayer).
       raise.push({ kind: 'raise', exercise: name, weight: a.workingWeight, to: roundToPlate(a.workingWeight + PLATE_STEP), reps: a.target.top, n })
@@ -799,6 +801,7 @@ export function buildMonthReport({
   xp = 0,
   mapping = {},
   repTarget = DEFAULT_REP_TARGET,
+  plan = null,
   goals = {},
   month,
   today = todayKey(),
@@ -924,7 +927,7 @@ export function buildMonthReport({
     jump,
     muscles,
     consistency,
-    next: nextMonthPlan({ sessions, month, mapping, repTarget, muscles }),
+    next: nextMonthPlan({ sessions, month, mapping, repTarget, muscles, plan }),
     goal: (() => {
       const g = goalResult(monthGoalOf(goals, month), consistency.calendar, { sessions, month, mapping, resetAt })
       // A weight goal is drawn as its lift, week by week through the month.

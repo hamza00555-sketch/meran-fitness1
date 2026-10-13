@@ -42,6 +42,33 @@ export function planRepTarget(ex) {
   return { id: 'plan', base: Math.round(lo), top: Math.max(Math.round(lo), Math.round(hi > 0 ? hi : lo)) }
 }
 
+/**
+ * The target a lift is judged against everywhere outside the session
+ * (report, deload count, history repeat), so they all agree with the
+ * player: the range its latest session ran on, else the range the
+ * current plan gives it, else the Settings target.
+ */
+export function liftRepTarget(sessions, exerciseName, mapping = {}, { plan = null, fallback = DEFAULT_REP_TARGET } = {}) {
+  const lift = resolveExerciseName(exerciseName, mapping)
+  let latest = null, latestId = -Infinity
+  for (const s of sessions || []) {
+    const id = s.id || 0
+    if (id <= latestId) continue
+    const ex = (s.exercises || []).find(e => resolveExerciseName(e.name, mapping) === lift)
+    if (ex) { latest = ex; latestId = id }
+  }
+  const fromSession = planRepTarget(latest)
+  if (fromSession) return fromSession
+  for (const day of plan?.weeklySchedule || []) {
+    for (const ex of day?.exercises || []) {
+      if (resolveExerciseName(ex?.name, mapping) !== lift) continue
+      const t = planRepTarget(ex)
+      if (t) return t
+    }
+  }
+  return fallback || DEFAULT_REP_TARGET
+}
+
 export const repTargetOf = (cfg = {}) => {
   // A plan's own range: as written, even a single number («10 × 10»).
   if (cfg.id === 'plan' && cfg.base > 0) {
