@@ -58,3 +58,37 @@ test('liftRepTarget: latest session range, then plan, then Settings', () => {
   const p = analyzeProgression(bare, 'Lat Pulldown', {}, t)
   assert.ok(!(p.hint === 'lower' || p.failedAtWeight >= 2))
 })
+
+const B = await import('../src/plan/builder.js')
+const { BUILT_IN_PLANS } = await import('../src/constants.js')
+
+test('his Upper/Lower plan switched to push·pull·legs: every exercise lands on a day that takes it', () => {
+  const ul = BUILT_IN_PLANS.find(p => p.planId === 'upper_lower_4day')
+  const st = B.fromHfPlan(ul, { days: 4 })
+  const cycle = ['push', 'pull', 'legs']
+  B.fitPins(st.picks, cycle)
+  const plan = B.buildFromPicks({ days: 4, spw: 4.67, goal: 'muscle', eq: st.eq, excluded: new Set(), dismissed: new Set(), picks: st.picks, mtool: {}, cycle, split: 'ppl', keepOrder: true })
+  const orphans = plan.days.flatMap(d => d.items.filter(it => it.orphan).map(it => it.id))
+  assert.deepEqual(orphans, [])
+  // a pin that still fits is kept: Upper A's chest press stays on day 1 (push)
+  const st2 = B.fromHfPlan(ul, { days: 4 })
+  const chest = st2.picks.find(p => p.day === 0 && B.EXI[p.id].area === 'chest')
+  B.fitPins(st2.picks, cycle)
+  assert.equal(chest.day, 0)
+})
+
+test('opening his plan and saving it unchanged keeps a back-off row and his cardio sets', () => {
+  const hf = { planName: 'x', weeklySchedule: [{ name: 'Push — صدر', exercises: [
+    { name: 'Bench Press', muscle: 'Chest', sets: 3, repsMin: 8, repsMax: 10 },
+    { name: 'Bench Press', muscle: 'Chest', sets: 2, repsMin: 12, repsMax: 15 },
+    { name: 'Treadmill Run', muscle: 'Cardio', sets: 3, repsMin: 10, repsMax: 10 },
+  ] }] }
+  const st = B.fromHfPlan(hf, { days: 3 })
+  const cfg = { days: 3, goal: 'muscle', eq: st.eq, excluded: new Set(), dismissed: new Set(), picks: st.picks, mtool: {}, cycle: st.cycle, split: st.split, keepOrder: true }
+  const plan = B.buildFromPicks(cfg)
+  const back = B.toHfPlan(plan, cfg, { today: '2026-10-13', base: hf })
+  const rows = back.weeklySchedule[0].exercises.map(e => `${e.name} ${e.sets}x${e.repsMin}-${e.repsMax}`)
+  assert.ok(rows.includes('Bench Press 3x8-10'), rows.join(' | '))
+  assert.ok(rows.includes('Bench Press 2x12-15'), rows.join(' | '))
+  assert.ok(rows.some(r => r.startsWith('Treadmill Run 3x')), rows.join(' | '))
+})

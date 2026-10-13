@@ -186,6 +186,11 @@ function buildFromPicks(cfg) {
     if (di < 0) { orphan = true; di = lightestDay(plan) }
     const it = mkItem(cfg, p.id, p.by || 'user', p.sets)
     if (p.r) it.r = [...p.r]
+    // his own number of cardio sessions is kept (mkItem's default is one)
+    if (EXI[p.id].k === 'x' && Number(p.sets) > 0) it.sets = Math.round(Number(p.sets))
+    // the pick this row came from: two rows of one exercise on one day
+    // (a back-off row) are two picks, and an edit goes to its own
+    Object.defineProperty(it, 'src', { value: p, enumerable: false, writable: true, configurable: true })
     if (p.rest != null) it.rest = p.rest
     if (p.unit) it.unit = p.unit
     if (p.name) it.name = p.name
@@ -705,13 +710,10 @@ export function fromHfPlan(hf, { days = 4 } = {}) {
     ? hf.split.cycle.slice()
     : schedule.map(inferDayType)
   const picks = []
-  const used = new Set()
+  // one pick per row: the same lift twice on one day (a back-off row) is
+  // two picks, so opening and saving never drops either
   schedule.forEach((d, di) => (d.exercises || []).forEach(ex => {
     const e = ensureEntry(ex.name, ex.muscle)
-    // one pick per catalogue entry and day; the same lift on two days is two picks
-    const key = e.id + '@' + di
-    if (used.has(key)) return
-    used.add(key)
     const p = { id: e.id, day: di, orig: ex, name: ex.name }
     if (Number(ex.sets) > 0) p.sets = Math.round(Number(ex.sets))
     const lo = Number(ex.repsMin), hi = Number(ex.repsMax)
@@ -737,6 +739,18 @@ export function fromHfPlan(hf, { days = 4 } = {}) {
     cycle, split: splitIdFor(cycle, days), picks, goal: GOAL_IN[hf?.goal] || 'muscle',
     eq: new Set(eq), mtool, excluded, dismissed: new Set(b.keepAsIs || []),
   }
+}
+
+/** A new cycle for picks pinned to days (his plan opened to edit): a
+ *  pin stays only where the new day still takes that exercise's area;
+ *  the rest are placed again like any pick. Changes `picks` in place. */
+export function fitPins(picks, cycle) {
+  for (const p of picks || []) {
+    if (p.day == null) continue
+    const e = EXI[p.id]
+    if (!(e && p.day < cycle.length && TYPE[cycle[p.day]] && allowed(cycle[p.day], e.area))) delete p.day
+  }
+  return picks
 }
 
 /* hf_plan — the shape both designs read. Only optional fields are new

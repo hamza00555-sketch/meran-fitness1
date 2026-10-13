@@ -20,7 +20,7 @@
 // phone (fades only), and the page holds the app's scroll lock while open.
 
 import {
-  AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fromHfPlan, gapWords, hasMove, fem, mkItem, muchFix, n0, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan,
+  AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fitPins, fromHfPlan, gapWords, hasMove, fem, mkItem, muchFix, n0, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan,
 } from '../../plan/builder.js'
 import { BODY, REGKEY } from './body.js'
 import { MUSCLE_GROUPS, GYM_TYPES } from '../../constants.js'
@@ -159,7 +159,7 @@ const fresh = () => ({
 })
 const S = Object.assign(fresh(), { cur: 'start' })
 /* The plan saved before the last change (hf_plan_prev): «رجّع خطتك القديمة». */
-let PREV = ctx.planPrev && ctx.planPrev.plan ? { name: ctx.planPrev.plan.planName || 'خطتك القديمة', when: ctx.planPrev.savedAt === TODAY ? 'اليوم' : ctx.planPrev.savedAt } : null
+let PREV = ctx.planPrev && ctx.planPrev.plan ? { name: ctx.planPrev.plan.planName || 'خطتك القديمة', when: ctx.planPrev.savedAt === TODAY ? 'اليوم' : ctx.planPrev.savedAt, undo: !!ctx.planPrev.undo } : null
 /* His plan in force, read as the builder's picks («عدّل خطتك الحالية»). */
 const CURRENT = ctx.plan && Array.isArray(ctx.plan.weeklySchedule) && ctx.plan.weeklySchedule.length
   ? { name: ctx.plan.planName || 'خطتك', hf: ctx.plan, ...fromHfPlan(ctx.plan, { days: SETTINGS.days }) }
@@ -500,13 +500,18 @@ function setEq(list) {
   })
   markPreset()
 }
-/* a system change re-places the picks; only «عدّل خطتك» keeps his own days */
+/* a system change re-places the picks; «عدّل خطتك» keeps an exercise on
+   its own day only when the new system's day there still takes it */
 function setSplit(id) {
   const was = splitId()
   if (id === was) return
   if (id === 'free' && !S.cycle) S.cycle = (SPL[was] && SPL[was].cycle ? SPL[was].cycle : SPL[splitOpts(S.days)[0]].cycle).slice()
   S.split = id
-  S.picks.forEach(p => { if (!(S.mode === 'current' && id === 'ppl')) delete p.day })
+  keepFittingPins()
+}
+function keepFittingPins() {
+  if (S.mode === 'current') fitPins(S.picks, cycleOf())
+  else S.picks.forEach(p => { delete p.day })
 }
 function freeTypeSheet(i) {
   const cur = cycleOf()[i]
@@ -741,6 +746,7 @@ function hintDone() {
   h.animate([{ opacity: 1, height: h.offsetHeight + 'px' }, { opacity: 0, height: '0px', marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px' }], { duration: 360, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = () => h.remove()
 }
 function togglePick(id, cardEl, viaSwipe) {
+  clearToasts()   // an «تراجع» from before this pick would undo the wrong thing
   const i = S.picks.findIndex(p => p.id === id)
   const adding = i < 0
   if (adding) S.picks.push({ id }); else S.picks.splice(i, 1)
@@ -1018,6 +1024,8 @@ function refreshCtx(ctx) {
   else { $$('#gaps .added[data-uid]').forEach(el => { if (!findItem(el.dataset.uid)) el.hidden = true }); refreshGaps(true) }
 }
 const pickOf = (id) => S.picks.find(p => p.id === id)
+// the pick a row came from (two rows of one exercise are two picks)
+const pickFor = (it) => (it && it.src && S.picks.includes(it.src)) ? it.src : pickOf(it && it.id)
 const defSets = (id) => { const e = EXI[id]; return e.k === 'x' ? 1 : SCHEME[S.goal][e.k][0] }
 function applyMuch(a, ctx) {
   if (ctx === 'mv') {
@@ -1029,7 +1037,9 @@ function applyMuch(a, ctx) {
     const card = $(`#mview .xcard[data-id="${fix.id}"]`); if (card && fix.kind === 'rm') { restyleX(card, fix.id, false); land(card) }
     renderTray(updateMview()); updateDeck(); buzz(8); snd('tick', { gain: 0.3, rate: 0.8 })
     toast(fix.kind === 'rm' ? `شلنا ${name}. ${lblOf(a)} صار ${Math.round(fix.after)}` : `نزّلنا ${name}. ${lblOf(a)} صار ${Math.round(fix.after)}`, { label: 'تراجع', run: () => {
-      if (fix.kind === 'rm') S.picks.splice(Math.min(i, S.picks.length), 0, before); else Object.assign(S.picks.find(p => p.id === fix.id) || {}, before)
+      // swiped back in meanwhile: nothing to undo
+      if (fix.kind === 'rm') { if (S.picks.some(p => p.id === fix.id)) return; S.picks.splice(Math.min(i, S.picks.length), 0, before) }
+      else Object.assign(S.picks.find(p => p.id === fix.id) || {}, before)
       const c2 = $(`#mview .xcard[data-id="${fix.id}"]`); c2 && restyleX(c2, fix.id, true)
       const b = $('#mfix'); if (b) b.dataset.sig = ''
       renderTray(updateMview()); updateDeck()
@@ -1038,12 +1048,16 @@ function applyMuch(a, ctx) {
   }
   const t = ADV.find(x => x.kind === 'much' && x.w.a === a); if (!t || !t.fix) return
   const fix = t.fix, f = findItem(fix.uid); if (!f) return
-  const name = EXI[f.it.id].ar, was = f.it.sets, by = f.it.by, pk = pickOf(f.it.id), pkBefore = pk && { ...pk }, pkIdx = S.picks.indexOf(pk)
+  const name = EXI[f.it.id].ar, was = f.it.sets, by = f.it.by, pk = pickFor(f.it), pkBefore = pk && { ...pk }, pkIdx = S.picks.indexOf(pk)
   if (fix.kind === 'rm') { f.d.items.splice(f.ii, 1); if (by === 'user' && pk) S.picks.splice(pkIdx, 1) }
   else { f.it.sets -= fix.k; if (pk) pk.sets = f.it.sets }
   refreshCtx(ctx); buzz(8)
   toast(fix.kind === 'rm' ? `شلنا ${name}. ${lblOf(a)} صار ${Math.round(fix.after)}` : `نزّلنا ${name}. ${lblOf(a)} صار ${Math.round(fix.after)}`, { label: 'تراجع', run: () => {
-    if (fix.kind === 'rm') { f.d.items.splice(Math.min(f.ii, f.d.items.length), 0, f.it); if (by === 'user' && pkBefore) S.picks.splice(Math.max(0, pkIdx), 0, pkBefore) }
+    if (fix.kind === 'rm') {
+      if (!S.plan.days.includes(f.d) || findItem(f.it.uid)) return
+      f.d.items.splice(Math.min(f.ii, f.d.items.length), 0, f.it)
+      if (by === 'user' && pk && !S.picks.includes(pk)) S.picks.splice(Math.max(0, pkIdx), 0, Object.assign(pk, pkBefore))
+    }
     else { f.it.sets = was; if (pk) Object.assign(pk, pkBefore) }
     const el = $(`#gaps .added[data-uid="${f.it.uid}"]`); if (el) el.hidden = false
     refreshCtx(ctx)
@@ -1052,7 +1066,7 @@ function applyMuch(a, ctx) {
 function moveItem(fix) {
   const f = findItem(fix.uid); if (!f) return null
   f.d.items.splice(f.ii, 1); S.plan.days[fix.to].items.push(f.it); sortDay(S.plan.days[fix.to])
-  const pk = f.it.by === 'user' && pickOf(f.it.id); if (pk) pk.day = fix.to
+  const pk = f.it.by === 'user' && pickFor(f.it); if (pk) pk.day = fix.to
   return f
 }
 function applyTip(key, ctx) {
@@ -1061,7 +1075,7 @@ function applyTip(key, ctx) {
   const L = dayLabels(S.plan)
   if (t.kind === 'session' && t.fix) {
     const f = moveItem(t.fix); if (!f) return
-    refreshCtx(ctx); toast(`نقلنا ${EXI[f.it.id].ar} ليوم ${dayName(L[t.fix.to])}`, { label: 'تراجع', run: () => { moveItem({ uid: f.it.uid, to: f.di }); const pk = pickOf(f.it.id); if (pk) delete pk.day; refreshCtx(ctx) } })
+    refreshCtx(ctx); toast(`نقلنا ${EXI[f.it.id].ar} ليوم ${dayName(L[t.fix.to])}`, { label: 'تراجع', run: () => { moveItem({ uid: f.it.uid, to: f.di }); const pk = pickFor(f.it); if (pk) delete pk.day; refreshCtx(ctx) } })
   } else if (t.kind === 'rare') {
     const moved = []
     for (const r of t.list) if (r.fix) { const f = moveItem(r.fix); if (f) moved.push(f) }
@@ -1366,6 +1380,10 @@ function removeItem(uid, { exclude = false } = {}) {
   const name = EXI[f.it.id].ar
   if (exclude) S.excluded.add(f.it.id)
   f.d.items.splice(f.ii, 1); S.open = null
+  // His own exercise leaves his picks too, or going back a screen (which
+  // builds the plan again from the picks) would quietly bring it back.
+  const pk = f.it.by === 'user' ? pickFor(f.it) : null, pkIdx = pk ? S.picks.indexOf(pk) : -1
+  if (pkIdx >= 0) S.picks.splice(pkIdx, 1)
   const li = $(`.prow[data-uid="${uid}"]`)
   const done = () => { renderDay(); refreshPlan() }
   if (!li || RM) done()
@@ -1374,7 +1392,10 @@ function removeItem(uid, { exclude = false } = {}) {
     li.animate([{ height: h + 'px', opacity: 1, transform: 'none' }, { height: '0px', opacity: 0, transform: 'translateX(-40px) scale(.96)', paddingTop: '0px', paddingBottom: '0px', marginBottom: '-8px' }], { duration: 320, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' }).onfinish = done
   }
   toast(exclude ? `شلنا ${name}، وما راح نقترحه لك مرة ثانية` : `شلنا ${name}`, { label: 'تراجع', run: () => {
+    // only into the plan it left, and only once
+    if (!S.plan || !S.plan.days.includes(f.d) || findItem(uid)) return
     if (exclude) S.excluded.delete(f.it.id)
+    if (pk && !S.picks.includes(pk)) S.picks.splice(Math.min(Math.max(0, pkIdx), S.picks.length), 0, pk)
     f.d.items.splice(Math.min(f.ii, f.d.items.length), 0, f.it)
     if (S.day !== f.di) { S.day = f.di; refreshPlan() }
     renderDay(); refreshPlan(); land($(`.prow[data-uid="${uid}"]`))
@@ -1545,13 +1566,21 @@ function open(v) {
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 /* The streak rule, said before it is paid: switching to another plan (or
    changing the days) is free once a month; editing his plan is free. */
-const cooldown = () => Number(ctx.changeCooldownLeft) || 0
-const breaksFor = (edit, daysChange) => cooldown() > 0 && (!edit || daysChange)
+/* His first plan is a setup, not a switch (App's commitPlan): no rule,
+   no old plan to keep. COOLDOWN follows this page's own activation, so
+   what a sheet says after it is what App will do. */
+const FIRST = !(ctx.plan && Array.isArray(ctx.plan.weeklySchedule) && ctx.plan.weeklySchedule.length)
+let COOLDOWN = Number(ctx.changeCooldownLeft) || 0
+const cooldown = () => COOLDOWN
+const breaksFor = (edit, daysChange) => !FIRST && cooldown() > 0 && (!edit || daysChange)
+/* an undo the same day puts everything back (App's restorePrevPlan) */
+const prevSameDay = () => !!PREV && PREV.when === 'اليوم'
 const streakWord = () => (ctx.currentStreak || 0) > 0 ? ` (${countAr(ctx.currentStreak, 'day')})` : ''
 function ruleFact(edit, daysChange) {
+  if (FIRST) return ''
   if (edit && !daysChange) return `<li><b>التعديل ببلاش</b><span>تعدّل خطتك نفسها متى ما تبي، وما يلمس الستريك.</span></li>`
   if (breaksFor(edit, daysChange)) return `<li class="danger"><b>${edit ? 'تغيير الأيام' : 'التبديل'} الحين يكسر الستريك</b><span>بدّلت قبل أقل من 30 يوم، فالستريك${streakWord()} يبدأ من الصفر. التغيير المجاني الجاي بعد ${countAr(cooldown(), 'day')}.</span></li>`
-  return `<li><b>${edit ? 'تغيير الأيام' : 'تبديل الخطة'} بالقاعدة</b><span>أول تغيير بالشهر ما يأثر، والستريك${streakWord()} محفوظ. لو غيّرت مرة ثانية خلال 30 يوم ينكسر.</span></li>`
+  return `<li><b>${edit ? 'تغيير الأيام' : 'تبديل الخطة'} بالقاعدة</b><span>أول تغيير بالشهر ببلاش: الستريك${streakWord()} ما يتأثر. لو غيّرت مرة ثانية خلال 30 يوم ينكسر.</span></li>`
 }
 let closing = false
 function close() {
@@ -1586,17 +1615,17 @@ on(HOST, 'click', (e) => {
     case 'restore-prev': {
       if (!PREV) return
       // an undo the same day is free; later it is a switch like any other
-      const sameDay = ctx.planPrev && ctx.planPrev.savedAt === TODAY
+      const sameDay = prevSameDay()
       return openSheet(`<div class="grab"></div><h3 class="sh-title">نرجّع خطتك القديمة؟</h3>
         <ul class="facts">
           <li><b><bdi>${esc(PREV.name)}</bdi></b><span>ترجع من اليوم اللي وصلت له فيها، وخطتك الحالية تنحفظ مكانها عشان ترجع لها لو بغيت.</span></li>
-          ${sameDay ? '<li><b>ببلاش</b><span>بدّلتها اليوم، فالرجوع ما يحسب تغيير.</span></li>' : ruleFact(false, false)}
+          ${sameDay ? `<li><b>ببلاش</b><span>${PREV.undo ? 'بدّلتها اليوم، فالرجوع يلغي التبديل كأنه ما صار: ما يحسب تغيير، والستريك يرجع زي ما كان.' : 'بدّلتها اليوم، فالرجوع ما يحسب تغيير.'}</span></li>` : ruleFact(false, false)}
         </ul>
         <button class="btn-primary" data-act="restore-yes">رجّعها</button>
         <button class="btn-quiet" data-act="close-sheet" style="width:100%">ارجع</button>`)
     }
     case 'restore-yes': {
-      const sameDay = ctx.planPrev && ctx.planPrev.savedAt === TODAY
+      const sameDay = prevSameDay()
       closeSheet(true); buzz(10)
       ctx.onRestorePrev && ctx.onRestorePrev({ breakStreak: !sameDay && breaksFor(false, false) })
       return close()
@@ -1613,10 +1642,10 @@ on(HOST, 'click', (e) => {
     case 'free-n': {
       const c = cycleOf(), n = Math.max(1, Math.min(7, c.length + +v))
       if (n > c.length) c.push(SPL[splitOpts(S.days)[0]].cycle[c.length % SPL[splitOpts(S.days)[0]].cycle.length] || 'full'); else c.length = n
-      S.cycle = c; S.picks.forEach(p => { delete p.day }); renderSplits(); return
+      S.cycle = c; keepFittingPins(); renderSplits(); return
     }
     case 'free-day': return freeTypeSheet(+v)
-    case 'free-type': { const c = cycleOf(); c[+el.dataset.i] = v; S.cycle = c; S.picks.forEach(p => { delete p.day }); closeSheet(); renderSplits(); buzz(6); return }
+    case 'free-type': { const c = cycleOf(); c[+el.dataset.i] = v; S.cycle = c; keepFittingPins(); closeSheet(); renderSplits(); buzz(6); return }
     case 'tools-more': {
       S.toolsOpen = !S.toolsOpen; const t = $('#tiles'); t.hidden = !S.toolsOpen
       el.setAttribute('aria-expanded', S.toolsOpen); el.innerHTML = `أخصّصها ${ic(S.toolsOpen ? 'minus' : 'plus', 14)}`
@@ -1710,7 +1739,7 @@ on(HOST, 'click', (e) => {
     case 'sets-inc': case 'sets-dec': {
       const f = findItem(rowUid()); if (!f || f.it.mins) return
       f.it.sets = Math.max(1, Math.min(6, f.it.sets + (act === 'sets-inc' ? 1 : -1)))
-      const pk = f.it.by === 'user' && pickOf(f.it.id); if (pk) pk.sets = f.it.sets
+      const pk = f.it.by === 'user' && pickFor(f.it); if (pk) pk.sets = f.it.sets
       const li = el.closest('.prow')
       $('.pr-sets', li).innerHTML = setsBlock(f.it)
       const sv = $('.stepper .sv', li); sv.innerHTML = `<b class="num roll-in">${f.it.sets}</b>${f.it.sets === 1 ? 'مجموعة' : 'مجموعات'}`
@@ -1721,7 +1750,7 @@ on(HOST, 'click', (e) => {
       const f = findItem(rowUid()); if (!f || f.it.mins) return
       if (act === 'reps') f.it.r = [...stepList(f.it.unit === 'sec' ? SECS : REPS, f.it.r, +v)]
       else f.it.rest = stepList(RESTS, f.it.rest, +v)
-      const pk = f.it.by === 'user' && pickOf(f.it.id); if (pk) { pk.r = [...f.it.r]; pk.rest = f.it.rest }
+      const pk = f.it.by === 'user' && pickFor(f.it); if (pk) { pk.r = [...f.it.r]; pk.rest = f.it.rest }
       const li = el.closest('.prow'), b = el.parentElement.querySelector('b')
       b.innerHTML = act === 'reps' ? `<bdi dir="ltr">${rng(f.it)}</bdi>` : restLbl(f.it.rest)
       if (!RM) b.animate([{ transform: 'translateY(-6px)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: 400, easing: LAND })
@@ -1742,7 +1771,7 @@ on(HOST, 'click', (e) => {
     case 'move': {
       const f = findItem(el.dataset.uid); if (!f) return
       f.d.items.splice(f.ii, 1); S.plan.days[+v].items.push(f.it); sortDay(S.plan.days[+v])
-      const pk = f.it.by === 'user' && pickOf(f.it.id); if (pk) pk.day = +v
+      const pk = f.it.by === 'user' && pickFor(f.it); if (pk) pk.day = +v
       const L = dayLabels(S.plan)[+v]; S.open = null
       closeSheet(); renderDay(); refreshPlan(); toast(`نقلناه ليوم ${dayName(L)}`); return
     }
@@ -1750,6 +1779,7 @@ on(HOST, 'click', (e) => {
     case 'add-day': return addSheet(v)
     case 'refill': {
       if (S.busy) return
+      clearToasts()
       const pre = new Set(S.plan.days.flatMap(d => d.items.map(it => it.uid)))
       const res = fill(S.plan, cfg()); S.filled = true
       if (!res.steps.length) { renderDay(); refreshPlan(); return toast('ما قدرنا نكمّلها بأدواتك') }
@@ -1769,7 +1799,7 @@ on(HOST, 'click', (e) => {
           <li><b>الجلسة تمشي على أرقام الخطة</b><span>العدّات والراحة لكل تمرين زي ما هي هنا، وتقدر تغيّرها.</span></li>
           ${daysChange ? `<li><b>أيامك تتغيّر من ${SETTINGS.days} إلى ${S.days}</b><span>أيام الراحة تتغيّر مع الخطة بنفس الحفظ، وتنحسب تغيير واحد مو اثنين.</span></li>` : ''}
           ${ruleFact(edit, daysChange)}
-          <li><b>${edit ? 'النسخة اللي قبل التعديل تنحفظ' : 'خطتك القديمة تنحفظ'}</b><span>ترجع لها بضغطة لو ما عجبتك. وتمارينك القديمة وأوزانك تبقى، والتصميم القديم يقرا نفس الخطة.</span></li>
+          ${FIRST ? '' : `<li><b>${edit ? 'النسخة اللي قبل التعديل تنحفظ' : 'خطتك القديمة تنحفظ'}</b><span>ترجع لها بضغطة لو ما عجبتك. وتمارينك القديمة وأوزانك تبقى، والتصميم القديم يقرا نفس الخطة.</span></li>`}
         </ul>
         <button class="btn-primary" data-act="activate">${breaksFor(edit, daysChange) ? (edit ? 'احفظ واكسر الستريك' : 'فعّل واكسر الستريك') : edit ? 'احفظ' : 'فعّل الخطة'}</button>
         <button class="btn-quiet" data-act="close-sheet" style="width:100%">ارجع</button>`)
@@ -1779,8 +1809,10 @@ on(HOST, 'click', (e) => {
       const hf = toHfPlan(S.plan, cfg(), { today: TODAY, base: edit && CURRENT ? CURRENT.hf : null })
       const bad = validatePlan(hf)
       if (bad) { closeSheet(true); return toast(bad.error === 'day' ? 'فيه يوم فاضي بالخطة. أضف له تمرين' : 'ما قدرنا نحفظ الخطة') }
-      if (ctx.plan) PREV = { name: ctx.plan.planName || 'خطتك القديمة', when: 'اليوم' }
-      ctx.onActivate && ctx.onActivate(hf, { edit, days: daysChange ? S.days : null, breakStreak: breaksFor(edit, daysChange) })
+      const stamps = !FIRST && (!edit || daysChange)
+      if (!FIRST) PREV = { name: ctx.plan.planName || 'خطتك القديمة', when: 'اليوم', undo: stamps }
+      ctx.onActivate && ctx.onActivate(hf, { edit, days: daysChange ? S.days : null, breakStreak: breaksFor(edit, daysChange), first: FIRST })
+      if (stamps) COOLDOWN = 30
       closeSheet(true); buzz(12); snd('pr', { gain: 0.5 })
       return go('done')
     }

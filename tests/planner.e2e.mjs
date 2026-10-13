@@ -428,6 +428,104 @@ for (const width of WIDTHS) {
   await ctx.close()
 }
 
+// ── 6. Round 5: the rule, the undo and the old plan ────────────
+const dayBefore = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toLocaleDateString('en-CA') }
+async function autoPlanFromStart(page) {
+  await page.locator('[data-act="start-auto"]').click(); await settle(page, 700)
+  await page.locator('[data-act="basics-next"]').click(); await settle(page, 600)
+  await page.locator('#bld').waitFor({ state: 'detached', timeout: 7000 }).catch(() => {})
+  await page.locator('#gaps-dock [data-act="to-plan"]').click(); await settle(page, 800)
+  await page.locator('[data-act="plan-start"]').click(); await settle(page, 600)
+}
+{
+  // His first plan from the first run is a setup: no free change spent.
+  const { ctx, page, errors } = await phone({ plan: null, onboarded: false })
+  await page.getByRole('button', { name: 'التالي' }).click(); await settle(page, 400)
+  await page.getByRole('button', { name: 'التالي' }).click(); await settle(page, 400)
+  await page.getByRole('radio', { name: /أبني خطتي بنفسي/ }).click()
+  await page.getByRole('button', { name: 'يلا نبدأ' }).click(); await settle(page, 1200)
+  await autoPlanFromStart(page)
+  const sheet = await page.locator('#sheet').innerText()
+  ok('first plan: the sheet promises no old plan and no rule', !sheet.includes('تنحفظ') && !sheet.includes('بالقاعدة') && !sheet.includes('يكسر'), sheet)
+  await page.locator('[data-act="activate"]').click(); await settle(page, 1200)
+  const rc = await get(page, 'hf_recovery')
+  ok('first plan: saved', /^custom_/.test((await get(page, 'hf_plan'))?.planId || ''))
+  ok('first plan: the free change is not spent', !rc.lastSettingsChangeAt && !rc.streakResetAt, JSON.stringify(rc))
+  ok('first plan: nothing to «رجّع»', await page.locator('#s-done [data-act="restore-prev"]').count() === 0)
+  ok('first plan: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+{
+  // A switch that breaks the streak, undone the same day: free, and the
+  // rule and the streak go back to how they were.
+  const last = dayBefore(12)
+  const { ctx, page, errors } = await phone({ extra: { hf_recovery: { daysPerWeek: 4, lastSettingsChangeAt: last } } })
+  await page.getByRole('button', { name: 'الإعدادات' }).first().click(); await settle(page)
+  await page.locator('.k-row').filter({ hasText: 'الخطة' }).first().click(); await settle(page)
+  await page.getByText('ابنِ خطتك على كيفك').click(); await settle(page, 900)
+  await autoPlanFromStart(page)
+  ok('switch in the cooldown: «فعّل واكسر الستريك»', (await page.locator('[data-act="activate"]').innerText()).includes('واكسر'))
+  await page.locator('[data-act="activate"]').click(); await settle(page, 1200)
+  const rc1 = await get(page, 'hf_recovery')
+  ok('switch: stamped and the streak reset', rc1.lastSettingsChangeAt !== last && !!rc1.streakResetAt)
+  await page.locator('#s-done [data-act="restore-prev"]').click(); await settle(page, 600)
+  const sheet = await page.locator('#sheet').innerText()
+  ok('undo right after: «ببلاش», not «يكسر الستريك»', sheet.includes('ببلاش') && !sheet.includes('يكسر'), sheet)
+  await page.locator('[data-act="restore-yes"]').click(); await settle(page, 900)
+  const rc2 = await get(page, 'hf_recovery')
+  ok('undo: the machine plan is back', (await get(page, 'hf_plan'))?.planId === machine.planId)
+  ok('undo: the free change and the streak are given back', rc2.lastSettingsChangeAt === last && !rc2.streakResetAt, JSON.stringify(rc2))
+  ok('undo: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+{
+  // A builder plan replaced from Settings is kept for «رجّع».
+  const { ctx, page, errors } = await phone()
+  await page.getByRole('button', { name: 'الإعدادات' }).first().click(); await settle(page)
+  await page.locator('.k-row').filter({ hasText: 'الخطة' }).first().click(); await settle(page)
+  await page.getByText('علوي/سفلي — 4 أيام').first().click(); await settle(page, 700)
+  await page.getByRole('button', { name: 'فعّل البرنامج' }).click(); await settle(page, 700)
+  await page.getByRole('button', { name: /أكّد التغيير|غيّر واكسر الستريك/ }).click(); await settle(page, 900)
+  ok('settings switch: the new plan is in', (await get(page, 'hf_plan'))?.planId === 'upper_lower_4day')
+  ok('settings switch: the plan it replaced is kept', (await get(page, 'hf_plan_prev'))?.plan?.planId === machine.planId)
+  ok('settings switch: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+{
+  // An exercise taken out on «خطتك» stays out after going back.
+  const { ctx, page, errors } = await phone()
+  await page.getByRole('button', { name: 'خيارات اليوم' }).click(); await settle(page)
+  await page.locator('.k-row').filter({ hasText: 'عدّل الخطة' }).click(); await settle(page, 1100)
+  const row2 = page.locator('#plist .prow').nth(1)
+  const gone = await row2.locator('.pr-ar').innerText()
+  await row2.locator('.pr-main').click(); await settle(page, 500)
+  await row2.locator('[data-act="rm"]').click(); await settle(page, 700)
+  await page.locator('#s-plan [data-act="back"]').click(); await settle(page, 900)
+  await page.locator('#gaps-dock button').last().click(); await settle(page, 900)
+  const names = await page.locator('#plist .pr-ar').allInnerTexts()
+  ok('removed on «خطتك», back and forward: still out', !names.includes(gone), `${gone} in ${names.join(',')}`)
+  ok('removed and back: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+{
+  // «شيله», swiped back in, then a stale «تراجع»: never two of it.
+  const { ctx, page, errors } = await phone()
+  await page.getByRole('button', { name: 'الإعدادات' }).first().click(); await settle(page)
+  await page.locator('.k-row').filter({ hasText: 'الخطة' }).first().click(); await settle(page)
+  await page.getByText('ابنِ خطتك على كيفك').click(); await settle(page, 900)
+  await page.getByText('عدّل خطتك الحالية').click(); await settle(page, 900)
+  await page.locator('.mcard[data-card="biceps"]').click(); await settle(page, 1300)
+  await page.locator('#mfix [data-act="much-yes"]').click(); await settle(page, 500)
+  const c = card(page, 'مرجحة هامر كيبل')
+  await swipe(page, c.locator('.xc-in'))
+  const undo = page.locator('.toast button', { hasText: 'تراجع' })
+  if (await undo.count()) { await undo.click(); await settle(page, 400) }
+  const picks = await page.evaluate(() => window.__planner.state().picks.filter(p => p.id === 'cable_hammer_curl').length)
+  ok('much + swipe back + تراجع: one pick, not two', picks === 1, String(picks))
+  ok('much + swipe: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+
 await browser.close()
 
 let failed = 0

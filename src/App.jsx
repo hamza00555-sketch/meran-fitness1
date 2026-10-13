@@ -1114,6 +1114,9 @@ export default function App() {
 
   const applyPlanChange = useCallback((newPlan, { breakStreak = false } = {}) => {
     const today = todayKey()
+    // Every plan that is replaced is kept for «رجّع خطتك القديمة» — a
+    // ready-made switch and an import as much as the builder's.
+    keepPrevPlan({ stamps: !!plan })
     setPlan(newPlan)
     setPlanIndex(0)
     setRecoveryCfg(prev => ({
@@ -1123,7 +1126,8 @@ export default function App() {
     }))
     pushAlert(breakStreak ? '⚠️' : '📋',
       breakStreak ? `${newPlan.planName} — بدأ ستريك جديد` : `تم تفعيل: ${newPlan.planName}`)
-  }, [pushAlert])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pushAlert, plan, planIndex])
 
   // ── The plan builder (src/pages/planner) ────────────────────
   // A page of its own over any screen, with five doors: Settings › الخطة,
@@ -1137,6 +1141,35 @@ export default function App() {
   const [planPrev, setPlanPrev] = useState(() => ls.get('hf_plan_prev', null))
   useEffect(() => { ls.set('hf_plan_prev', planPrev) }, [planPrev])
 
+  // The plan in force, saved before it is replaced. `stamps` keeps what
+  // the replacement is about to stamp on the streak's rule (the free
+  // change, a streak reset, the days), so an undo the same day puts the
+  // rule back exactly as it was — the switch never happened.
+  const STAMP_KEYS = ['lastSettingsChangeAt', 'streakResetAt', 'daysPerWeek', 'customPattern', 'patternHistory']
+  const stampOf = (cfg) => Object.fromEntries(STAMP_KEYS.map(k => [k, cfg?.[k] ?? null]))
+  function keepPrevPlan({ stamps = false } = {}) {
+    if (!plan) return
+    const today = todayKey()
+    setPlanPrev({ plan, planIndex, savedAt: today, ...(stamps ? { undo: stampOf(recoveryRef.current) } : null) })
+  }
+
+  // The day reached, carried into an edited plan whose cycle changed
+  // length: the same kind of day if the new cycle has one, else the same
+  // place in it.
+  const carryIndex = (oldPlan, idx, newPlan) => {
+    const n = (newPlan?.weeklySchedule || []).length
+    if (!n) return 0
+    const oldN = (oldPlan?.weeklySchedule || []).length
+    const at = oldN ? ((idx % oldN) + oldN) % oldN : 0
+    const type = oldPlan?.split?.cycle?.[at]
+    const cyc = newPlan?.split?.cycle
+    if (type && Array.isArray(cyc)) {
+      const hit = cyc.indexOf(type)
+      if (hit >= 0 && hit < n) return hit
+    }
+    return at % n
+  }
+
   // Put a plan from the builder in. Editing his own plan is free and
   // keeps the day he reached (when the number of days in the cycle is the
   // same); switching to another plan follows the streak rule, like every
@@ -1144,14 +1177,21 @@ export default function App() {
   // the same stamp: one change, not two. The plan it replaces is kept.
   // `quiet` skips the alert, for a caller with its own (the report's
   // «طبّقها على خطتي» toast, which has an undo).
-  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false, quiet = false } = {}) => {
+  // His first plan (the first run's «أبني خطتي بنفسي», Home with no
+  // plan) is a setup, not a switch: like Onboarding it spends no free
+  // change and never breaks the streak.
+  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false, quiet = false, first = false } = {}) => {
     const today = todayKey()
+    const isFirst = first || !plan
     const daysChange = days != null && days !== recoveryRef.current.daysPerWeek
-    if (plan) setPlanPrev({ plan, planIndex, savedAt: today })
+    const stamps = !isFirst && (!edit || daysChange)
+    keepPrevPlan({ stamps })
     setPlan(newPlan)
-    const sameCycle = edit && plan && (plan.weeklySchedule || []).length === newPlan.weeklySchedule.length
-    if (!sameCycle) setPlanIndex(0)
-    if (!edit || daysChange) {
+    if (!edit || !plan) setPlanIndex(0)
+    else if ((plan.weeklySchedule || []).length !== newPlan.weeklySchedule.length) setPlanIndex(carryIndex(plan, planIndex, newPlan))
+    if (isFirst) {
+      if (daysChange) setRecoveryCfg(prev => withFrequency(prev, { daysPerWeek: days }, today))
+    } else if (stamps) {
       setRecoveryCfg(prev => ({
         ...(daysChange ? withFrequency(prev, { daysPerWeek: days }, today) : prev),
         lastSettingsChangeAt: today,
@@ -1159,25 +1199,35 @@ export default function App() {
       }))
     }
     if (quiet) return
-    pushAlert(breakStreak ? '⚠️' : '📋',
-      breakStreak ? `${newPlan.planName} — بدأ ستريك جديد`
+    const breaks = breakStreak && stamps
+    pushAlert(breaks ? '⚠️' : '📋',
+      breaks ? `${newPlan.planName} — بدأ ستريك جديد`
         : edit ? 'انحفظ تعديل خطتك' : `تم تفعيل: ${newPlan.planName}`)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan, planIndex, pushAlert])
 
   // «رجّع خطتك القديمة»: the saved plan back, at the day it had reached,
   // and the one it replaces saved in its place (so it can go back again).
   // An undo the same day costs nothing; later it is a switch like any.
+  // The same day, it is an undo: the rule goes back to how it was before
+  // the switch (the free change, the streak, the days), and the plan it
+  // replaces keeps today's state so going forward again is the same undo.
   const restorePrevPlan = useCallback(({ breakStreak = false } = {}) => {
     const prev = planPrev
     if (!prev?.plan) return
     const today = todayKey()
-    setPlanPrev(plan ? { plan, planIndex, savedAt: today } : null)
+    const sameDay = prev.savedAt === today
+    const now = stampOf(recoveryRef.current)
+    setPlanPrev(plan ? { plan, planIndex, savedAt: today, ...(sameDay && prev.undo ? { undo: now } : null) } : null)
     setPlan(prev.plan)
     setPlanIndex(prev.planIndex || 0)
-    if (prev.savedAt !== today) {
+    if (sameDay) {
+      if (prev.undo) setRecoveryCfg(p => ({ ...p, ...prev.undo }))
+    } else {
       setRecoveryCfg(p => ({ ...p, lastSettingsChangeAt: today, streakResetAt: breakStreak ? today : p.streakResetAt }))
     }
     pushAlert('↩️', `رجعت خطتك: ${prev.plan.planName}`)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planPrev, plan, planIndex, pushAlert])
 
   // «طبّقها على خطتي»: next month's suggestions written into the plan
@@ -1362,7 +1412,7 @@ export default function App() {
               plan={plan}
               onImportPlan={applyPlanChange}
               onOpenPlanner={openPlanner}
-              onClearPlan={() => { setPlan(null); setPlanIndex(0) }}
+              onClearPlan={() => { keepPrevPlan(); setPlan(null); setPlanIndex(0) }}
               exerciseMapping={exerciseMapping}
               recoveryCfg={recoveryCfg}
               onUpdateRecovery={applyFrequencyChange}
