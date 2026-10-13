@@ -96,7 +96,7 @@
 .rs-sr-btn.prev:focus-visible { right: 16px; }
 
 /* One card on screen at a time; a new one comes in with the story's cut. */
-.rs-story .rs-card { position: absolute; inset: 0; padding: calc(var(--safe-top) + 19cqw) 7cqw calc(var(--safe-bottom) + 8cqw); }
+.rs-story .rs-card { position: absolute; inset: 0; padding: calc(var(--safe-top) + max(19cqw, 7.4cqw + 44px + 8px)) 7cqw calc(var(--safe-bottom) + 8cqw); }
 .rs-story .rs-card.play { animation: rs-cardin .55s var(--rs-ease) both; }
 @keyframes rs-cardin { from { opacity: 0; transform: scale(1.035); filter: blur(1.2cqw); } }
 
@@ -278,6 +278,8 @@
 .rs-card .lc .xsep { position: absolute; top: -2cqw; bottom: -6.5cqw; width: 1px; background: var(--rs-hair2); }
 .rs-card .lc .refl { position: absolute; right: 0; transform: translateY(-118%); font-size: 2.9cqw; color: var(--ink-2); font-weight: 600; white-space: nowrap; line-height: 1.2; }
 .rs-card .lc .refl.lo { right: auto; left: 0; transform: translateY(22%); }
+.rs-card .lc .refl.hi { right: auto; left: 0; transform: translateY(-122%); }
+.rs-card .lc .refl.lo, .rs-card .lc .refl.hi { z-index: 3; background: var(--ground); padding: .3cqw 1.4cqw; margin-left: -1.4cqw; border-radius: var(--r-pill); }
 .rs-card .lc .pt { position: absolute; width: 2.4cqw; height: 2.4cqw; margin: -1.2cqw 0 0 -1.2cqw; border-radius: 50%; background: var(--ink-2); box-shadow: 0 0 0 .55cqw var(--ground); }
 .rs-card .lc .pt.up { background: var(--raise); }
 .rs-card .lc .pt.dl { background: var(--ground); box-shadow: inset 0 0 0 .55cqw var(--deload), 0 0 0 .55cqw var(--ground); }
@@ -455,3 +457,6 @@
   .rs-story .rs-card.play { animation: rs-fade .24s linear both !important; }
   .rs-stage { transition: opacity var(--dur-fast) linear; }
 }
+
+/* Focus starts on the story itself (MonthReport) — no ring around the whole screen. */
+.rs-story:focus { outline: none; }

@@ -138,9 +138,9 @@ export function prIndexOf(sets, maxWeight, deloadPct = 0) {
 // rows' own words («آخر مرة 72.5 كجم × 10 عدّات»), then what to do about
 // it. The dash stays with the first part, so a narrow phone breaks the
 // line after it and the advice («جرّب 77.5 كجم») starts its line whole.
-function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
+function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct, unit }) {
   const t = prog?.target
-  const lead = setParts(prevSet) ? <>آخر مرة <SetPhrase set={prevSet} /></>
+  const lead = setParts(prevSet) ? <>آخر مرة <SetPhrase set={prevSet} unit={unit} /></>
     : lastWeight != null ? <>آخر مرة <span className="s-pair"><Num>{kg(lastWeight)}</Num> كجم</span></>
     : <>أول مرة</>
   const line = (advice) => <>{lead}&nbsp;— <span className="s-coach-adv">{advice}</span></>
@@ -153,9 +153,9 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
         ? line(<>خفّف إلى <Num>{kg(prog.suggestedWeight)}</Num> كجم</>)
         : line(<>خفّف الوزن شوي</>)
     case 'push':
-      return t ? line(<>حاول توصل <Num>{t.top}</Num> {repsWord(t.top)}</>) : lead
+      return t ? line(<>حاول توصل <Num>{t.top}</Num> {repsWord(t.top, unit)}</>) : lead
     default:
-      return t ? line(<>الهدف <Num>{t.base === t.top ? t.base : `${t.base}–${t.top}`}</Num> {repsWord(t.top)}</>) : lead
+      return t ? line(<>الهدف <Num>{t.base === t.top ? t.base : `${t.base}–${t.top}`}</Num> {repsWord(t.top, unit)}</>) : lead
   }
 }
 
@@ -654,7 +654,7 @@ export default function WorkoutPlayer({
       coach={editing != null ? null : coachFor({
         prog, prevSet: prevSets[liveIndex] || prevSets[prevSets.length - 1] || null,
         lastWeight: stats.lastWeight ?? (deloadPct === 0 && Number.isFinite(snapW) && snapW > 0 ? snapW : null),
-        raisedW, deloadPct,
+        raisedW, deloadPct, unit: ex.unit,
       })}
       raise={raiseOn && base != null && editing == null ? {
         base, raised: raisedW,

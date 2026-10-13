@@ -65,12 +65,12 @@ export default function SetHistory({
   ex, liveIndex, currentIndex, editingIndex, prevSets = [], freshIndex = null, prIndex = null,
   holdIndex = null, onEdit, live,
 }) {
-  const hasHistory = ex.sets.some((_, i) => i !== liveIndex && setWords(prevSets[i]))
+  const hasHistory = ex.sets.some((_, i) => i !== liveIndex && setWords(prevSets[i], ex.unit))
   return (
     <div className="s-table" role="list" aria-label="المجموعات" data-history={hasHistory ? '1' : undefined} data-ex={ex.id}>
       {ex.sets.map((s, i) => {
         if (i === liveIndex && live) return <div key={i} role="listitem" className="s-trow-live">{live}</div>
-        const prev = setWords(prevSets[i])
+        const prev = setWords(prevSets[i], ex.unit)
         const isPR = i === prIndex
         const w = kg(s.weight)
         const r = parseInt(s.reps)
@@ -86,11 +86,11 @@ export default function SetHistory({
             </span>
             <span className="s-cell-x" aria-hidden="true">{w && r > 0 ? '×' : null}</span>
             <span className="s-cell-reps">
-              {r > 0 && <><Num>{r}</Num><span className="s-unit">{repsWord(r)}</span></>}
+              {r > 0 && <><Num>{r}</Num><span className="s-unit">{repsWord(r, ex.unit)}</span></>}
             </span>
             {prev && (
               <span className="s-cell-prev">
-                <span className="s-prev-label">آخر مرة</span> <SetPhrase set={prevSets[i]} />
+                <span className="s-prev-label">آخر مرة</span> <SetPhrase set={prevSets[i]} unit={ex.unit} />
               </span>
             )}
             <span className="s-cell-tick"><Tick on={s.done} fresh={i === freshIndex} pr={isPR} hold={i === holdIndex} /></span>
@@ -101,7 +101,7 @@ export default function SetHistory({
             {s.done ? (
               <button type="button" className="s-trow" data-state={state} data-set={i} data-prev={prev ? '1' : undefined}
                 data-editing={i === editingIndex ? '1' : undefined} data-fresh={i === freshIndex ? '1' : undefined}
-                aria-label={`المجموعة ${i + 1}: ${setWords(s) || 'فاضية'}${isPR ? ' — رقم قياسي' : ''}${prev ? ` — آخر مرة ${prev}` : ''} — اضغط للتعديل`}
+                aria-label={`المجموعة ${i + 1}: ${setWords(s, ex.unit) || 'فاضية'}${isPR ? ' — رقم قياسي' : ''}${prev ? ` — آخر مرة ${prev}` : ''} — اضغط للتعديل`}
                 onClick={() => onEdit(i)}>
                 {body}
               </button>

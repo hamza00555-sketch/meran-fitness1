@@ -6,14 +6,14 @@ import { setParts, repsWord } from './sessionWords.js'
 // the same words as text). Each number stays on a line with its unit; a
 // narrow column may break at «×», never between a number and its unit.
 
-export default function SetPhrase({ set, className }) {
+export default function SetPhrase({ set, className, unit }) {
   const p = setParts(set)
   if (!p) return null
   return (
     <span className={className ? `s-phrase ${className}` : 's-phrase'}>
       {p.w && <span className="s-pair"><Num>{p.w}</Num> كجم</span>}
       {p.w && p.r ? ' × ' : null}
-      {p.r ? <span className="s-pair"><Num>{p.r}</Num> {repsWord(p.r)}</span> : null}
+      {p.r ? <span className="s-pair"><Num>{p.r}</Num> {repsWord(p.r, unit)}</span> : null}
     </span>
   )
 }

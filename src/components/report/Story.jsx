@@ -111,6 +111,7 @@ export default function Story({ report, cards, ctx, onDone, onClose }) {
   return (
     <div className={`rs-story${paused ? ' paused' : ''}${stopped ? ' stopped' : ''}`}
       role="region" aria-roledescription="قصة" aria-label={`تقرير ${report.monthLabel}، بطاقة ${i + 1} من ${cards.length}`}
+      tabIndex={-1}
       data-card-now={id}>
       <div ref={stage} className="rs-stage"
         style={{

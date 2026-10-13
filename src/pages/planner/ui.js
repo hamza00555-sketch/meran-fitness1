@@ -1621,8 +1621,10 @@ on(HOST, 'click', (e) => {
           <li><b><bdi>${esc(PREV.name)}</bdi></b><span>ترجع من اليوم اللي وصلت له فيها، وخطتك الحالية تنحفظ مكانها عشان ترجع لها لو بغيت.</span></li>
           ${sameDay ? `<li><b>ببلاش</b><span>${PREV.undo ? 'بدّلتها اليوم، فالرجوع يلغي التبديل كأنه ما صار: ما يحسب تغيير، والستريك يرجع زي ما كان.' : 'بدّلتها اليوم، فالرجوع ما يحسب تغيير.'}</span></li>` : ruleFact(false, false)}
         </ul>
-        <button class="btn-primary" data-act="restore-yes">رجّعها</button>
-        <button class="btn-quiet" data-act="close-sheet" style="width:100%">ارجع</button>`)
+        <div class="sh-foot">
+          <button class="btn-primary" data-act="restore-yes">رجّعها</button>
+          <button class="btn-quiet" data-act="close-sheet" style="width:100%">ارجع</button>
+        </div>`)
     }
     case 'restore-yes': {
       const sameDay = prevSameDay()
@@ -1801,8 +1803,10 @@ on(HOST, 'click', (e) => {
           ${ruleFact(edit, daysChange)}
           ${FIRST ? '' : `<li><b>${edit ? 'النسخة اللي قبل التعديل تنحفظ' : 'خطتك القديمة تنحفظ'}</b><span>ترجع لها بضغطة لو ما عجبتك. وتمارينك القديمة وأوزانك تبقى، والتصميم القديم يقرا نفس الخطة.</span></li>`}
         </ul>
-        <button class="btn-primary" data-act="activate">${breaksFor(edit, daysChange) ? (edit ? 'احفظ واكسر الستريك' : 'فعّل واكسر الستريك') : edit ? 'احفظ' : 'فعّل الخطة'}</button>
-        <button class="btn-quiet" data-act="close-sheet" style="width:100%">ارجع</button>`)
+        <div class="sh-foot">
+          <button class="btn-primary" data-act="activate">${breaksFor(edit, daysChange) ? (edit ? 'احفظ واكسر الستريك' : 'فعّل واكسر الستريك') : edit ? 'احفظ' : 'فعّل الخطة'}</button>
+          <button class="btn-quiet" data-act="close-sheet" style="width:100%">ارجع</button>
+        </div>`)
     }
     case 'activate': {
       const edit = S.mode === 'current', daysChange = S.days !== SETTINGS.days

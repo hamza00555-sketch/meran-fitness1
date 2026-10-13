@@ -757,6 +757,22 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   await ctx.close()
 }
 
+// The keyboard in the story: focus starts on the story, so Space holds
+// it instead of pressing × and closing the report.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { story: true })
+  await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
+  await page.waitForTimeout(1500)
+  const focus = await page.evaluate(() => document.activeElement?.className || '')
+  await page.keyboard.press(' ')
+  await page.waitForTimeout(400)
+  const st = await page.evaluate(() => ({ open: !!document.querySelector('.rp'), paused: !!document.querySelector('.rs-story.paused') }))
+  ok('story, keyboard: focus starts on the story, not on ×', /rs-story/.test(focus), focus)
+  ok('story, keyboard: Space holds it and the report stays open', st.open && st.paused, JSON.stringify(st))
+  ok('story, keyboard: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ 9. «طبّقها على خطتي», and the goal ════════════════════════
 // After the tap only: the plan's sets for the muscle that fell short, the
 // weights the next sessions start at, and next month's goal — and «تراجع»

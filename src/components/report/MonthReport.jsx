@@ -181,7 +181,9 @@ export default function MonthReport({
     }
     window.addEventListener('keydown', onKey)
     const release = lockScroll()
-    const first = root.current?.querySelector('.rs-x') || closeBtn.current
+    // The story itself, not its ×: Space then holds the story (Story.jsx)
+    // instead of pressing «إغلاق» and closing the whole report.
+    const first = root.current?.querySelector('.rs-story') || closeBtn.current
     first?.focus?.({ preventScroll: true, focusVisible: false })
     return () => {
       window.removeEventListener('keydown', onKey)

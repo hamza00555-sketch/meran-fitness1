@@ -6,7 +6,7 @@ import RollNumber from '../RollNumber.jsx'
 import { primeAudio } from './sessionAudio.js'
 import { play } from '../../sound.js'
 import { animate, reducedMotion, EASE } from '../../motion.js'
-import { kg, setWords, repsWord } from './sessionWords.js'
+import { kg, setWords, repsWord, repsLabel } from './sessionWords.js'
 
 // ── The live block: the set being worked ──────────────────────
 //
@@ -393,7 +393,7 @@ export default function WorkingArea({
   }
 
   const showKeep = !!raise && raise.base != null && Number.isFinite(w) && w !== raise.base
-  const prev = setWords(prevSet)
+  const prev = setWords(prevSet, ex.unit)
   // «حط أرقام آخر مرة» only when it would change something.
   const prevW = kg(prevSet?.weight)
   const prevR = parseInt(prevSet?.reps)
@@ -460,7 +460,7 @@ export default function WorkingArea({
         onStep={(dir, repeat) => { stepped('weight', repeat); onStepSet(setIndex, 'weight', dir * 2.5) }}
       />
       <Stepper
-        field="reps" value={set.reps} unit={repsWord(parseInt(set.reps))} unitLabel="العدّات"
+        field="reps" value={set.reps} unit={repsWord(parseInt(set.reps), ex?.unit)} unitLabel={repsLabel(ex?.unit)}
         inputTestId="reps-input"
         overlay={repsShown} onOverlayGone={() => setRepsOverlay(null)}
         onInput={v => onUpdateSet(setIndex, 'reps', v)}

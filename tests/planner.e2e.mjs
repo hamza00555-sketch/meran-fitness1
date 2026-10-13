@@ -174,7 +174,7 @@ let saved = null
   await page.getByText('ابنِ خطتك على كيفك').click(); await settle(page, 900)
   await page.getByText('عدّل خطتك الحالية').click(); await settle(page, 900)
   ok('his plan: opens on the cards', await screenOn(page, 'deck').count() === 1)
-  ok('his plan: «4 أيام · دفع · سحب · رجل»', (await page.locator('.basics-line').innerText()).includes('دفع · سحب · رجل') && (await page.locator('.basics-line').innerText()).includes('4 أيام'))
+  ok('his plan: «4 أيام · دفع · سحب · أرجل»', (await page.locator('.basics-line').innerText()).includes('دفع · سحب · أرجل') && (await page.locator('.basics-line').innerText()).includes('4 أيام'))
   ok('his plan: 6 of 7 muscles covered', (await page.locator('#cov-n').innerText()).trim() === '6')
   await shot(page, 'deck-current')
 
@@ -523,6 +523,23 @@ async function autoPlanFromStart(page) {
   const picks = await page.evaluate(() => window.__planner.state().picks.filter(p => p.id === 'cable_hammer_curl').length)
   ok('much + swipe back + تراجع: one pick, not two', picks === 1, String(picks))
   ok('much + swipe: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+
+{
+  // A timed move from the plan: the session counts its seconds.
+  const timed = { planId: 'timed_test', planName: 'تجربة', daysPerWeek: '4', weeklySchedule: [
+    { name: 'Lower — بطن', exercises: [{ name: 'Plank', muscle: 'Core', sets: 3, repsMin: 30, repsMax: 45, restSeconds: 60, unit: 'sec' }] },
+    { name: 'Upper — صدر', exercises: [{ name: 'Bench Press', muscle: 'Chest', sets: 3, repsMin: 8, repsMax: 10 }] },
+  ] }
+  const { ctx, page, errors } = await phone({ plan: timed, planIndex: 0 })
+  await page.getByRole('button', { name: /ابدأ/ }).first().click(); await settle(page, 1500)
+  const active = await get(page, 'hf_active')
+  ok('timed: the session carries the plan\'s unit', active?.exercises?.[0]?.unit === 'sec')
+  const text = await page.locator('[data-testid="session-cover"]').innerText().catch(() => '')
+  ok('timed: the target is in seconds', /30–45\s*ثانية/.test(text) || /الهدف[\s\S]*ثانية/.test(text), text.replace(/\s+/g, ' ').slice(0, 300))
+  ok('timed: never «عدّة» beside the seconds', !/30–45\s*عدّة/.test(text))
+  ok('timed: no page errors', errors.length === 0, errors.join(' | '))
   await ctx.close()
 }
 

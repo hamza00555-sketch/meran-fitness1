@@ -390,6 +390,12 @@
 .pb .alt b { display: block; font-size: 15.5px; font-weight: 800; }
 .pb .alt small { font-size: 12px; color: var(--ink3); }
 .pb .sh-acts { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+/* The sheet's answer stays on screen however long the facts run (320×568):
+   pinned to the bottom of the scrolling sheet, with a fade above it that
+   says there is more to read behind it. */
+.pb .sheet:has(> .sh-foot) { padding-bottom: 0; }
+.pb .sh-foot { position: sticky; bottom: 0; z-index: 1; display: flex; flex-direction: column; gap: 4px; margin: 0 calc(-1 * var(--g)); padding: 10px var(--g) calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--s2); }
+.pb .sh-foot::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 28px; background: linear-gradient(to top, var(--s2), transparent); pointer-events: none; }
 .pb .sh-title { font-size: 26px; font-weight: 800; margin: 2px 0 12px; }
 .pb .facts { list-style: none; padding: 0; margin: 0 0 20px; display: flex; flex-direction: column; }
 .pb .facts li { padding: 12px 0; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 2px; }
@@ -670,6 +676,10 @@
   .pb .deck { gap: 8px; }
   .pb .mcard { height: 190px; }
   .pb .mc-art img { width: 128px; height: 128px; }
+  /* the picked exercises' thumbnails stay clear of the coverage ring */
+  .pb .mc-stack { top: 14px; left: 8px; }
+  .pb .mc-stack .st { width: 26px; height: 26px; border-radius: 8px; margin-left: -12px; }
+  .pb .mc-stack .st.more { font-size: 10px; }
   .pb .mc-name { font-size: 21px; }
   .pb .mc-status { font-size: 11px; }
   .pb .xc-in { grid-template-columns: 76px 1fr 24px; gap: 10px; padding: 8px 8px 8px 8px; }

@@ -81,10 +81,10 @@ const TYPE = {
    «حر» is always last. A system is only a cycle of day types. */
 const SPL = {
   full2: { ar: 'جسم كامل', cycle: ['full', 'full'] },
-  ppl:   { ar: 'دفع · سحب · رجل', cycle: ['push', 'pull', 'legs'] },
+  ppl:   { ar: 'دفع · سحب · أرجل', cycle: ['push', 'pull', 'legs'] },
   ul:    { ar: 'علوي · سفلي', cycle: ['upper', 'lower', 'upper', 'lower'] },
-  pplul: { ar: 'دفع · سحب · رجل · علوي · سفلي', cycle: ['push', 'pull', 'legs', 'upper', 'lower'] },
-  ppl2:  { ar: 'دفع · سحب · رجل، مرتين', cycle: ['push', 'pull', 'legs', 'push', 'pull', 'legs'] },
+  pplul: { ar: 'دفع · سحب · أرجل · علوي · سفلي', cycle: ['push', 'pull', 'legs', 'upper', 'lower'] },
+  ppl2:  { ar: 'دفع · سحب · أرجل، مرتين', cycle: ['push', 'pull', 'legs', 'push', 'pull', 'legs'] },
   bro:   { ar: 'عضلة لكل يوم', cycle: ['chestd', 'backd', 'legs', 'shoulders', 'arms'] },
   free:  { ar: 'حر: أبنيها بنفسي', cycle: null },
 }
@@ -415,8 +415,8 @@ function gapWords(g, plan) {
     return { title: `${L}: ${setsWord(n0(g.cur))} بالأسبوع بس`, sub: `${fem(g.a) ? 'تحتاج' : 'يحتاج'} ${need} على الأقل، والأحسن ${g.t[1]} إلى ${g.t[2]}`, why: 'volume' }
   }
   if (g.type === 'rare') return { title: `${g.pair === 'back' ? 'الظهر' : L}: مرة وحدة بالأسبوع`, sub: 'العضلة تكبر أكثر لو تمرّنها مرتين', why: 'freq' }
-  if (g.pair === 'back') return { title: 'الظهر أقل من الصدر بكثير', sub: `الصدر ${setsWord(g.ref)} بالأسبوع، والظهر ${setsWord(g.cur)} بس`, why: 'push' }
-  return { title: 'الفخذ الخلفي أقل من الأمامي بكثير', sub: `الأمامي ${setsWord(g.ref)} بالأسبوع، والخلفي ${setsWord(g.cur)} بس`, why: 'kubo' }
+  if (g.pair === 'back') return { title: 'الظهر أقل من الصدر بكثير', sub: `الصدر ${setsWord(n0(g.ref))} بالأسبوع، والظهر ${setsWord(n0(g.cur))} بس`, why: 'push' }
+  return { title: 'الفخذ الخلفي أقل من الأمامي بكثير', sub: `الأمامي ${setsWord(n0(g.ref))} بالأسبوع، والخلفي ${setsWord(n0(g.cur))} بس`, why: 'kubo' }
 }
 
 function whyText(g, plan, how) {

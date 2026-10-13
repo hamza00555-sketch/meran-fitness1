@@ -62,9 +62,16 @@ export function setsPhrase(n) {
  * setsPhrase (3–10 take the plural). 1 and 2 keep «عدّة»: beside a digit
  * it reads as the unit, the way «كجم» does.
  */
-export function repsWord(n) {
+export function repsWord(n, unit) {
+  // A timed move from the plan counts seconds or minutes, not reps
+  // (the builder's plank 30–45 «ثانية», its treadmill 20 «دقيقة»).
+  if (unit === 'sec') return n >= 3 && n <= 10 ? 'ثواني' : 'ثانية'
+  if (unit === 'min') return n >= 3 && n <= 10 ? 'دقائق' : 'دقيقة'
   return n >= 3 && n <= 10 ? 'عدّات' : 'عدّة'
 }
+
+/** What the reps field holds, said as its label: «العدّات» / «الثواني». */
+export const repsLabel = (unit) => unit === 'sec' ? 'الثواني' : unit === 'min' ? 'الدقائق' : 'العدّات'
 
 /**
  * The sets of the last real session that had this exercise, in order —
@@ -94,11 +101,11 @@ export function previousSets(sessions, name, mapping = {}) {
  * '' with neither. Weight first, units always: «72.5×9» was shorthand to
  * decode, and in an RTL line it put the reps where the weight is read.
  */
-export function setWords(s) {
+export function setWords(s, unit) {
   const p = setParts(s)
   if (!p) return ''
   const w = p.w ? `${p.w} كجم` : ''
-  const r = p.r ? `${p.r} ${repsWord(p.r)}` : ''
+  const r = p.r ? `${p.r} ${repsWord(p.r, unit)}` : ''
   return w && r ? `${w} × ${r}` : w || r
 }
 

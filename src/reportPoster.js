@@ -277,6 +277,33 @@ function cross(ctx, x, y, s) {
   ctx.restore()
 }
 
+/** A ticket, outlined: a rounded card with a notch in each side. */
+function ticketGlyph(ctx, cx, cy, w) {
+  const h = w * 0.62, r = h * 0.18, n = h * 0.2
+  const l = cx - w / 2, t = cy - h / 2, rr = cx + w / 2, b = cy + h / 2
+  ctx.save()
+  ctx.beginPath()
+  ctx.moveTo(l + r, t)
+  ctx.lineTo(rr - r, t)
+  ctx.arcTo(rr, t, rr, t + r, r)
+  ctx.lineTo(rr, cy - n)
+  ctx.arc(rr, cy, n, -Math.PI / 2, Math.PI / 2, true)
+  ctx.lineTo(rr, b - r)
+  ctx.arcTo(rr, b, rr - r, b, r)
+  ctx.lineTo(l + r, b)
+  ctx.arcTo(l, b, l, b - r, r)
+  ctx.lineTo(l, cy + n)
+  ctx.arc(l, cy, n, Math.PI / 2, -Math.PI / 2, true)
+  ctx.lineTo(l, t + r)
+  ctx.arcTo(l, t, l + r, t, r)
+  ctx.closePath()
+  ctx.strokeStyle = D.rest
+  ctx.lineWidth = Math.max(3, w * 0.07)
+  ctx.lineJoin = 'round'
+  ctx.stroke()
+  ctx.restore()
+}
+
 /** The month's squares, lit like the calendar card, no numbers. */
 function monthSquares(ctx, report, { top, w }) {
   const cal = report.consistency?.calendar || []
@@ -313,9 +340,12 @@ function monthSquares(ctx, report, { top, w }) {
       ctx.stroke()
       cross(ctx, x + cell / 2, yy + cell / 2, cell * 0.16)
     } else if (day.kind === 'paid') {
+      // The same ticket the story's calendar shows, so a shared poster
+      // never reads it as a plain rest day.
       ctx.strokeStyle = D.rest
       ctx.lineWidth = 3
       ctx.stroke()
+      ticketGlyph(ctx, x + cell / 2, yy + cell / 2, cell * 0.5)
     } else {
       ctx.strokeStyle = 'rgba(255,255,255,0.10)'
       ctx.lineWidth = 2

@@ -93,6 +93,24 @@ test('opening his plan and saving it unchanged keeps a back-off row and his card
   assert.ok(rows.some(r => r.startsWith('Treadmill Run 3x')), rows.join(' | '))
 })
 
+test('a timed move from the plan counts seconds or minutes in the session, never «عدّة»', async () => {
+  const { repsWord, setWords, repsLabel } = await import('../src/components/player/sessionWords.js')
+  assert.equal(repsWord(30, 'sec'), 'ثانية')
+  assert.equal(repsWord(5, 'sec'), 'ثواني')
+  assert.equal(repsWord(20, 'min'), 'دقيقة')
+  assert.equal(repsWord(12), 'عدّة')
+  assert.equal(setWords({ weight: '', reps: '45' }, 'sec'), '45 ثانية')
+  assert.equal(repsLabel('min'), 'الدقائق')
+})
+
+test('the hamstring number reads the same before and after «كمّل خطتي»', () => {
+  // the gap row and the «كان ← صار» line count with one helper (n0)
+  const g = { a: 'hams', type: 'lop', cur: 4.67, ref: 17.1, pair: 'legs' }
+  const w = B.gapWords(g, { days: [] })
+  assert.match(w.sub, new RegExp(`والخلفي ${B.setsWord(B.n0(4.67))} بس`))
+  assert.match(w.sub, /الأمامي 17 مجموعة/)
+})
+
 const RS = await import('../src/reportStory.js')
 
 test('«طبّقها» is remembered per month, and its undo forgets it', () => {

@@ -14,6 +14,17 @@ const pc = (n) => `${n}%`
  * above the old best is drawn gold — a new weight — and the record's dot
  * pulses with its weight and day over it. `refLabel` names the line.
  */
+/** Which side of the old-best line its label goes: under it, unless the
+ *  line's own points run just under it where the label sits — then over
+ *  it. The label also wears the ground as a pill, so a line never runs
+ *  through its words. */
+function refSide(pts = [], refY, from = 0) {
+  const near = (lo, hi) => pts.some(p => p.x >= from - 2 && p.x <= from + 48 && p.y > lo && p.y < hi)
+  if (!near(refY, refY + 14)) return 'lo'
+  if (!near(refY - 14, refY)) return 'hi'
+  return 'lo'
+}
+
 export function LineChart({ chart, label, refLabel, gold = true, height = '68cqw', prTag = null, unit = 'كجم' }) {
   const id = useSvgId('lc')
   if (!chart) return null
@@ -33,7 +44,7 @@ export function LineChart({ chart, label, refLabel, gold = true, height = '68cqw
         ))}
         {refY != null && <i className="gl ref" style={{ top: pc(refY) }} />}
         {refY != null && refLabel && (
-          <span className="refl lo" style={{ top: pc(refY), ...(deloads.length ? { left: '22%' } : null) }}>{refLabel}</span>
+          <span className={`refl ${refSide(pts, refY, deloads.length ? 22 : 0)}`} style={{ top: pc(refY), ...(deloads.length ? { left: '22%' } : null) }}>{refLabel}</span>
         )}
         <svg className="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           <defs>
