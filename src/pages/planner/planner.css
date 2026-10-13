@@ -712,3 +712,14 @@
 .pb .gt, .pb .gs, .pb .xc-ar, .pb .pr-ar, .pb .ad-t b, .pb .door-t, .pb .rl-t, .pb .sp-top b, .pb .facts span { overflow-wrap: anywhere; }
 .pb .xc-en { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .pb .toast span { overflow-wrap: anywhere; }
+.pb .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+/* a long group name and its hint share a line only when both fit */
+.pb .grp-h { flex-wrap: wrap; row-gap: 2px; }
+.pb .grp-h b { flex: none; }
+.pb .grp-h span { flex: 1 1 120px; }
+@container scr (max-width: 350px) {
+  /* a plan row: the name gets the whole line, the numbers go under it */
+  .pb .pr-top { flex-wrap: wrap; row-gap: 2px; }
+  .pb .pr-ar { flex-basis: 100%; }
+  .pb .pr-sets { flex-direction: row; align-items: baseline; gap: 6px; }
+}

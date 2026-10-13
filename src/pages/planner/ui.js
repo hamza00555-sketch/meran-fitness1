@@ -181,7 +181,7 @@ const PREF = ['dumbbell', 'machine', 'cable', 'barbell', 'cardio']
 /* ── words ── */
 const exWord = (n) => n === 0 ? 'ولا تمرين' : n === 1 ? 'تمرين واحد' : n === 2 ? 'تمرينين' : n <= 10 ? n + ' تمارين' : n + ' تمرين'
 const rng = (it) => it.r[0] === it.r[1] ? `${it.r[0]}` : `${it.r[0]}–${it.r[1]}`
-const repsWord = (it) => it.mins ? 'جلسة 20 دقيقة' : it.unit === 'sec' ? `${rng(it)} ثانية` : `${rng(it)} عدّة`
+const repsWord = (it) => it.mins ? 'جلسة 20 دقيقة' : `<span class="ltr">${rng(it)}</span> ${it.unit === 'sec' ? 'ثانية' : 'عدّة'}`
 const setsLbl = (it) => it.mins ? '20 د' : `${it.sets} × ${rng(it)}${it.unit === 'sec' ? 'ث' : ''}`
 const setsCap = (it) => it.mins ? 'جلسة كارديو' : it.unit === 'sec' ? 'مجموعات × ثواني' : 'مجموعات × عدّات'
 const restLbl = (s) => s < 120 ? `${s} ث` : `${(s / 60) % 1 ? Math.floor(s / 60) + '½' : s / 60} د`
@@ -1503,7 +1503,7 @@ ENTER.done = function () {
     <h2 class="title" style="font-size:40px">${S.mode === 'current' ? 'انحفظ التعديل' : 'خطتك شغّالة'}</h2>
     <p class="sub">${S.mode === 'current' ? 'نفس خطتك ونفس اليوم اللي وصلت له.' : 'تبدأ من اليوم الأول.'} هذا شكل الرئيسية في يوم تمرينك الجاي:</p>
     <div class="stage"><img class="st-art" src="${IMG[art]}" alt=""><div class="st-txt"><div class="eyebrow">اليوم</div><div class="st-word">${L.ar}${L.v ? `<sup style="font-size:.4em">${L.v}</sup>` : ''}</div><div class="st-m">${dayMuscles(d).join('، ')}</div><div class="st-x"><span class="num">${d.items.length}</span> تمارين · ≈ <span class="num">${Math.round(dayMinutes(d))}</span> د</div></div></div>
-    <div class="st-rows">${d.items.slice(0, 3).map(it => `<div class="st-row"><span class="pr-img"><img src="${IMG['ex_' + it.id]}" alt=""></span><div><b>${EXI[it.id].ar}</b><span class="st-sr">${it.mins ? 'جلسة 20 دقيقة' : `<bdi dir="ltr">${it.sets} × ${rng(it)}</bdi>${it.unit === 'sec' ? ' ثانية' : ' عدّة'} · راحة ${restLbl(it.rest)}`}</span></div></div>`).join('')}</div>
+    <div class="st-rows">${d.items.slice(0, 3).map(it => `<div class="st-row"><span class="pr-img"><img src="${IMG['ex_' + it.id]}" alt=""></span><div><b>${EXI[it.id].ar}</b><span class="st-sr">${it.mins ? 'جلسة 20 دقيقة' : `<span class="ltr">${it.sets} × ${rng(it)}</span>${it.unit === 'sec' ? ' ثانية' : ' عدّة'} · راحة ${restLbl(it.rest)}`}</span></div></div>`).join('')}</div>
     ${PREV ? `<button class="row-link prev-row" data-act="restore-prev"><span class="rl-thumb">${ic('undo', 20)}</span><span class="rl-t">خطتك القديمة محفوظة<small>${PREV.name} · ترجع لها بضغطة</small></span>${ic('chev', 18)}</button>` : ''}
   </div>
   <div class="dock"><button class="btn-primary" data-act="start-workout">ابدأ التمرين</button></div>`
@@ -1547,10 +1547,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
    changing the days) is free once a month; editing his plan is free. */
 const cooldown = () => Number(ctx.changeCooldownLeft) || 0
 const breaksFor = (edit, daysChange) => cooldown() > 0 && (!edit || daysChange)
+const streakWord = () => (ctx.currentStreak || 0) > 0 ? ` (${countAr(ctx.currentStreak, 'day')})` : ''
 function ruleFact(edit, daysChange) {
   if (edit && !daysChange) return `<li><b>التعديل ببلاش</b><span>تعدّل خطتك نفسها متى ما تبي، وما يلمس الستريك.</span></li>`
-  if (breaksFor(edit, daysChange)) return `<li class="danger"><b>${edit ? 'تغيير الأيام' : 'التبديل'} الحين يكسر الستريك</b><span>بدّلت قبل أقل من 30 يوم، فالستريك (${countAr(ctx.currentStreak || 0, 'day')}) يبدأ من الصفر. التغيير المجاني الجاي بعد ${countAr(cooldown(), 'day')}.</span></li>`
-  return `<li><b>${edit ? 'تغيير الأيام' : 'تبديل الخطة'} بالقاعدة</b><span>أول تغيير بالشهر ما يأثر، والستريك (${countAr(ctx.currentStreak || 0, 'day')}) محفوظ. لو غيّرت مرة ثانية خلال 30 يوم ينكسر.</span></li>`
+  if (breaksFor(edit, daysChange)) return `<li class="danger"><b>${edit ? 'تغيير الأيام' : 'التبديل'} الحين يكسر الستريك</b><span>بدّلت قبل أقل من 30 يوم، فالستريك${streakWord()} يبدأ من الصفر. التغيير المجاني الجاي بعد ${countAr(cooldown(), 'day')}.</span></li>`
+  return `<li><b>${edit ? 'تغيير الأيام' : 'تبديل الخطة'} بالقاعدة</b><span>أول تغيير بالشهر ما يأثر، والستريك${streakWord()} محفوظ. لو غيّرت مرة ثانية خلال 30 يوم ينكسر.</span></li>`
 }
 let closing = false
 function close() {
@@ -1785,7 +1786,7 @@ on(HOST, 'click', (e) => {
     }
   }
 })
-on(HOST, 'keydown', (e) => {
+on(document, 'keydown', (e) => {
   if (e.key !== 'Escape') return
   if ($('#bld')) return $('#bld').click()
   if ($('#sheet')) return closeSheet()
