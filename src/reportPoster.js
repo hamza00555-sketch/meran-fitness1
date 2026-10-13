@@ -10,9 +10,9 @@
 // surprises anywhere else.
 //
 // The layout is «تحت الأضواء»: near-black ground, one neutral stage
-// light, the month's total as a broadcast number, figures on hairlines
-// instead of tiles, gold only on the weight that went up, orange only
-// on the streak, and the real wordmark — never a typed «مران». Every
+// light, the month's sessions as a lit number over its squares,
+// figures on hairlines, gold only on the weight that went up, orange only
+// on the streak, and the real wordmark (never a typed «مران»). Every
 // piece of content sits between y≈250 and y≈1600, clear of the Stories
 // header above and the reply bar below.
 //
@@ -428,7 +428,7 @@ export async function drawPrPoster(canvas, { report, profile = {}, mapping = {} 
   const w = metalText(ctx, kg, R, base, { size: 300, gold: true })
   text(ctx, 'كجم', R - w - 26, base - 8, { size: 56, weight: 700, color: C.ink2 })
   const gain = Math.round((j.weight - j.prevBest) * 10) / 10
-  text(ctx, `${fromWord(j)} ${kgText(j.prevBest)} كجم · ⁦+${AR(gain)}⁩ كجم`, R, base + 74, { size: 38, weight: 600, color: C.ink2, maxWidth: COL })
+  text(ctx, `${fromWord(j)} ${kgText(j.prevBest)} كجم · زاد ${AR(gain)} كجم`, R, base + 74, { size: 38, weight: 600, color: C.ink2, maxWidth: COL })
 
   // The line, as on the card.
   const chart = jumpChart(j, report.month)

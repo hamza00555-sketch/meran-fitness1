@@ -1,6 +1,4 @@
-// The seeded history the report's browser checks run on (report.e2e.mjs),
-// shared with the script that records the story for review
-// (scripts/report-story-shots.mjs).
+// The seeded history the report's browser checks run on (report.e2e.mjs).
 
 
 // ── Three months of push / pull / legs ────────────────────────

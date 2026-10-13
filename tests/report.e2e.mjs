@@ -33,7 +33,9 @@ const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
 const browser = await chromium.launch()
 
 /** A page with the clock pinned to `iso` and a seeded history. */
-async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = false, goals = null } = {}) {
+// The story plays the first time a month opens; most checks here read
+// the summary, so unless `story` is asked for, every month is seen.
+async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = false, goals = null, story = false, photos = null, plan = null } = {}) {
   const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices['iPhone 13'], viewport: { width: 390, height: 844 },
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -46,7 +48,21 @@ async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = f
   // run sees the same fallback art whatever the pack holds.
   await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
 
-  await page.addInitScript(([sessions, recovery, iso, version, goals, unlocked]) => {
+  await page.addInitScript(([sessions, recovery, iso, version, goals, unlocked, story, photos, plan]) => {
+    const real = Date
+    const fixed = new real(iso).getTime()
+    class D extends real {
+      constructor(...a) { return a.length ? new real(...a) : new real(fixed) }
+      static now() { return fixed }
+    }
+    globalThis.Date = D
+    // Seeded once per phone: a reload keeps what the app wrote since
+    // (a story seen, a goal set, a plan changed).
+    if (localStorage.getItem('__seeded')) return
+    localStorage.setItem('__seeded', '1')
+    if (!story) localStorage.setItem('hf_report_seen', JSON.stringify({ '2026-01': true, '2026-02': true, '2026-03': true, '2026-04': true }))
+    if (photos) localStorage.setItem('hf_photos', JSON.stringify(photos))
+    if (plan) localStorage.setItem('hf_plan', JSON.stringify(plan))
     localStorage.setItem('hf_sessions', JSON.stringify(sessions))
     // Every achievement already held, so no medal or level-up
     // celebration lands on top of the report mid-test; two of them
@@ -67,15 +83,7 @@ async function open(iso, { sessions = SESSIONS, recovery = RECOVERY, reduced = f
     // cutoff and hide every new weight.
     localStorage.setItem('hf_weights_reset_v2', 'true')
     if (goals) localStorage.setItem('hf_month_goal', JSON.stringify(goals))
-
-    const real = Date
-    const fixed = new real(iso).getTime()
-    class D extends real {
-      constructor(...a) { return a.length ? new real(...a) : new real(fixed) }
-      static now() { return fixed }
-    }
-    globalThis.Date = D
-  }, [sessions, recovery, iso, APP_VERSION, goals, ACHIEVEMENTS.map(a => a.id)])
+  }, [sessions, recovery, iso, APP_VERSION, goals, ACHIEVEMENTS.map(a => a.id), story, photos, plan])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1400)
@@ -151,13 +159,17 @@ for (const [iso, expect, label] of WINDOW) {
 
 // ══ 2. The report ═════════════════════════════════════════════
 
-const QUESTIONS = ['متى تمرّنت؟', 'صرت أقوى؟', 'وين راح شغلك؟', 'خطة أبريل', 'كل الأرقام', 'الشهور اللي فاتت']
+// The summary: the story's cards stacked, then the two plain sections.
+const CARD_ORDER = ['cover', 'cal', 'jump', 'lifts', 'muscles', 'goal', 'next', 'share']
+const QUESTIONS = ['كل الأرقام', 'الشهور اللي فاتت']
 
-async function openReport(page) {
-  await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
-  // No opening sequence to skip: the cover is the first frame.
-  await page.waitForTimeout(1200)
+async function openReport(page, month = 'مارس 2026') {
+  await page.getByText(`تقرير ${month}`, { exact: false }).first().dispatchEvent('click')
+  // The cover counts its sessions up with its dashes; let it land.
+  await page.waitForTimeout(2600)
 }
+
+const stackCards = (page) => page.evaluate(() => [...document.querySelectorAll('.rs-stack .rs-card')].map(c => c.dataset.card))
 
 // Walk the whole report so every section has had its entrance.
 async function scrollThrough(page) {
@@ -215,7 +227,7 @@ async function shoot(page, name) {
 }
 
 {
-  const goals = { '2026-03': { kind: 'sessions', target: 20 } }
+  const goals = { '2026-03': { kind: 'sessions', target: 22 } }
   const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { goals })
   await openReport(page)
 
@@ -230,7 +242,7 @@ async function shoot(page, name) {
       lit: arcs.filter(a => a.classList.contains('is-done')).length,
       missed: arcs.filter(a => a.classList.contains('is-missed') || a.classList.contains('is-ticket')).length,
       line: document.querySelector('.rp-cover-line')?.textContent.trim(),
-      goal: [...document.querySelectorAll('.rp-cover-note')].map(n => n.textContent.trim()).join(' | '),
+      goal: document.querySelector('#rp-card-goal')?.innerText.replace(/\s+/g, ' ') || '',
       label: document.querySelector('.rp-ring')?.getAttribute('aria-label'),
     }
   })
@@ -238,7 +250,7 @@ async function shoot(page, name) {
   ok('cover: one dash per session, the attended ones lit', cover.arcs >= 18 && cover.lit === Number(cover.text), JSON.stringify(cover))
   ok('cover: the skipped day is a dark dash', cover.missed === 1, JSON.stringify(cover))
   ok('cover: one plain sentence of planned against attended', /من \d+ جلسة في خطتك، فاتتك/.test(cover.line || ''), cover.line)
-  ok('cover: the goal from hf_month_goal is answered', /هدفك/.test(cover.goal), cover.goal)
+  ok('goal: the goal from hf_month_goal gets its own card, answered', /هدفك كان 22 جلسة/.test(cover.goal) && /ما وصلته/.test(cover.goal) && /ناقصك جلستين/.test(cover.goal), cover.goal)
 
   // The chrome is solid and never sits on the text, and the index bar
   // is gone: bar and scroller stacked, both bar buttons 44pt.
@@ -248,18 +260,20 @@ async function shoot(page, name) {
     const btns = [...document.querySelectorAll('.rp-bar button')].map(b => b.getBoundingClientRect())
     return {
       stacked: !!(bar && scroll) && bar.bottom <= scroll.top + 0.5,
-      targets: btns.length === 2 && btns.every(b => b.width >= 44 && b.height >= 44),
+      targets: btns.length === 3 && btns.every(b => b.width >= 44 && b.height >= 44),
       index: !!document.querySelector('.rp-index'),
       numbers: [...document.querySelectorAll('.rp-ch-n')].length,
     }
   })
   ok('chrome: the bar never overlaps the report', chrome.stacked, JSON.stringify(chrome))
-  ok('chrome: close and share are 44pt buttons', chrome.targets, JSON.stringify(chrome))
+  ok('chrome: close, replay and share are 44pt buttons', chrome.targets, JSON.stringify(chrome))
   ok('removed: the numbered chapters and their index bar', !chrome.index && chrome.numbers === 0, JSON.stringify(chrome))
 
   await scrollThrough(page)
+  const order = await stackCards(page)
+  ok('summary: the story\'s cards stacked, in the order the month is told', JSON.stringify(order) === JSON.stringify(CARD_ORDER), order.join(' | '))
   const qs = await questions(page)
-  ok('sections: in the order the month is told', JSON.stringify(qs) === JSON.stringify(QUESTIONS), qs.join(' | '))
+  ok('summary: then every number and the months before', JSON.stringify(qs) === JSON.stringify(QUESTIONS), qs.join(' | '))
 
   // Everything in the removals table is gone from the screen.
   const text = await page.evaluate(() => document.querySelector('.rp').innerText)
@@ -281,31 +295,31 @@ async function shoot(page, name) {
 
   // The streak is one number, the same flame and unit as Home.
   const streak = await page.evaluate(() => [...document.querySelectorAll('.rp-streak')].map(s => s.innerText.replace(/\s+/g, ' ').trim()))
-  ok('streak: one number, nothing around it', streak.length === 1 && /^\d+ (يوم|أيام)$/.test(streak[0]), streak.join(' | '))
+  ok('streak: one number, as a streak', streak.length === 1 && /^\d+ (يوم|أيام) ستريك آخر مارس$/.test(streak[0]), streak.join(' | '))
 
   // Each trained day is lit by its kilos, in more than one step.
-  const levels = await page.evaluate(() => [...new Set([...document.querySelectorAll('.rp-cal .rp-lit[data-level]')].map(e => e.dataset.level))].sort())
+  const levels = await page.evaluate(() => [...new Set([...document.querySelectorAll('.rp-cal .rp-cal-cell[data-level]')].map(e => e.dataset.level))].sort())
   ok('calendar: trained days lit in steps', levels.length >= 3 && levels.every(l => /^[1-5]$/.test(l)), levels.join(','))
   const key = await page.evaluate(() => document.querySelector('.rp-key')?.innerText.replace(/\s+/g, ' ').trim())
   ok('calendar: one line of key, no «اضغط على يوم»', !!key && !/اضغط على يوم/.test(text), key)
   // The 18th was skipped and a ticket paid for it: the calendar and the
   // cover tell the same story about it.
-  const when = await page.evaluate(() => document.querySelector('#rp-when .rp-ch-lead')?.textContent.trim())
+  const when = await page.evaluate(() => document.querySelector('#rp-card-cal .k-h')?.textContent.trim())
   ok('calendar: its sentence agrees with the cover about the skipped day', when === 'مشيت على خطتك، إلا الأربعاء 18.', when)
   // …and that day can be found on the calendar: the ticket's mark, in
   // the rest blue, explained in the key.
   const paid = await page.evaluate(() => {
-    const cell = [...document.querySelectorAll('.rp-cal-cell')].find(c => c.querySelector('.rp-cal-n')?.textContent.trim() === '18')
-    const mark = cell?.querySelector('.is-paid svg')
-    const keyMark = document.querySelector('.rp-key .is-paid svg')
+    const cell = document.querySelector('.rp-cal-cell[data-date="2026-03-18"]')
+    const mark = cell?.querySelector('svg')
+    const keyMark = document.querySelector('.rp-key .kp svg')
     return {
-      kind: cell?.className, mark: !!mark, color: mark ? getComputedStyle(mark.parentElement).color : '',
+      kind: cell?.className, mark: !!mark, color: cell ? getComputedStyle(cell).color : '',
       keyMark: !!keyMark, key: document.querySelector('.rp-key')?.innerText.replace(/\s+/g, ' ').trim(),
     }
   })
   ok('calendar: the day a ticket paid for carries the ticket mark', /k-paid/.test(paid.kind || '') && paid.mark && paid.color === 'rgb(59, 157, 232)', JSON.stringify(paid))
   ok('calendar: and the key says what that mark is', paid.keyMark && /تذكرة بدل يوم فاتك/.test(paid.key || ''), JSON.stringify(paid))
-  const lit = await page.evaluate(() => [...document.querySelectorAll('.rp-cal-cell.k-trained')].every(c => c.dataset.level))
+  const lit = await page.evaluate(() => [...document.querySelectorAll('.rp-cal-cell.k-trained:not(.is-deload)')].every(c => c.dataset.level))
   ok('calendar: every ordinary trained day is lit', lit)
 
   // «+12.5», never «12.5+»: the plus is drawn left of its digits.
@@ -317,12 +331,12 @@ async function shoot(page, name) {
   }))
   ok('stronger: gains are shown', signs.length >= 3, JSON.stringify(signs))
   ok('stronger: every «+» sits left of its digits', signs.length > 0 && signs.every(s => s.ok), JSON.stringify(signs))
-  const jump = await page.evaluate(() => document.querySelector('.rp-best')?.innerText.replace(/\s+/g, ' '))
-  ok('stronger: the biggest jump leads, called «وزن جديد»', /أكبر قفزة · وزن جديد/.test(jump || ''), jump)
+  const jump = await page.evaluate(() => document.querySelector('#rp-card-jump')?.innerText.replace(/\s+/g, ' '))
+  ok('jump: the biggest jump has its own card, called «وزن جديد»', /أكبر قفزة هالشهر · وزن جديد/.test(jump || ''), jump)
 
   // Muscles: sets a week against the 10–20 band; biceps fall short.
   const sets = await page.evaluate(() => [...document.querySelectorAll('.rp-sets-row')].map(r => ({
-    label: r.querySelector('.rp-sets-l')?.textContent, band: !!r.querySelector('.rp-sets-band'),
+    label: r.querySelector('.rp-sets-l')?.textContent, band: !!document.querySelector('#rp-card-muscles .rp-sets-band'),
     low: r.classList.contains('is-low'), note: r.querySelector('.rp-sets-note')?.textContent || '',
   })))
   ok('muscles: every judged row draws the 10–20 band', sets.length >= 5 && sets.every(s => s.band), JSON.stringify(sets))
@@ -331,7 +345,7 @@ async function shoot(page, name) {
 
   // Next month: at the end, three things at most, each with a reason.
   const next = await page.evaluate(() => [...document.querySelectorAll('.rp-next-item')].map(li => ({
-    kind: li.dataset.kind, title: li.querySelector('strong')?.textContent, why: li.querySelector('.rp-next-main > span')?.textContent,
+    kind: li.dataset.kind, title: li.querySelector('b')?.textContent, why: li.querySelector('div > span')?.textContent,
   })))
   ok('next month: three things at most, each with one reason', next.length >= 1 && next.length <= 3 && next.every(n => n.title && n.why), JSON.stringify(next))
   ok('next month: from the progression engine', next.some(n => n.kind === 'raise') && next.some(n => n.kind === 'lower') && next.some(n => n.kind === 'sets'), JSON.stringify(next))
@@ -366,8 +380,8 @@ async function shoot(page, name) {
     eyebrow: document.querySelector('.rp-cover .rp-eyebrow')?.textContent,
     top: document.querySelector('.rp-scroll').scrollTop,
     hero: document.querySelector('.rp-hero')?.textContent.trim(),
-    q: document.querySelector('#rp-next .rp-ch-q')?.textContent,
-    goal: !!document.querySelector('.rp-cover-note:not(.is-deload)'),
+    q: document.querySelector('#rp-card-next .k-eb')?.textContent,
+    goal: !!document.querySelector('#rp-card-goal'),
   }))
   ok('months: a past month opens at its own cover', /فبراير 2026/.test(feb.eyebrow || '') && feb.top === 0, JSON.stringify(feb))
   ok('months: its plan is for the month after it', feb.q === 'خطة مارس', JSON.stringify(feb))
@@ -435,10 +449,10 @@ async function shoot(page, name) {
       blueArcs: arcs.length,
       arcColor: arcs[0] ? getComputedStyle(arcs[0]).stroke : '',
       rimmed: [...document.querySelectorAll('.rp-cal-cell.is-deload')].length,
-      litDeload: [...document.querySelectorAll('.rp-cal-cell.is-deload .rp-lit[data-level]')].length,
-      caption: document.querySelector('#rp-stronger .rp-caption')?.textContent || '',
+      litDeload: [...document.querySelectorAll('.rp-cal-cell.is-deload[data-level]')].length,
+      caption: document.querySelector('#rp-card-lifts .k-read')?.textContent || '',
       next: [...document.querySelectorAll('.rp-next-item')].map(li => li.dataset.kind),
-      gains: [...document.querySelectorAll('#rp-stronger .rp-row-v')].map(v => v.textContent.trim()),
+
     }
   })
   ok('deload: one line on the cover, in the deload blue',
@@ -463,8 +477,9 @@ async function shoot(page, name) {
   ok('reduced motion: nothing animates', still === 0, `${still} still moving`)
 
   const qs = await questions(page)
+  const cs = await stackCards(page)
   ok('reduced motion: the report still renders in full',
-    QUESTIONS.every(s => qs.includes(s)), QUESTIONS.filter(s => !qs.includes(s)).join(', '))
+    QUESTIONS.every(s => qs.includes(s)) && CARD_ORDER.every(c => c === 'goal' || cs.includes(c)), [...QUESTIONS.filter(s => !qs.includes(s)), ...CARD_ORDER.filter(c => c !== 'goal' && !cs.includes(c))].join(', '))
   ok('reduced motion: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
@@ -540,6 +555,283 @@ async function shoot(page, name) {
   }
   ok('poster: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
+}
+
+// ══ 7. The new-weight poster ══════════════════════════════════
+// «شارك هذي» on the «أكبر قفزة» card: the lift, the weight, its line.
+
+/** Clicks `selector` with the share sheet intercepted; the file it got. */
+async function capturePoster(page, selector) {
+  return page.evaluate(async (selector) => {
+    let captured = null
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', {
+      value: async ({ files, title }) => {
+        const file = files[0]
+        const b = new Uint8Array(await file.arrayBuffer())
+        let s = ''
+        for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i])
+        const bmp = await createImageBitmap(file)
+        const c = document.createElement('canvas')
+        c.width = bmp.width; c.height = bmp.height
+        const x = c.getContext('2d')
+        x.drawImage(bmp, 0, 0)
+        const d = x.getImageData(0, 0, c.width, c.height).data
+        let first = -1, last = -1, gold = 0
+        for (let y = 0; y < c.height; y++) {
+          for (let px = 0; px < c.width; px += 2) {
+            const i = (y * c.width + px) * 4
+            if (d[i] > 200 && d[i + 1] > 150 && d[i + 2] < 90) gold++
+            if (Math.max(d[i], d[i + 1], d[i + 2]) > 120) { if (first < 0) first = y; last = y }
+          }
+        }
+        captured = { b64: btoa(s), name: file.name, type: file.type, bytes: b.length, first, last, gold, title }
+      },
+      configurable: true,
+    })
+    document.querySelector(selector)?.click()
+    for (let i = 0; i < 80 && !captured; i++) await new Promise(r => setTimeout(r, 100))
+    return captured
+  }, selector)
+}
+
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00')
+  await openReport(page)
+  await page.locator('#rp-card-jump').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(600)
+  const shot = await capturePoster(page, '#rp-card-jump .qbtn')
+  ok('pr poster: «شارك هذي» on the jump card makes its own image', !!shot && /new-weight\.png$/.test(shot.name) && /وزن جديد/.test(shot.title || ''), shot?.name)
+  if (shot) {
+    const buf = Buffer.from(shot.b64, 'base64')
+    ok('pr poster: 1080×1920', buf.readUInt32BE(16) === 1080 && buf.readUInt32BE(20) === 1920)
+    ok('pr poster: inside the Stories safe area', shot.first >= 250 && shot.last <= 1600, `ink from y ${shot.first} to y ${shot.last}`)
+    ok('pr poster: the new weight is in gold', shot.gold > 2000, `${shot.gold} gold pixels`)
+    writeFileSync(`${OUT}/poster-pr.png`, buf)
+    if (SHOTS) writeFileSync(`${SHOTS}/poster-pr.png`, buf)
+  }
+  ok('pr poster: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 8. The story ══════════════════════════════════════════════
+// The first time a month's report opens it plays as a story; it turns by
+// itself, a tap on the left is the next card and on the right the one
+// before, holding pauses, «تخطّي» opens the summary, and the next time
+// the report opens on the summary.
+
+const fs = await import('node:fs')
+const asset = (f) => `data:image/webp;base64,${fs.readFileSync(new URL(`../public/assets/${f}`, import.meta.url)).toString('base64')}`
+const PHOTOS = [
+  { id: 1, date: '2026-03-01T10:00:00.000Z', note: '', src: asset('goalc_fatloss.webp') },
+  { id: 2, date: '2026-03-30T10:00:00.000Z', note: '', src: asset('goalc_muscle.webp') },
+]
+const PLAN = { planName: 'PPL', durationWeeks: 6, weeklySchedule: [
+  { name: 'Push', exercises: [{ muscle: 'Chest', name: 'Bench Press', sets: 3, repsMin: 8, repsMax: 12 }, { muscle: 'Shoulders', name: 'Lateral Raise', sets: 3 }] },
+  { name: 'Pull', exercises: [{ muscle: 'Back', name: 'Lat Pulldown', sets: 3 }, { muscle: 'Biceps', name: 'Barbell Curl', sets: 2 }] },
+  { name: 'Legs', exercises: [{ muscle: 'Legs', name: 'Barbell Squat', sets: 3 }] },
+] }
+const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { timeout: 2000 }).catch(() => null)
+
+{
+  const goals = { '2026-03': { kind: 'sessions', target: 18 } }
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { story: true, photos: PHOTOS, goals, plan: PLAN })
+  await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
+  await page.waitForTimeout(600)
+  const segs = await page.locator('.rs-seg').count()
+  ok('story: the first open plays as a story, all nine cards', segs === 9 && await now(page) === 'cover', `${segs} cards, on ${await now(page)}`)
+  await page.waitForTimeout(5600)
+  ok('story: it turns by itself after about six seconds', await now(page) === 'cal', await now(page))
+  await page.mouse.click(60, 500)
+  await page.waitForTimeout(400)
+  ok('story: a tap on the left is the next card', await now(page) === 'jump', await now(page))
+  await page.mouse.click(350, 500)
+  await page.waitForTimeout(400)
+  ok('story: a tap on the right is the card before', await now(page) === 'cal', await now(page))
+  await page.mouse.move(200, 500)
+  await page.mouse.down()
+  await page.waitForTimeout(900)
+  const held = await page.evaluate(() => document.querySelector('.rs-story')?.classList.contains('paused'))
+  await page.waitForTimeout(6000)
+  const still = await now(page)
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+  const after = await page.evaluate(() => document.querySelector('.rs-story')?.classList.contains('paused'))
+  ok('story: holding pauses it, and letting go carries on', held && still === 'cal' && !after && await now(page) === 'cal', JSON.stringify({ held, still, after }))
+  // The gold moment: the new weight's line, its dot and the roll.
+  await page.mouse.click(60, 500)
+  await page.waitForTimeout(3200)
+  const jump = await page.evaluate(() => ({
+    gold: !!document.querySelector('.rs-story .lc .ln.gold'),
+    dot: !!document.querySelector('.rs-story .lc .pt.prd'),
+    weight: document.querySelector('.rs-story .numroll')?.getAttribute('aria-label'),
+    confetti: (document.querySelector('.rs-story canvas.confetti')?.width || 0) > 0,
+  }))
+  ok('story: «أكبر قفزة» draws the gold line to its dot, and the confetti fires', jump.gold && jump.dot && /كجم/.test(jump.weight || '') && jump.confetti, JSON.stringify(jump))
+  // Before and after: two photos four weeks apart make the card.
+  for (let i = 0; i < 4 && await now(page) !== 'ba'; i++) { await page.mouse.click(60, 500); await page.waitForTimeout(300) }
+  const ba = await page.evaluate(() => ({ imgs: document.querySelectorAll('.rs-story .ba img').length, slider: !!document.querySelector('.rs-story .ba-h[role="slider"]') }))
+  ok('story: «قبل وبعد» from the month\'s progress photos', await now(page) === 'ba' && ba.imgs === 2 && ba.slider, JSON.stringify(ba))
+  await page.mouse.click(60, 500)
+  await page.waitForTimeout(2200)
+  const goal = await page.evaluate(() => document.querySelector('.rs-story .c-goal')?.innerText.replace(/\s+/g, ' ') || '')
+  ok('story: «هدف الشهر» says it was reached', await now(page) === 'goal' && /حققته/.test(goal), goal)
+  await page.getByRole('button', { name: 'تخطّي' }).click()
+  await page.waitForTimeout(800)
+  const summary = await page.evaluate(() => ({
+    story: !!document.querySelector('.rs-story'),
+    cards: [...document.querySelectorAll('.rs-stack .rs-card')].map(c => c.dataset.card),
+    seen: JSON.parse(localStorage.getItem('hf_report_seen') || '{}'),
+  }))
+  ok('story: «تخطّي» opens the summary, the same cards stacked', !summary.story && summary.cards.join(',') === 'cover,cal,jump,lifts,muscles,ba,goal,next,share', JSON.stringify(summary))
+  ok('story: the month is remembered as seen, under its own key', summary.seen['2026-03'] === true, JSON.stringify(summary.seen))
+  await page.getByRole('button', { name: 'إغلاق' }).click()
+  await page.waitForTimeout(400)
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForTimeout(1400)
+  await openReport(page)
+  const again = await page.evaluate(() => ({ story: !!document.querySelector('.rs-story'), stack: !!document.querySelector('.rs-stack') }))
+  ok('story: the second time it opens on the summary', !again.story && again.stack, JSON.stringify(again))
+  await page.getByRole('button', { name: 'شغّل القصة' }).click()
+  await page.waitForTimeout(500)
+  ok('story: «شغّل القصة» plays it again', await now(page) === 'cover')
+  ok('story: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// Pulling the story down closes the report.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { story: true })
+  await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
+  await page.waitForTimeout(800)
+  await page.mouse.move(200, 300)
+  await page.mouse.down()
+  for (let y = 300; y <= 560; y += 26) { await page.mouse.move(200, y); await page.waitForTimeout(16) }
+  await page.mouse.up()
+  await page.waitForTimeout(500)
+  const open_ = await page.evaluate(() => !!document.querySelector('.rp'))
+  ok('story: pulling it down closes the report', !open_)
+  // Without photos or a goal, those two cards are not there.
+  await openReport(page)
+  const cards = await stackCards(page)
+  ok('story: no photos, no goal — «قبل وبعد» and «هدف الشهر» are dropped', !cards.includes('ba') && !cards.includes('goal') && cards.includes('jump'), cards.join(','))
+  ok('story, pull: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// Reduced motion: the story waits for a tap, and nothing moves.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { story: true, reduced: true })
+  await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
+  await page.waitForTimeout(7000)
+  const [anims] = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('.rs-story .rs-card *')].map(el => getComputedStyle(el)).filter(cs => cs.animationName !== 'none')
+    return [els.length]
+  })
+  ok('story, reduced motion: it does not turn by itself', await now(page) === 'cover', await now(page))
+  ok('story, reduced motion: nothing inside the card moves', anims === 0, `${anims} animated`)
+  await page.mouse.click(60, 500)
+  await page.waitForTimeout(400)
+  ok('story, reduced motion: a tap still turns it', await now(page) === 'cal')
+  ok('story, reduced motion: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// A month that ends in a deload week, as a story: the cover says so in
+// blue and the calendar rims the week.
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { story: true, sessions: DELOAD_SESSIONS, recovery: DELOAD_RECOVERY })
+  await page.getByText('تقرير مارس 2026', { exact: false }).first().dispatchEvent('click')
+  await page.waitForTimeout(3000)
+  const cover = await page.evaluate(() => {
+    const n = document.querySelector('.rs-story .k-dl')
+    return { text: n?.textContent || '', color: n ? getComputedStyle(n).color : '', blue: document.querySelectorAll('.rs-story .ring .sg.dl').length }
+  })
+  ok('story, deload: the cover says the light week in blue', /أسبوع تخفيف/.test(cover.text) && cover.color === 'rgb(92, 201, 238)' && cover.blue >= 4, JSON.stringify(cover))
+  await page.mouse.click(60, 500)
+  await page.waitForTimeout(1500)
+  const rim = await page.evaluate(() => document.querySelectorAll('.rs-story .hm .t.dl').length)
+  ok('story, deload: the calendar rims the week', rim >= 4, String(rim))
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/story-deload-cal.png` })
+  ok('story, deload: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ 9. «طبّقها على خطتي», and the goal ════════════════════════
+// After the tap only: the plan's sets for the muscle that fell short, the
+// weights the next sessions start at, and next month's goal — and «تراجع»
+// puts every one of them back.
+
+{
+  const { ctx, page, errors } = await open('2026-04-02T18:00:00+03:00', { plan: PLAN })
+  await openReport(page)
+  const before = await page.evaluate(() => ({
+    plan: localStorage.getItem('hf_plan'), weights: localStorage.getItem('hf_last_weights'), goals: localStorage.getItem('hf_month_goal'),
+  }))
+  await page.locator('#rp-card-next').scrollIntoViewIfNeeded()
+  await page.waitForTimeout(1600)
+  await page.locator('#rp-card-next .rp-apply').click()
+  await page.waitForTimeout(500)
+  const after = await page.evaluate(() => ({
+    plan: JSON.parse(localStorage.getItem('hf_plan')),
+    weights: JSON.parse(localStorage.getItem('hf_last_weights') || '{}'),
+    goals: JSON.parse(localStorage.getItem('hf_month_goal') || '{}'),
+    toast: document.querySelector('#rp-card-next .rs-undo')?.innerText.replace(/\s+/g, ' ') || '',
+  }))
+  const curl = after.plan.weeklySchedule[1].exercises[1]
+  ok('apply: the muscle under the range gets sets in the plan', curl.name === 'Barbell Curl' && curl.sets > 2 && Number.isInteger(curl.sets), JSON.stringify(curl))
+  ok('apply: the lift ready to go up starts one plate higher', after.weights['lateral raise'] === 15, JSON.stringify(after.weights))
+  ok('apply: the stalled lift starts lighter', after.weights['barbell squat'] > 0 && after.weights['barbell squat'] < 110, JSON.stringify(after.weights))
+  ok('apply: next month\'s goal is set too', after.goals['2026-04']?.kind === 'sessions' && after.goals['2026-04'].target > 0, JSON.stringify(after.goals))
+  ok('apply: the plan keeps the shape the old design reads', after.plan.planName === 'PPL' && after.plan.weeklySchedule.every(d => typeof d.name === 'string' && d.exercises.every(e => typeof e.name === 'string' && typeof e.muscle === 'string')), '')
+  ok('apply: a toast says what changed, with «تراجع»', /في خطتك/.test(after.toast) && /تراجع/.test(after.toast), after.toast)
+  await page.locator('#rp-card-next .rs-undo button').click()
+  await page.waitForTimeout(500)
+  const undone = await page.evaluate(() => ({
+    plan: localStorage.getItem('hf_plan'), weights: localStorage.getItem('hf_last_weights'), goals: localStorage.getItem('hf_month_goal'),
+    button: !!document.querySelector('#rp-card-next .rp-apply'),
+  }))
+  ok('undo: the plan, the weights and the goal are back as they were',
+    JSON.stringify(JSON.parse(undone.plan)) === JSON.stringify(JSON.parse(before.plan)) && undone.weights === before.weights && undone.goals === before.goals,
+    JSON.stringify({ before, undone }))
+  ok('undo: and the button is offered again', undone.button)
+
+  // The goal, set by hand: «غيّره» → the sheet → «ثبّت الهدف».
+  await page.locator('#rp-card-next .goal2 .tbtn').click()
+  await page.waitForTimeout(600)
+  await page.getByRole('button', { name: 'زِد جلسة' }).click()
+  await page.getByRole('button', { name: 'ثبّت الهدف' }).click()
+  await page.waitForTimeout(600)
+  const goals = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_month_goal') || '{}'))
+  const line = await page.evaluate(() => document.querySelector('#rp-card-next .goal2')?.innerText.replace(/\s+/g, ' ') || '')
+  ok('goal: set from the report, sessions by default', goals['2026-04']?.kind === 'sessions' && goals['2026-04'].target === 21, JSON.stringify(goals))
+  ok('goal: the card shows it as set', /هدف أبريل: 21 جلسة/.test(line) && /ثبّته/.test(line), line)
+  // A weight goal instead.
+  await page.locator('#rp-card-next .goal2 .tbtn').click()
+  await page.waitForTimeout(600)
+  await page.getByRole('tab', { name: 'وزن' }).click()
+  await page.getByRole('button', { name: 'ثبّت الهدف' }).click()
+  await page.waitForTimeout(600)
+  const lift = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_month_goal') || '{}')['2026-04'])
+  ok('goal: a lift weight can be the goal', lift?.kind === 'lift' && lift.target > 0 && !!lift.lift, JSON.stringify(lift))
+  ok('apply/goal: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+
+  // Next month's report answers it: April's sessions are March's moved on
+  // a month; the goal set above is read back in May.
+  const shift = 31 * 86400000
+  const april = SESSIONS.filter(s => s.date >= '2026-03-01').map(s => ({
+    ...s, id: s.id + shift, date: new Date(new Date(s.date).getTime() + shift).toISOString(),
+  })).filter(s => s.date < '2026-04-30T20:00:00.000Z')
+  for (const [target, expect] of [[goals['2026-04'].target, null], [40, 'ناقصك']]) {
+    const t = await open('2026-05-03T18:00:00+03:00', { sessions: [...SESSIONS, ...april], goals: { '2026-04': { kind: 'sessions', target } } })
+    await openReport(t.page, 'أبريل 2026')
+    const card = await t.page.evaluate(() => document.querySelector('#rp-card-goal')?.innerText.replace(/\s+/g, ' ') || '')
+    const want = expect || /حققته|ناقصك/
+    ok(`goal → next month: April's report answers a goal of ${target}`, (typeof want === 'string' ? card.includes(want) : want.test(card)) && card.includes(`${target}`), card)
+    ok(`goal → next month (${target}): no page errors`, t.errors.length === 0, t.errors.join('; '))
+    await t.ctx.close()
+  }
 }
 
 await browser.close()
