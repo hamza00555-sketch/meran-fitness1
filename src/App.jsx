@@ -84,7 +84,7 @@ import {
   monthGoalOf, withMonthGoal, expectedSessions, nextMonth, monthName,
 } from './monthReport.js'
 import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine } from './reportStory.js'
-import { validatePlan } from './plan/builder.js'
+import { validatePlan } from './plan/validate.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly

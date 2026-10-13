@@ -1017,27 +1017,9 @@ export function toHfPlan(plan, cfg, { today, base = null } = {}) {
   }
 }
 
-/**
- * Can both designs open this plan? null when they can, otherwise why not:
- *   'empty'   — no days
- *   'day'     — a day with no exercises (the old design opens a black screen)
- *   'muscle'  — a muscle that is not one of the eight
- *   'name'    — an exercise with no name
- * `at` says which day.
- */
-export function validatePlan(hf) {
-  const s = hf && hf.weeklySchedule
-  if (!Array.isArray(s) || !s.length) return { error: 'empty' }
-  for (let i = 0; i < s.length; i++) {
-    const ex = s[i] && s[i].exercises
-    if (!Array.isArray(ex) || !ex.length) return { error: 'day', at: i }
-    for (const x of ex) {
-      if (!x || !String(x.name || '').trim()) return { error: 'name', at: i }
-      if (!MUSCLES.includes(x.muscle)) return { error: 'muscle', at: i }
-    }
-  }
-  return null
-}
+// validatePlan lives in ./validate.js (small, so the main bundle can use
+// it without loading this engine); re-exported here.
+export { validatePlan } from './validate.js'
 
 export {
   AREAS, AREA_ORDER, CARDS, CARD, GROUP, EQ, EQ_ORDER, KIND, EX, EXI, SPLITS, SPW, splitFor, spwFor, spwOf, PUSH, PULL, LOW, TYPE,

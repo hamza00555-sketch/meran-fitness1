@@ -9,7 +9,7 @@ import {
   ListGroup, ListRow, Segmented, Sheet, Button, Chip, Banner, ConfirmSheet, Num,
 } from '../../components/kit/index.jsx'
 import { Copy, Flame, Trash, Check, PencilSimple, Sparkle } from '../../components/kit/icons.js'
-import { validatePlan } from '../../plan/builder.js'
+import { validatePlan } from '../../plan/validate.js'
 import { ClipboardText, FileArrowUp, TextAlignRight } from '@phosphor-icons/react'
 import { CheckList, CheckRow, TextField, Notice, Ar, freqTitle, freqDesc, cycleAr } from './parts.jsx'
 import { TRAINING_FREQUENCIES, patternFor } from '../../recovery.js'
