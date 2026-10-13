@@ -492,19 +492,55 @@ async function autoPlanFromStart(page) {
   await ctx.close()
 }
 {
-  // An exercise taken out on «خطتك» stays out after going back.
-  const { ctx, page, errors } = await phone()
+  // An exercise taken out on «خطتك» stays out after going back,
+  // on the day it was on, whoever added it: a plan «كمّل خطتي» made is
+  // all the app's (by:'app'), and its rows are picks like his own once
+  // opened to edit.
+  const byApp = { ...machine, planId: 'custom_20260901', source: 'builder', weeklySchedule: machine.weeklySchedule.map(d => ({ ...d, exercises: d.exercises.map(x => ({ ...x, by: 'app', why: 'ناقص' })) })) }
+  const total = byApp.weeklySchedule.reduce((s, d) => s + d.exercises.length, 0)
+  const { ctx, page, errors } = await phone({ plan: byApp, planIndex: 8 })
   await page.getByRole('button', { name: 'خيارات اليوم' }).click(); await settle(page)
   await page.locator('.k-row').filter({ hasText: 'عدّل الخطة' }).click(); await settle(page, 1100)
+  const tab = () => page.evaluate(() => [...document.querySelectorAll('#daytabs .dtab')].findIndex(t => t.getAttribute('aria-selected') === 'true'))
+  const ids = () => page.evaluate(() => window.__planner.state().plan.days.flatMap(d => d.items.map(it => it.id)))
+  const day = await tab()
+  ok('removed on «خطتك»: opened on today\'s day, not the first', day === 2, String(day))
   const row2 = page.locator('#plist .prow').nth(1)
   const gone = await row2.locator('.pr-ar').innerText()
   await row2.locator('.pr-main').click(); await settle(page, 500)
   await row2.locator('[data-act="rm"]').click(); await settle(page, 700)
+  const left = await page.locator('#plist .pr-ar').allInnerTexts()
   await page.locator('#s-plan [data-act="back"]').click(); await settle(page, 900)
   await page.locator('#gaps-dock button').last().click(); await settle(page, 900)
+  ok('removed on «خطتك», back and forward: the same day is shown', await tab() === day, String(await tab()))
   const names = await page.locator('#plist .pr-ar').allInnerTexts()
-  ok('removed on «خطتك», back and forward: still out', !names.includes(gone), `${gone} in ${names.join(',')}`)
+  ok('removed on «خطتك», back and forward: still out', !names.includes(gone) && names.join() === left.join(), `${gone} in ${names.join(',')}`)
+  ok('removed on «خطتك», back and forward: on no other day either', (await ids()).length === total - 1, String((await ids()).length))
+  // «تراجع» puts an app row back, its pick too
+  const first = page.locator('#plist .prow').nth(0)
+  const kept = await first.locator('.pr-ar').innerText()
+  await first.locator('.pr-main').click(); await settle(page, 500)
+  await first.locator('[data-act="rm"]').click(); await settle(page, 700)
+  await page.locator('.toast button', { hasText: 'تراجع' }).click(); await settle(page, 600)
+  await page.locator('#s-plan [data-act="back"]').click(); await settle(page, 900)
+  await page.locator('#gaps-dock button').last().click(); await settle(page, 900)
+  const names2 = await page.locator('#plist .pr-ar').allInnerTexts()
+  ok('removed, «تراجع», back and forward: it is back', names2.includes(kept) && !names2.includes(gone) && (await ids()).length === total - 1, names2.join(','))
   ok('removed and back: no page errors', errors.length === 0, errors.join(' | '))
+  await ctx.close()
+}
+{
+  // «خطتك الحين» sits on the system his plan really uses.
+  const ul = BUILT_IN_PLANS.find(p => p.planId === 'upper_lower_4day')
+  const { ctx, page, errors } = await phone({ plan: ul, planIndex: 0 })
+  await page.getByRole('button', { name: 'خيارات اليوم' }).click(); await settle(page)
+  await page.locator('.k-row').filter({ hasText: 'عدّل الخطة' }).click(); await settle(page, 1100)
+  await page.locator('#s-plan [data-act="back"]').click(); await settle(page, 900)
+  await page.locator('#s-gaps [data-act="back"]').click(); await settle(page, 900)
+  await page.locator('#s-deck [data-act="to-basics"]').click(); await settle(page, 900)
+  const marked = await page.locator('#splits .split').filter({ hasText: 'خطتك الحين' }).allInnerTexts()
+  ok('«خطتك الحين» on علوي · سفلي for the Upper/Lower plan', marked.length === 1 && marked[0].includes('علوي · سفلي'), marked.join(' | '))
+  ok('«خطتك الحين»: no page errors', errors.length === 0, errors.join(' | '))
   await ctx.close()
 }
 {

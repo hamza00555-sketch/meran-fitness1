@@ -19,6 +19,7 @@ import { dayKey } from './day.js'
 import { addDays, dayDiff, patternFor } from './recovery.js'
 import { countAr } from './streak.js'
 import { resolveExerciseName, roundToPlate, PLATE_STEP } from './utils.js'
+import { setsShown } from './plan/count.js'
 import {
   firstDayOf, lastDayOf, daysInMonth, monthName, prevMonth, nextMonth, monthKey,
   countWord, WEEKLY_SETS, creditsOf,
@@ -366,7 +367,7 @@ export function applyNext({ plan = null, lastWeights = {}, items = [], mapping =
       }))
       if (!slots.length) { skipped.push({ ...item, why: 'not-in-plan' }); continue }
       const perDay = sessionsPerWeek(config) / Math.max(1, days.length)
-      const shown = item.shown ?? Math.round(item.perWeek || 0)
+      const shown = item.shown ?? setsShown(item.perWeek || 0, item.min)
       const goal = Math.min(item.max ?? WEEKLY_SETS.max, (item.min ?? WEEKLY_SETS.min) + 2)
       const want = Math.max(1, Math.ceil(Math.max(0, goal - shown) / perDay))
       let added = 0

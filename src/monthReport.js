@@ -31,6 +31,7 @@ import { countAr, unitAr, fmtDayAr } from './streak.js'
 import { isDeloadSession } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
 import { AREAS, targets, entryForName } from './plan/catalogue.js'
+import { isShort, setsShown } from './plan/count.js'
 import { arabicName } from './exerciseMedia.js'
 
 // ── Calendar arithmetic ───────────────────────────────────────
@@ -588,19 +589,20 @@ export function muscleSets(sessions = [], month, { today = todayKey(), firstEver
       const judged = areas.filter(a => T[a]).map(a => {
         const cur = (vol[a] || 0) / weeks
         return {
-          area: a, label: AREAS[a].lbl, fem: AREAS[a].pr === 'لها', cur: r1(cur), shown: Math.round(cur),
+          area: a, label: AREAS[a].lbl, fem: AREAS[a].pr === 'لها', cur: r1(cur), shown: setsShown(cur, T[a][0]),
           min: T[a][0], good: T[a][1], max: T[a][2],
           // the builder's own thresholds (findGaps / findWarns)
-          status: cur < T[a][0] - 0.05 ? 'low' : (!NO_TOP.has(a) && cur > T[a][2] + 0.5) ? 'high' : 'ok',
+          status: isShort(cur, T[a][0]) ? 'low' : (!NO_TOP.has(a) && cur > T[a][2] + 0.5) ? 'high' : 'ok',
         }
       })
       const lowAreas = judged.filter(x => x.status === 'low')
       const status = lowAreas.length ? 'low' : judged.some(x => x.status === 'high') ? 'high' : 'ok'
-      return {
-        ...m, perWeek, shown: Math.round(perWeek), status, areas: judged, lowAreas,
-        // the group's band: its areas' ranges added up
-        min: judged.reduce((t, x) => t + x.min, 0), max: judged.reduce((t, x) => t + x.max, 0),
-      }
+      // the group's band: its areas' ranges added up
+      const min = judged.reduce((t, x) => t + x.min, 0), max = judged.reduce((t, x) => t + x.max, 0)
+      // a group flagged short never shows a number on its band (5.7 of 6
+      // reads 5)
+      const shown = setsShown(perWeek, status === 'low' ? min : null)
+      return { ...m, perWeek, shown, status, areas: judged, lowAreas, min, max }
     })
     .filter(m => m.perWeek > 0 || m.sets > 0)
     .sort((a, b) => b.perWeek - a.perWeek)
@@ -624,10 +626,10 @@ export function lowParts(muscles = []) {
     if ((m.areas || []).length <= 1) {
       const x = parts[0]
       out.push({ key: m.key, label: m.label, fem: PLURAL_GROUPS.has(m.key), area: x?.area || null,
-        perWeek: x ? x.cur : m.perWeek, min: x?.min, max: x?.max, ratio: x ? x.cur / x.min : (m.perWeek || 0) / WEEKLY_SETS.min })
+        perWeek: x ? x.cur : m.perWeek, shown: x ? x.shown : m.shown, min: x?.min, max: x?.max, ratio: x ? x.cur / x.min : (m.perWeek || 0) / WEEKLY_SETS.min })
     } else {
       for (const x of parts) {
-        out.push({ key: m.key, label: x.label, fem: x.fem, area: x.area, perWeek: x.cur, min: x.min, max: x.max, ratio: x.cur / x.min })
+        out.push({ key: m.key, label: x.label, fem: x.fem, area: x.area, perWeek: x.cur, shown: x.shown, min: x.min, max: x.max, ratio: x.cur / x.min })
       }
     }
   }
@@ -690,7 +692,7 @@ export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = 
   lower.sort((a, b) => b.n - a.n)
   // Only what the builder itself calls short: an area under its minimum.
   const sets = lowParts(muscles)
-    .map(x => ({ kind: 'sets', muscle: x.key, area: x.area, label: x.label, fem: x.fem, perWeek: x.perWeek, shown: Math.round(x.perWeek), min: x.min ?? WEEKLY_SETS.min, max: x.max ?? WEEKLY_SETS.max }))
+    .map(x => ({ kind: 'sets', muscle: x.key, area: x.area, label: x.label, fem: x.fem, perWeek: x.perWeek, shown: x.shown ?? setsShown(x.perWeek, x.min ?? WEEKLY_SETS.min), min: x.min ?? WEEKLY_SETS.min, max: x.max ?? WEEKLY_SETS.max }))
 
   const out = []
   const queues = [raise, sets, lower]
@@ -720,7 +722,7 @@ export function nextCopy(item, mapping = {}) {
     }
   }
   if (item.kind === 'sets') {
-    const per = item.shown ?? Math.round(item.perWeek)
+    const per = item.shown ?? setsShown(item.perWeek, item.min)
     const took = per < 1 ? 'أقل من مجموعة' : countWord(per, 'set')
     return {
       title: `زِد مجموعات ${item.label}`,

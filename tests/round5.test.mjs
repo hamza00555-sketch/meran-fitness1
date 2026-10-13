@@ -5,6 +5,7 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 globalThis.localStorage = {
   _d: new Map(),
@@ -139,4 +140,77 @@ test('a backup restore hands back the old plan too, and skips a plan both design
   assert.deepEqual(back, { plan, planIndex: 4, planPrev: prev })
   assert.equal(restorePlan({ plan: { weeklySchedule: [{ name: 'x', exercises: [] }] } }), null, 'an empty day')
   assert.equal(restorePlan({ plan: { weeklySchedule: [{ name: 'x', exercises: [{ name: 'X', muscle: 'Forearms' }] }] } }), null)
+})
+
+// ══ the number shown and the judgement agree ══════════════════
+// Just under a minimum the number rounds down: «6 من 6» never sits on a
+// muscle flagged short. One rule for the deck card, the muscle view and
+// the report (src/plan/count.js).
+
+const CNT = await import('../src/plan/count.js')
+const PB = await import('../src/plan/builder.js')
+const UI_SRC = readFileSync(new URL('../src/pages/planner/ui.js', import.meta.url), 'utf8')
+
+test('a short number rounds down, a covered one as usual', () => {
+  assert.equal(CNT.setsShown(5.7, 6), 5)
+  assert.equal(CNT.isShort(5.7, 6), true)
+  assert.equal(CNT.setsShown(5.96, 6), 6, 'a rounding hair under is covered')
+  assert.equal(CNT.isShort(5.96, 6), false)
+  assert.equal(CNT.setsShown(6.4, 6), 6)
+  assert.equal(CNT.setsShown(0.4, 6), 0)
+  assert.equal(CNT.setsShown(8.6, null), 9, 'no minimum: plain rounding')
+  for (let i = 0; i <= 2400; i++) {
+    const cur = i / 100
+    for (const min of [2, 4, 6, 10]) assert.equal(CNT.isShort(cur, min), CNT.setsShown(cur, min) < min, `${cur} of ${min}`)
+  }
+})
+
+test('the deck card and the muscle view: under the line exactly when not covered', () => {
+  const T = PB.targets('muscle')
+  for (const c of PB.CARDS) {
+    for (let i = 0; i <= 300; i++) {
+      const vol = Object.fromEntries(PB.AREA_ORDER.map(a => [a, i / 20 + 0.013]))
+      const cs = PB.cardState(c, { vol }, T)
+      if (cs.opt) continue
+      for (const s of cs.segs) assert.equal(PB.setsShown(s.cur, s.min) < s.min, PB.isShort(s.cur, s.min), `${c.id} ${s.a} ${s.cur}`)
+      assert.equal(cs.ok, cs.segs.every(s => PB.setsShown(s.cur, s.min) >= s.min), `${c.id} at ${i / 20}`)
+    }
+  }
+  // the planner's screens print the helper, not a plain round
+  assert.ok(!/Math\.round\(s\.cur\)\} من/.test(UI_SRC), 'deck card «N من M»')
+  assert.ok(!/Math\.round\(s\.cur\)\}<\/span> من/.test(UI_SRC), 'muscle view «N من M»')
+  assert.match(UI_SRC, /\$\{setsShown\(s\.cur, s\.min\)\} من \$\{s\.min\} مجموعات بالأسبوع/)
+})
+
+test('the report: hamstrings just under their minimum say the lower number', async () => {
+  const { muscleSets, nextMonthPlan, nextCopy } = await import('../src/monthReport.js')
+  // strength: the back of the thigh wants 5 to 12. 21 leg-curl sets over
+  // March (31/7 weeks) ≈ 4.7 a week: short, so «4», never «5 … من 5»
+  const s = [...Array(21)].map((_, i) => ({
+    id: i, date: `2026-03-${String(1 + i).padStart(2, '0')}T18:00:00`,
+    exercises: [{ name: 'Leg Curl', muscle: 'Legs', sets: [{ weight: '40', reps: '10', done: true }] }],
+  }))
+  const m = muscleSets(s, '2026-03', { today: '2026-04-05', goal: 'strength' })
+  const hams = m.find(x => x.key === 'Legs').areas.find(a => a.area === 'hams')
+  assert.deepEqual([hams.cur, hams.min, hams.max, hams.status], [4.7, 5, 12, 'low'])
+  assert.equal(hams.shown, 4)
+  // the untouched parts (at 0) would take the three places first
+  const only = m.map(x => x.key === 'Legs' ? { ...x, lowAreas: x.lowAreas.filter(a => a.area === 'hams') } : x)
+  const item = nextMonthPlan({ sessions: [], month: '2026-03', muscles: only }).find(x => x.kind === 'sets' && x.area === 'hams')
+  assert.equal(item.shown, 4)
+  const why = nextCopy(item).reason
+  assert.match(why, /أخذ 4 مجموعات بالأسبوع، والمناسب من 5 إلى 12\./, why)
+  // an old item with no «shown» follows the same rule
+  assert.match(nextCopy({ kind: 'sets', label: 'الفخذ الخلفي', perWeek: 5.7, min: 6, max: 12 }).reason, /أخذ 5 مجموعات/)
+})
+
+test('«خطتك الحين» is on the system his plan really uses', async () => {
+  const { BUILT_IN_PLANS } = await import('../src/constants.js')
+  const ul = BUILT_IN_PLANS.find(p => p.planId === 'upper_lower_4day')
+  const ppl = BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')
+  assert.equal(PB.fromHfPlan(ul, { days: 4 }).split, 'ul')
+  assert.equal(PB.fromHfPlan(ppl, { days: 4 }).split, 'ppl')
+  const fn = UI_SRC.slice(UI_SRC.indexOf('function splitsHTML'), UI_SRC.indexOf('function freeHTML'))
+  assert.match(fn, /id === CURRENT\.split/)
+  assert.ok(!/'ppl'/.test(fn), 'never a fixed system')
 })

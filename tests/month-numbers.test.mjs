@@ -709,7 +709,7 @@ test('a muscle is judged by the builder\'s own line: under its minimum, over its
   const [item] = nextMonthPlan({ sessions: [], month: MAR, muscles: low })
   assert.equal(item.kind, 'sets')
   assert.deepEqual([item.min, item.max], [6, 20])
-  assert.match(nextCopy(item).reason, /أخذ 6 مجموعات بالأسبوع، والمناسب من 6 إلى\u00A020\./)
+  assert.match(nextCopy(item).reason, /أخذ 5 مجموعات بالأسبوع، والمناسب من 6 إلى\u00A020\./, '5.9 is short: it reads 5, never «6 … من 6»')
 })
 
 // ══ the level is today's, and says so ═════════════════════════

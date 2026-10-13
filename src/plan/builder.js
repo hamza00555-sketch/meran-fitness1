@@ -19,8 +19,9 @@ import {
   MUSCLES, AREAS, AREA_ORDER, CARDS, CARD, GROUP, EQ, EQ_ORDER, KIND, EX, EXI, BASE_T, targets,
   entryForName, ensureEntry,
 } from './catalogue.js'
+import { isShort, setsShown } from './count.js'
 
-export { MUSCLES, entryForName, ensureEntry }
+export { MUSCLES, entryForName, ensureEntry, isShort, setsShown }
 
 
 /* Rotation per days-a-week, from مران's rest cycle (src/recovery.js):
@@ -226,7 +227,7 @@ function cardState(card, st, T) {
   const areas = card.areas.filter(a => T[a])
   if (!areas.length) return { opt: true, segs: [], ok: true }
   const segs = areas.map(a => ({ a, cur: st.vol[a], min: T[a][0], f: Math.min(1, st.vol[a] / T[a][0]) }))
-  return { segs, ok: segs.every(s => s.cur >= s.min - 0.05) }
+  return { segs, ok: segs.every(s => !isShort(s.cur, s.min)) }
 }
 function coverage(plan, goal) {
   const st = stats(plan), T = targets(goal)
@@ -248,7 +249,7 @@ function findGaps(plan, goal, aim) {
     if (!t) continue
     const cur = st.vol[a], lowT = aim === 'good' ? t[1] : t[0]
     if (cur < 1) out.push({ a, type: 'missing', sev: 1.5, cur, t })
-    else if (cur < lowT - 0.05) out.push({ a, type: 'low', sev: (lowT - cur) / lowT, cur, t, lowT })
+    else if (isShort(cur, lowT)) out.push({ a, type: 'low', sev: (lowT - cur) / lowT, cur, t, lowT })
     /* «once a week» is no longer a gap: what grows a muscle is its sets a
        week, not how they are split (Schoenfeld 2019, Pelland 2026). It is a
        soft tip now — see findTips — and never lowers «7 من 7». */
@@ -629,7 +630,7 @@ function areaStates(cov) {
   for (const a of AREA_ORDER) {
     const t = cov.T[a]; if (!t) continue
     const v = cov.st.vol[a]
-    out[a] = v >= t[0] - 0.05 ? 'ok' : v >= 0.5 ? 'some' : 'none'
+    out[a] = !isShort(v, t[0]) ? 'ok' : v >= 0.5 ? 'some' : 'none'
   }
   const b = cardState(CARD.back, cov.st, cov.T)
   out.back = b.ok ? 'ok' : b.segs.some(x => x.cur >= 0.5) ? 'some' : 'none'

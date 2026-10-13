@@ -20,7 +20,7 @@
 // phone (fades only), and the page holds the app's scroll lock while open.
 
 import {
-  AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fitPins, fromHfPlan, gapWords, hasMove, fem, mkItem, muchFix, n0, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan,
+  AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fitPins, fromHfPlan, gapWords, hasMove, fem, isShort, mkItem, muchFix, n0, setsShown, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan,
 } from '../../plan/builder.js'
 import { BODY, REGKEY } from './body.js'
 import { MUSCLE_GROUPS, GYM_TYPES } from '../../constants.js'
@@ -440,7 +440,8 @@ function splitsHTML() {
   const cur = splitId(), opts = splitOpts(S.days)
   return opts.map((id, i) => {
     const on = id === cur, sp = SPL[id]
-    const now = S.mode === 'current' && id === 'ppl'
+    // the system his plan really uses (fromHfPlan reads it off his days)
+    const now = S.mode === 'current' && !!CURRENT && id === CURRENT.split
     const note = on ? splitNote(id) : ''
     return `<button class="split ${on ? 'on' : ''}" role="radio" aria-checked="${on}" data-act="split" data-v="${id}">
       <span class="sp-top"><span class="sp-dot" aria-hidden="true"></span><b>${sp.ar}</b>${i === 0 ? '<span class="rec">المقترح</span>' : ''}${now ? '<span class="rec">خطتك الحين</span>' : ''}</span>
@@ -547,8 +548,8 @@ function cardStatus(c, cs, n) {
   if (cs.opt) return n ? `${exWord(n)} · اختياري` : 'اختياري'
   if (!n && cs.segs.every(s => s.cur < 0.5)) return 'فاضية'
   if (cs.ok) return `${ic('check', 13)} مغطاة${n ? '' : ' من تمارين ثانية'}`
-  if (cs.segs.length === 1) { const s = cs.segs[0]; return `${Math.round(s.cur)} من ${s.min} مجموعات بالأسبوع` }
-  const miss = cs.segs.filter(s => s.cur < s.min - 0.05).map(s => AREAS[s.a].row)
+  if (cs.segs.length === 1) { const s = cs.segs[0]; return `${setsShown(s.cur, s.min)} من ${s.min} مجموعات بالأسبوع` }
+  const miss = cs.segs.filter(s => isShort(s.cur, s.min)).map(s => AREAS[s.a].row)
   if (miss.length === 1) return `ناقص ${miss[0]}`
   if (miss.length === 2) return `ناقص ${miss[0]} و${miss[1]}`
   return `ناقص ${miss.length} أجزاء`
@@ -666,8 +667,8 @@ function updateMview(first) {
     const t = cov.T[s.a], scale = Math.max(t[1] * 1.25, t[0] * 1.6, s.cur * 1.05), much = s.cur > t[2] + 0.5
     $('.ab i', row).style.setProperty('--f', Math.min(1, s.cur / scale).toFixed(3))
     row.style.setProperty('--min', (t[0] / scale * 100).toFixed(1) + '%')
-    row.classList.toggle('ok', s.cur >= s.min - 0.05); row.classList.toggle('much', much)
-    $('.av', row).innerHTML = much ? `<span class="num">${Math.round(s.cur)}</span> · كثير` : `<span class="num">${Math.round(s.cur)}</span> من <span class="num">${s.min}</span>`
+    row.classList.toggle('ok', !isShort(s.cur, s.min)); row.classList.toggle('much', much)
+    $('.av', row).innerHTML = much ? `<span class="num">${Math.round(s.cur)}</span> · كثير` : `<span class="num">${setsShown(s.cur, s.min)}</span> من <span class="num">${s.min}</span>`
   }
   renderMfix(plan, c)
   const ids = cardPicks(c.id).slice().reverse().map(p => p.id)
@@ -1024,8 +1025,19 @@ function refreshCtx(ctx) {
   else { $$('#gaps .added[data-uid]').forEach(el => { if (!findItem(el.dataset.uid)) el.hidden = true }); refreshGaps(true) }
 }
 const pickOf = (id) => S.picks.find(p => p.id === id)
-// the pick a row came from (two rows of one exercise are two picks)
-const pickFor = (it) => (it && it.src && S.picks.includes(it.src)) ? it.src : pickOf(it && it.id)
+// The pick a row came from (two rows of one exercise are two picks),
+// whoever added it: his plan opened to edit has the app's rows as picks
+// too (by:'app'), and going back a screen builds the plan again from the
+// picks, so a change that skips the pick quietly comes undone. A row
+// «كمّل خطتي» just added has no pick (null); the id is only a fallback
+// for his own rows, never for the app's (it would find his pick of the
+// same exercise).
+const pickFor = (it) => {
+  if (!it) return null
+  if (it.src && S.picks.includes(it.src)) return it.src
+  return it.by === 'user' ? pickOf(it.id) || null : null
+}
+const linkPick = (it, p) => Object.defineProperty(it, 'src', { value: p, enumerable: false, writable: true, configurable: true })
 const defSets = (id) => { const e = EXI[id]; return e.k === 'x' ? 1 : SCHEME[S.goal][e.k][0] }
 function applyMuch(a, ctx) {
   if (ctx === 'mv') {
@@ -1048,15 +1060,15 @@ function applyMuch(a, ctx) {
   }
   const t = ADV.find(x => x.kind === 'much' && x.w.a === a); if (!t || !t.fix) return
   const fix = t.fix, f = findItem(fix.uid); if (!f) return
-  const name = EXI[f.it.id].ar, was = f.it.sets, by = f.it.by, pk = pickFor(f.it), pkBefore = pk && { ...pk }, pkIdx = S.picks.indexOf(pk)
-  if (fix.kind === 'rm') { f.d.items.splice(f.ii, 1); if (by === 'user' && pk) S.picks.splice(pkIdx, 1) }
+  const name = EXI[f.it.id].ar, was = f.it.sets, pk = pickFor(f.it), pkBefore = pk && { ...pk }, pkIdx = S.picks.indexOf(pk)
+  if (fix.kind === 'rm') { f.d.items.splice(f.ii, 1); if (pk) S.picks.splice(pkIdx, 1) }
   else { f.it.sets -= fix.k; if (pk) pk.sets = f.it.sets }
   refreshCtx(ctx); buzz(8)
   toast(fix.kind === 'rm' ? `شلنا ${name}. ${lblOf(a)} صار ${Math.round(fix.after)}` : `نزّلنا ${name}. ${lblOf(a)} صار ${Math.round(fix.after)}`, { label: 'تراجع', run: () => {
     if (fix.kind === 'rm') {
       if (!S.plan.days.includes(f.d) || findItem(f.it.uid)) return
       f.d.items.splice(Math.min(f.ii, f.d.items.length), 0, f.it)
-      if (by === 'user' && pk && !S.picks.includes(pk)) S.picks.splice(Math.max(0, pkIdx), 0, Object.assign(pk, pkBefore))
+      if (pk && !S.picks.includes(pk)) S.picks.splice(Math.min(Math.max(0, pkIdx), S.picks.length), 0, Object.assign(pk, pkBefore))
     }
     else { f.it.sets = was; if (pk) Object.assign(pk, pkBefore) }
     const el = $(`#gaps .added[data-uid="${f.it.uid}"]`); if (el) el.hidden = false
@@ -1066,7 +1078,9 @@ function applyMuch(a, ctx) {
 function moveItem(fix) {
   const f = findItem(fix.uid); if (!f) return null
   f.d.items.splice(f.ii, 1); S.plan.days[fix.to].items.push(f.it); sortDay(S.plan.days[fix.to])
-  const pk = f.it.by === 'user' && pickFor(f.it); if (pk) pk.day = fix.to
+  const pk = pickFor(f.it)
+  f.pinned = !!pk && pk.day != null   // a row of his plan opened to edit stays pinned on «تراجع»
+  if (pk) pk.day = fix.to
   return f
 }
 function applyTip(key, ctx) {
@@ -1075,7 +1089,7 @@ function applyTip(key, ctx) {
   const L = dayLabels(S.plan)
   if (t.kind === 'session' && t.fix) {
     const f = moveItem(t.fix); if (!f) return
-    refreshCtx(ctx); toast(`نقلنا ${EXI[f.it.id].ar} ليوم ${dayName(L[t.fix.to])}`, { label: 'تراجع', run: () => { moveItem({ uid: f.it.uid, to: f.di }); const pk = pickFor(f.it); if (pk) delete pk.day; refreshCtx(ctx) } })
+    refreshCtx(ctx); toast(`نقلنا ${EXI[f.it.id].ar} ليوم ${dayName(L[t.fix.to])}`, { label: 'تراجع', run: () => { moveItem({ uid: f.it.uid, to: f.di }); const pk = pickFor(f.it); if (pk && !f.pinned) delete pk.day; refreshCtx(ctx) } })
   } else if (t.kind === 'rare') {
     const moved = []
     for (const r of t.list) if (r.fix) { const f = moveItem(r.fix); if (f) moved.push(f) }
@@ -1287,7 +1301,9 @@ ENTER.plan = function () {
   refreshPlan(); renderDay()
 }
 const flagOf = (m) => m > LONG ? 'طويل' : m < 30 ? 'خفيف' : ''
+const daySig = (plan) => plan ? plan.days.map(d => d.type).join() : ''
 function refreshPlan() {
+  S.daySig = daySig(S.plan)
   const cov = coverage(S.plan, S.goal), L = dayLabels(S.plan)
   const appN = S.plan.days.reduce((s, d) => s + d.items.filter(it => it.by === 'app').length, 0)
   $('#plan-meta').innerHTML = `<span><b>${S.days}</b> أيام بالأسبوع</span><span>${S.plan.days.length === 2 ? 'يومين' : `<b>${S.plan.days.length}</b> أيام`} بالدور</span><span>مغطاة <b>${cov.n}</b> من <b>${cov.of}</b></span>${appN ? `<span>${inl(ic('spark', 11))} <b>${appN}</b> أضافها التطبيق</span>` : ''}`
@@ -1380,9 +1396,10 @@ function removeItem(uid, { exclude = false } = {}) {
   const name = EXI[f.it.id].ar
   if (exclude) S.excluded.add(f.it.id)
   f.d.items.splice(f.ii, 1); S.open = null
-  // His own exercise leaves his picks too, or going back a screen (which
-  // builds the plan again from the picks) would quietly bring it back.
-  const pk = f.it.by === 'user' ? pickFor(f.it) : null, pkIdx = pk ? S.picks.indexOf(pk) : -1
+  // The row leaves its pick too, whoever added it, or going back a screen
+  // (which builds the plan again from the picks) would quietly bring it
+  // back: his plan opened to edit has the app's rows as picks as well.
+  const pk = pickFor(f.it), pkIdx = pk ? S.picks.indexOf(pk) : -1
   if (pkIdx >= 0) S.picks.splice(pkIdx, 1)
   const li = $(`.prow[data-uid="${uid}"]`)
   const done = () => { renderDay(); refreshPlan() }
@@ -1502,12 +1519,14 @@ function dayPick(id, cardEl) {
   const d = S.plan.days[S.day], L = dayLabels(S.plan)[S.day]
   const i = d.items.findIndex(it => it.id === id)
   if (i < 0) {
-    const it = mkItem(cfg(), id, 'user'); d.items.push(it); sortDay(d)
-    if (!S.picks.some(p => p.id === id)) S.picks.push({ id, day: S.day })
+    // its own pick on this day, even when the same exercise is on another
+    // day too, so going back a screen keeps both
+    const it = mkItem(cfg(), id, 'user'), p = { id, day: S.day }; linkPick(it, p); d.items.push(it); sortDay(d)
+    S.picks.push(p)
     restyleX(cardEl, id, true); cardEl.classList.add('just'); later(() => cardEl.classList.remove('just'), 700)
     buzz(12); snd('tick', { gain: 0.45, rate: 1.1 }); toast(`أضفنا ${EXI[id].ar} ليوم ${dayName(L)}`)
   } else {
-    d.items.splice(i, 1); const pi = S.picks.findIndex(p => p.id === id); if (pi >= 0) S.picks.splice(pi, 1)
+    const pk = pickFor(d.items[i]); d.items.splice(i, 1); const pi = S.picks.indexOf(pk); if (pi >= 0) S.picks.splice(pi, 1)
     restyleX(cardEl, id, false); buzz(6); toast(`شلنا ${EXI[id].ar} من يوم ${dayName(L)}`)
   }
   renderDay(); refreshPlan()
@@ -1609,8 +1628,8 @@ on(HOST, 'click', (e) => {
     case 'close': return close()
     case 'start-workout': return ctx.onStart && ctx.onStart()
     case 'back': return goBack()
-    case 'start-build': if (S.mode !== 'build') { S.picks = []; S.split = null } S.mode = 'build'; return go('basics')
-    case 'start-auto': if (S.mode !== 'auto') S.split = null; S.mode = 'auto'; S.picks = []; return go('basics')
+    case 'start-build': if (S.mode !== 'build') { S.picks = []; S.split = null; S.daySig = '' } S.mode = 'build'; return go('basics')
+    case 'start-auto': if (S.mode !== 'auto') S.split = null; S.mode = 'auto'; S.picks = []; S.daySig = ''; return go('basics')
     case 'start-current': if (!loadCurrent()) return; go('deck'); later(() => toast(curToast()), RM ? 0 : 480); return
     case 'restore-prev': {
       if (!PREV) return
@@ -1730,8 +1749,10 @@ on(HOST, 'click', (e) => {
       land(card); refreshGaps(); toast(`بدّلنا ${old} بـ${alt.ar}`); return
     }
     case 'unfill': S.plan = buildFromPicks(cfg()); S.filled = false; ENTER.gaps(); return
-    case 'to-plan': S.day = 0; return go('plan')
-    case 'to-plan-raw': S.plan = buildFromPicks(cfg()); S.filled = false; S.day = 0; return go('plan')
+    // back a screen and forward again: the same day tab, while the days
+    // are the same days
+    case 'to-plan': if (daySig(S.plan) !== S.daySig) S.day = 0; return go('plan')
+    case 'to-plan-raw': S.plan = buildFromPicks(cfg()); S.filled = false; if (daySig(S.plan) !== S.daySig) S.day = 0; return go('plan')
     case 'day': return setDay(+v)
     case 'row': {
       if (performance.now() - suppress < 350) return
@@ -1741,7 +1762,7 @@ on(HOST, 'click', (e) => {
     case 'sets-inc': case 'sets-dec': {
       const f = findItem(rowUid()); if (!f || f.it.mins) return
       f.it.sets = Math.max(1, Math.min(6, f.it.sets + (act === 'sets-inc' ? 1 : -1)))
-      const pk = f.it.by === 'user' && pickFor(f.it); if (pk) pk.sets = f.it.sets
+      const pk = pickFor(f.it); if (pk) pk.sets = f.it.sets
       const li = el.closest('.prow')
       $('.pr-sets', li).innerHTML = setsBlock(f.it)
       const sv = $('.stepper .sv', li); sv.innerHTML = `<b class="num roll-in">${f.it.sets}</b>${f.it.sets === 1 ? 'مجموعة' : 'مجموعات'}`
@@ -1752,7 +1773,7 @@ on(HOST, 'click', (e) => {
       const f = findItem(rowUid()); if (!f || f.it.mins) return
       if (act === 'reps') f.it.r = [...stepList(f.it.unit === 'sec' ? SECS : REPS, f.it.r, +v)]
       else f.it.rest = stepList(RESTS, f.it.rest, +v)
-      const pk = f.it.by === 'user' && pickFor(f.it); if (pk) { pk.r = [...f.it.r]; pk.rest = f.it.rest }
+      const pk = pickFor(f.it); if (pk) { pk.r = [...f.it.r]; pk.rest = f.it.rest }
       const li = el.closest('.prow'), b = el.parentElement.querySelector('b')
       b.innerHTML = act === 'reps' ? `<bdi dir="ltr">${rng(f.it)}</bdi>` : restLbl(f.it.rest)
       if (!RM) b.animate([{ transform: 'translateY(-6px)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: 400, easing: LAND })
@@ -1765,7 +1786,11 @@ on(HOST, 'click', (e) => {
     case 'alt': {
       const f = findItem(el.dataset.uid); if (!f) return
       const old = EXI[f.it.id].ar
-      f.it.id = v
+      // another exercise: not the old one's name or saved row, and its
+      // pick follows, or going back a screen brings the old one back
+      const pk = pickFor(f.it)
+      f.it.id = v; delete f.it.name; delete f.it.orig
+      if (pk) { pk.id = v; delete pk.name; delete pk.orig }
       closeSheet(); S.open = f.it.uid; renderDay(); refreshPlan()
       land($(`.prow[data-uid="${f.it.uid}"]`))
       toast(`بدّلنا ${old} بـ${EXI[v].ar}`); return
@@ -1773,7 +1798,7 @@ on(HOST, 'click', (e) => {
     case 'move': {
       const f = findItem(el.dataset.uid); if (!f) return
       f.d.items.splice(f.ii, 1); S.plan.days[+v].items.push(f.it); sortDay(S.plan.days[+v])
-      const pk = f.it.by === 'user' && pickFor(f.it); if (pk) pk.day = +v
+      const pk = pickFor(f.it); if (pk) pk.day = +v
       const L = dayLabels(S.plan)[+v]; S.open = null
       closeSheet(); renderDay(); refreshPlan(); toast(`نقلناه ليوم ${dayName(L)}`); return
     }
