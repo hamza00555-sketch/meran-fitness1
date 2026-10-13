@@ -10,9 +10,9 @@
 // surprises anywhere else.
 //
 // The layout is «تحت الأضواء»: near-black ground, one neutral stage
-// light, the month's total as a broadcast number, figures on hairlines
-// instead of tiles, gold only on the weight that went up, orange only
-// on the streak, and the real wordmark — never a typed «مران». Every
+// light, the month's sessions as a lit number over its squares,
+// figures on hairlines, gold only on the weight that went up, orange only
+// on the streak, and the real wordmark (never a typed «مران»). Every
 // piece of content sits between y≈250 and y≈1600, clear of the Stories
 // header above and the reply bar below.
 //
@@ -21,10 +21,11 @@
 // here as literals: the NORMAL values from src/styles/tokens.css, never
 // the deload ones.
 
-import { urlFor } from './assets/registry.js'
 import { arabicName } from './exerciseMedia.js'
 import { todayKey } from './day.js'
-import { unitWord, fromWord } from './monthReport.js'
+import { unitWord, fromWord, kgText } from './monthReport.js'
+import { jumpChart } from './reportStory.js'
+import { fmtDayAr } from './streak.js'
 
 export const POSTER_W = 1080
 export const POSTER_H = 1920
@@ -173,127 +174,361 @@ export function posterFooter(report, profile = {}) {
   return { name, level: `المستوى ${AR(p.level)}${rank ? ` · ${rank}` : ''}` }
 }
 
-// ── The poster ────────────────────────────────────────────────
+// ── The posters ───────────────────────────────────────────────
+// Two of them, as the approved design has it:
+//
+//   month — the month's sessions as the big lit number, the month's
+//           squares lit like the calendar card, the streak, the new
+//           weight, his name and the mark.
+//   pr    — one new weight: the lift, the weight in gold, and under it
+//           the same week-by-week line as the «أكبر قفزة» card, so who
+//           sees it sees the jump and not only the number.
+//
+// Photos are never drawn into either.
 
-export async function drawPoster(canvas, { report, profile = {}, mapping = {}, liveStreak = null, today } = {}) {
-  canvas.width = POSTER_W
-  canvas.height = POSTER_H
-  const ctx = canvas.getContext('2d')
+const INK_RGB = '244,246,248'
+const LEVEL_ALPHA = [0, 0.2, 0.36, 0.55, 0.76, 0.96]
+const D = { deload: '#5CC9EE', deloadWash: 'rgba(92,201,238,0.14)', rest: '#3B9DE8', goldHi: '#FDE68A', on: '#0B0D10' }
 
-  await ensureFonts()
-  const [cover, mark] = await Promise.all([loadImage(urlFor(report.cover)), loadImage(MARK.src)])
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath()
+  if (typeof ctx.roundRect === 'function') { ctx.roundRect(x, y, w, h, r); return }
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+}
 
-  // ── Ground and light ──
+/** The floodlight from the top of the card: a soft cone and a lamp. */
+function floodlight(ctx, { gold = false } = {}) {
   ctx.fillStyle = C.ground
   ctx.fillRect(0, 0, POSTER_W, POSTER_H)
-
-  if (cover) {
-    // The month's art as the stage, cropped to fill the top, then sunk
-    // into the ground so the number reads over it.
-    const BAND = 900
-    const scale = Math.max(POSTER_W / cover.width, BAND / cover.height)
-    const w = cover.width * scale
-    const h = cover.height * scale
-    ctx.drawImage(cover, (POSTER_W - w) / 2, (BAND - h) / 2, w, h)
-    const sink = ctx.createLinearGradient(0, 0, 0, BAND)
-    sink.addColorStop(0, 'rgba(3,4,4,0.30)')
-    sink.addColorStop(0.45, 'rgba(3,4,4,0.70)')
-    sink.addColorStop(0.8, 'rgba(3,4,4,0.95)')
-    sink.addColorStop(1, C.ground)
-    ctx.fillStyle = sink
-    ctx.fillRect(0, 0, POSTER_W, BAND + 2)
+  const cx = POSTER_W / 2
+  if (typeof ctx.createConicGradient === 'function') {
+    // CSS «from 150deg» is canvas 60°: the cone points straight down.
+    const g = ctx.createConicGradient((60 * Math.PI) / 180, cx, -60)
+    const s = (deg) => deg / 360
+    g.addColorStop(0, 'rgba(255,255,255,0)')
+    g.addColorStop(s(10), 'rgba(255,255,255,0.045)')
+    g.addColorStop(s(22), 'rgba(255,255,255,0.10)')
+    g.addColorStop(s(30), 'rgba(255,255,255,0.16)')
+    g.addColorStop(s(38), 'rgba(255,255,255,0.10)')
+    g.addColorStop(s(50), 'rgba(255,255,255,0.045)')
+    g.addColorStop(s(60), 'rgba(255,255,255,0)')
+    g.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, POSTER_W, POSTER_H)
+    // The cone fades into the ground before the bottom.
+    const fade = ctx.createLinearGradient(0, 700, 0, 1700)
+    fade.addColorStop(0, 'rgba(3,4,4,0)')
+    fade.addColorStop(1, C.ground)
+    ctx.fillStyle = fade
+    ctx.fillRect(0, 700, POSTER_W, POSTER_H - 700)
   } else {
-    // One neutral stage light — light, not glow.
-    const light = ctx.createRadialGradient(POSTER_W * 0.62, 470, 0, POSTER_W * 0.62, 470, 900)
+    const light = ctx.createRadialGradient(cx, 380, 0, cx, 380, 900)
     light.addColorStop(0, C.stage)
     light.addColorStop(0.72, C.ground)
-    light.addColorStop(1, C.ground)
     ctx.fillStyle = light
     ctx.fillRect(0, 0, POSTER_W, POSTER_H)
   }
-
-  // ── The month ──
-  text(ctx, `تقرير الشهر · ${report.monthLabel}`, R, 300, { size: 38, weight: 600, color: C.ink3, maxWidth: COL })
-
-  // ── The headline number: 96pt × 2.4, condensed, shrunk to fit ──
-  const total = AR(report.volume.total)
-  let size = total.replace(/\D/g, '').length >= 7 ? 200 : 240
-  while (size > 140 && width(ctx, total, { size, weight: 800, stretch: 62, dir: 'ltr' }) > COL) size -= 8
-  text(ctx, total, R, 300 + 24 + size * 0.86, { size, weight: 800, stretch: 62, dir: 'ltr', maxWidth: COL })
-  const heroBase = 300 + 24 + size * 0.86
-  text(ctx, 'كجم رفعتها', R, heroBase + 76, { size: 44, weight: 600, color: C.ink2 })
-
-  // ── Four figures on hairlines, two by two ──
-  const { figs, attended, planned } = posterFigures(report, { liveStreak, today })
-  const gridTop = heroBase + 140
-  const ROW = 212
-  const CELL = COL / 2
-  hairline(ctx, gridTop)
-  figs.forEach((f, i) => {
-    const row = Math.floor(i / 2)
-    const right = R - (i % 2) * CELL
-    const base = gridTop + 40 + row * ROW + 104
-    let x = right
-    if (f.flame) {
-      flame(ctx, right - 64, base - 76, 64, C.streak)
-      x = right - 80
-    }
-    text(ctx, f.v, x, base, { size: 112, weight: 800, stretch: 85, color: f.color || C.ink, dir: 'ltr', maxWidth: CELL - 40 - (f.flame ? 80 : 0) })
-    text(ctx, f.l, right, base + 56, { size: 34, weight: 600, color: C.ink3, maxWidth: CELL - 40 })
-  })
-  if (figs.length > 2) hairline(ctx, gridTop + ROW + 8)
-  const gridBottom = gridTop + Math.ceil(figs.length / 2) * ROW + 16
-  hairline(ctx, gridBottom)
-
-  // ── The month's biggest jump — the one gold weight — or, without one,
-  //    the sessions he came to out of the ones planned. ──
-  const best = report.prs?.[0]
-  const blockTop = gridBottom + 72
-  if (best) {
-    const ar = arabicName(best.exercise, mapping)
-    const kg = AR(Math.round(best.weight * 10) / 10)
-    text(ctx, 'أكبر قفزة · وزن جديد', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
-    // The weight on the left, in gold; the name on the right.
-    const wW = width(ctx, kg, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
-    const unitW = width(ctx, 'كجم', { size: 38, weight: 600 })
-    text(ctx, kg, L + unitW + 14, blockTop + 152, { size: 132, weight: 800, stretch: 85, color: C.raise, dir: 'ltr', align: 'left' })
-    text(ctx, 'كجم', L, blockTop + 152, { size: 38, weight: 600, color: C.ink3, align: 'left' })
-    const nameW = COL - wW - unitW - 64
-    text(ctx, ar || best.exercise, R, blockTop + 76, { size: 54, weight: 700, color: C.ink, maxWidth: nameW, dir: ar ? 'rtl' : 'ltr' })
-    if (ar) text(ctx, best.exercise, R, blockTop + 124, { size: 34, weight: 600, stretch: 85, color: C.ink3, maxWidth: nameW, dir: 'ltr' })
-    const gain = Math.round((best.weight - best.prevBest) * 10) / 10
-    text(ctx, `${fromWord(best)} ${AR(best.prevBest)} كجم · \u2066+${AR(gain)}\u2069 كجم`, R, blockTop + 176, { size: 34, weight: 600, color: C.ink2, maxWidth: nameW })
-  } else if (planned && !figs.some(f => f.planned)) {
-    text(ctx, 'حضورك', R, blockTop, { size: 34, weight: 600, color: C.ink3 })
-    text(ctx, `${AR(attended)} / ${AR(planned)}`, R, blockTop + 140, { size: 132, weight: 800, stretch: 85, dir: 'ltr' })
-    text(ctx, `${unitWord(attended, 'session')} حضرتها من اللي في خطتك`, R, blockTop + 196, { size: 34, weight: 600, color: C.ink3 })
+  const lamp = ctx.createRadialGradient(cx, -40, 0, cx, -40, 320)
+  lamp.addColorStop(0, 'rgba(255,255,255,0.35)')
+  lamp.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = lamp
+  ctx.fillRect(0, 0, POSTER_W, 400)
+  if (gold) {
+    const g = ctx.createRadialGradient(cx, 560, 0, cx, 560, 640)
+    g.addColorStop(0, 'rgba(251,191,36,0.16)')
+    g.addColorStop(1, 'rgba(251,191,36,0)')
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, POSTER_W, 1300)
   }
+}
 
-  // ── Who this is, and the mark ──
-  const FOOT = 1452
+/** A number in lit metal: white to silver, or gold. */
+function metalText(ctx, s, x, y, { size, gold = false, align = 'right' }) {
+  ctx.direction = 'ltr'
+  setFont(ctx, 800, size, 62)
+  ctx.textAlign = align
+  ctx.textBaseline = 'alphabetic'
+  const g = ctx.createLinearGradient(0, y - size * 0.86, 0, y)
+  if (gold) { g.addColorStop(0, '#FFF3C4'); g.addColorStop(0.5, C.raise); g.addColorStop(1, '#C98A06') }
+  else { g.addColorStop(0, '#FFFFFF'); g.addColorStop(0.52, '#DCE1E6'); g.addColorStop(1, '#8A95A1') }
+  ctx.save()
+  ctx.shadowColor = gold ? 'rgba(251,191,36,0.40)' : 'rgba(255,255,255,0.20)'
+  ctx.shadowBlur = 60
+  ctx.fillStyle = g
+  ctx.fillText(String(s), x, y)
+  ctx.restore()
+  return width(ctx, s, { size, weight: 800, stretch: 62, dir: 'ltr' })
+}
+
+function cross(ctx, x, y, s) {
+  ctx.save()
+  ctx.strokeStyle = C.ink
+  ctx.lineWidth = 4
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s)
+  ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** The month's squares, lit like the calendar card, no numbers. */
+function monthSquares(ctx, report, { top, w }) {
+  const cal = report.consistency?.calendar || []
+  const [y, m] = report.month.split('-').map(Number)
+  const pad = new Date(Date.UTC(y, m - 1, 1)).getUTCDay()
+  const gap = 16
+  const cell = (w - gap * 6) / 7
+  const left = (POSTER_W - w) / 2
+  cal.forEach((day, i) => {
+    const k = pad + i
+    const col = k % 7, row = Math.floor(k / 7)
+    // Sunday on the right, as the app's calendar reads.
+    const x = left + w - (col + 1) * cell - col * gap
+    const yy = top + row * (cell + gap)
+    roundRect(ctx, x, yy, cell, cell, 14)
+    if (day.kind === 'trained' && day.level) {
+      const a = LEVEL_ALPHA[day.level]
+      ctx.save()
+      ctx.shadowColor = `rgba(${INK_RGB},${(a * 0.6).toFixed(2)})`
+      ctx.shadowBlur = 26
+      ctx.fillStyle = `rgba(${INK_RGB},${a})`
+      ctx.fill()
+      ctx.restore()
+    } else if (day.kind === 'trained') {
+      ctx.fillStyle = D.deloadWash
+      ctx.fill()
+      ctx.strokeStyle = D.deload
+      ctx.lineWidth = 5
+      roundRect(ctx, x + 2.5, yy + 2.5, cell - 5, cell - 5, 12)
+      ctx.stroke()
+    } else if (day.kind === 'miss') {
+      ctx.strokeStyle = C.ink3
+      ctx.lineWidth = 2
+      ctx.stroke()
+      cross(ctx, x + cell / 2, yy + cell / 2, cell * 0.16)
+    } else if (day.kind === 'paid') {
+      ctx.strokeStyle = D.rest
+      ctx.lineWidth = 3
+      ctx.stroke()
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.10)'
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+  })
+  const rows = Math.ceil((pad + cal.length) / 7)
+  return top + rows * cell + (rows - 1) * gap
+}
+
+/** Who this is from, and the mark: the same foot on both posters. */
+function foot(ctx, report, profile, mark) {
+  const FOOT = 1476
   hairline(ctx, FOOT)
   const { name, level } = posterFooter(report, profile)
   if (name && level) {
     text(ctx, name, R, FOOT + 76, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
-    text(ctx, level, R, FOOT + 128, { size: 34, weight: 600, color: C.ink3, maxWidth: COL - 260 })
+    text(ctx, level, R, FOOT + 124, { size: 34, weight: 600, color: C.ink3, maxWidth: COL - 260 })
   } else if (name) {
-    text(ctx, name, R, FOOT + 104, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
+    text(ctx, name, R, FOOT + 98, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 260 })
   } else if (level) {
-    text(ctx, level, R, FOOT + 98, { size: 38, weight: 600, color: C.ink2, maxWidth: COL - 260 })
+    text(ctx, level, R, FOOT + 94, { size: 38, weight: 600, color: C.ink2, maxWidth: COL - 260 })
   }
   if (mark) {
-    const h = 80
+    const h = 70
     const w = MARK.w * (h / MARK.h)
-    ctx.drawImage(mark, MARK.x, MARK.y, MARK.w, MARK.h, L, FOOT + 88 - h / 2, w, h)
+    ctx.drawImage(mark, MARK.x, MARK.y, MARK.w, MARK.h, L, FOOT + 84 - h / 2, w, h)
+  }
+}
+
+/** One figure on a hairline: the words on the right, the number on the left. */
+function figureRow(ctx, y, { title, sub, value, color, flame: withFlame = false }) {
+  hairline(ctx, y)
+  text(ctx, title, R, y + 62, { size: 46, weight: 700, color: C.ink, maxWidth: COL - 320 })
+  if (sub) text(ctx, sub, R, y + 108, { size: 34, weight: 600, color: C.ink3, maxWidth: COL - 320 })
+  const size = 116
+  const base = y + 112
+  ctx.direction = 'ltr'
+  setFont(ctx, 800, size, 62)
+  ctx.textAlign = 'left'
+  ctx.fillStyle = color
+  ctx.fillText(String(value), withFlame ? L + 76 : L, base)
+  if (withFlame) flame(ctx, L - 4, base - 84, 76, color)
+  return y + 136
+}
+
+export async function drawMonthPoster(canvas, { report, profile = {}, mapping = {}, liveStreak = null, today } = {}) {
+  canvas.width = POSTER_W
+  canvas.height = POSTER_H
+  const ctx = canvas.getContext('2d')
+  await ensureFonts()
+  const mark = await loadImage(MARK.src)
+
+  floodlight(ctx)
+
+  // The month, then the sessions he came to as the lit number.
+  text(ctx, report.monthLabel, R, 300, { size: 40, weight: 600, color: C.ink3, maxWidth: COL })
+  const attended = report.attendance?.attended ?? report.sessionCount ?? 0
+  const heroBase = 330 + 280 * 0.86
+  const numW = metalText(ctx, AR(attended), R, heroBase, { size: 280 })
+  const wordX = R - numW - 30
+  text(ctx, unitWord(attended, 'session'), wordX, heroBase - 78, { size: 56, weight: 700, color: C.ink2 })
+  text(ctx, 'حضرتها', wordX, heroBase - 10, { size: 56, weight: 700, color: C.ink2 })
+
+  // The month's squares.
+  let y = monthSquares(ctx, report, { top: heroBase + 56, w: 640 }) + 44
+
+  // The streak, and the month's biggest new weight.
+  const c = report.consistency || {}
+  const over = isMonthOver(report.month, today)
+  const streak = over ? c.endStreak : liveStreak
+  if (Number.isFinite(streak) && streak > 0) {
+    y = figureRow(ctx, y, {
+      title: `${unitWord(streak, 'day')} ستريك`,
+      sub: over ? `آخر ${monthName(report.monthLabel)}` : 'لين اليوم',
+      value: AR(streak), color: C.streak, flame: true,
+    })
+  }
+  const best = report.prs?.[0]
+  if (best && y < 1340) {
+    const ar = arabicName(best.exercise, mapping)
+    y = figureRow(ctx, y, {
+      title: ar || best.exercise, sub: 'وزن جديد',
+      value: AR(Math.round(best.weight * 10) / 10), color: C.raise,
+    })
   }
 
+  foot(ctx, report, profile, mark)
+  return canvas
+}
+
+/** The old name, for anything still calling it. */
+export const drawPoster = drawMonthPoster
+
+export async function drawPrPoster(canvas, { report, profile = {}, mapping = {} } = {}) {
+  canvas.width = POSTER_W
+  canvas.height = POSTER_H
+  const ctx = canvas.getContext('2d')
+  await ensureFonts()
+  const mark = await loadImage(MARK.src)
+  const j = report.jump
+  floodlight(ctx, { gold: true })
+  if (!j) { foot(ctx, report, profile, mark); return canvas }
+
+  const ar = arabicName(j.exercise, mapping)
+  text(ctx, `وزن جديد · ${report.monthLabel}`, R, 300, { size: 40, weight: 600, color: C.ink3, maxWidth: COL })
+  text(ctx, ar || j.exercise, R, 384, { size: 64, weight: 700, color: C.ink, maxWidth: COL, dir: ar ? 'rtl' : 'ltr' })
+  const base = 420 + 300 * 0.86
+  const kg = AR(Math.round(j.weight * 10) / 10)
+  const w = metalText(ctx, kg, R, base, { size: 300, gold: true })
+  text(ctx, 'كجم', R - w - 26, base - 8, { size: 56, weight: 700, color: C.ink2 })
+  const gain = Math.round((j.weight - j.prevBest) * 10) / 10
+  text(ctx, `${fromWord(j)} ${kgText(j.prevBest)} كجم · زاد ${AR(gain)} كجم`, R, base + 74, { size: 38, weight: 600, color: C.ink2, maxWidth: COL })
+
+  // The line, as on the card.
+  const chart = jumpChart(j, report.month)
+  if (chart) {
+    const box = { x: L + 92, y: base + 196, w: COL - 100, h: 1360 - (base + 196) }
+    const px = (p) => box.x + (p / 100) * box.w
+    const py = (p) => box.y + (p / 100) * box.h
+    for (const b of chart.deloads) {
+      ctx.fillStyle = D.deloadWash
+      roundRect(ctx, px(b.x), box.y - 10, (b.w / 100) * box.w, box.h + 10, 12)
+      ctx.fill()
+    }
+    for (const t of chart.ticks) {
+      ctx.fillStyle = 'rgba(255,255,255,0.14)'
+      ctx.fillRect(box.x, py(t.y), box.w, 2)
+      text(ctx, AR(t.v), box.x - 20, py(t.y) + 12, { size: 34, weight: 600, color: C.ink3, align: 'right', dir: 'ltr' })
+    }
+    text(ctx, 'كجم', box.x - 20, box.y - 40, { size: 30, weight: 600, color: C.ink3, align: 'right' })
+    if (chart.refY != null) {
+      ctx.fillStyle = C.ink3
+      ctx.fillRect(box.x, py(chart.refY), box.w, 2)
+      text(ctx, j.firstTime ? 'أول وزن بدأت فيه' : `أثقل وزن قبل ${monthName(report.monthLabel)}`, box.x, py(chart.refY) + 44,
+        { size: 32, weight: 600, color: C.ink2, align: 'left' })
+    }
+    const pts = chart.pts.filter(p => p.kind !== 'dl')
+    const path = () => {
+      ctx.beginPath()
+      pts.forEach((p, i) => (i ? ctx.lineTo(px(p.x), py(p.y)) : ctx.moveTo(px(p.x), py(p.y))))
+    }
+    if (pts.length > 1) {
+      // The area under the line, then the line; the part above the old
+      // best again in gold.
+      path()
+      ctx.lineTo(px(pts[pts.length - 1].x), box.y + box.h)
+      ctx.lineTo(px(pts[0].x), box.y + box.h)
+      ctx.closePath()
+      const fill = ctx.createLinearGradient(0, box.y, 0, box.y + box.h)
+      fill.addColorStop(0, 'rgba(244,246,248,0.14)')
+      fill.addColorStop(1, 'rgba(244,246,248,0)')
+      ctx.fillStyle = fill
+      ctx.fill()
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+      path()
+      ctx.strokeStyle = C.ink2
+      ctx.lineWidth = 6
+      ctx.stroke()
+      if (chart.refY != null) {
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, 0, POSTER_W, py(chart.refY))
+        ctx.clip()
+        path()
+        ctx.strokeStyle = C.raise
+        ctx.shadowColor = 'rgba(251,191,36,0.8)'
+        ctx.shadowBlur = 16
+        ctx.lineWidth = 7
+        ctx.stroke()
+        ctx.restore()
+      }
+    }
+    for (const p of chart.pts) {
+      if (p.kind === 'pr') continue
+      ctx.beginPath()
+      ctx.arc(px(p.x), py(p.y), 11, 0, Math.PI * 2)
+      ctx.fillStyle = C.ground
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(px(p.x), py(p.y), p.kind === 'dl' ? 8 : 8, 0, Math.PI * 2)
+      if (p.kind === 'dl') { ctx.strokeStyle = D.deload; ctx.lineWidth = 4; ctx.stroke() }
+      else { ctx.fillStyle = p.kind === 'up' ? C.raise : C.ink2; ctx.fill() }
+    }
+    if (chart.pr) {
+      const x = px(chart.pr.x), yy = py(chart.pr.y)
+      ctx.save()
+      ctx.shadowColor = 'rgba(251,191,36,0.7)'
+      ctx.shadowBlur = 40
+      ctx.beginPath()
+      ctx.arc(x, yy, 17, 0, Math.PI * 2)
+      ctx.fillStyle = D.goldHi
+      ctx.fill()
+      ctx.restore()
+      text(ctx, kg, x, yy - 64, { size: 46, weight: 800, color: C.ink, align: 'center', dir: 'ltr', stretch: 85 })
+      if (j.date) text(ctx, fmtDayAr(j.date, { weekday: false }), x, yy - 30, { size: 30, weight: 600, color: C.ink2, align: 'center' })
+    }
+    for (const l of chart.labels) text(ctx, l.text, px(l.x), box.y + box.h + 56, { size: 34, weight: 600, color: C.ink3, align: 'center' })
+    if (chart.sep != null) {
+      ctx.fillStyle = 'rgba(255,255,255,0.14)'
+      ctx.fillRect(px(chart.sep), box.y - 20, 2, box.h + 50)
+    }
+  }
+
+  foot(ctx, report, profile, mark)
   return canvas
 }
 
 /** The poster as a PNG blob. */
-export async function buildPosterBlob(opts) {
+export async function buildPosterBlob({ kind = 'month', ...opts } = {}) {
   const canvas = document.createElement('canvas')
-  await drawPoster(canvas, opts)
+  await (kind === 'pr' ? drawPrPoster : drawMonthPoster)(canvas, opts)
   const blob = await new Promise(res => canvas.toBlob(res, 'image/png'))
   // toBlob answers null when it cannot allocate — 1080×1920 is large
   // enough for that to be a real outcome on an old phone.
@@ -325,9 +560,9 @@ export function canShareFiles(file, nav = typeof navigator !== 'undefined' ? nav
   }
 }
 
-export async function sharePoster({ report, profile, mapping, liveStreak, today, onInline } = {}) {
-  const blob = await buildPosterBlob({ report, profile, mapping, liveStreak, today })
-  const filename = `meran-${report.month}.png`
+export async function sharePoster({ kind = 'month', report, profile, mapping, liveStreak, today, onInline } = {}) {
+  const blob = await buildPosterBlob({ kind, report, profile, mapping, liveStreak, today })
+  const filename = kind === 'pr' ? `meran-${report.month}-new-weight.png` : `meran-${report.month}.png`
   const file = typeof File === 'function'
     ? new File([blob], filename, { type: 'image/png' })
     : null
@@ -335,7 +570,7 @@ export async function sharePoster({ report, profile, mapping, liveStreak, today,
   // 1. The share sheet.
   if (file && canShareFiles(file)) {
     try {
-      await navigator.share({ files: [file], title: `تقرير ${report.monthLabel}` })
+      await navigator.share({ files: [file], title: kind === 'pr' ? `وزن جديد · ${report.monthLabel}` : `تقرير ${report.monthLabel}` })
       return SHARE_RESULT.SHARED
     } catch (err) {
       // Closing the sheet is a decision, not a failure.

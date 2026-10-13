@@ -315,7 +315,7 @@ test('a lift ready to go up becomes «ارفع», with its reason', () => {
   assert.equal(plan.length, 1)
   assert.equal(plan[0].kind, 'raise')
   const c = nextCopy(plan[0])
-  assert.equal(c.title, 'ارفع وزن ضغط بنش بالبار', 'called by its Arabic name')
+  assert.equal(c.title, 'ارفع ضغط بنش بالبار إلى 62.5 كجم', 'called by its Arabic name, to one plate step up')
   assert.equal(c.reason, 'وصلت 15 عدّة على 60 كجم، فالوزن صار خفيف عليك.')
 })
 

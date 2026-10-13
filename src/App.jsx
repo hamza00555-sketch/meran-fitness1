@@ -13,7 +13,7 @@ import {
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayDiff } from './recovery.js'
-import { streakView, todayStreak, skipCopy, finishToast, spendToast } from './streak.js'
+import { streakView, todayStreak, skipCopy, finishToast, spendToast, countAr } from './streak.js'
 import { planReminders } from './notify.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from './progression.js'
@@ -79,7 +79,12 @@ import { restDaysView, toAnnounce, markAnnounced, REST_ANNOUNCED_KEY } from './r
 import MonthReport      from './components/report/MonthReport.jsx'
 import SavePosterSheet  from './components/report/SavePosterSheet.jsx'
 import { sharePoster, SHARE_RESULT } from './reportPoster.js'
-import { buildMonthReport, monthReportWindow, monthsTrail, reportMonths, MONTH_GOAL_KEY } from './monthReport.js'
+import {
+  buildMonthReport, monthReportWindow, monthsTrail, reportMonths, MONTH_GOAL_KEY,
+  monthGoalOf, withMonthGoal, expectedSessions, nextMonth, monthName,
+} from './monthReport.js'
+import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine } from './reportStory.js'
+import { validatePlan } from './plan/builder.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly
@@ -1028,7 +1033,9 @@ export default function App() {
   // The month's goal lives under its own key, which the old design does
   // not know and ignores. Read when the report opens, so a goal set in
   // another tab is not missed.
-  const monthGoals = useMemo(() => (showReport ? ls.get(MONTH_GOAL_KEY, {}) : {}), [showReport])
+  // goalsTick re-reads them after the report itself sets one.
+  const [goalsTick, setGoalsTick] = useState(0)
+  const monthGoals = useMemo(() => (showReport ? ls.get(MONTH_GOAL_KEY, {}) : {}), [showReport, goalsTick])
   const reportArgs = {
     sessions, config: recoveryCfg, unlockedAt, xp,
     mapping: exerciseMapping, repTarget, goals: monthGoals, today,
@@ -1058,18 +1065,23 @@ export default function App() {
   // The share button's whole job: draw the poster, then take whichever
   // route out of the app actually works on this device. The ladder
   // itself lives in reportPoster.js; this only decides what to say.
-  const handleSharePoster = useCallback(async () => {
+  // Two posters: the month's (kind 'month') and the new weight's ('pr').
+  // `sharing` holds which one is being drawn.
+  const handleSharePoster = useCallback(async (kind = 'month') => {
     if (!shownReport?.hasData || sharing) return
-    setSharing(true)
+    const k = kind === 'pr' && shownReport.jump ? 'pr' : 'month'
+    setSharing(k)
     try {
       const how = await sharePoster({
+        kind: k,
         report: shownReport,
         profile,
         mapping: exerciseMapping,
         liveStreak: recovery.consistencyStreak,
+        today,
         onInline: setPosterUrl,
       })
-      if (how === SHARE_RESULT.DOWNLOADED) pushAlert('📥', 'تم حفظ صورة التقرير')
+      if (how === SHARE_RESULT.DOWNLOADED) pushAlert('📥', k === 'pr' ? 'تم حفظ صورة الوزن الجديد' : 'تم حفظ صورة التقرير')
       // SHARED needs no confirmation — the share sheet was the
       // confirmation. CANCELLED was a decision, not a failure. INLINE
       // opens its own sheet.
@@ -1080,7 +1092,7 @@ export default function App() {
     } finally {
       setSharing(false)
     }
-  }, [shownReport, profile, sharing, pushAlert, exerciseMapping, recovery.consistencyStreak])
+  }, [shownReport, profile, sharing, pushAlert, exerciseMapping, recovery.consistencyStreak, today])
 
   // ── Changing frequency or plan ───────────────────────────────
   // Both keep the streak, because each past day is judged by the pattern
@@ -1128,7 +1140,9 @@ export default function App() {
   // same); switching to another plan follows the streak rule, like every
   // switch. Days a week chosen in the builder change with the plan, in
   // the same stamp: one change, not two. The plan it replaces is kept.
-  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false } = {}) => {
+  // `quiet` skips the alert, for a caller with its own (the report's
+  // «طبّقها على خطتي» toast, which has an undo).
+  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false, quiet = false } = {}) => {
     const today = todayKey()
     const daysChange = days != null && days !== recoveryRef.current.daysPerWeek
     if (plan) setPlanPrev({ plan, planIndex, savedAt: today })
@@ -1142,6 +1156,7 @@ export default function App() {
         streakResetAt: breakStreak ? today : prev.streakResetAt,
       }))
     }
+    if (quiet) return
     pushAlert(breakStreak ? '⚠️' : '📋',
       breakStreak ? `${newPlan.planName} — بدأ ستريك جديد`
         : edit ? 'انحفظ تعديل خطتك' : `تم تفعيل: ${newPlan.planName}`)
@@ -1162,6 +1177,52 @@ export default function App() {
     }
     pushAlert('↩️', `رجعت خطتك: ${prev.plan.planName}`)
   }, [planPrev, plan, planIndex, pushAlert])
+
+  // «طبّقها على خطتي»: next month's suggestions written into the plan
+  // (sets) and the weights the next sessions start at (hf_last_weights),
+  // plus next month's goal if none was set — only after the tap, and with
+  // an undo that puts back exactly what was there. Editing the plan this
+  // way is not a change of plan: the streak's rule is not involved.
+  const applyNextMonth = useCallback((report, items) => {
+    const before = {
+      plan,
+      planPrev,
+      weights: ls.get('hf_last_weights', null),
+      goals: ls.get(MONTH_GOAL_KEY, null),
+    }
+    const out = applyNext({ plan, lastWeights: before.weights || {}, items, mapping: exerciseMapping, config: recoveryCfg })
+    // The plan goes in the way the builder saves an edit of his own plan:
+    // the same check both designs need, the old plan kept for «رجّع خطتك
+    // القديمة», the day he reached kept, and no streak rule (an edit).
+    const setsChanged = out.changes.some(c => c.kind === 'sets') && !validatePlan(out.plan)
+    if (setsChanged) commitPlan(out.plan, { edit: true, quiet: true })
+    else out.changes = out.changes.filter(c => c.kind !== 'sets')
+    if (out.changes.some(c => c.kind === 'raise' || c.kind === 'lower')) ls.set('hf_last_weights', out.lastWeights)
+    const nm = nextMonth(report.month)
+    let goalWords = ''
+    if (!monthGoalOf(before.goals || {}, nm)) {
+      const target = expectedSessions(recoveryCfg, nm)
+      ls.set(MONTH_GOAL_KEY, withMonthGoal(before.goals || {}, nm, { kind: 'sessions', target }))
+      goalWords = ` وهدف ${monthName(nm)}: ${countAr(target, 'session')}.`
+      setGoalsTick(t => t + 1)
+    }
+    return {
+      text: `${appliedLine(out)}${goalWords}`,
+      undo: () => {
+        if (setsChanged) { setPlan(before.plan); setPlanPrev(before.planPrev) }
+        if (before.weights == null) ls.remove('hf_last_weights')
+        else ls.set('hf_last_weights', before.weights)
+        if (before.goals == null) ls.remove(MONTH_GOAL_KEY)
+        else ls.set(MONTH_GOAL_KEY, before.goals)
+        setGoalsTick(t => t + 1)
+      },
+    }
+  }, [plan, planPrev, commitPlan, exerciseMapping, recoveryCfg])
+
+  const setMonthGoal = useCallback((month, goal) => {
+    ls.set(MONTH_GOAL_KEY, withMonthGoal(ls.get(MONTH_GOAL_KEY, {}), month, goal))
+    setGoalsTick(t => t + 1)
+  }, [])
 
   const overrideRecoveryDay = useCallback(() => {
     const today = todayKey()
@@ -1497,6 +1558,14 @@ export default function App() {
           months={reportHistory}
           onPickMonth={(m) => setReportPick(m === reportMonth ? null : m)}
           onClose={() => { setShowReport(false); setReportPick(null) }}
+          // The first time a month's report opens it plays as a story.
+          storyFirst={!storySeen(ls.get(REPORT_SEEN_KEY, {}), shownReport.month)}
+          onStorySeen={(m) => ls.set(REPORT_SEEN_KEY, withStorySeen(ls.get(REPORT_SEEN_KEY, {}), m))}
+          photos={photos}
+          profile={profile}
+          config={recoveryCfg}
+          onApplyNext={applyNextMonth}
+          onSetGoal={setMonthGoal}
         />
       )}
       {posterUrl && (

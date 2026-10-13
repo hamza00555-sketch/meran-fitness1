@@ -22,11 +22,11 @@
 import { dayKey, todayKey } from './day.js'
 import {
   sessionVolume, resolveExerciseName, getWeightsResetAt,
-  xpProgress, getRank,
+  xpProgress, getRank, roundToPlate, PLATE_STEP,
 } from './utils.js'
 import { setCounts } from './sets.js'
 import { analyzeProgression, isCompleted, DEFAULT_REP_TARGET } from './progression.js'
-import { computeRecovery, addDays, dayDiff } from './recovery.js'
+import { computeRecovery, addDays, dayDiff, patternFor } from './recovery.js'
 import { countAr, unitAr, fmtDayAr } from './streak.js'
 import { isDeloadSession } from './deload.js'
 import { MUSCLE_GROUPS, ACHIEVEMENTS } from './constants.js'
@@ -598,7 +598,8 @@ export function nextMonthPlan({ sessions = [], month, mapping = {}, repTarget = 
   for (const { name, n } of trained.values()) {
     const a = analyzeProgression(upTo, name, mapping, repTarget)
     if (a.hint === 'raise') {
-      raise.push({ kind: 'raise', exercise: name, weight: a.workingWeight, reps: a.target.top, n })
+      // The new weight is the player's own: one plate step up (WorkoutPlayer).
+      raise.push({ kind: 'raise', exercise: name, weight: a.workingWeight, to: roundToPlate(a.workingWeight + PLATE_STEP), reps: a.target.top, n })
     } else if (a.hint === 'lower') {
       lower.push({ kind: 'lower', exercise: name, weight: a.workingWeight, to: a.suggestedWeight, reps: a.target.base, n: a.failedAtWeight })
     }
@@ -625,7 +626,9 @@ export function nextCopy(item, mapping = {}) {
   if (!item) return null
   if (item.kind === 'raise') {
     return {
-      title: `ارفع وزن ${nameOf(item.exercise, mapping)}`,
+      title: item.to
+        ? `ارفع ${nameOf(item.exercise, mapping)} إلى ${kgText(item.to)} كجم`
+        : `ارفع وزن ${nameOf(item.exercise, mapping)}`,
       reason: `وصلت ${countWord(item.reps, 'rep')} على ${kgText(item.weight)} كجم، فالوزن صار خفيف عليك.`,
     }
   }
@@ -648,33 +651,76 @@ export function nextCopy(item, mapping = {}) {
 
 // ── The month's goal ──────────────────────────────────────────
 // Stored under its own new key, so the old design never sees it:
-//   hf_month_goal = { 'YYYY-MM': { kind: 'sessions', target } }
-// Only the sessions kind exists today. Anything else stored there is
-// ignored rather than guessed at.
+//   hf_month_goal = { 'YYYY-MM': { kind: 'sessions', target }
+//                              | { kind: 'lift', lift, exercise, target } }
+// «sessions» is the default: come to N sessions. «lift» is a weight to
+// reach in one exercise (target in kg; lift is the canonical name the
+// history is matched by, exercise the name to show). Anything else
+// stored there is ignored rather than guessed at.
 
 export const MONTH_GOAL_KEY = 'hf_month_goal'
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
 
-export function monthGoalOf(goals, month) {
-  const g = goals && typeof goals === 'object' ? goals[month] : null
-  if (!g || g.kind !== 'sessions') return null
-  const target = Math.round(Number(g.target))
-  return target > 0 ? { kind: 'sessions', target } : null
+const cleanGoal = (g) => {
+  if (!g || typeof g !== 'object') return null
+  if (g.kind === 'sessions') {
+    const target = Math.round(Number(g.target))
+    return target > 0 ? { kind: 'sessions', target } : null
+  }
+  if (g.kind === 'lift') {
+    const target = Math.round(Number(g.target) * 10) / 10
+    const lift = typeof g.lift === 'string' ? g.lift.trim() : ''
+    if (!(target > 0) || !lift) return null
+    const exercise = typeof g.exercise === 'string' && g.exercise.trim() ? g.exercise.trim() : lift
+    return { kind: 'lift', lift, exercise, target }
+  }
+  return null
 }
 
-/** A new goals object with this month's goal set (or removed with null). */
+export function monthGoalOf(goals, month) {
+  const g = goals && typeof goals === 'object' ? goals[month] : null
+  return cleanGoal(g)
+}
+
+/** A new goals object with this month's goal set (or removed with null).
+ *  A goal given without a kind is a sessions goal. */
 export function withMonthGoal(goals, month, goal) {
   const next = { ...(goals && typeof goals === 'object' ? goals : {}) }
   if (!MONTH_RE.test(String(month))) return next
-  const target = Math.round(Number(goal?.target))
-  if (!goal || !(target > 0)) { delete next[month]; return next }
-  next[month] = { kind: 'sessions', target }
+  const clean = goal ? cleanGoal({ kind: 'sessions', ...goal }) : null
+  if (!clean) { delete next[month]; return next }
+  next[month] = clean
   return next
 }
 
-/** How the month went against its goal: reached, on which day, or how many short. */
-export function goalResult(goal, calendar = []) {
+/** How the month went against its goal: reached, on which day, or how
+ *  many short. A lift goal reads the month's sessions (deload ones left
+ *  out, as everywhere a weight is judged), so they are passed in. */
+export function goalResult(goal, calendar = [], { sessions = [], month = null, mapping = {}, resetAt = 0 } = {}) {
   if (!goal) return null
+  if (goal.kind === 'lift') {
+    const tops = new Map()
+    for (const s of sessions) {
+      if ((s.id || 0) < resetAt || isDeloadSession(s)) continue
+      const day = dayKey(s.date)
+      if (month && day.slice(0, 7) !== month) continue
+      for (const ex of s.exercises || []) {
+        if (resolveExerciseName(ex.name, mapping) !== goal.lift) continue
+        const t = topOf(ex)
+        if (t > 0) tops.set(day, Math.max(tops.get(day) || 0, t))
+      }
+    }
+    const days = [...tops.keys()].sort()
+    const best = days.length ? Math.max(...tops.values()) : 0
+    const hit = days.find(d => tops.get(d) >= goal.target) || null
+    return {
+      kind: 'lift', lift: goal.lift, exercise: goal.exercise,
+      name: nameOf(goal.exercise, mapping),
+      target: goal.target, best,
+      reached: !!hit, reachedOn: hit,
+      left: Math.max(0, Math.round((goal.target - best) * 10) / 10),
+    }
+  }
   const days = calendar.filter(d => d.kind === 'trained').map(d => d.date).sort()
   const done = days.length
   const reached = done >= goal.target
@@ -690,11 +736,27 @@ export function goalResult(goal, calendar = []) {
 
 export function goalLine(result, { over = true } = {}) {
   if (!result) return ''
+  if (result.kind === 'lift') {
+    const kg = `${kgText(result.target)} كجم في ${result.name}`
+    if (result.reached) return `هدفك ${kg}، ووصلته يوم ${fmtDayAr(result.reachedOn, { weekday: false })}.`
+    if (!over) return `هدفك ${kg}، باقي لك ${kgText(result.left)} كجم.`
+    return result.best > 0
+      ? `هدفك كان ${kg}، وأثقل وزن رفعته ${kgText(result.best)} كجم.`
+      : `هدفك كان ${kg}، وما رفعته هالشهر.`
+  }
   const target = countAr(result.target, 'session')
   if (result.reached) return `هدفك ${target}، ووصلته يوم ${fmtDayAr(result.reachedOn, { weekday: false })}.`
   return over
     ? `هدفك كان ${target}، وناقصك ${countAr(result.left, 'session')}.`
     : `هدفك ${target}، باقي لك ${countAr(result.left, 'session')}.`
+}
+
+/** The sessions a month holds on the plan's rolling cycle (two on, one
+ *  off is two in every three days): the goal offered for a month to come. */
+export function expectedSessions(config = {}, month) {
+  const p = patternFor(config)
+  const on = p.reduce((n, x) => n + x, 0)
+  return Math.max(1, Math.round((daysInMonth(month) * on) / (on + p.length)))
 }
 
 // ── Past months ───────────────────────────────────────────────
@@ -863,7 +925,15 @@ export function buildMonthReport({
     muscles,
     consistency,
     next: nextMonthPlan({ sessions, month, mapping, repTarget, muscles }),
-    goal: goalResult(monthGoalOf(goals, month), consistency.calendar),
+    goal: (() => {
+      const g = goalResult(monthGoalOf(goals, month), consistency.calendar, { sessions, month, mapping, resetAt })
+      // A weight goal is drawn as its lift, week by week through the month.
+      if (g?.kind === 'lift') g.weekly = weeklyTop(sessions, g.lift, 5, { end: lastDayOf(month), mapping, resetAt })
+      return g
+    })(),
+    // The goal already set for the month after this one, if any: the
+    // «خطة الشهر الجاي» card shows it rather than offering one.
+    nextGoal: monthGoalOf(goals, nextMonth(month)),
     progress: {
       level,
       rank: getRank(level),

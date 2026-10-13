@@ -51,57 +51,12 @@
    and the reveal observers measure an estimate). */
 .rp .mr-section { content-visibility: visible; contain-intrinsic-size: none; }
 
-/* ── The cover: the month's lit stage ── */
-.rp-cover {
-  position: relative; isolation: isolate; overflow: hidden;
-  display: flex; flex-direction: column; justify-content: flex-end;
-  padding: var(--space-5) var(--gutter) var(--space-6);
-  background: radial-gradient(70% 52% at 50% 30%, var(--stage-light), var(--ground) 74%);
-}
-.rp-cover.has-art { min-height: clamp(460px, 70dvh, 620px); }
-.rp-cover-art { position: absolute; inset: 0; z-index: -2; }
-.rp-cover.has-art::before {
-  content: ""; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(180deg, rgba(3,4,4,0.30) 0%, rgba(3,4,4,0.66) 40%, rgba(3,4,4,0.94) 70%, var(--ground) 100%);
-}
-.rp-cover-body {
-  max-width: 560px; width: 100%; margin: 0 auto;
-  display: grid; justify-items: center; text-align: center;
-}
 .rp-eyebrow { display: block; font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-3); }
 /* Heard, not seen: the month that just opened in place. */
 .rp-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 .rp-cover-title:focus { outline: none; }
 .rp-cover-title:focus-visible { outline: 2px solid var(--ink-2); outline-offset: 4px; border-radius: 4px; }
 
-/* The ring: one dash per planned session. */
-.rp-ring-wrap { position: relative; margin-top: var(--space-4); width: 216px; height: 216px; }
-.rp-ring { display: block; overflow: visible; }
-.rp-arc { fill: none; stroke-width: 12; stroke: var(--surface-3); }
-.rp-arc.is-done { stroke: var(--ink); }
-.rp-arc.is-ahead { stroke: var(--surface-2); }
-.rp-ring-c {
-  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2px;
-}
-.rp .rp-hero {
-  font-size: var(--t-poster); font-weight: 800; line-height: 0.9; font-stretch: 62%;
-  font-variant-numeric: tabular-nums lining-nums; color: var(--ink);
-}
-.rp .rp-hero-unit { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
-
-.rp .rp-cover-line {
-  margin-top: var(--space-5); max-width: 22em;
-  font-size: var(--t-title); font-weight: 700; line-height: 1.4; color: var(--ink); text-wrap: balance;
-}
-.rp .rp-cover-note {
-  margin-top: var(--space-3); max-width: 26em;
-  display: inline-flex; align-items: flex-start; gap: 6px; text-align: start;
-  font-size: var(--t-body); font-weight: 600; line-height: 1.55; color: var(--ink-2);
-}
-.rp-cover-note svg { flex: none; margin-top: 3px; }
-.rp-cover-note.is-deload { color: var(--deload); }
-.rp-cover-note.is-reached { color: var(--ink); }
-.rp-cover-cta { margin-top: var(--space-6); }
 
 /* ── A section: the small question, the sentence that answers it ── */
 .rp-ch {
@@ -127,73 +82,9 @@
 .rp-gain .k-num { unicode-bidi: isolate; direction: ltr; }
 .rp-gain-u { font-weight: 600; }
 
-/* ── When: the streak ── */
-.rp-streak { display: flex; align-items: center; gap: var(--space-2); }
-.rp-streak-flame { color: var(--streak); display: grid; }
-.rp-streak b { font-size: var(--t-display); font-weight: 800; line-height: 1; font-stretch: 85%; color: var(--streak); }
-.rp-streak b.zero { color: var(--ink-3); }
-.rp-streak-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 4px; }
-
-/* ── When: the calendar, each trained day lit by its kilos ── */
-.rp .is-miss { color: var(--ink-3); display: inline-grid; }
-.rp-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-.rp-cal-wd { text-align: center; font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 1.6; }
-.rp-cal-cell {
-  display: grid; justify-items: center; align-content: center; gap: 4px;
-  min-height: 46px; padding: 4px 0; border-radius: var(--r-sm);
-  background: var(--surface-1); color: var(--ink-2);
-}
-.rp-cal-cell.k-trained { color: var(--ink); }
-/* The whole cell takes the day's light, so the month reads as a lit
-   grid at a glance; the pill under the number carries the same step
-   for anyone who cannot tell the tints apart. */
-.rp-cal-cell[data-level="1"] { background: rgba(244,246,248,0.07); }
-.rp-cal-cell[data-level="2"] { background: rgba(244,246,248,0.11); }
-.rp-cal-cell[data-level="3"] { background: rgba(244,246,248,0.16); }
-.rp-cal-cell[data-level="4"] { background: rgba(244,246,248,0.22); }
-.rp-cal-cell[data-level="5"] { background: rgba(244,246,248,0.30); }
-.rp-cal-cell.k-miss, .rp-cal-cell.k-paid { background: transparent; box-shadow: inset 0 0 0 1px var(--hairline); }
-/* A missed workout a ticket paid for: the ticket's own rest blue, the
-   same mark as the ticket line under the calendar. */
-.rp .is-paid { color: var(--rest); display: inline-grid; }
-.rp-cal-cell.k-none, .rp-cal-cell.k-ahead { background: transparent; color: var(--ink-4); }
-.rp-cal-cell.is-deload { box-shadow: inset 0 0 0 1.5px var(--deload); }
-.rp-cal-n { font-size: var(--t-caption); font-weight: 600; line-height: 1; }
-.rp-cal-g { min-height: 10px; display: grid; place-items: center; }
-
-/* The light: five steps of the same ink, the heaviest day glowing. */
-.rp-lit { display: inline-block; width: 18px; height: 8px; border-radius: var(--r-pill); background: var(--ink); }
-.rp-lit[data-level="1"] { opacity: 0.22; }
-.rp-lit[data-level="2"] { opacity: 0.38; }
-.rp-lit[data-level="3"] { opacity: 0.56; }
-.rp-lit[data-level="4"] { opacity: 0.78; }
-.rp-lit[data-level="5"] { opacity: 1; box-shadow: 0 0 10px rgba(244,246,248,0.45); }
-.rp-lit.is-deload { opacity: 0.85; }
-
-.rp-key { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: var(--t-caption); color: var(--ink-3); font-weight: 600; line-height: 1.6; }
-.rp-key > span { display: inline-flex; align-items: center; gap: 5px; }
-.rp-key .rp-lit { width: 14px; height: 6px; }
-.rp-key-empty { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--hairline); }
-.rp-key-deload { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; }
-
 .rp-tickets { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--t-body); font-weight: 600; line-height: 1.55; color: var(--ink-2); }
 .rp-tickets svg { color: var(--rest); flex: none; margin-top: 2px; }
 
-/* ── Stronger: the biggest jump, then lift by lift ── */
-.rp-best { display: grid; gap: var(--space-2); }
-.rp-best-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-2) var(--space-4); }
-.rp-best-name { display: grid; gap: 2px; min-width: 0; flex: 1 1 168px; }
-.rp-best-name strong { font-size: var(--t-title); font-weight: 700; line-height: 1.3; }
-.rp-best-name .rp-latin { font-size: var(--t-body); color: var(--ink-3); }
-.rp-best-w { display: inline-flex; align-items: baseline; gap: 6px; flex: none; color: var(--raise); }
-.rp-best-w b { font-size: var(--t-display); font-weight: 800; line-height: 1; font-stretch: 85%; }
-.rp-best-w span { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
-.rp-best-sub { font-size: var(--t-body); color: var(--ink-2); }
-
-/* The English name is an LTR run inside an RTL name plate. As a stretched grid
-   item its own `start` would be the left edge, so pin it to the plate's start
-   (right) edge, directly under the Arabic name. */
-.rp-best-name .rp-latin { justify-self: start; max-width: 100%; text-align: right; }
 
 .rp-rows { display: grid; }
 .rp-row {
@@ -208,43 +99,6 @@
 .rp-row-v b { font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
 .rp-row-v .rp-gain { font-size: var(--t-headline); }
 .rp-flat { display: inline-block; width: 7px; height: 7px; border-radius: var(--r-pill); background: var(--ink-4); }
-
-/* ── Muscles: sets a week against the 10–20 band ── */
-.rp-sets { display: grid; gap: var(--space-1); }
-.rp-sets ul { display: grid; gap: var(--space-3); }
-.rp-sets-scale, .rp-sets-row {
-  display: grid; grid-template-columns: 76px minmax(0, 1fr) 28px; align-items: center; column-gap: var(--space-3);
-}
-.rp-sets-ticks { position: relative; height: 16px; }
-.rp-sets-ticks i {
-  position: absolute; top: 0; transform: translateX(50%); font-style: normal;
-  font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 16px;
-}
-.rp-sets-l { font-size: var(--t-body); font-weight: 600; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rp-sets-track { position: relative; height: 12px; border-radius: var(--r-pill); background: var(--surface-1); overflow: hidden; }
-.rp-sets-band { position: absolute; top: 0; bottom: 0; background: rgba(244,246,248,0.12); }
-.rp-sets-fill {
-  position: absolute; top: 3px; bottom: 3px; inset-inline-start: 0;
-  border-radius: var(--r-pill); background: var(--ink-3); transform-origin: right;
-}
-.rp-sets-v { font-size: var(--t-label); font-weight: 700; color: var(--ink-2); text-align: end; }
-.rp-sets-row.is-low .rp-sets-l, .rp-sets-row.is-low .rp-sets-v { color: var(--ink); }
-.rp-sets-row.is-low .rp-sets-fill { background: var(--ink); }
-.rp-sets-note { grid-column: 2 / -1; margin-top: 4px; font-size: var(--t-caption); font-weight: 700; color: var(--ink); }
-
-/* ── Next month ── */
-.rp-next { display: grid; }
-.rp-next-item { display: grid; grid-template-columns: 36px 1fr; gap: var(--space-3); padding: var(--space-3) 0; }
-.rp-next-item:first-child { padding-top: 0; }
-.rp-next-item + .rp-next-item { border-top: 1px solid var(--hairline); }
-.rp-next-ic {
-  width: 36px; height: 36px; border-radius: var(--r-pill);
-  display: grid; place-items: center; background: var(--surface-2); color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--edge);
-}
-.rp-next-main { display: grid; gap: 2px; min-width: 0; padding-top: 6px; }
-.rp-next-main strong { font-size: var(--t-headline); font-weight: 700; line-height: 1.4; }
-.rp-next-main span { font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; text-wrap: pretty; }
 
 /* ── The months before ── */
 .rp-months { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
@@ -294,26 +148,13 @@
 .rp-in { animation: rp-in var(--dur-hero) var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms); }
 .rp-off .rp-in { animation: none; opacity: 0; }
 
-/* The ring lights its sessions one after another while the number counts. */
-.rp-cover.rp-on .rp-arc.is-done { animation: rp-arc 380ms var(--ease-out) both; animation-delay: calc(220ms + var(--i, 0) * 40ms); }
-.rp-on .rp-sets-fill { animation: rp-grow-x var(--dur-hero) var(--ease-out) both; animation-delay: calc(160ms + var(--i, 0) * 50ms); }
-.rp-off .rp-sets-fill { transform: scaleX(0); }
 
 @media (prefers-reduced-motion: reduce) {
-  .rp-in, .rp-on .rp-in, .rp-cover.rp-on .rp-arc.is-done, .rp-on .rp-sets-fill { animation: none !important; }
+  .rp-in, .rp-on .rp-in { animation: none !important; }
   .rp-off .rp-in { opacity: 1; }
-  .rp-off .rp-sets-fill { transform: none; }
   .rp-bar-title, .rp-bar-title.is-on { transition: none; transform: none; }
 }
 
-/* ── Small phones (SE, 320pt) ── */
-@media (max-width: 359px) {
-  .rp .rp-hero { font-size: 80px; }
-  .rp-ring-wrap { width: 196px; height: 196px; }
-  .rp-ring { width: 196px; height: 196px; }
-  .rp .rp-cover-line, .rp .rp-ch-lead { font-size: var(--t-headline); }
-  .rp-sets-scale, .rp-sets-row { grid-template-columns: 72px minmax(0, 1fr) 24px; column-gap: var(--space-2); }
-}
 
 /* ── The save sheet (SavePosterSheet) ── */
 .rp-save { display: grid; justify-items: center; gap: var(--space-3); }

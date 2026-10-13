@@ -56,6 +56,9 @@ export const PER_USER_KEYS = [
   // The month report's goals (monthReport.js). New in the redesign; the
   // old design never reads it.
   'hf_month_goal',
+  // Which months' reports already played as a story (reportStory.js), so
+  // each plays once. New in the redesign too; the old design never reads it.
+  'hf_report_seen',
   // The day Home's flame last lit (components/streak/flameLit.js): one
   // person's flame must not use up another's on a shared phone, and a
   // data reset starts it over. New in the redesign as well.
