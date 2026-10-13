@@ -8,7 +8,8 @@ import { useRef, useState } from 'react'
 import {
   ListGroup, ListRow, Segmented, Sheet, Button, Chip, Banner, ConfirmSheet, Num,
 } from '../../components/kit/index.jsx'
-import { Copy, Flame, Trash, Check } from '../../components/kit/icons.js'
+import { Copy, Flame, Trash, Check, PencilSimple, Sparkle } from '../../components/kit/icons.js'
+import { validatePlan } from '../../plan/builder.js'
 import { ClipboardText, FileArrowUp, TextAlignRight } from '@phosphor-icons/react'
 import { CheckList, CheckRow, TextField, Notice, Ar, freqTitle, freqDesc, cycleAr } from './parts.jsx'
 import { TRAINING_FREQUENCIES, patternFor } from '../../recovery.js'
@@ -26,12 +27,12 @@ const weeksAr = (n) => {
 
 // «Push A — صدر، أكتاف» → «دفع A» over «صدر، أكتاف». The day's own
 // muscles are already Arabic; only the type word is English.
-const TYPE_AR = { push: 'دفع', pull: 'سحب', legs: 'أرجل', leg: 'أرجل', upper: 'علوي', lower: 'سفلي', 'full body': 'الجسم كامل', full: 'الجسم كامل', arms: 'ذراعين', core: 'بطن', cardio: 'كارديو' }
+const TYPE_AR = { push: 'دفع', pull: 'سحب', legs: 'أرجل', leg: 'أرجل', upper: 'علوي', lower: 'سفلي', 'full body': 'الجسم كامل', full: 'الجسم كامل', arms: 'ذراعين', core: 'بطن', cardio: 'كارديو', 'chest & back': 'صدر وظهر', chest: 'صدر', back: 'ظهر', shoulders: 'أكتاف' }
 export function dayNameAr(name = '') {
   const [left, ...rest] = String(name).split('—')
   const muscles = rest.join('—').trim()
   const l = left.trim()
-  const m = l.match(/^(full body|push|pull|legs?|upper|lower|full|arms|core|cardio)\b\s*(.*)$/i)
+  const m = l.match(/^(full body|chest & back|push|pull|legs?|upper|lower|full|arms|core|cardio|chest|back|shoulders)\b\s*(.*)$/i)
   return { head: m ? `${TYPE_AR[m[1].toLowerCase()]}${m[2] ? ` ${m[2]}` : ''}` : l, muscles }
 }
 
@@ -62,12 +63,14 @@ const ERR = {
   noJson:    'ما لقينا خطة في النص — تأكد إنك نسخت الرد كامل.',
   bad:       'النص ناقص أو فيه خطأ — انسخ الرد كامل من جديد.',
   notPlan:   'هذا النص مو خطة لمران، ناقصه أيام التمرين. انسخ الطلب من جديد وأرسله.',
+  emptyDay:  'فيه يوم بالخطة بدون تمارين. انسخ الطلب من جديد وأرسله.',
+  muscle:    'فيه تمرين عضلته مو من عضلات مران الثمانية. انسخ الطلب من جديد وأرسله.',
   file:      'ما قدرنا نقرأ الملف.',
 }
 
 export default function PlanSection({
   recoveryCfg = {}, onUpdateRecovery, changeCooldownLeft = 0, currentStreak = 0,
-  plan, onImportPlan, onClearPlan, onImportMapping, onImport,
+  plan, onImportPlan, onClearPlan, onImportMapping, onImport, onOpenPlanner,
 }) {
   const [pending, setPending] = useState(null)     // { kind, label, apply }
   const [detail, setDetail] = useState(null)       // a built-in plan being previewed
@@ -97,6 +100,9 @@ export default function PlanSection({
     if (data.type === 'exercise_mapping' && data.mapping) { onImportMapping?.(data.mapping); return true }
     if (data.sessions !== undefined || data.xp !== undefined) { onImport?.(data); return true }
     if (!Array.isArray(data.weeklySchedule)) return fail('notPlan'), false
+    // The same check the builder's save makes: a plan both designs can open.
+    const bad = validatePlan(data)
+    if (bad) return fail(bad.error === 'day' ? 'emptyDay' : bad.error === 'muscle' ? 'muscle' : 'notPlan'), false
     setNotice(null)
     requestChange('plan', data.planName || 'خطة مستوردة', opts => onImportPlan?.(data, opts))
     return true
@@ -191,6 +197,16 @@ export default function PlanSection({
         <p className="st-note" style={{ marginTop: 'calc(-1 * var(--space-4))' }}>عندك تغيير مجاني — الستريك ما يتأثر.</p>
       )}
 
+      {/* ── The plan builder: the first door (Settings › الخطة) ── */}
+      {onOpenPlanner && (
+        <ListGroup header="ابنِ خطتك" className="st-build"
+          footer="أي نظام تبيه، بالأدوات اللي عندك. التطبيق يقولك وش ناقص، ويكمّله لو تبي.">
+          <ListRow leading={Sparkle} chevron title="ابنِ خطتك على كيفك"
+            subtitle={<Ar>{'تختار عضلاتك وتمارينك، أو خلّ التطبيق يختار كل شي'}</Ar>}
+            onClick={() => onOpenPlanner('settings')} />
+        </ListGroup>
+      )}
+
       {/* ── The plan in force ── */}
       {plan && (
         <ListGroup header="خطتك الحين">
@@ -200,6 +216,11 @@ export default function PlanSection({
               plan.weeklySchedule?.length && `${plan.weeklySchedule.length} أيام في الأسبوع`,
               plan.startDate && `بدأت ${fmtDayAr(plan.startDate, { weekday: false })}`,
             ].filter(Boolean).join(' · ')}</Ar>} />
+          {onOpenPlanner && (
+            <ListRow leading={PencilSimple} chevron title="عدّل الخطة"
+              subtitle={<Ar>{'التمارين والمجموعات والعدّات والراحة. التعديل ببلاش'}</Ar>}
+              onClick={() => onOpenPlanner('edit')} />
+          )}
           <ListRow leading={Trash} title="حذف الخطة" tone="danger" className="st-danger" onClick={() => setConfirmClear(true)} />
         </ListGroup>
       )}

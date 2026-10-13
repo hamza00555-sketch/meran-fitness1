@@ -1255,6 +1255,68 @@ export const BUILT_IN_PLANS = [
       },
     ],
   },
+  // علوي/سفلي: يومين علوي ويومين سفلي بالدور (طلبه صاحب حمزة). Every
+  // exercise is one the app already has a picture for (EXERCISE_MEDIA),
+  // and the leg days use the stills حمزة confirmed (the lying leg curl,
+  // the dumbbell Romanian deadlift) rather than the ones he marked wrong.
+  {
+    planId:       'upper_lower_4day',
+    planName:     'علوي/سفلي — 4 أيام',
+    description:  'خطة 4 أيام بالدور: يوم علوي ويوم سفلي، مرتين. كل عضلة تتمرّن مرتين بالأسبوع، بأجهزة الجيم والدمبل والبار.',
+    durationWeeks: 8,
+    daysPerWeek:  '4',
+    difficulty:   'مبتدئ–متوسط',
+    tags:         ['علوي/سفلي', '4 أيام', 'جيم تجاري'],
+    goal:         'muscle',
+    weeklySchedule: [
+      {
+        name: 'Upper A — صدر، ظهر، أكتاف، ذراعين',
+        exercises: [
+          { name: 'Bench Press',            muscle: 'Chest',     sets: 4, repsMin: 6,  repsMax: 10, restSeconds: 120 },
+          { name: 'Lat Pulldown',           muscle: 'Back',      sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+          { name: 'Machine Shoulder Press', muscle: 'Shoulders', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Seated Cable Row',       muscle: 'Back',      sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Lateral Raise',          muscle: 'Shoulders', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60  },
+          { name: 'Dumbbell Curl',          muscle: 'Biceps',    sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+          { name: 'Triceps Pushdown',       muscle: 'Triceps',   sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Lower A — فخذ، أرداف، سمانة، بطن',
+        exercises: [
+          { name: 'Barbell Squat',          muscle: 'Legs', sets: 4, repsMin: 6,  repsMax: 10, restSeconds: 150 },
+          { name: 'Romanian Deadlift',      muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+          { name: 'Leg Extension',          muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 75  },
+          { name: 'Lying Leg Curl',         muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 75  },
+          { name: 'Standing Calf Raise',    muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 15, restSeconds: 60  },
+          { name: 'Cable Crunch',           muscle: 'Core', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Upper B — ظهر، صدر، أكتاف، ذراعين',
+        exercises: [
+          { name: 'Incline Dumbbell Press', muscle: 'Chest',     sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+          { name: 'Chest-Supported Row',    muscle: 'Back',      sets: 4, repsMin: 8,  repsMax: 12, restSeconds: 120 },
+          { name: 'Pull-Up',                muscle: 'Back',      sets: 3, repsMin: 5,  repsMax: 10, restSeconds: 120 },
+          { name: 'Cable Fly',              muscle: 'Chest',     sets: 3, repsMin: 12, repsMax: 15, restSeconds: 75  },
+          { name: 'Face Pull',              muscle: 'Back',      sets: 3, repsMin: 12, repsMax: 15, restSeconds: 60  },
+          { name: 'Hammer Curl',            muscle: 'Biceps',    sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+          { name: 'Overhead Triceps',       muscle: 'Triceps',   sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+        ],
+      },
+      {
+        name: 'Lower B — فخذ، أرداف، سمانة، بطن',
+        exercises: [
+          { name: 'Leg Press',                  muscle: 'Legs', sets: 4, repsMin: 10, repsMax: 15, restSeconds: 120 },
+          { name: 'Bulgarian Split Squat',      muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Dumbbell Romanian Deadlift', muscle: 'Legs', sets: 3, repsMin: 8,  repsMax: 12, restSeconds: 90  },
+          { name: 'Lying Leg Curl',             muscle: 'Legs', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 75  },
+          { name: 'Dumbbell Calf Raise',        muscle: 'Legs', sets: 4, repsMin: 12, repsMax: 20, restSeconds: 60  },
+          { name: 'Hanging Knee Raise',         muscle: 'Core', sets: 3, repsMin: 10, repsMax: 15, restSeconds: 60  },
+        ],
+      },
+    ],
+  },
 ]
 
 // ── Exercise Alternatives (machine busy / unavailable) ────────

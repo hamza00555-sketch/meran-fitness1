@@ -28,6 +28,7 @@
 .ob-opt-text { flex: 1; display: grid; gap: 2px; }
 .ob-opt-text b { font-size: var(--t-headline); font-weight: 700; }
 .ob-opt-text small { font-size: var(--t-label); color: var(--ink-3); }
+.ob-new { display: inline-block; margin-inline-start: 6px; padding: 1px 8px; border-radius: 999px; background: var(--ink); color: var(--ground); font-size: 11px; font-weight: 800; vertical-align: 2px; }
 .ob-foot {
   position: sticky; bottom: 0; display: grid; gap: 4px; max-width: 520px; width: 100%; margin: 0 auto;
   padding: var(--space-4) 0 calc(var(--safe-bottom) + var(--space-4));

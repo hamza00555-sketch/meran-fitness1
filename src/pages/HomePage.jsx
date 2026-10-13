@@ -30,7 +30,8 @@ import { setsUnit } from '../components/home/dayParts.js'
 // inset list on the ground: hairlines, not boxes. Rank and XP left
 // Home — they live with the profile and progress.
 
-function PlanProgress({ plan, planIndex }) {
+// Door 2 to the plan builder: the row opens «خطتك» by days.
+function PlanProgress({ plan, planIndex, onOpen }) {
   const schedule      = plan.weeklySchedule || []
   const durationWeeks = plan.durationWeeks || 6
   const totalSessions = durationWeeks * (schedule.length || 1)
@@ -48,6 +49,8 @@ function PlanProgress({ plan, planIndex }) {
           ? <>خلصت الخطة · <Num>{totalSessions}</Num> جلسة</>
           : <>الأسبوع <Num>{currentWeek}</Num> من <Num>{durationWeeks}</Num> · أنجزت <Num>{doneSessions}</Num> من <Num>{totalSessions}</Num> جلسة</>}
         trailing={<Num className="hm-pct">{pct}%</Num>}
+        chevron={!!onOpen}
+        onClick={onOpen}
       >
         <Gauge value={doneSessions} max={totalSessions} tone="ink" label="تقدم البرنامج" className="hm-gauge" />
       </ListRow>
@@ -113,7 +116,7 @@ function MuscleGroup({ entries }) {
 // in the sheet behind the number.
 export default function HomePage({ sessions, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
   onStartDeload, onDismissDeloadSuggestion, greeting = '', onOpenProfile, onOpenSettings, onOpenStreak,
-  repTarget = DEFAULT_REP_TARGET, hold = false }) {
+  repTarget = DEFAULT_REP_TARGET, hold = false, onOpenPlanner }) {
   // Training vs recovery comes from the recovery engine — real completed
   // workouts and the chosen frequency — never from the weekday.
   const isRecoveryDay = recovery?.status === DAY_STATUS.RECOVERY
@@ -197,6 +200,8 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
         onSkip={onSkipPlanDay}
         onGoToWorkout={onGoToWorkout}
         onOverrideRecovery={onOverrideRecovery}
+        onEditPlan={onOpenPlanner ? () => onOpenPlanner('more') : undefined}
+        onBuildPlan={onOpenPlanner ? () => onOpenPlanner('home') : undefined}
         calm={!!ignite?.on}
       />
 
@@ -222,7 +227,8 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
         )}
 
         {/* ── Plan progress ── */}
-        {plan && !active && <PlanProgress plan={plan} planIndex={planIndex ?? 0} />}
+        {plan && !active && <PlanProgress plan={plan} planIndex={planIndex ?? 0}
+          onOpen={onOpenPlanner ? () => onOpenPlanner('progress') : undefined} />}
 
         {/* ── The rest-day cycle ── */}
         <RestCycle recovery={recovery} isRecoveryDay={isRecoveryDay} />

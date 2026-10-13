@@ -63,6 +63,11 @@ export const PER_USER_KEYS = [
   // Which earned rest days «كسبت يوم راحة» already announced
   // (restDays.js), so none is announced twice. New in the redesign too.
   'meran_rest_announced',
+  // The plan builder (src/pages/planner): the plan in force before the
+  // last one the builder activated, for «رجّع خطتك القديمة», and the
+  // builder's own memory (the tools picked per muscle, the swipe hint
+  // seen). Both new in the redesign; the old design never reads them.
+  'hf_plan_prev', 'meran_planner',
 ]
 
 export const deleteUserData = (id) => {
@@ -614,7 +619,22 @@ export const backupData = ({ sessions, xp, profile, unlockedAchievements, challe
   // The month report's goals (hf_month_goal), new in the redesign. The
   // old design's restore ignores a key it does not know.
   monthGoals: ls.get('hf_month_goal', null),
+  // The plan, where he is in it, and the one before it. A backup without
+  // them lost the plan on a new phone. The old design's restore ignores
+  // keys it does not know.
+  plan: ls.get('hf_plan', null),
+  planIndex: ls.get('hf_plan_index', 0),
+  planPrev: ls.get('hf_plan_prev', null),
 })
+
+/** Put a backup's plan back (and the one before it). Older backups have
+ *  none: the plan on the phone is kept. Returns what to set in state. */
+export const restorePlan = (data) => {
+  const p = data?.plan
+  if (!p || typeof p !== 'object' || !Array.isArray(p.weeklySchedule) || !p.weeklySchedule.length) return null
+  if (data.planPrev && typeof data.planPrev === 'object') ls.set('hf_plan_prev', data.planPrev)
+  return { plan: p, planIndex: Number.isFinite(data.planIndex) ? data.planIndex : 0 }
+}
 
 /** Put a backup's month goals back. Older backups have none: the goals
  *  on the phone are kept. */

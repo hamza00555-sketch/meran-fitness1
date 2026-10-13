@@ -23,6 +23,7 @@ export default function RepsSection({ repTarget = DEFAULT_REP_TARGET, onUpdateRe
               <Chip tone="raise">ارفع وزنك</Chip>
             </div>
             <p>نثبّت الوزن ونزيد العدات لين توصل لأعلى المدى، وبعدها نقول لك ارفع الوزن.</p>
+            <p>تمارين خطتك تمشي على عدّاتها وراحتها من الخطة. هذا المدى للجلسات الحرة والتمارين اللي تضيفها بنفسك.</p>
           </>
         )}>
         {REP_TARGETS.map(t => (

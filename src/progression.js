@@ -29,7 +29,25 @@ export const REP_TARGETS = [
 
 export const DEFAULT_REP_TARGET = { id: 'volume', base: 12, top: 15 }
 
+/**
+ * The rep range a plan gives an exercise, as a target: from a plan's
+ * exercise ({ repsMin, repsMax }) or a session's ({ target: { min, max } }).
+ * Null when it has none — the global target in Settings applies then.
+ * A plan session runs on the plan's numbers (حمزة: «إيه، من الخطة»).
+ */
+export function planRepTarget(ex) {
+  const lo = Number(ex?.target?.min ?? ex?.repsMin)
+  const hi = Number(ex?.target?.max ?? ex?.repsMax)
+  if (!(lo > 0)) return null
+  return { id: 'plan', base: Math.round(lo), top: Math.max(Math.round(lo), Math.round(hi > 0 ? hi : lo)) }
+}
+
 export const repTargetOf = (cfg = {}) => {
+  // A plan's own range: as written, even a single number («10 × 10»).
+  if (cfg.id === 'plan' && cfg.base > 0) {
+    const base = Math.max(1, Math.round(cfg.base))
+    return { id: 'plan', base, top: Math.max(base, Math.round(cfg.top ?? base)) }
+  }
   if (cfg.id === 'custom') {
     const base = Math.max(1, Math.round(cfg.base ?? 12))
     const top  = Math.max(base + 1, Math.round(cfg.top ?? base + 3))

@@ -155,7 +155,7 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct }) {
     case 'push':
       return t ? line(<>حاول توصل <Num>{t.top}</Num> {repsWord(t.top)}</>) : lead
     default:
-      return t ? line(<>الهدف <Num>{t.base}–{t.top}</Num> {repsWord(t.top)}</>) : lead
+      return t ? line(<>الهدف <Num>{t.base === t.top ? t.base : `${t.base}–${t.top}`}</Num> {repsWord(t.top)}</>) : lead
   }
 }
 
@@ -795,7 +795,8 @@ export default function WorkoutPlayer({
 
       <div className="s-dock" ref={dockRef} data-mode={restOnTop ? 'rest' : 'button'} onClickCapture={swallowIfQuiet}>
         {isResting && (
-          <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} morph={!!ghost} />
+          <InlineRest onDone={closeRest} onSkip={closeRest} hidden={!restOnTop} morph={!!ghost}
+            seconds={ex?.rest > 0 ? ex.rest : undefined} />
         )}
         {dock}
         {ghost && restOnTop ? (

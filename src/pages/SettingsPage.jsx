@@ -45,7 +45,7 @@ const BAR_TITLES = { ...TITLES, account: 'الحساب', plan: 'الخطة', pre
 
 export default function SettingsPage({
   profile, onUpdateProfile, sessions, xp, unlockedAchievements, challengeState, photos,
-  onImport, plan, onImportPlan, onClearPlan, exerciseMapping = {}, onImportMapping,
+  onImport, plan, onImportPlan, onClearPlan, onOpenPlanner, exerciseMapping = {}, onImportMapping,
   recoveryCfg = {}, onUpdateRecovery, recovery = {}, changeCooldownLeft = 0, currentStreak = 0,
   repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget, today = todayKey(), onStartDeload, onEndDeload,
   section: initialSection = null,
@@ -79,7 +79,7 @@ export default function SettingsPage({
       plan: (
         <PlanSection recoveryCfg={recoveryCfg} onUpdateRecovery={onUpdateRecovery}
           changeCooldownLeft={changeCooldownLeft} currentStreak={currentStreak}
-          plan={plan} onImportPlan={onImportPlan} onClearPlan={onClearPlan}
+          plan={plan} onImportPlan={onImportPlan} onClearPlan={onClearPlan} onOpenPlanner={onOpenPlanner}
           onImportMapping={onImportMapping} onImport={onImport} />
       ),
       reps: <RepsSection repTarget={repTarget} onUpdateRepTarget={onUpdateRepTarget} />,

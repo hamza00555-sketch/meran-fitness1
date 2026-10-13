@@ -10,7 +10,7 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, getExerciseStats, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, resolveExerciseName } from '../utils.js'
 import { deloadWeight } from '../deload.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
-import { analyzeProgression, DEFAULT_REP_TARGET } from '../progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
 import { toWesternDigits } from '../day.js'
 import '../styles/screens/session.css'
 
@@ -53,7 +53,10 @@ export default function WorkoutPage({
       return cache.get(key)
     }
     return {
-      progression: (name) => memo('p', name, () => analyzeProgression(sessions, name, exerciseMapping, repTarget)),
+      // A plan session's exercise carries the plan's range (target); the
+      // engine aims for that instead of the target set in Settings.
+      progression: (name, t = null) => memo(t ? `p${t.base}-${t.top}` : 'p', name,
+        () => analyzeProgression(sessions, name, exerciseMapping, t || repTarget)),
       stats:       (name) => memo('s', name, () => getExerciseStats(sessions, name, exerciseMapping)),
       previous:    (name) => memo('v', name, () => previousSets(sessions, name, exerciseMapping)),
     }
@@ -168,13 +171,16 @@ export default function WorkoutPage({
   const getLastW = (name) =>
     suggestedWeightFor(name, { sessions, mapping: exerciseMapping, transform: lighten })
 
-  const getSuggestedReps = (name) => engine.progression(name).suggestedReps
+  // The plan's rep range for an exercise of this session, by name (the
+  // player asks by name). Null for a free session or an added exercise.
+  const targetFor = (name) => planRepTarget((active.exercises || []).find(e => e.name === name || e.originalName === name))
+  const getSuggestedReps = (name) => engine.progression(name, targetFor(name)).suggestedReps
 
   // Progression is frozen for the length of a deload. The weights are
   // deliberately low, so "add weight" would be wrong and "drop the
   // weight" would be advice about a decline that was the plan.
   const progressionFor = (name) => {
-    const p = engine.progression(name)
+    const p = engine.progression(name, targetFor(name))
     return active?.deload ? { ...p, hint: null } : p
   }
 
