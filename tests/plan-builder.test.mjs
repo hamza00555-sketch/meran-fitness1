@@ -179,6 +179,22 @@ test('hf_plan out: the shape the app and the old design read, with only optional
   assert.equal(fresh.startDate, '2026-10-13')
 })
 
+test('reps he stepped in the builder are saved as his own (repsOwn); the rest are not', () => {
+  const tpl = BUILT_IN_PLANS.find(p => p.planId === 'home_workout_explosive')
+  const st = B.fromHfPlan(tpl, { days: 4 })
+  assert.ok(st.picks.every(p => !p.own), 'a template range is not his')
+  st.picks[0].r = [8, 12]; st.picks[0].own = true      // what stepping «العدّات» does
+  const cfg = cfgOf({ cycle: st.cycle, split: st.split, picks: st.picks, eq: st.eq, keepOrder: true })
+  const hf = B.toHfPlan(B.buildFromPicks(cfg), { ...cfg, split: st.split }, { today: '2026-10-13', base: tpl })
+  const all = hf.weeklySchedule.flatMap(d => d.exercises)
+  const mine = all.filter(x => x.repsOwn === true)
+  assert.equal(mine.length, 1)
+  assert.deepEqual([mine[0].repsMin, mine[0].repsMax], [8, 12])
+  assert.ok(all.filter(x => x !== mine[0]).every(x => !('repsOwn' in x)))
+  // and it survives opening the plan again
+  assert.equal(B.fromHfPlan(hf, { days: 4 }).picks.filter(p => p.own).length, 1)
+})
+
 test('hf_plan round trip keeps names the catalogue does not know', () => {
   const home = BUILT_IN_PLANS.find(p => p.planId === 'home_workout_explosive')
   const st = B.fromHfPlan(home, { days: 4 })

@@ -17,6 +17,7 @@ import { PLAN_TEMPLATE, AI_PLAN_PROMPT, BUILT_IN_PLANS } from '../../constants.j
 import { todayKey } from '../../day.js'
 import { countAr, fmtDayAr } from '../../streak.js'
 import { arabicName } from '../../exerciseMedia.js'
+import { effectiveRepTarget, DEFAULT_REP_TARGET } from '../../progression.js'
 
 const weeksAr = (n) => {
   const k = Number(n) || 0
@@ -71,6 +72,7 @@ const ERR = {
 export default function PlanSection({
   recoveryCfg = {}, onUpdateRecovery, changeCooldownLeft = 0, currentStreak = 0,
   plan, onImportPlan, onClearPlan, onImportMapping, onImport, onOpenPlanner,
+  repTarget = DEFAULT_REP_TARGET,
 }) {
   const [pending, setPending] = useState(null)     // { kind, label, apply }
   const [detail, setDetail] = useState(null)       // a built-in plan being previewed
@@ -282,6 +284,8 @@ export default function PlanSection({
                   <div className="k-group-body">
                     {day.exercises.map((ex, ei) => {
                       const ar = arabicName(ex.name)
+                      // A template's reps are not his choice: his Settings range shows.
+                      const r = effectiveRepTarget(ex, repTarget)
                       return (
                         <div key={ei} className="k-row">
                           <span className="k-row-main st-ex-name">
@@ -289,7 +293,7 @@ export default function PlanSection({
                             {ar && <span className="st-ex-en" dir="ltr">{ex.name}</span>}
                           </span>
                           <span className="st-ex-sets">
-                            <Num>{`${ex.sets} × ${ex.repsMin === ex.repsMax ? ex.repsMin : `${ex.repsMin}–${ex.repsMax}`}`}</Num>
+                            <Num>{`${ex.sets} × ${r.base === r.top ? r.base : `${r.base}–${r.top}`}`}</Num>
                           </span>
                         </div>
                       )

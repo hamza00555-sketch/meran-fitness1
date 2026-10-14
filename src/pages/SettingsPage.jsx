@@ -77,7 +77,7 @@ export default function SettingsPage({
     const body = {
       account: <AccountSection profile={profile} update={update} />,
       plan: (
-        <PlanSection recoveryCfg={recoveryCfg} onUpdateRecovery={onUpdateRecovery}
+        <PlanSection repTarget={repTarget} recoveryCfg={recoveryCfg} onUpdateRecovery={onUpdateRecovery}
           changeCooldownLeft={changeCooldownLeft} currentStreak={currentStreak}
           plan={plan} onImportPlan={onImportPlan} onClearPlan={onClearPlan} onOpenPlanner={onOpenPlanner}
           onImportMapping={onImportMapping} onImport={onImport} />

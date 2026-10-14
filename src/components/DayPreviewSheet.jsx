@@ -17,7 +17,7 @@ import { Sheet, Button, Num, Weight } from './kit/index.jsx'
 import { ArrowsLeftRight, Play, ArrowUp, SkipForward, Drop } from './kit/icons.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { substitutedName, nextSubIndex, getExerciseStats, durationShort } from '../utils.js'
-import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, effectiveRepTarget } from '../progression.js'
 import { deloadWeight } from '../deload.js'
 import { ExerciseThumb, exerciseNames } from './home/HomeBits.jsx'
 import { dayWord, musclesLine, estimateMinutes, setsUnit } from './home/dayParts.js'
@@ -39,7 +39,8 @@ function PreviewRow({ ex, sessions, exerciseMapping, exerciseSubs, onCycleSub, r
   const videoUrl  = findVideoUrl(shownName)
   const { lastWeight, maxWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
   const onDeload  = !!deload?.active
-  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, planRepTarget(ex) || repTarget).hint === 'raise'
+  const reps = effectiveRepTarget(ex, repTarget)
+  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, reps).hint === 'raise'
   const { ar, en } = exerciseNames(shownName, exerciseMapping)
   const sets = Number(ex.sets) || 3
   const from = swapped ? exerciseNames(ex.name, exerciseMapping).ar : ''
@@ -52,10 +53,8 @@ function PreviewRow({ ex, sessions, exerciseMapping, exerciseSubs, onCycleSub, r
         {en && <span className="dp-en" dir="ltr">{en}</span>}
         <span className="dp-meta">
           <span><Num>{sets}</Num> {setsUnit(sets)}</span>
-          {/* The plan's own range: what the session will aim for. */}
-          {Number(ex.repsMin) > 0 && (
-            <span className="dp-reps">· <Num>{Number(ex.repsMax) > Number(ex.repsMin) ? `${ex.repsMin}–${ex.repsMax}` : ex.repsMin}</Num> {ex.unit === 'sec' ? 'ثانية' : ex.unit === 'min' ? 'دقيقة' : 'عدّة'}</span>
-          )}
+          {/* What the session will aim for: his own range for it, else Settings. */}
+          <span className="dp-reps">· <Num>{reps.top > reps.base ? `${reps.base}–${reps.top}` : reps.base}</Num> {ex.unit === 'sec' ? 'ثانية' : ex.unit === 'min' ? 'دقيقة' : 'عدّة'}</span>
           {lastWeight != null && onDeload && (
             <span className="dp-last dp-deload">
               · <Drop size={14} weight="fill" className="hm-deload-mark" aria-hidden="true" />

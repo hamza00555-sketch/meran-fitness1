@@ -16,7 +16,7 @@ import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayD
 import { streakView, todayStreak, skipCopy, finishToast, spendToast, countAr } from './streak.js'
 import { planReminders } from './notify.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
-import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget } from './progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget, ownTarget } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
 
@@ -536,16 +536,18 @@ export default function App() {
         sessions, mapping: exerciseMapping, transform: lighten,
       })
       // The plan's own reps and rest (حمزة: «الجلسة تاخذ العدّات والراحة
-      // من الخطة»): the reps aim for its range, the rest counts its
-      // seconds. Both ride on the session's exercise as optional fields
-      // (target, rest) the old design ignores.
+      // من الخطة»): the rest counts its seconds; the reps aim for its
+      // range only when he set that range himself in the builder — else
+      // his Settings target («خياري ١٢ الى ١٥»). Both ride on the
+      // session's exercise as optional fields (target, rest) the old
+      // design ignores; a stored target is marked own: true.
       const planT = planRepTarget(ex)
       const prog = analyzeProgression(sessions, ex.name, exerciseMapping, planT || repTarget)
       const built = buildExercise({ muscle: ex.muscle, name: ex.name, numSets: ex.sets || 3, prevWeight, prevReps: prog.suggestedReps })
       const rest = Number(ex.restSeconds)
       return {
         ...built,
-        ...(planT ? { target: { min: planT.base, max: planT.top } } : null),
+        ...(planT ? { target: ownTarget(planT) } : null),
         ...(rest > 0 ? { rest: Math.round(rest) } : null),
         ...(ex.unit === 'sec' || ex.unit === 'min' ? { unit: ex.unit } : null),
       }
@@ -1553,6 +1555,7 @@ export default function App() {
             planIndex={planIndex}
             planPrev={planPrev}
             recoveryCfg={recoveryCfg}
+            repTarget={repTarget}
             profile={profile}
             changeCooldownLeft={changeCooldownLeft(recoveryCfg)}
             currentStreak={recovery.consistencyStreak}

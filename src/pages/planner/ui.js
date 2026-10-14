@@ -32,6 +32,7 @@ import { ls } from '../../utils.js'
 import { todayKey } from '../../day.js'
 import { countAr } from '../../streak.js'
 import { patternFor } from '../../recovery.js'
+import { repTargetOf, DEFAULT_REP_TARGET } from '../../progression.js'
 
 const MEM_KEY = 'meran_planner'
 
@@ -40,7 +41,7 @@ const MEM_KEY = 'meran_planner'
  *   ctx.door        — which door opened it: settings | edit | progress | more | home | onb
  *   ctx.plan        — the plan in force (hf_plan) or null; ctx.planIndex
  *   ctx.planPrev    — hf_plan_prev ({ plan, planIndex, savedAt }) or null
- *   ctx.recoveryCfg, ctx.profile, ctx.changeCooldownLeft, ctx.currentStreak
+ *   ctx.recoveryCfg, ctx.repTarget (Settings › التكرارات), ctx.profile, ctx.changeCooldownLeft, ctx.currentStreak
  *   ctx.onActivate(hf, { edit, days, breakStreak }), ctx.onRestorePrev({ breakStreak })
  *   ctx.onStart(), ctx.onClose()
  */
@@ -84,6 +85,12 @@ const SETTINGS = {
   gym: gymId,
   gymAr: (GYM_TYPES.find(g => g.id === gymId) || GYM_TYPES[0]).label,
 }
+
+/* His reps (Settings › التكرارات, hf_rep_target). A row's range is his
+   own only once he steps it here (it.own → repsOwn in hf_plan); until
+   then the session runs on this, so this is what the row shows. */
+const MY_REPS = repTargetOf({ ...DEFAULT_REP_TARGET, ...(ctx.repTarget || ls.get('hf_rep_target', {}) || {}) })
+const effR = (it) => (it.own || it.mins || it.unit === 'sec' || it.unit === 'min') ? it.r : [MY_REPS.base, MY_REPS.top]
 
 /* Per-phone conveniences: the tools picked per muscle and the swipe
    hint seen (meran_planner, a key of the new design's own). */
@@ -180,7 +187,7 @@ const PREF = ['dumbbell', 'machine', 'cable', 'barbell', 'cardio']
 
 /* ── words ── */
 const exWord = (n) => n === 0 ? 'ولا تمرين' : n === 1 ? 'تمرين واحد' : n === 2 ? 'تمرينين' : n <= 10 ? n + ' تمارين' : n + ' تمرين'
-const rng = (it) => it.r[0] === it.r[1] ? `${it.r[0]}` : `${it.r[0]}–${it.r[1]}`
+const rng = (it) => { const r = effR(it); return r[0] === r[1] ? `${r[0]}` : `${r[0]}–${r[1]}` }
 const repsWord = (it) => it.mins ? 'جلسة 20 دقيقة' : `<span class="ltr">${rng(it)}</span> ${it.unit === 'sec' ? 'ثانية' : 'عدّة'}`
 const setsLbl = (it) => it.mins ? '20 د' : `${it.sets} × ${rng(it)}${it.unit === 'sec' ? 'ث' : ''}`
 const setsCap = (it) => it.mins ? 'جلسة كارديو' : it.unit === 'sec' ? 'مجموعات × ثواني' : 'مجموعات × عدّات'
@@ -1771,9 +1778,10 @@ on(HOST, 'click', (e) => {
     }
     case 'reps': case 'rest': {
       const f = findItem(rowUid()); if (!f || f.it.mins) return
-      if (act === 'reps') f.it.r = [...stepList(f.it.unit === 'sec' ? SECS : REPS, f.it.r, +v)]
+      // Stepping the reps makes the range his own, from the one shown.
+      if (act === 'reps') { f.it.r = [...stepList(f.it.unit === 'sec' ? SECS : REPS, effR(f.it), +v)]; f.it.own = true }
       else f.it.rest = stepList(RESTS, f.it.rest, +v)
-      const pk = pickFor(f.it); if (pk) { pk.r = [...f.it.r]; pk.rest = f.it.rest }
+      const pk = pickFor(f.it); if (pk) { pk.r = [...f.it.r]; pk.rest = f.it.rest; if (f.it.own) pk.own = true }
       const li = el.closest('.prow'), b = el.parentElement.querySelector('b')
       b.innerHTML = act === 'reps' ? `<bdi dir="ltr">${rng(f.it)}</bdi>` : restLbl(f.it.rest)
       if (!RM) b.animate([{ transform: 'translateY(-6px)', opacity: .3 }, { transform: 'none', opacity: 1 }], { duration: 400, easing: LAND })

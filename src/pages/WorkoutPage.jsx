@@ -53,8 +53,9 @@ export default function WorkoutPage({
       return cache.get(key)
     }
     return {
-      // A plan session's exercise carries the plan's range (target); the
-      // engine aims for that instead of the target set in Settings.
+      // A session exercise whose range he set himself in the builder
+      // carries it (target, own: true); the engine aims for that instead
+      // of the target set in Settings. Anything else runs on Settings.
       progression: (name, t = null) => memo(t ? `p${t.base}-${t.top}` : 'p', name,
         () => analyzeProgression(sessions, name, exerciseMapping, t || repTarget)),
       stats:       (name) => memo('s', name, () => getExerciseStats(sessions, name, exerciseMapping)),

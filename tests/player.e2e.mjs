@@ -17,7 +17,7 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
-import { APP_VERSION, ACHIEVEMENTS } from '../src/constants.js'
+import { APP_VERSION, ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-player-e2e'
@@ -155,7 +155,7 @@ function glInstruments(noGL) {
 
 async function open({ device = 'iPhone 13', viewport = null, blockRemote = true, active = ACTIVE,
   sessions = null, reduced = false, lastWeights = null, mapping = null, audio = 'fake', blockSounds = false,
-  unlocked = null, noGL = false, xp = null, perf = false, route = null } = {}) {
+  unlocked = null, noGL = false, xp = null, perf = false, route = null, extra = null } = {}) {
   const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices[device], ...(viewport ? { viewport } : null),
     timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -175,7 +175,8 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
   // Seeded history unlocks achievements on the first paint, each one
   // adds XP, and the level-up screen would cover the session — so a
   // context with history starts with them already unlocked.
-  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping, xp]) => {
+  await page.addInitScript(([active, sessions, version, lastWeights, unlocked, mapping, xp, extra]) => {
+    for (const [k, v] of Object.entries(extra || {})) localStorage.setItem(k, JSON.stringify(v))
     if (sessions || unlocked.length < 40) localStorage.setItem('hf_unlocked', JSON.stringify(unlocked))
     localStorage.setItem('hf_profile', JSON.stringify({ name: 'حمزة' }))
     localStorage.setItem('hf_pack_prompted', '1')
@@ -187,7 +188,7 @@ async function open({ device = 'iPhone 13', viewport = null, blockRemote = true,
     if (lastWeights) localStorage.setItem('hf_last_weights', JSON.stringify(lastWeights))
     if (mapping) localStorage.setItem('hf_exercise_mapping', JSON.stringify(mapping))
     if (xp != null) localStorage.setItem('hf_xp', JSON.stringify(xp))
-  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping, xp])
+  }, [active, sessions, APP_VERSION, lastWeights, unlocked || ACHIEVEMENTS.map(a => a.id), mapping, xp, extra])
 
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   // A stored session opens the full-screen cover by itself.
@@ -2923,6 +2924,38 @@ const timeline = (page) => page.evaluate(() => {
     shown: document.querySelectorAll('[data-testid="rest-earned"]').length }))
   ok('rest day earned: once — not again after opening the app again', again.rest === '1' && again.shown === 0, JSON.stringify(again))
   ok('rest day earned: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ His reps win over a template's ═══════════════════════════
+// حمزة: «متأكد انه خياري ١٢ الى ١٥ عدة الديفولت بس الحين يقترح علي ١٠».
+// A built-in push·pull·legs plan whose chest press says 10–10, his
+// Settings on 12–15 (volume), and his last session stored with that
+// template's target ({ min: 10, max: 10 }, before ownership existed).
+// The session he starts from Home aims for 12–15 — the stepper starts at
+// 12 and the coach says «الهدف 12–15» — never 10.
+{
+  const PPL = BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')
+  const BENCH = PPL.weeklySchedule[0].exercises[0]
+  const LAST = [{ id: Date.now() - 3 * 86400000, date: new Date(Date.now() - 3 * 86400000).toISOString(), duration: 40, planDayName: PPL.weeklySchedule[0].name,
+    exercises: [{ id: 'x', muscle: 'Chest', name: BENCH.name, target: { min: 10, max: 10 },
+      sets: [1, 2, 3, 4].map(() => ({ weight: '50', reps: '12', done: true })) }] }]
+  const { ctx, page, errors } = await open({ active: null, sessions: LAST,
+    extra: { hf_plan: PPL, hf_plan_index: 0, hf_rep_target: { id: 'volume', base: 12, top: 15 } } })
+  await page.getByRole('button', { name: 'ابدأ التمرين' }).first().click()
+  await page.locator('[data-testid="session"]').waitFor({ timeout: 6000 }).catch(() => {})
+  await page.waitForTimeout(900)
+  const stored = await activeStored(page)
+  const ex0 = stored?.exercises?.[0]
+  ok('his reps: the session is the template\'s push day, chest press first', ex0?.name === BENCH.name && BENCH.repsMin === 10 && BENCH.repsMax === 10, JSON.stringify(ex0?.name))
+  ok('his reps: the template\'s 10–10 is not stored as a target', !ex0?.target, JSON.stringify(ex0?.target))
+  ok('his reps: every set starts at 12, not 10', ex0?.sets?.every(x => x.reps === '12'), JSON.stringify(ex0?.sets))
+  const vals = await inputs(page)
+  ok('his reps: the stepper shows 12', vals[1] === '12', JSON.stringify(vals))
+  const coach = (await page.locator('.s-coach-text').innerText().catch(() => '')).replace(/\s+/g, ' ')
+  ok('his reps: the coach says «الهدف 12–15 عدّة», not 10', /الهدف 12–15 عدّة/.test(coach) && !/الهدف 10/.test(coach), coach)
+  ok('his reps: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/his-reps.png` })
   await ctx.close()
 }
 

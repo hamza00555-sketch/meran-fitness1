@@ -5,7 +5,7 @@ import { Button, IconButton, Num, Weight, Sheet, ListGroup, ListRow } from './ki
 import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop, PencilSimple } from './kit/icons.js'
 import { EXERCISE_ALTERNATIVES } from '../constants.js'
 import { substitutedName, getExerciseStats, planDayTitle, durationShort } from '../utils.js'
-import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, effectiveRepTarget } from '../progression.js'
 import { deloadWeight } from '../deload.js'
 import { countAr, unitAr } from '../streak.js'
 import { ExerciseThumb, exerciseNames, withNums } from './home/HomeBits.jsx'
@@ -108,7 +108,7 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, d
   const { lastWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
   const onDeload = !!deload?.active
   // Silenced during a deload, exactly as the player silences it.
-  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, planRepTarget(ex) || repTarget).hint === 'raise'
+  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, effectiveRepTarget(ex, repTarget)).hint === 'raise'
   const today = lastWeight != null && onDeload ? deloadWeight(lastWeight, deload.pct) : lastWeight
   return (
     <li>

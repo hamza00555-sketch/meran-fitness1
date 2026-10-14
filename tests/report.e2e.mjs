@@ -628,8 +628,9 @@ const PHOTOS = [
   { id: 1, date: '2026-03-01T10:00:00.000Z', note: '', src: asset('goalc_fatloss.webp') },
   { id: 2, date: '2026-03-30T10:00:00.000Z', note: '', src: asset('goalc_muscle.webp') },
 ]
+// Bench's 8–12 is his own (set in the builder: repsOwn), so it beats Settings.
 const PLAN = { planName: 'PPL', durationWeeks: 6, weeklySchedule: [
-  { name: 'Push', exercises: [{ muscle: 'Chest', name: 'Bench Press', sets: 3, repsMin: 8, repsMax: 12 }, { muscle: 'Shoulders', name: 'Lateral Raise', sets: 3 }] },
+  { name: 'Push', exercises: [{ muscle: 'Chest', name: 'Bench Press', sets: 3, repsMin: 8, repsMax: 12, repsOwn: true }, { muscle: 'Shoulders', name: 'Lateral Raise', sets: 3 }] },
   { name: 'Pull', exercises: [{ muscle: 'Back', name: 'Lat Pulldown', sets: 3 }, { muscle: 'Biceps', name: 'Barbell Curl', sets: 2 }] },
   { name: 'Legs', exercises: [{ muscle: 'Legs', name: 'Barbell Squat', sets: 3 }, { muscle: 'Legs', name: 'Standing Calf Raise', sets: 2 }] },
 ] }
@@ -802,7 +803,7 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   const calf = after.plan.weeklySchedule[2].exercises[1]
   ok('apply: the part under its range gets sets in the plan', calf.name === 'Standing Calf Raise' && calf.sets > 2 && Number.isInteger(calf.sets), JSON.stringify(calf))
   ok('apply: and only the exercise that works it directly', after.plan.weeklySchedule[2].exercises[0].sets === 3)
-  ok('apply: the lift ready to go up (on the plan\'s 8–12) starts one plate higher', after.weights['bench press'] === 80, JSON.stringify(after.weights))
+  ok('apply: the lift ready to go up (on his own 8–12 in the plan) starts one plate higher', after.weights['bench press'] === 80, JSON.stringify(after.weights))
   ok('apply: the stalled lift starts lighter', after.weights['barbell squat'] > 0 && after.weights['barbell squat'] < 110, JSON.stringify(after.weights))
   ok('apply: next month\'s goal is set too', after.goals['2026-04']?.kind === 'sessions' && after.goals['2026-04'].target > 0, JSON.stringify(after.goals))
   ok('apply: the plan keeps the shape the old design reads', after.plan.planName === 'PPL' && after.plan.weeklySchedule.every(d => typeof d.name === 'string' && d.exercises.every(e => typeof e.name === 'string' && typeof e.muscle === 'string')), '')

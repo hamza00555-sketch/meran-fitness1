@@ -187,6 +187,8 @@ function buildFromPicks(cfg) {
     if (di < 0) { orphan = true; di = lightestDay(plan) }
     const it = mkItem(cfg, p.id, p.by || 'user', p.sets)
     if (p.r) it.r = [...p.r]
+    // reps he set himself in the builder (hf_plan repsOwn): they beat Settings
+    if (p.own) it.own = true
     // his own number of cardio sessions is kept (mkItem's default is one)
     if (EXI[p.id].k === 'x' && Number(p.sets) > 0) it.sets = Math.round(Number(p.sets))
     // the pick this row came from: two rows of one exercise on one day
@@ -557,7 +559,7 @@ function fillStep(plan, cfg, blocked) {
         const di = placeDay(plan, e, { avoidHit: true, budget: true, item: s0 })
         if (di < 0 || plan.days[di].items.some(x => x.id === s0.id)) continue
         const it = mkItem(cfg, s0.id, 'app', s0.sets)
-        it.r = [...s0.r]; it.rest = s0.rest; it.repeat = true; if (s0.unit) it.unit = s0.unit
+        it.r = [...s0.r]; it.rest = s0.rest; it.repeat = true; if (s0.unit) it.unit = s0.unit; if (s0.own) it.own = true
         it.why = whyText(g, plan, 'repeat'); it.gap = g.a
         plan.days[di].items.push(it)
         sortDay(plan.days[di])
@@ -721,6 +723,7 @@ export function fromHfPlan(hf, { days = 4 } = {}) {
     if (lo > 0) p.r = [lo, hi >= lo ? hi : lo]
     if (Number.isFinite(Number(ex.restSeconds)) && ex.restSeconds !== '' && ex.restSeconds != null) p.rest = Math.max(0, Number(ex.restSeconds))
     if (ex.unit === 'sec') p.unit = 'sec'
+    if (ex.repsOwn === true) p.own = true
     if (ex.by === 'app') { p.by = 'app'; if (ex.why) p.why = ex.why }
     picks.push(p)
   }))
@@ -755,7 +758,7 @@ export function fitPins(picks, cycle) {
 }
 
 /* hf_plan — the shape both designs read. Only optional fields are new
-   (source, split, builder, and per exercise equip/part/by/why/unit); the
+   (source, split, builder, and per exercise equip/part/by/why/unit/repsOwn); the
    old design ignores them. */
 const PART = { quads: 'quads', hams: 'hamstrings', glutes: 'glutes', calves: 'calves' }
 /**
@@ -790,6 +793,9 @@ export function toHfPlan(plan, cfg, { today, base = null } = {}) {
           if (PART[e.area]) x.part = PART[e.area]
           if (it.by === 'app' && it.why) x.why = it.why; else delete x.why
           if (it.unit) x.unit = it.unit; else delete x.unit
+          // his own reps (stepped in the builder) beat Settings; any other range — the
+          // builder's defaults, a template's, an import's — does not (progression.js)
+          if (it.own) x.repsOwn = true; else delete x.repsOwn
           return x
         }),
       }

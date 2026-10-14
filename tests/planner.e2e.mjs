@@ -299,10 +299,19 @@ let saved = null
   const planFirst = planDay.exercises[0]
   ok('session: today\'s day of the plan', first.name === planFirst.name, `${first.name} vs ${planFirst.name}`)
   ok('session: the plan\'s rest', first.rest === planFirst.restSeconds, `${first.rest} vs ${planFirst.restSeconds}`)
-  ok('session: the plan\'s reps', first.target?.min === planFirst.repsMin && first.target?.max === Math.max(planFirst.repsMin, planFirst.repsMax))
-  ok('session: the reps box starts at the bottom of the plan\'s range', first.sets[0].reps === String(planFirst.repsMin))
+  // Reps: his own choice wins. Only a range he stepped in the builder is
+  // his (repsOwn); the template's ranges are not, so they run on his
+  // Settings (12–15 by default).
+  const owned = saved.weeklySchedule.flatMap(d => d.exercises).filter(x => x.repsOwn === true)
+  ok('saved: the one row he stepped the reps of is his own (repsOwn, from 12–15 down to 10–15)',
+    owned.length === 1 && owned[0].repsMin === 10 && owned[0].repsMax === 15, JSON.stringify(owned.map(x => [x.name, x.repsMin, x.repsMax])))
+  const want = planFirst.repsOwn ? [planFirst.repsMin, Math.max(planFirst.repsMin, planFirst.repsMax)] : [12, 15]
+  ok('session: the reps are his — his own range, else Settings, never the template\'s',
+    planFirst.repsOwn ? (first.target?.min === want[0] && first.target?.max === want[1] && first.target?.own === true) : !first.target,
+    JSON.stringify({ target: first.target, planFirst }))
+  ok('session: the reps box starts at the bottom of his range', first.sets[0].reps === String(want[0]), first.sets[0].reps)
   const coach = await page.locator('.s-coach-adv').first().innerText().catch(() => '')
-  ok('session: the coach line says the plan\'s range', coach.includes(String(planFirst.repsMin)), coach)
+  ok('session: the coach line says his range', coach.includes(`${want[0]}–${want[1]}`), coach)
   // a set: the rest counts the plan's seconds
   await page.locator('input[inputmode="decimal"]').first().fill('40').catch(() => {})
   await page.locator('[data-testid="complete-set"]').click(); await settle(page, 1200)

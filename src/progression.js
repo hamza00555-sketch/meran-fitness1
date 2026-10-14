@@ -30,12 +30,27 @@ export const REP_TARGETS = [
 export const DEFAULT_REP_TARGET = { id: 'volume', base: 12, top: 15 }
 
 /**
- * The rep range a plan gives an exercise, as a target: from a plan's
- * exercise ({ repsMin, repsMax }) or a session's ({ target: { min, max } }).
- * Null when it has none — the global target in Settings applies then.
- * A plan session runs on the plan's numbers (حمزة: «إيه، من الخطة»).
+ * Whose rep range this is. His own choice wins (حمزة: «متأكد انه خياري
+ * ١٢ الى ١٥ عدة»): a range overrides the Settings target only when he
+ * set it himself in the plan builder — a plan exercise marked
+ * `repsOwn: true`, or a session exercise whose stored target says
+ * `own: true`. Ranges from built-in templates, imported plans, the
+ * builder's own defaults or the old app are not his choice, and neither
+ * is a session target stored before the flag existed: those all fall
+ * back to Settings. Timed moves (unit 'sec' / 'min') keep their range
+ * whoever wrote it — Settings counts reps, not seconds.
+ */
+export const isTimed = (ex) => ex?.unit === 'sec' || ex?.unit === 'min'
+export const repsOwned = (ex) => !!ex && (ex.repsOwn === true || ex.target?.own === true || isTimed(ex))
+
+/**
+ * The rep range an exercise runs on when it is his own: from a plan's
+ * exercise ({ repsMin, repsMax, repsOwn }) or a session's
+ * ({ target: { min, max, own } }). Null otherwise — the target in
+ * Settings applies then.
  */
 export function planRepTarget(ex) {
+  if (!repsOwned(ex)) return null
   const lo = Number(ex?.target?.min ?? ex?.repsMin)
   const hi = Number(ex?.target?.max ?? ex?.repsMax)
   if (!(lo > 0)) return null
@@ -45,8 +60,9 @@ export function planRepTarget(ex) {
 /**
  * The target a lift is judged against everywhere outside the session
  * (report, deload count, history repeat), so they all agree with the
- * player: the range its latest session ran on, else the range the
- * current plan gives it, else the Settings target.
+ * player: the range its latest session ran on when that range was his
+ * own, else the range he set for it in the current plan, else the
+ * Settings target.
  */
 export function liftRepTarget(sessions, exerciseName, mapping = {}, { plan = null, fallback = DEFAULT_REP_TARGET } = {}) {
   const lift = resolveExerciseName(exerciseName, mapping)
@@ -68,6 +84,12 @@ export function liftRepTarget(sessions, exerciseName, mapping = {}, { plan = nul
   }
   return fallback || DEFAULT_REP_TARGET
 }
+
+/** The range an exercise really runs on: its own (above), else Settings. */
+export const effectiveRepTarget = (ex, fallback = DEFAULT_REP_TARGET) => planRepTarget(ex) || repTargetOf(fallback)
+
+/** A session exercise's stored target: the range, marked his own. */
+export const ownTarget = (t) => ({ min: t.base, max: t.top, own: true })
 
 export const repTargetOf = (cfg = {}) => {
   // A plan's own range: as written, even a single number («10 × 10»).

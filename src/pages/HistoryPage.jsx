@@ -10,7 +10,7 @@ import {
   groupByWeek, weekTotalsText, sessionTitle, sessionDateText, sessionDay, firstBestSessions,
 } from '../components/history/model.js'
 import { buildExercise, suggestedWeightFor, resolveExerciseName, getWeightsResetAt, ls } from '../utils.js'
-import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget } from '../progression.js'
+import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget, ownTarget } from '../progression.js'
 import { sessionDeloadStamp, deloadWeight } from '../deload.js'
 import { DAY_STATUS } from '../recovery.js'
 import { todayKey } from '../day.js'
@@ -108,7 +108,7 @@ export default function HistoryPage({
         prevWeight: suggestedWeightFor(ex.name, { sessions, mapping: exerciseMapping, transform: lighten }),
         prevReps: analyzeProgression(sessions, ex.name, exerciseMapping, t).suggestedReps,
       })
-      return t.id === 'plan' ? { ...built, target: { min: t.base, max: t.top } } : built
+      return t.id === 'plan' ? { ...built, target: ownTarget(t) } : built
     })
     onStartWorkout?.(exercises)
   }

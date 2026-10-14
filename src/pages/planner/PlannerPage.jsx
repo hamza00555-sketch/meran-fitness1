@@ -32,6 +32,7 @@ export default function PlannerPage(props) {
       planIndex: p.planIndex,
       planPrev: p.planPrev,
       recoveryCfg: p.recoveryCfg,
+      repTarget: p.repTarget,
       profile: p.profile,
       changeCooldownLeft: p.changeCooldownLeft,
       currentStreak: p.currentStreak,

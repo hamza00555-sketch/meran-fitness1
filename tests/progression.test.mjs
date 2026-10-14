@@ -245,3 +245,48 @@ test('the raise-ring fixture opens the raise hint', () => {
   assert.equal(p.hint, 'raise')
   assert.equal(p.workingWeight, 75)
 })
+
+// ── Whose rep range: his own choice wins ─────────────────────
+// (حمزة: «متأكد انه خياري ١٢ الى ١٥ عدة الديفولت بس الحين يقترح علي ١٠»)
+// A range beats Settings only when he set it himself in the builder.
+
+const P = await import('../src/progression.js')
+const { BUILT_IN_PLANS } = await import('../src/constants.js')
+const VOLUME = { id: 'volume', base: 12, top: 15 }
+const sessionWith = (target, reps = [12, 12, 12]) => ({
+  id: ++seq, date: new Date(2026, 8, seq).toISOString(),
+  exercises: [{ name: 'Chest Press Machine', muscle: 'Chest', ...(target ? { target } : null),
+    sets: reps.map(r => ({ weight: '50', reps: String(r), done: true })) }],
+})
+
+test('a built-in template range is not his: Settings 12–15 applies', () => {
+  const tpl = BUILT_IN_PLANS.flatMap(p => p.weeklySchedule.flatMap(d => d.exercises)).find(e => e.repsMin === 10 && e.repsMax === 10)
+  assert.ok(tpl, 'a template exercise on 10–10')
+  assert.equal(P.planRepTarget(tpl), null)
+  const plan = { weeklySchedule: [{ name: 'A', exercises: [{ ...tpl, name: 'Chest Press Machine' }] }] }
+  assert.deepEqual(P.liftRepTarget([], 'Chest Press Machine', {}, { plan, fallback: VOLUME }), VOLUME)
+  const t = P.effectiveRepTarget(tpl, VOLUME)
+  assert.deepEqual([t.base, t.top], [12, 15])
+  assert.equal(P.analyzeProgression([], 'Chest Press Machine', {}, t).suggestedReps, 12)
+})
+
+test('a range he set in the builder (repsOwn) is used', () => {
+  const ex = { name: 'Chest Press Machine', muscle: 'Chest', sets: 4, repsMin: 8, repsMax: 10, repsOwn: true }
+  assert.deepEqual(P.planRepTarget(ex), { id: 'plan', base: 8, top: 10 })
+  const plan = { weeklySchedule: [{ name: 'A', exercises: [ex] }] }
+  assert.deepEqual(P.liftRepTarget([], 'Chest Press Machine', {}, { plan, fallback: VOLUME }), { id: 'plan', base: 8, top: 10 })
+})
+
+test('an old session target with no ownership flag is ignored; a flagged one is used', () => {
+  const old = [sessionWith({ min: 10, max: 10 })]
+  assert.equal(P.planRepTarget(old[0].exercises[0]), null)
+  assert.deepEqual(P.liftRepTarget(old, 'Chest Press Machine', {}, { fallback: VOLUME }), VOLUME)
+  const mine = [sessionWith({ min: 10, max: 10, own: true })]
+  assert.deepEqual(P.liftRepTarget(mine, 'Chest Press Machine', {}, { fallback: VOLUME }), { id: 'plan', base: 10, top: 10 })
+  // what a session stores now carries the flag
+  assert.deepEqual(P.ownTarget({ base: 8, top: 12 }), { min: 8, max: 12, own: true })
+})
+
+test('timed moves keep their seconds whoever wrote them (Settings counts reps)', () => {
+  assert.deepEqual(P.planRepTarget({ repsMin: 30, repsMax: 60, unit: 'sec' }), { id: 'plan', base: 30, top: 60 })
+})

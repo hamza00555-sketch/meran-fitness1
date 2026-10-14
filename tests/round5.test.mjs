@@ -20,7 +20,9 @@ const { nextMonthPlan } = await import('../src/monthReport.js')
 const { analyzeProgression, liftRepTarget, planRepTarget, DEFAULT_REP_TARGET } = await import('../src/progression.js')
 
 // September on train-train-rest, every set at the top of a 10–10 range.
-function topOfRangeMonth({ withTarget = true } = {}) {
+// target: 'own' — the range he set in the builder (target.own); 'old' —
+// a target stored before ownership existed (not his); none — no target.
+function topOfRangeMonth({ withTarget = 'own' } = {}) {
   const out = []
   for (let d = 1; d <= 30; d++) {
     if ((d - 1) % 3 === 2) continue
@@ -29,17 +31,20 @@ function topOfRangeMonth({ withTarget = true } = {}) {
       id: new Date(date).getTime(), date,
       exercises: [{
         name: 'Lat Pulldown', muscle: 'Back',
-        ...(withTarget ? { target: { min: 10, max: 10 } } : null),
+        ...(withTarget === 'own' ? { target: { min: 10, max: 10, own: true } } : withTarget === 'old' ? { target: { min: 10, max: 10 } } : null),
         sets: [1, 2, 3].map(() => ({ weight: '50', reps: '10', done: true })),
       }],
     })
   }
   return out.reverse()
 }
-const PLAN_10 = { weeklySchedule: [{ name: 'A', exercises: [{ name: 'Lat Pulldown', sets: 3, repsMin: 10, repsMax: 10 }] }] }
+// A 10–10 range he set himself in the builder, and the same range as a
+// built-in template carries it (not his choice).
+const PLAN_10 = { weeklySchedule: [{ name: 'A', exercises: [{ name: 'Lat Pulldown', sets: 3, repsMin: 10, repsMax: 10, repsOwn: true }] }] }
+const TEMPLATE_10 = { weeklySchedule: [{ name: 'A', exercises: [{ name: 'Lat Pulldown', sets: 3, repsMin: 10, repsMax: 10 }] }] }
 
-test('a 10–10 plan range hit at the top never reads as «lower» in the report', () => {
-  for (const withTarget of [true, false]) {
+test('a 10–10 range he chose, hit at the top, never reads as «lower» in the report', () => {
+  for (const withTarget of ['own', null]) {
     const sessions = topOfRangeMonth({ withTarget })
     const next = nextMonthPlan({ sessions, month: '2026-09', repTarget: DEFAULT_REP_TARGET, plan: PLAN_10 })
     assert.ok(!next.some(n => n.kind === 'lower'), JSON.stringify(next))
@@ -48,11 +53,23 @@ test('a 10–10 plan range hit at the top never reads as «lower» in the report
   }
 })
 
-test('liftRepTarget: latest session range, then plan, then Settings', () => {
+test('a 10–10 range from a template is not his: the report judges it on Settings (12–15)', () => {
+  for (const withTarget of ['old', null]) {
+    const sessions = topOfRangeMonth({ withTarget })
+    const next = nextMonthPlan({ sessions, month: '2026-09', repTarget: DEFAULT_REP_TARGET, plan: TEMPLATE_10 })
+    const lower = next.find(n => n.kind === 'lower')
+    assert.equal(lower?.reps, 12, JSON.stringify(next))
+  }
+})
+
+test('liftRepTarget: his latest session range, then his plan range, then Settings', () => {
   const sessions = topOfRangeMonth()
-  assert.deepEqual(liftRepTarget(sessions, 'Lat Pulldown', {}, { plan: null }), planRepTarget({ repsMin: 10, repsMax: 10 }))
-  const bare = topOfRangeMonth({ withTarget: false })
+  assert.deepEqual(liftRepTarget(sessions, 'Lat Pulldown', {}, { plan: null }), planRepTarget({ repsMin: 10, repsMax: 10, repsOwn: true }))
+  // a target stored before ownership (his last sessions on the template) no longer forces 10
+  assert.equal(liftRepTarget(topOfRangeMonth({ withTarget: 'old' }), 'Lat Pulldown', {}, { plan: null }), DEFAULT_REP_TARGET)
+  const bare = topOfRangeMonth({ withTarget: null })
   assert.equal(liftRepTarget(bare, 'Lat Pulldown', {}, { plan: PLAN_10 }).top, 10)
+  assert.equal(liftRepTarget(bare, 'Lat Pulldown', {}, { plan: TEMPLATE_10 }), DEFAULT_REP_TARGET)
   assert.equal(liftRepTarget(bare, 'Lat Pulldown', {}, { plan: null }), DEFAULT_REP_TARGET)
   // and the deload count reads the same lift as not stalled
   const t = liftRepTarget(bare, 'Lat Pulldown', {}, { plan: PLAN_10 })
