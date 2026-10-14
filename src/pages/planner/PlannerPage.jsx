@@ -30,6 +30,7 @@ export default function PlannerPage(props) {
       door: p.door,
       plan: p.plan,
       planIndex: p.planIndex,
+      day: p.day,
       planPrev: p.planPrev,
       recoveryCfg: p.recoveryCfg,
       repTarget: p.repTarget,

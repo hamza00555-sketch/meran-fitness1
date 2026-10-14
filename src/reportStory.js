@@ -377,6 +377,9 @@ export function applyNext({ plan = null, lastWeights = {}, items = [], mapping =
           const ex = days[di].exercises[ei]
           const now = Number(ex.sets) || DEFAULT_SETS
           if (now >= MAX_PLAN_SETS) continue
+          // what it had before (once), for «خطتي»'s «مجموعة زيادة» —
+          // an optional field the old design never reads
+          if (!ex.was || !('sets' in ex.was)) ex.was = { ...(ex.was || {}), sets: now }
           ex.sets = now + 1
           added++
         }

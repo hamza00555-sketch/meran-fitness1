@@ -38,8 +38,9 @@ const MEM_KEY = 'meran_planner'
 
 /**
  * Builds the page inside `HOST` and returns { destroy }.
- *   ctx.door        — which door opened it: settings | edit | progress | more | home | onb
+ *   ctx.door        — which door opened it: settings | edit | progress | more | home | onb | view
  *   ctx.plan        — the plan in force (hf_plan) or null; ctx.planIndex
+ *   ctx.day         — the day to open «خطتك» on (door 'view'), else today's
  *   ctx.planPrev    — hf_plan_prev ({ plan, planIndex, savedAt }) or null
  *   ctx.recoveryCfg, ctx.repTarget (Settings › التكرارات), ctx.profile, ctx.changeCooldownLeft, ctx.currentStreak
  *   ctx.onActivate(hf, { edit, days, breakStreak }), ctx.onRestorePrev({ breakStreak })
@@ -395,7 +396,7 @@ const topbar = (n, extra = '') => `<div class="topbar"><button class="icon-btn" 
 
 
 /* ══ 1 · start ══ */
-const CRUMB = { settings: 'الإعدادات · الخطة', edit: 'الإعدادات · الخطة', home: 'الرئيسية', onb: 'أول مرة · خطتك', progress: 'الرئيسية · تقدم البرنامج', more: 'الرئيسية · خيارات اليوم' }
+const CRUMB = { settings: 'الإعدادات · الخطة', edit: 'الإعدادات · الخطة', home: 'الرئيسية', onb: 'أول مرة · خطتك', progress: 'الرئيسية · تقدم البرنامج', more: 'الرئيسية · خيارات اليوم', view: 'خطتي' }
 ENTER.start = function () {
   $('#s-start').innerHTML = `
   <div class="scroll">
@@ -1577,13 +1578,15 @@ async function autoBuild() {
 }
 /* The five doors (حمزة: «صفحة لحالها بخمس أبواب»). Settings, the first run
    and Home with no plan open on «البداية»; «تقدّم البرنامج», «⋯ › عدّل الخطة»
-   and «عدّل» in Settings open his plan by days, on today's day. */
+   and «عدّل» in Settings open his plan by days, on today's day; «خطتي»'s
+   «عدّل الخطة كاملة» (door 'view') on the day he was looking at (ctx.day). */
 function open(v) {
   S.entry = v
-  if ((v === 'progress' || v === 'more' || v === 'edit') && loadCurrent()) {
+  if ((v === 'progress' || v === 'more' || v === 'edit' || v === 'view') && loadCurrent()) {
     S.plan = buildFromPicks(cfg()); S.filled = false
     const n = S.plan.days.length
-    S.day = n ? ((ctx.planIndex || 0) % n + n) % n : 0
+    const at = Number.isInteger(ctx.day) ? ctx.day : (ctx.planIndex || 0)
+    S.day = n ? (at % n + n) % n : 0
     go('plan', { instant: true })
     return
   }
@@ -1797,8 +1800,14 @@ on(HOST, 'click', (e) => {
       // another exercise: not the old one's name or saved row, and its
       // pick follows, or going back a screen brings the old one back
       const pk = pickFor(f.it)
+      // what his plan had here, kept for «خطتي» («بدّلته بدل …») once
+      // the stored row it came from is let go
+      const o = f.it.orig, was = { ...((o && o.was) || f.it.was || {}) }
+      if (o && !('name' in was)) { was.name = o.name; was.muscle = o.muscle }
+      if (o && !('sets' in was) && Number(o.sets) > 0) was.sets = Number(o.sets)
       f.it.id = v; delete f.it.name; delete f.it.orig
-      if (pk) { pk.id = v; delete pk.name; delete pk.orig }
+      if (Object.keys(was).length) f.it.was = was
+      if (pk) { pk.id = v; delete pk.name; delete pk.orig; if (f.it.was) pk.was = f.it.was }
       closeSheet(); S.open = f.it.uid; renderDay(); refreshPlan()
       land($(`.prow[data-uid="${f.it.uid}"]`))
       toast(`بدّلنا ${old} بـ${EXI[v].ar}`); return

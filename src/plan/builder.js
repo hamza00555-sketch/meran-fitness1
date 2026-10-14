@@ -198,6 +198,7 @@ function buildFromPicks(cfg) {
     if (p.unit) it.unit = p.unit
     if (p.name) it.name = p.name
     if (p.orig) it.orig = p.orig
+    if (p.was) it.was = p.was
     if (p.why) it.why = p.why
     if (orphan || !allowed(types[di], EXI[p.id].area)) it.orphan = true
     plan.days[di].items.push(it)
@@ -758,9 +759,26 @@ export function fitPins(picks, cycle) {
 }
 
 /* hf_plan — the shape both designs read. Only optional fields are new
-   (source, split, builder, and per exercise equip/part/by/why/unit/repsOwn); the
+   (source, split, builder, and per exercise equip/part/by/why/unit/repsOwn/was); the
    old design ignores them. */
 const PART = { quads: 'quads', hams: 'hamstrings', glutes: 'glutes', calves: 'calves' }
+const lcName = (s) => String(s || '').trim().toLowerCase()
+/* What an edited row was before his first change of it ({ name, muscle,
+   sets }), for «خطتي»'s badges (src/plan/view.js): noted once, from his
+   stored row (it.orig) or a swap's note (it.was), and dropped again once
+   the row is back to it. A new plan's rows have nothing to say. */
+function wasFor(x, it) {
+  const base = it.orig || null
+  const was = { ...((base && base.was) || it.was || {}) }
+  if (base) {
+    if (lcName(base.name) !== lcName(x.name) && !('name' in was)) { was.name = base.name; was.muscle = base.muscle }
+    const bs = Number(base.sets)
+    if (bs > 0 && bs !== Number(x.sets) && !('sets' in was)) was.sets = bs
+  }
+  if ('name' in was && lcName(was.name) === lcName(x.name)) { delete was.name; delete was.muscle }
+  if ('sets' in was && Number(was.sets) === Number(x.sets)) delete was.sets
+  if (Object.keys(was).length) x.was = was; else delete x.was
+}
 /**
  * The plan the builder made, as hf_plan.
  *   base — the stored plan this one edits (keeps its id, name, start and
@@ -796,6 +814,7 @@ export function toHfPlan(plan, cfg, { today, base = null } = {}) {
           // his own reps (stepped in the builder) beat Settings; any other range — the
           // builder's defaults, a template's, an import's — does not (progression.js)
           if (it.own) x.repsOwn = true; else delete x.repsOwn
+          wasFor(x, it)
           return x
         }),
       }
