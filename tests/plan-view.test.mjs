@@ -182,6 +182,17 @@ test('alternatives: the same muscle first (the swap table leading), then the sam
   }
   // the day's other exercises are left out
   assert.ok(!V.rankAlternatives('Leg Press', { exclude: ['Hack Squat'] }).muscle.includes('Hack Squat'))
+  // a row: the other rows are «another tool»; a shrug or a carry is not a row
+  const row = V.rankAlternatives('Seated Cable Row')
+  assert.ok(row.tool.includes('Dumbbell Row') && row.tool.includes('Barbell Row'))
+  assert.ok(!row.muscle.includes('Dumbbell Shrug') && !row.muscle.includes('Dumbbell Farmers Carry'))
+  assert.ok(row.muscle.includes('Lat Pulldown'), 'the rest of the back')
+  // the table's «Chest Supported Row Machine» is the catalogue's own, with its picture
+  assert.equal(row.muscle[0], 'Chest-Supported Row')
+  // what he has done before comes first: his gym's machine, picture or not
+  const H = 'Hammer Strength Machine Bench Press'
+  assert.notEqual(V.rankAlternatives(H).muscle[0], 'Chest Press Machine')
+  assert.equal(V.rankAlternatives(H, { tried: (n) => n === 'Chest Press Machine' }).muscle[0], 'Chest Press Machine')
   // an exercise the catalogue does not know: its group's own exercises
   const odd = V.rankAlternatives('Squat Jump', { muscle: 'Legs' })
   assert.ok(odd.muscle.length >= 3 && odd.muscle.every(n => V.muscleOf(n) === 'Legs'))

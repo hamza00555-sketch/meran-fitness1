@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { IconButton, ListGroup, ListRow, Sheet, Num } from '../kit/index.jsx'
 import {
-  DotsThree, Info, ArrowsLeftRight, Plus, Minus, Copy, Check, Trash, X, CaretUp, YoutubeLogo,
+  DotsThree, Info, ArrowsLeftRight, Plus, Minus, Copy, Check, Trash, X, CaretUp, YoutubeLogo, ListChecks,
 } from '../kit/icons.js'
 import { ArrowBendDownLeft } from '@phosphor-icons/react'
 import SessionMedia from './SessionMedia.jsx'
 import ExerciseTags from './ExerciseTags.jsx'
+import SwapSheet from './SwapSheet.jsx'
 import { arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
 import { resolveExerciseName } from '../../utils.js'
@@ -38,7 +39,9 @@ import { resolveExerciseName } from '../../utils.js'
 //
 // Everything else that isn't set-logging lives behind ⋯: info, swap,
 // add/remove a set, move a set, copy the name, remove the exercise —
-// and, in its own group, the session's «إلغاء التمرين».
+// and, in its own group, «شوف خطتي» and the session's «إلغاء التمرين».
+// The swap opens its own sheet (SwapSheet): the alternatives as pictures,
+// the rest of the session under them, «بس هالمرة» or «دايماً بخطتي».
 //
 // Every name here goes through the user's alias mapping, so a machine he
 // renamed (or a custom alias) still finds its Arabic name and its art.
@@ -157,18 +160,23 @@ function useSwipe(onSwipe, onDrag) {
 export default function ExerciseHero({
   ex, mapping = {}, expanded, animate = false, onToggleStage, collapsible = false,
   maxWeight = null, deloadPct = 0, quietBest = false, ytUrl,
-  canSwap, swapNext = null, swapOrigin = null, onSwap, onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
-  onAddExercise, onDiscard, onSheet, onSwipe, onDrag,
+  swap = null, onSwapTo, upcoming = [], position = null, lastFor,
+  onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
+  onAddExercise, onDiscard, onOpenPlan, onSheet, onSwipe, onDrag,
 }) {
   // The ⋯ sheet and the info sheet belong to the exercise they were opened
   // for: should the screen move on under them, they close rather than
   // turn into the next exercise's (and act on it).
   const [menuFor, setMenuFor] = useState(null)
   const [infoFor, setInfoFor] = useState(null)
+  const [swapFor, setSwapFor] = useState(null)   // { id, n }: each opening a fresh sheet
   const menu = menuFor != null && menuFor === ex.id
   const info = infoFor != null && infoFor === ex.id
+  const swapOpen = swapFor != null && swapFor.id === ex.id
   const setMenu = (on) => { if (on) onSheet?.(); setMenuFor(on ? ex.id : null) }
   const setInfo = (on) => { if (on) onSheet?.(); setInfoFor(on ? ex.id : null) }
+  const openSwap = () => { onSheet?.(); setSwapFor(s => ({ id: ex.id, n: (s?.n || 0) + 1 })) }
+  const closeSwap = () => setSwapFor(s => (s ? { ...s, id: null } : s))
   const [copied, setCopied] = useState(false)
   const swipe = useSwipe(onSwipe, onDrag)
   const watch = useTap(() => openVideo(ytUrl))
@@ -242,14 +250,12 @@ export default function ExerciseHero({
       <Sheet open={menu} onClose={() => setMenu(false)} title={primary}>
         <ListGroup header="هذا التمرين">
           <ListRow leading={Info} title="معلومات ونصائح" onClick={act(() => setInfo(true))} />
-          {canSwap && (
+          {swap?.canSwap && (
             <ListRow leading={ArrowsLeftRight} title="استبدال التمرين"
-              subtitle={swapNext
-                ? <>التالي: <NameAr name={swapNext} mapping={mapping} /></>
-                : swapOrigin && swapOrigin !== ex.name
-                  ? <>رجوع إلى <NameAr name={swapOrigin} mapping={mapping} /></>
-                  : 'الجهاز مشغول؟ جرّب البديل'}
-              onClick={act(onSwap)} />
+              subtitle={swap.origin && swap.origin !== ex.name
+                ? <>بدل <NameAr name={swap.origin} mapping={mapping} /> · شوف البدائل بالصور</>
+                : 'الجهاز مشغول؟ شوف البدائل بالصور'}
+              onClick={act(openSwap)} />
           )}
           <ListRow leading={Plus} title="إضافة مجموعة" onClick={act(onAddSet)} />
           {ex.sets.length > 1 && (
@@ -275,6 +281,10 @@ export default function ExerciseHero({
         )}
 
         <ListGroup header="الجلسة">
+          {onOpenPlan && (
+            <ListRow leading={ListChecks} title="شوف خطتي" subtitle="كل أيامك وتمارينها بالصور"
+              onClick={act(onOpenPlan)} />
+          )}
           {onAddExercise && <ListRow leading={Plus} title="إضافة تمرين" onClick={act(onAddExercise)} />}
           {onDiscard && (
             <ListRow leading={X} title="إلغاء التمرين" subtitle="تنحذف الجلسة كاملة بدون حفظ"
@@ -284,6 +294,13 @@ export default function ExerciseHero({
       </Sheet>
 
       <ExerciseInfoSheet open={info} ex={ex} mapping={mapping} ytUrl={ytUrl} onClose={() => setInfo(false)} />
+
+      {swapFor && swap && (
+        <SwapSheet key={swapFor.n} open={swapOpen} ex={ex} mapping={mapping} options={swap}
+          position={position} upcoming={upcoming} lastFor={lastFor}
+          onPick={(name, opts) => { closeSwap(); onSwapTo?.(name, opts) }}
+          onClose={closeSwap} />
+      )}
     </>
   )
 }

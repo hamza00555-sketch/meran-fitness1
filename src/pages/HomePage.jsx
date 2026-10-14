@@ -30,7 +30,8 @@ import { setsUnit } from '../components/home/dayParts.js'
 // inset list on the ground: hairlines, not boxes. Rank and XP left
 // Home — they live with the profile and progress.
 
-// Door 2 to the plan builder: the row opens «خطتك» by days.
+// The plan's row opens «خطتي» — his plan as cards, every day of it, with
+// the builder one tap further («عدّل الخطة كاملة»).
 function PlanProgress({ plan, planIndex, onOpen }) {
   const schedule      = plan.weeklySchedule || []
   const durationWeeks = plan.durationWeeks || 6
@@ -116,7 +117,7 @@ function MuscleGroup({ entries }) {
 // in the sheet behind the number.
 export default function HomePage({ sessions, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
   onStartDeload, onDismissDeloadSuggestion, greeting = '', onOpenProfile, onOpenSettings, onOpenStreak,
-  repTarget = DEFAULT_REP_TARGET, hold = false, onOpenPlanner }) {
+  repTarget = DEFAULT_REP_TARGET, hold = false, onOpenPlanner, onOpenPlanView }) {
   // Training vs recovery comes from the recovery engine — real completed
   // workouts and the chosen frequency — never from the weekday.
   const isRecoveryDay = recovery?.status === DAY_STATUS.RECOVERY
@@ -228,7 +229,7 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
 
         {/* ── Plan progress ── */}
         {plan && !active && <PlanProgress plan={plan} planIndex={planIndex ?? 0}
-          onOpen={onOpenPlanner ? () => onOpenPlanner('progress') : undefined} />}
+          onOpen={onOpenPlanView || (onOpenPlanner ? () => onOpenPlanner('progress') : undefined)} />}
 
         {/* ── The rest-day cycle ── */}
         <RestCycle recovery={recovery} isRecoveryDay={isRecoveryDay} />

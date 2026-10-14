@@ -7,9 +7,10 @@ import FinishSheet from '../components/player/FinishSheet.jsx'
 import { dayWord, previousSets, setsPhrase } from '../components/player/sessionWords.js'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, getExerciseStats, substitutedName, nextSubIndex, suggestedWeightFor, markSetDone, resolveExerciseName } from '../utils.js'
+import { buildExercise, blankSet, getExerciseStats, suggestedWeightFor, markSetDone, resolveExerciseName } from '../utils.js'
 import { deloadWeight } from '../deload.js'
-import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
+import { MUSCLE_GROUPS } from '../constants.js'
+import { rankAlternatives, findPlanRow, sessionDay, swapRow, muscleOf } from '../plan/view.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
 import { toWesternDigits } from '../day.js'
 import '../styles/screens/session.css'
@@ -27,7 +28,7 @@ import '../styles/screens/session.css'
 export default function WorkoutPage({
   active, sessions, onUpdateActive, onFinish, onFinishing, onShowRest, onCloseRest, addXP, onGoBack,
   onMinimize, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET,
-  exerciseSubs = {}, onCycleSub,
+  exerciseSubs = {}, plan = null, onEditPlan, onClearSub, onOpenPlanView,
 }) {
   const [showAdd,       setShowAdd]       = useState(false)
   const [showRoutines,  setShowRoutines]  = useState(false)
@@ -185,22 +186,44 @@ export default function WorkoutPage({
     return active?.deload ? { ...p, hint: null } : p
   }
 
-  // Swap a machine mid-workout when it turns out to be occupied. Only
-  // offered while nothing is logged yet, so completed sets are never
-  // re-attributed to a different exercise.
-  const handleSwapLive = (exId) => {
+  // The plan row a session exercise came from (day of the session, the
+  // plan's own name for it), or null: a free session, an added exercise.
+  const planRowOf = (ex) => {
+    const d = sessionDay(plan, active)
+    if (d == null) return null
+    const j = findPlanRow(plan, d, { name: ex.name, originalName: ex.originalName, subs: exerciseSubs })
+    return j >= 0 ? { d, j, name: plan.weeklySchedule[d].exercises[j].name } : null
+  }
+
+  // Swap a machine mid-workout (SwapSheet): the one he picked, seen first.
+  // Only while nothing is logged yet, so completed sets are never
+  // re-attributed to a different exercise. «بس هالمرة» changes this
+  // session; «دايماً بخطتي» also writes the plan's row, the way «خطتي»
+  // does (App's editPlan: free, the day he reached kept).
+  const handleSwapTo = (exId, name, { always = false } = {}) => {
     const ex = exercises.find(e => e.id === exId)
-    if (!ex) return
+    if (!ex || !name || name === ex.name || ex.sets.some(s => s.done)) return
     const origin = ex.originalName || ex.name
-    const nextIdx = nextSubIndex(origin, exerciseSubs, EXERCISE_ALTERNATIVES)
-    const nextName = substitutedName(origin, { ...exerciseSubs, [origin]: nextIdx }, EXERCISE_ALTERNATIVES)
-    onCycleSub?.(origin, nextIdx)   // remember it for next time too
+    if (always) {
+      const at = planRowOf(ex)
+      if (at) {
+        if (at.name.toLowerCase() === name.toLowerCase()) {
+          // back to the plan's own: a remembered swap of it goes
+          if (exerciseSubs[at.name]) onClearSub?.(at.name)
+        } else {
+          onEditPlan?.(swapRow(plan, at.d, at.j, name))
+          if (exerciseSubs[name]) onClearSub?.(name)
+        }
+      }
+    }
     updateEx(exId, e => ({
       ...e,
-      name: nextName,
-      originalName: origin,
+      name,
+      muscle: muscleOf(name, e.muscle) || e.muscle,
+      // what the session started with, said as «بدل …» — none once back to it
+      originalName: name === origin ? undefined : origin,
       // the new machine carries its own load history
-      sets: e.sets.map(() => blankSet(getLastW(nextName), getSuggestedReps(nextName))),
+      sets: e.sets.map(() => blankSet(getLastW(name), getSuggestedReps(name))),
     }))
   }
 
@@ -221,17 +244,25 @@ export default function WorkoutPage({
   const exercises = active.exercises || []
   const doneSets  = exercises.flatMap(ex => ex.sets).filter(s => s.done).length
 
-  // What the ⋯ menu needs to know about swapping: allowed only while
-  // nothing is logged, exactly as before. It names the machine the swap
-  // leads to (null: back to the original); the menu words it, Arabic first.
-  const swapMeta = (ex) => {
-    const origin = ex.originalName || ex.name
-    const alts = EXERCISE_ALTERNATIVES[origin] || []
-    const subIdx = exerciseSubs[origin] || 0
+  // What the swap sheet offers (src/plan/view.js rankAlternatives): the
+  // same muscle first, then the same movement with another tool, never an
+  // exercise already in the session; the session's own first exercise
+  // back as «الأصلي» when this one is a swap. Allowed only while nothing
+  // is logged, exactly as before; «دايماً بخطتي» only for a plan exercise.
+  const swapOptions = (ex) => {
+    const origin = ex.originalName && ex.originalName !== ex.name ? ex.originalName : null
+    const others = exercises.filter(o => o.id !== ex.id).map(o => o.name)
+    const alts = rankAlternatives(ex.name, {
+      muscle: ex.muscle,
+      exclude: [...others, ...(origin ? [origin] : [])],
+      tried: (n) => engine.stats(n).lastWeight != null,   // his gym's machines first
+    })
+    const any = !!origin || alts.muscle.length + alts.tool.length > 0
     return {
-      canSwap: alts.length > 0 && !ex.sets.some(st => st.done),
-      next: subIdx < alts.length ? alts[subIdx] : null,
+      canSwap: any && !ex.sets.some(st => st.done),
       origin,
+      alts,
+      canAlways: !!onEditPlan && !!planRowOf(ex),
     }
   }
 
@@ -294,7 +325,7 @@ export default function WorkoutPage({
           mapping={exerciseMapping}
           statsFor={engine.stats}
           previousFor={engine.previous}
-          swapMeta={swapMeta}
+          swapOptions={swapOptions}
           onUpdateSet={handleUpdateSet}
           onStepSet={handleStepSet}
           onDoneSet={handleDoneSet}
@@ -302,7 +333,8 @@ export default function WorkoutPage({
           onRemoveSet={handleRemoveSet}
           onRemoveEx={handleRemoveEx}
           onMoveSet={handleMoveSet}
-          onSwap={handleSwapLive}
+          onSwapTo={handleSwapTo}
+          onOpenPlan={onOpenPlanView}
           onAddExercise={() => setShowAdd(true)}
           onRequestFinish={() => setAskFinish(true)}
           onDiscard={() => setAskDiscard(true)}

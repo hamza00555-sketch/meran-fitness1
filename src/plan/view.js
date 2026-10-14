@@ -203,49 +203,68 @@ export function extraWords(n) {
 
 const PART = { quads: 'quads', hams: 'hamstrings', glutes: 'glutes', calves: 'calves' }
 
+/** A swap-table name the catalogue knows under another spelling — the
+ *  same words but «machine» («Chest Supported Row Machine» is the
+ *  catalogue's «Chest-Supported Row»): its picture and its history. */
+const BY_WORDS_NO_MACHINE = new Map()
+const wordsNoMachine = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/)
+  .filter(w => w && w !== 'machine').sort().join(' ')
+for (const x of EX) { const k = wordsNoMachine(x.en); if (k && !BY_WORDS_NO_MACHINE.has(k)) BY_WORDS_NO_MACHINE.set(k, x.en) }
+const catalogueName = (n) => (mediaSlotFor(n) ? n : BY_WORDS_NO_MACHINE.get(wordsNoMachine(n)) || n)
+
 /**
  * What to swap an exercise for, as two groups of names:
  *   muscle — the same muscle: the swap table first (EXERCISE_ALTERNATIVES,
  *            tests/alternatives.test.mjs — hand-written for his gym where
- *            it exists, the group's siblings with a shared movement
- *            first otherwise), then the catalogue's other exercises for
- *            the same part of the muscle (machines first, his gym)
+ *            it exists, the group's siblings with a shared movement first
+ *            otherwise), then the catalogue's exercises for the same part
+ *            of the muscle, then for the rest of the muscle group (only
+ *            ones that work it directly — a shrug is not a row)
  *   tool   — the same movement with another tool, not offered above (the
  *            machine taken: the dumbbell or barbell version of it)
- * Names with a picture come before names without one, inside each group;
- * otherwise the order is the table's. `exclude`: names not to offer (the
- * day's other exercises).
+ * Inside each group, what he has already done comes first (`tried`: name →
+ * true when he has a weight on it — his gym's machines); then machines and
+ * cables, in the catalogue's order (his gym); names with no picture last.
+ * `exclude`: names not to offer (the day's or the session's other
+ * exercises).
  */
-export function rankAlternatives(name, { muscle = null, exclude = [], max = { muscle: 8, tool: 4 } } = {}) {
+export function rankAlternatives(name, { muscle = null, exclude = [], tried = null, max = { muscle: 8, tool: 4 } } = {}) {
   const e = entryForName(name)
   const known = e && !e.foreign ? e : null
   const skip = new Set([lc(name), ...(exclude || []).map(lc)])
   const seen = new Set()
-  const out = { muscle: [], tool: [] }
-  const sameMoveOtherTool = (n) => {
-    const a = entryForName(n)
-    return !!(known && a && !a.foreign && a.mv === known.mv && a.eq !== known.eq)
-  }
+  const out = { muscle: [], tool: [], later: [] }
   const add = (n, group) => {
     const k = lc(n)
     if (!n || skip.has(k) || seen.has(k)) return
     seen.add(k)
-    out[group || (sameMoveOtherTool(n) ? 'tool' : 'muscle')].push(n)
+    out[group].push(n)
   }
+  const direct = (a) => (a.cr[a.area] || 0) >= 1
+  const otherTool = (a) => !!known && a.mv === known.mv && a.eq !== known.eq
   // The swap table is the first answer, in its own order (Pec Deck → the
-  // cable fly first), whatever tool its entries use.
-  for (const n of EXERCISE_ALTERNATIVES[name] || []) add(n, 'muscle')
+  // cable fly first), whatever tool its entries use; a name with no
+  // picture waits for the end of the group.
+  for (const n of EXERCISE_ALTERNATIVES[name] || []) {
+    const c = catalogueName(n)
+    add(c, mediaSlotFor(c) ? 'muscle' : 'later')
+  }
   if (known) {
-    for (const a of EX) if (a.id !== known.id && a.area === known.area) add(a.en)
-    for (const a of EX) if (a.id !== known.id && a.mv === known.mv && a.eq !== known.eq) add(a.en)
+    for (const a of EX) if (a.id !== known.id && a.area === known.area && direct(a) && !otherTool(a)) add(a.en, 'muscle')
+    for (const a of EX) if (a.id !== known.id && a.key === known.key && a.area !== known.area && direct(a) && !otherTool(a)) add(a.en, 'muscle')
+    for (const a of EX) if (a.id !== known.id && otherTool(a)) add(a.en, 'tool')
   } else {
     const g = MUSCLE_GROUPS[muscleOf(name, muscle)]
-    for (const x of g?.exercises || []) add(x.name, 'muscle')
+    for (const x of g?.exercises || []) add(x.name, mediaSlotFor(x.name) ? 'muscle' : 'later')
   }
-  const pictured = (list) => [...list.filter(n => mediaSlotFor(n)), ...list.filter(n => !mediaSlotFor(n))]
+  const triedFirst = (list) => {
+    if (typeof tried !== 'function') return list
+    const yes = list.filter(n => tried(n))
+    return [...yes, ...list.filter(n => !yes.includes(n))]
+  }
   return {
-    muscle: pictured(out.muscle).slice(0, max.muscle ?? 8),
-    tool: pictured(out.tool).slice(0, max.tool ?? 4),
+    muscle: triedFirst([...out.muscle, ...out.later]).slice(0, max.muscle ?? 8),
+    tool: triedFirst(out.tool).slice(0, max.tool ?? 4),
   }
 }
 

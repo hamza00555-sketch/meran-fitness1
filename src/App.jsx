@@ -45,6 +45,9 @@ import HomePage        from './pages/HomePage.jsx'
 // The plan builder is a page of its own, loaded only when it opens (it
 // brings the body figure's paths with it).
 const PlannerPage = lazy(() => import('./pages/planner/PlannerPage.jsx'))
+// «خطتي» — his plan as he runs it, as cards (src/pages/planview): its
+// own chunk too (the page, its styles, the body figure).
+const PlanView = lazy(() => import('./pages/planview/PlanView.jsx'))
 import WorkoutPage     from './pages/WorkoutPage.jsx'
 import HistoryPage     from './pages/HistoryPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
@@ -547,6 +550,9 @@ export default function App() {
       const rest = Number(ex.restSeconds)
       return {
         ...built,
+        // A remembered swap: the plan's own exercise, as a live swap keeps
+        // it (the session's «بدل …», and «دايماً بخطتي» finding its row).
+        ...(ex.originalName ? { originalName: ex.originalName } : null),
         ...(planT ? { target: ownTarget(planT) } : null),
         ...(rest > 0 ? { rest: Math.round(rest) } : null),
         ...(ex.unit === 'sec' || ex.unit === 'min' ? { unit: ex.unit } : null),
@@ -845,6 +851,8 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState(null)
 
   const [showStreak, setShowStreak] = useState(false)
+  // «خطتي» open: { from } (see openPlanView below), else null.
+  const [planView, setPlanView] = useState(null)
 
   // The best streak, kept as a high-water mark. The engine can only
   // replay the last 400 days, and a record must outlive that window. A
@@ -977,7 +985,7 @@ export default function App() {
   // already holds are written down as known, silently — the flame on
   // Home already shows them.
   const homeCovered = !!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
-    || showDeloadEnd || showWhatsNew || packOffer
+    || showDeloadEnd || showWhatsNew || packOffer || !!planView
   const restHeld = restDaysView(recovery).held
   const restHeldKey = restHeld.map(h => h.earnedOn).join(',')
   const [restEarned, setRestEarned] = useState(null)
@@ -1137,7 +1145,9 @@ export default function App() {
   // the first run's «أبني خطتي بنفسي». `planner` is the door it opened
   // from, or null.
   const [planner, setPlanner] = useState(null)
-  const openPlanner = useCallback((door) => setPlanner(door), [])
+  // The day «خطتك» opens on, when «خطتي» opened the builder on one.
+  const [plannerDay, setPlannerDay] = useState(null)
+  const openPlanner = useCallback((door, day = null) => { setPlannerDay(Number.isInteger(day) ? day : null); setPlanner(door) }, [])
   // The plan before the last one the builder put in, for «رجّع خطتك
   // القديمة» (حمزة: «إيه، احفظها»). A key of the new design's own.
   const [planPrev, setPlanPrev] = useState(() => ls.get('hf_plan_prev', null))
@@ -1182,12 +1192,15 @@ export default function App() {
   // His first plan (the first run's «أبني خطتي بنفسي», Home with no
   // plan) is a setup, not a switch: like Onboarding it spends no free
   // change and never breaks the streak.
-  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false, quiet = false, first = false } = {}) => {
+  // `keepPrev: false` leaves the saved old plan as it is («خطتي»'s small
+  // edits after the first one of the day: «رجّع خطتك القديمة» still goes
+  // back to the plan before today's edits, not the last step of a stepper).
+  const commitPlan = useCallback((newPlan, { edit = false, days = null, breakStreak = false, quiet = false, first = false, keepPrev = true } = {}) => {
     const today = todayKey()
     const isFirst = first || !plan
     const daysChange = days != null && days !== recoveryRef.current.daysPerWeek
     const stamps = !isFirst && (!edit || daysChange)
-    keepPrevPlan({ stamps })
+    if (keepPrev) keepPrevPlan({ stamps })
     setPlan(newPlan)
     if (!edit || !plan) setPlanIndex(0)
     else if ((plan.weeklySchedule || []).length !== newPlan.weeklySchedule.length) setPlanIndex(carryIndex(plan, planIndex, newPlan))
@@ -1231,6 +1244,32 @@ export default function App() {
     pushAlert('↩️', `رجعت خطتك: ${prev.plan.planName}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planPrev, plan, planIndex, pushAlert])
+
+  // ── «خطتي» (src/pages/planview) ─────────────────────────────
+  // Three doors: Home › تقدّم البرنامج, Settings › الخطة › «شوف خطتي», and
+  // the session's ⋯ › «شوف خطتي». `planView` (above) is { from } while open.
+  const openPlanView = useCallback((from = 'home') => setPlanView({ from }), [])
+  // An edit from «خطتي» (or the session's «دايماً بخطتي») goes in the way
+  // the builder saves an edit of his own plan: commitPlan as an edit —
+  // free for the streak, the day he reached kept — after the check both
+  // designs need. The plan before today's edits stays the one «رجّع خطتك
+  // القديمة» brings back.
+  const editPlan = useCallback((next) => {
+    if (!next || validatePlan(next)) return false
+    const today = todayKey()
+    const keepPrev = !(planPrev && planPrev.savedAt === today && planPrev.plan?.planId === plan?.planId)
+    commitPlan(next, { edit: true, quiet: true, keepPrev })
+    return true
+  }, [commitPlan, planPrev, plan])
+  // A remembered swap undone: the plan's own exercise again, on every day.
+  const clearSub = useCallback((name) => {
+    setExerciseSubs(prev => {
+      if (!prev?.[name]) return prev
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }, [])
 
   // «طبّقها على خطتي»: next month's suggestions written into the plan
   // (sets) and the weights the next sessions start at (hf_last_weights),
@@ -1320,7 +1359,7 @@ export default function App() {
             onOpenStreak={() => setShowStreak(true)}
             onOpenSettings={() => { setSettingsSection(null); pushPage('settings') }}
             hold={!!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
-              || showDeloadEnd || showWhatsNew || packOffer}
+              || showDeloadEnd || showWhatsNew || packOffer || !!planView}
             active={active}
             plan={plan}
             planIndex={planIndex}
@@ -1348,6 +1387,7 @@ export default function App() {
             onDismissDeloadSuggestion={() => setRecoveryCfg(prev => dismissSuggestion(prev, today))}
             onOpenDeload={() => { setSettingsSection('deload'); pushPage('settings') }}
             onOpenPlanner={openPlanner}
+            onOpenPlanView={() => openPlanView('home')}
           />
         )}
         {!page && tab === 'history' && (
@@ -1419,6 +1459,7 @@ export default function App() {
               plan={plan}
               onImportPlan={applyPlanChange}
               onOpenPlanner={openPlanner}
+              onOpenPlanView={() => openPlanView('settings')}
               onClearPlan={() => { keepPrevPlan(); setPlan(null); setPlanIndex(0) }}
               exerciseMapping={exerciseMapping}
               recoveryCfg={recoveryCfg}
@@ -1508,6 +1549,9 @@ export default function App() {
             repTarget={repTarget}
             exerciseSubs={exerciseSubs}
             onCycleSub={(name, idx) => setExerciseSubs(prev => ({ ...prev, [name]: idx }))}
+            onEditPlan={editPlan}
+            onClearSub={clearSub}
+            onOpenPlanView={plan?.weeklySchedule?.length ? () => openPlanView('session') : undefined}
             onUpdateSession={updateSession}
             onDeleteSession={deleteSession}
           />
@@ -1551,6 +1595,7 @@ export default function App() {
         <Suspense fallback={null}>
           <PlannerPage
             door={planner}
+            day={plannerDay}
             plan={plan}
             planIndex={planIndex}
             planPrev={planPrev}
@@ -1563,11 +1608,31 @@ export default function App() {
             onRestorePrev={restorePrevPlan}
             onStart={() => {
               setPlanner(null)
+              setPlanView(null)
               const s = plan?.weeklySchedule
               if (s?.length && !active) startPlannedWorkout(s[planIndex % s.length])
               else { setPages([]); setTab('home') }
             }}
             onClose={() => setPlanner(null)}
+          />
+        </Suspense>
+      )}
+      {planView && plan?.weeklySchedule?.length > 0 && (
+        <Suspense fallback={null}>
+          <PlanView
+            from={planView.from}
+            plan={plan}
+            planIndex={planIndex}
+            exerciseSubs={exerciseSubs}
+            sessions={sessions}
+            exerciseMapping={exerciseMapping}
+            repTarget={repTarget}
+            status={recovery.status === DAY_STATUS.COMPLETED ? 'completed' : recovery.status === DAY_STATUS.RECOVERY ? 'recovery' : 'training'}
+            active={active}
+            onCommit={editPlan}
+            onClearSub={clearSub}
+            onOpenBuilder={(day) => openPlanner('view', day)}
+            onClose={() => setPlanView(null)}
           />
         </Suspense>
       )}

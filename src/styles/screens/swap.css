@@ -1,0 +1,129 @@
+/* ══ The alternatives, as pictures (components/plan/AltCards.jsx) ════
+   Shared by «خطتي»'s card sheet and the session's swap sheet. Each card:
+   the machine on the stage light, the Arabic name at 16/700 with the
+   English under it, then the tool and the last weight in one quiet line.
+   Selection is ink, not colour: a 2px ring and a check disc. */
+
+.ac-groups { display: grid; gap: var(--space-5); }
+.ac-group { display: grid; gap: var(--space-3); }
+.ac-h {
+  margin: 0; font-size: var(--t-label); font-weight: 700; line-height: 1.4;
+  color: var(--ink-3); letter-spacing: 0;
+}
+.ac-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ac-none { margin: 0; color: var(--ink-3); font-size: var(--t-body); }
+
+.ac {
+  position: relative; min-width: 0; display: grid; align-content: start; gap: 8px;
+  padding: 0 0 12px; border: 0; border-radius: var(--r-md); text-align: start;
+  background: var(--surface-1); color: var(--ink); font: inherit; cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--edge);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.ac:active { transform: scale(0.97); }
+.ac[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.ac:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.ac-art {
+  position: relative; display: grid; place-items: center; overflow: hidden;
+  aspect-ratio: 1 / 0.82; border-radius: var(--r-md) var(--r-md) 0 0;
+  background: radial-gradient(70% 72% at 50% 48%, var(--stage-light), rgba(20,23,27,0) 80%);
+}
+.ac-img { width: 88%; height: 92%; object-fit: contain; }
+.ac-art svg.ac-img { width: 40px; height: 40px; color: var(--ink-3); }
+.ac-tag {
+  position: absolute; top: 8px; inset-inline-start: 8px;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 0 0 1px var(--glass-edge);
+  font-size: var(--t-caption); font-weight: 700; color: var(--ink);
+}
+.ac-check {
+  position: absolute; top: 8px; inset-inline-end: 8px;
+  width: 26px; height: 26px; border-radius: var(--r-pill); display: grid; place-items: center;
+  background: var(--ink); color: var(--ground);
+  animation: ac-pop var(--spring-bouncy-ms) var(--spring-bouncy) both;
+}
+@keyframes ac-pop { from { transform: scale(0.4); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.ac-names { display: grid; gap: 2px; padding-inline: 12px; min-width: 0; }
+.ac-ar {
+  font-size: 16px; font-weight: 700; line-height: 1.35; color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.ac-en {
+  font-size: var(--t-caption); font-weight: 500; line-height: 1.35; color: var(--ink-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: start; display: block;
+}
+.ac-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding-inline: 12px;
+  font-size: var(--t-caption); font-weight: 600; line-height: 1.4; color: var(--ink-2);
+}
+.ac-equip {
+  padding: 1px 8px; border-radius: var(--r-pill); background: var(--surface-3); color: var(--ink);
+}
+.ac-last { color: var(--ink-3); }
+.ac-last .k-num { color: var(--ink-2); }
+
+/* ══ The session's swap sheet (components/player/SwapSheet.jsx) ═════
+   What he is swapping, the choices as pictures, and the rest of the
+   session under them — the next exercise first, with its picture. */
+.sw { display: grid; gap: var(--space-6); padding-bottom: var(--space-4); }
+.sw-now {
+  display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 14px;
+  padding: 10px; border-radius: var(--r-md); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sw-thumb {
+  width: 76px; height: 76px; border-radius: 12px; overflow: hidden; display: grid; place-items: center;
+  background: radial-gradient(70% 72% at 50% 48%, var(--stage-light), rgba(20,23,27,0) 82%);
+}
+.sw-thumb img, .sw-thumb video { width: 100%; height: 100%; object-fit: contain; }
+.sw-thumb svg { width: 32px; height: 32px; color: var(--ink-3); }
+.sw-now-text { display: grid; gap: 2px; min-width: 0; }
+.sw-now-text small { font-size: var(--t-caption); font-weight: 700; color: var(--ink-3); line-height: 1.4; }
+.sw-now-text b { font-size: 18px; font-weight: 800; line-height: 1.3; }
+.sw-now-text .sw-en { font-size: var(--t-caption); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+.sw-next { display: grid; gap: var(--space-3); margin-top: calc(-1 * var(--space-2)); }
+/* a strip of pictures, the next one first (at the start edge), scrolling sideways */
+.sw-next ol {
+  list-style: none; margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter) 2px;
+  display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.sw-next ol::-webkit-scrollbar { display: none; }
+.sw-next li {
+  flex: 0 0 128px; min-width: 0; display: grid; align-content: start; gap: 6px;
+  padding: 6px 6px 10px; border-radius: 14px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
+}
+.sw-next .sw-thumb { width: 100%; height: 86px; border-radius: 10px; }
+.sw-next-names { display: grid; gap: 1px; min-width: 0; padding-inline: 4px; }
+.sw-next-names small { font-size: var(--t-caption); font-weight: 700; color: var(--ink-3); line-height: 1.4; }
+.sw-next li[data-first="1"] .sw-next-names small { color: var(--ink); }
+.sw-next-names b {
+  font-size: var(--t-label); font-weight: 800; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.sw-next-sets { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); white-space: nowrap; margin-top: 2px; }
+.sw-next li[data-first="1"] { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.sw-next-none { margin: 0; font-size: var(--t-body); color: var(--ink-3); }
+
+.sw-foot { display: grid; gap: 10px; animation: sw-foot-in var(--spring-snappy-ms) var(--spring-snappy) both; }
+@keyframes sw-foot-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.sw-foot-what { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; text-align: center; }
+.sw-foot-what b { color: var(--ink); }
+.sw-foot-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sw-foot-btns > :only-child { grid-column: 1 / -1; }
+.sw-foot-btns .k-btn { min-width: 0; padding-inline: 10px; }
+.sw-foot-note { margin: 0; font-size: var(--t-caption); color: var(--ink-3); text-align: center; line-height: 1.5; }
+/* a short phone keeps the list in sight: the footer says only what and how */
+@media (max-height: 700px) {
+  .sw-foot { gap: 8px; }
+  .sw-foot-note { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac, .ac:active { transition: none; transform: none; }
+  .ac-check, .sw-foot { animation: none; }
+}

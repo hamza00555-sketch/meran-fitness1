@@ -174,9 +174,9 @@ const AUTO_NEXT_AFTER_PR_MS = 1200
 export default function WorkoutPlayer({
   sessionId, exercises, mapping = {},
   deloadPct = 0, isResting,
-  getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapMeta,
-  onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwap,
-  onAddExercise, onRequestFinish, onDiscard, onCloseRest,
+  getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapOptions,
+  onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwapTo,
+  onAddExercise, onRequestFinish, onDiscard, onCloseRest, onOpenPlan,
 }) {
   const [index, setIndex] = useState(() => Math.max(0, firstUnfinished(exercises)))
   const [editingSet, setEditingSet] = useState(null)   // { exId, si }
@@ -625,7 +625,10 @@ export default function WorkoutPlayer({
   const hasDone = ex.sets.some(s => s.done)
   const expanded = !hasDone || peek === ex.id
   const nextIdx = firstUnfinished(exercises, safeIndex + 1)
-  const meta = swapMeta(ex)
+  const swap = swapOptions ? swapOptions(ex) : null
+  // What comes after it in the session, for the swap sheet: the unfinished
+  // ones, in order, starting after this one.
+  const upcoming = exercises.slice(safeIndex + 1).filter(e => !(e.sets.length && e.sets.every(s => s.done)))
   const ar = arabicName(ex.name, mapping)
   const raiseFor = (e) => !deloadPct && progressionFor(e.name)?.hint === 'raise'
 
@@ -700,10 +703,12 @@ export default function WorkoutPlayer({
           quietBest={raiseOn}
           deloadPct={deloadPct}
           ytUrl={ytUrlFor(ex.name)}
-          canSwap={meta.canSwap}
-          swapNext={meta.next}
-          swapOrigin={meta.origin}
-          onSwap={() => onSwap(ex.id)}
+          swap={swap}
+          onSwapTo={(name, opts) => onSwapTo?.(ex.id, name, opts)}
+          upcoming={upcoming}
+          position={{ at: safeIndex + 1, of: exercises.length }}
+          lastFor={(n) => statsFor(n)?.lastWeight ?? null}
+          onOpenPlan={onOpenPlan}
           onRemove={() => onRemoveEx(ex.id)}
           onAddSet={() => onAddSet(ex.id)}
           onRemoveSet={() => onRemoveSet(ex.id, ex.sets.length - 1)}

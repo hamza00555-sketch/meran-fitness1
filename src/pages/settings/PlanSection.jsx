@@ -8,7 +8,7 @@ import { useRef, useState } from 'react'
 import {
   ListGroup, ListRow, Segmented, Sheet, Button, Chip, Banner, ConfirmSheet, Num,
 } from '../../components/kit/index.jsx'
-import { Copy, Flame, Trash, Check, PencilSimple, Sparkle } from '../../components/kit/icons.js'
+import { Copy, Flame, Trash, Check, PencilSimple, Sparkle, ListChecks } from '../../components/kit/icons.js'
 import { validatePlan } from '../../plan/validate.js'
 import { ClipboardText, FileArrowUp, TextAlignRight } from '@phosphor-icons/react'
 import { CheckList, CheckRow, TextField, Notice, Ar, freqTitle, freqDesc, cycleAr } from './parts.jsx'
@@ -71,7 +71,7 @@ const ERR = {
 
 export default function PlanSection({
   recoveryCfg = {}, onUpdateRecovery, changeCooldownLeft = 0, currentStreak = 0,
-  plan, onImportPlan, onClearPlan, onImportMapping, onImport, onOpenPlanner,
+  plan, onImportPlan, onClearPlan, onImportMapping, onImport, onOpenPlanner, onOpenPlanView,
   repTarget = DEFAULT_REP_TARGET,
 }) {
   const [pending, setPending] = useState(null)     // { kind, label, apply }
@@ -218,6 +218,11 @@ export default function PlanSection({
               plan.weeklySchedule?.length && `${plan.weeklySchedule.length} أيام في الأسبوع`,
               plan.startDate && `بدأت ${fmtDayAr(plan.startDate, { weekday: false })}`,
             ].filter(Boolean).join(' · ')}</Ar>} />
+          {onOpenPlanView && plan.weeklySchedule?.length > 0 && (
+            <ListRow leading={ListChecks} chevron title="شوف خطتي"
+              subtitle={<Ar>{'كل أيامك وتمارينها بالصور، وتبدّل أي تمرين بضغطة'}</Ar>}
+              onClick={onOpenPlanView} />
+          )}
           {onOpenPlanner && (
             <ListRow leading={PencilSimple} chevron title="عدّل الخطة"
               subtitle={<Ar>{'التمارين والمجموعات والعدّات والراحة. التعديل ببلاش'}</Ar>}
