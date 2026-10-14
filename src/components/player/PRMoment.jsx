@@ -30,9 +30,8 @@ import '../../styles/screens/pr.css'
 // it — and when a tap sent it away, the session ignores taps for a
 // moment after the landing (the second tap of a double tap). Its first
 // third of a second ignores taps too, so a double tap on «تمّت المجموعة»
-// doesn't skip it before it is seen. Big once per exercise per session —
-// a second record in the same exercise is the small flash on the row,
-// decided by WorkoutPlayer.
+// doesn't skip it before it is seen. Every set at a new weight that day
+// gets it, measured from the best before today (WorkoutPlayer decides).
 //
 // Reduced motion (the phone's setting): no confetti, no shock ring, no
 // flight; the card fades in with the numbers already there, and fades out.

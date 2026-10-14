@@ -12,7 +12,7 @@
 // stepper leave the weight alone, and does the clock tell wall time.
 // And the motion (phase 1): the handoff between exercises, the raise
 // reminder that breathes until the weight is touched, the personal
-// record's moment (once per exercise, its trophy landing on the row),
+// record's moment (every set at a new weight, its trophy landing on the row),
 // the reduced-motion paths, and sound that never breaks a session.
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
@@ -1502,32 +1502,32 @@ const RAISE_SESSIONS = [
   ok('record: its weight is gold', pr.kg === GOLD, JSON.stringify(pr))
   ok('record: and a screen reader hears it, in words', /رقم قياسي/.test(pr.label) && /77\.5 كجم × 12 عدّة/.test(pr.label), pr.label)
 
-  // A second record in the same exercise: the small flash only — the row
-  // warms gold and its trophy pops — with the buzz and the sound.
+  // A second set at a new weight in the same exercise gets the whole moment
+  // too (حمزة: «ابا احتفالية وكأس مدام رفعت الوزن الجديد»), measured from
+  // the best before today, and its row keeps a trophy beside the first.
   await page.getByRole('button', { name: 'تخطي' }).click()
   await page.waitForTimeout(500)
   await page.getByTestId('weight-input').fill('80')
   await page.evaluate(() => { window.__vibes = []; window.__sounds = []; window.__anims = [] })
   await completeBtn(page).click()
   const lastTapAt = Date.now()
-  await page.waitForTimeout(400)
-  const small = await page.evaluate(() => ({
+  await page.waitForTimeout(450)
+  const again = await page.evaluate(() => ({
     moment: !!document.querySelector('[data-testid="pr-moment"]'),
+    sub: document.querySelector('.pr-sub')?.textContent.replace(/\s+/g, ' '),
     vibes: JSON.stringify(window.__vibes),
     sound: window.__sounds.some(s => s.name === 'pr'),
-    pop: window.__anims.some(a => /s-pr-icon/.test(a.cls) && /scale\(\.4\) rotate\(-10deg\)/.test(a.kf)),
-    flash: window.__anims.some(a => /s-trow/.test(a.cls) && /backgroundColor/.test(a.kf)),
-    gold: document.querySelectorAll('.s-pr-icon').length,
   }))
-  ok('record: a second record in the same exercise is the small flash, not the full moment',
-    !small.moment && small.pop && small.flash && small.gold === 1, JSON.stringify(small))
-  ok('record: still felt and heard', small.vibes === '[[12,70,28]]' && small.sound, JSON.stringify(small))
-  // That was the exercise's last set, and no big moment held it: the next
-  // exercise comes on after the usual 1.5s (the shorter wait is only for
-  // a completion a record's moment held, not for one set earlier).
-  await page.waitForFunction(() => document.querySelector('.s-name-en')?.textContent === 'Pec Deck', null, { timeout: 4000, polling: 50 }).catch(() => {})
+  ok('record: a second set at a new weight gets the full moment again, from the best before today (+5 over 75)',
+    again.moment && /^\+5 كجم فوق أعلى وزن قبل$/.test(again.sub || ''), JSON.stringify(again))
+  ok('record: still felt and heard', again.vibes === '[[12,70,28]]' && again.sound, JSON.stringify(again))
+  await page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 5000 }).catch(() => {})
+  ok('record: both rows wear the trophy', await page.locator('.s-trow[data-state="done"] .s-pr-icon').count() === 2)
+  // That was the exercise's last set and its moment held the move: the
+  // next exercise comes on the shorter wait after the landing.
+  await page.waitForFunction(() => document.querySelector('.s-name-en')?.textContent === 'Pec Deck', null, { timeout: 6000, polling: 50 }).catch(() => {})
   const nextMs = Date.now() - lastTapAt
-  ok('record: a record on an earlier set doesn\'t shorten the move on (~1.5s)', nextMs >= 1400 && nextMs <= 2300, `${nextMs}ms`)
+  ok('record: the moment holds the move on, then the next exercise comes (~2.3s + 1.2s)', nextMs >= 3000 && nextMs <= 4800, `${nextMs}ms`)
   ok('record: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
@@ -1568,8 +1568,8 @@ const RAISE_SESSIONS = [
 }
 
 {
-  // ⌄ and back mounts the player again; the session's motion memory comes
-  // with it: a second record in the same exercise is still the small flash.
+  // ⌄ and back mounts the player again: a second set at a new weight
+  // still gets its own moment and trophy.
   const { ctx, page, errors } = await open({ sessions: RAISE_SESSIONS })
   await page.waitForTimeout(300)
   await completeBtn(page).click()
@@ -1586,8 +1586,10 @@ const RAISE_SESSIONS = [
   await page.getByTestId('weight-input').fill('80')
   await completeBtn(page).click()
   await page.waitForTimeout(500)
-  ok('record/after ⌄ and back: a second record in the exercise is still the small flash',
-    first === 1 && await page.getByTestId('pr-moment').count() === 0 && await page.locator('.s-pr-icon').count() === 1)
+  ok('record/after ⌄ and back: a second set at a new weight gets the moment again',
+    first === 1 && await page.getByTestId('pr-moment').count() === 1)
+  await page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 5000 }).catch(() => {})
+  ok('record/after ⌄ and back: and both rows wear the trophy', await page.locator('.s-pr-icon').count() === 2)
   ok('record/after ⌄ and back: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
@@ -2956,6 +2958,83 @@ const timeline = (page) => page.evaluate(() => {
   ok('his reps: the coach says «الهدف 12–15 عدّة», not 10', /الهدف 12–15 عدّة/.test(coach) && !/الهدف 10/.test(coach), coach)
   ok('his reps: no page errors', errors.length === 0, errors.join('; '))
   await page.screenshot({ path: `${OUT}/his-reps.png` })
+  await ctx.close()
+}
+
+// ══ Every set at the new weight is a record ══════════════════
+// حمزة (Machine Shoulder Press, set 4 of 4): «انا ابا احتفالية وكأس مدام
+// رفعت الوزن الجديد». Last time 40×12 (the engine says raise: 42.5).
+// Today 40×15, then 45×12 — the new weight — then 45×12 again, then set
+// 4 at 45. Sets 2, 3 and 4 each wear the trophy and get the whole moment
+// (sound, buzz, card); set 1 (40, not above the 40 on record) doesn't.
+// The gold «+5» stays on the stepper at 45 (it is above last time), and
+// the coach never tells him to try 42.5 after he lifted 45.
+{
+  const SP = 'Machine Shoulder Press'
+  const spDay = (n, reps) => ({ id: new Date(2026, 8, n, 18).getTime(), date: new Date(2026, 8, n, 18).toISOString(), duration: 40,
+    exercises: [{ id: 'c', muscle: 'Shoulders', name: SP, sets: reps.map(r => ({ weight: '40', reps: String(r), done: true })) }] })
+  const HISTORY = [spDay(1, [12, 12, 12, 12]), spDay(3, [13, 12, 12, 12]), spDay(5, [15, 15, 12, 12])]
+  const TODAY = { id: Date.now() - 20 * 60000, date: new Date().toISOString(), name: 'Push',
+    exercises: [{ id: 'c', muscle: 'Shoulders', name: SP, sets: [1, 2, 3, 4].map(() => ({ weight: '40', reps: '12', done: false })) }] }
+  const { ctx, page, errors } = await open({ active: TODAY, sessions: HISTORY })
+  await page.waitForTimeout(400)
+  const coachText = () => page.locator('.s-coach-text').innerText().catch(() => '').then(t => t.replace(/\s+/g, ' '))
+  const momentGone = () => page.waitForFunction(() => !document.querySelector('[data-testid="pr-moment"]'), null, { timeout: 5000 }).catch(() => {})
+  const doSet = async (w, r) => {
+    await page.getByTestId('weight-input').fill(w)
+    await page.getByTestId('reps-input').fill(r)
+    await page.waitForTimeout(200)
+    await page.evaluate(() => { window.__vibes = []; window.__sounds = [] })
+    await completeBtn(page).click()
+    await page.waitForTimeout(450)
+    const got = await page.evaluate(() => ({
+      moment: !!document.querySelector('[data-testid="pr-moment"]'),
+      sub: document.querySelector('.pr-sub')?.textContent.replace(/\s+/g, ' ') || '',
+      sound: window.__sounds.some(s => s.name === 'pr' && !s.stopped),
+      vibes: JSON.stringify(window.__vibes),
+    }))
+    await momentGone()
+    await page.getByRole('button', { name: 'تخطي' }).click().catch(() => {})
+    await page.waitForTimeout(500)
+    return got
+  }
+  ok('every-set record: the engine offers the raise (42.5) at the start', /جرّب 42\.5 كجم/.test(await coachText()), await coachText())
+  const s1 = await doSet('40', '15')
+  ok('every-set record: set 1 at 40 (not above the 40 on record) — no moment, no record sound', !s1.moment && !s1.sound, JSON.stringify(s1))
+  const s2 = await doSet('45', '12')
+  ok('every-set record: set 2 at 45 — the moment, «+5 كجم فوق أعلى وزن قبل», sound and buzz',
+    s2.moment && /\+5 كجم فوق أعلى وزن قبل/.test(s2.sub) && s2.sound && s2.vibes === '[[12,70,28]]', JSON.stringify(s2))
+  ok('every-set record: after 45, the coach doesn\'t say «جرّب 42.5» — it says hold 45', !/42\.5/.test(await coachText()) && /ثبّت على 45 كجم/.test(await coachText()), await coachText())
+  const s3 = await doSet('45', '12')
+  ok('every-set record: set 3 at 45 again — the moment again, sound and buzz (was a plain check)',
+    s3.moment && /\+5 كجم فوق أعلى وزن قبل/.test(s3.sub) && s3.sound && s3.vibes === '[[12,70,28]]', JSON.stringify(s3))
+  // Set 4, at 45, before the tap.
+  await page.getByTestId('weight-input').fill('45')
+  await page.waitForTimeout(300)
+  const live = await page.evaluate(() => ({
+    chip: document.querySelector('.s-raise-chip')?.textContent.replace(/\s+/g, ' ') || null,
+    ring: !!document.querySelector('[data-testid="raise-ring"]'),
+  }))
+  ok('every-set record: set 4 at 45 still shows the gold «+5 كجم عن آخر مرة» and ring (a new weight vs last time)',
+    /\+5 كجم عن آخر مرة/.test(live.chip || '') && live.ring, JSON.stringify(live))
+  const c4 = await coachText()
+  ok('every-set record: set 4\'s coach line never says 42.5 — «ثبّت على 45 كجم»', !/42\.5/.test(c4) && /ثبّت على 45 كجم/.test(c4), c4)
+  await page.getByTestId('reps-input').fill('12')
+  await page.waitForTimeout(200)
+  await page.evaluate(() => { window.__vibes = []; window.__sounds = [] })
+  await completeBtn(page).click()
+  await page.waitForTimeout(450)
+  const s4 = await page.evaluate(() => ({ moment: !!document.querySelector('[data-testid="pr-moment"]'),
+    sound: window.__sounds.some(s => s.name === 'pr' && !s.stopped), vibes: JSON.stringify(window.__vibes) }))
+  ok('every-set record: set 4 at 45 — the moment too', s4.moment && s4.sound && s4.vibes === '[[12,70,28]]', JSON.stringify(s4))
+  await momentGone()
+  await page.waitForTimeout(300)
+  const rows = await page.evaluate(() => [...document.querySelectorAll('.s-table .s-trow[data-state="done"]')]
+    .map(r => ({ set: r.getAttribute('data-set'), trophy: !!r.querySelector('.s-pr-icon'), hold: r.querySelector('.s-pr-icon')?.getAttribute('data-hold') ?? null })))
+  ok('every-set record: trophies on sets 2, 3 and 4, a plain check on set 1',
+    JSON.stringify(rows.map(r => r.trophy)) === '[false,true,true,true]' && rows.every(r => r.hold === null), JSON.stringify(rows))
+  ok('every-set record: no page errors', errors.length === 0, errors.join('; '))
+  await page.screenshot({ path: `${OUT}/every-set-record.png` })
   await ctx.close()
 }
 

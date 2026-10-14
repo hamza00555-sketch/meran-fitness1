@@ -17,6 +17,7 @@ import SetPhrase from './SetPhrase.jsx'
 import { kg, setParts, setsPhrase, repsWord } from './sessionWords.js'
 import { arabicName } from '../../exerciseMedia.js'
 import { PLATE_STEP, roundToPlate } from '../../utils.js'
+import { prSetsOf, todayTopOf, raiseAdvice } from './records.js'
 
 // ── Session mode: the workout player ──────────────────────────
 //
@@ -48,9 +49,12 @@ import { PLATE_STEP, roundToPlate } from '../../utils.js'
 //       arrives. Reduced motion: a quick fade.
 //   B · the raise reminder (WorkingArea): its intro plays once per
 //       exercise; the ring breathes until the weight is touched.
-//   C · the personal record (PRMoment): one definition — prIndexOf —
-//       for the gold row and the celebration, decided inside the tap so
-//       the iPhone can buzz; big once per exercise, a flash after that.
+//   C · the personal record (PRMoment): one definition — prSetsOf
+//       (records.js) — for the gold rows and the celebration, decided
+//       inside the tap so the iPhone can buzz. Every set at a new weight
+//       (heavier than anything before today) gets its trophy and the full
+//       moment, not only the first one (حمزة: «ابا احتفالية وكأس مدام
+//       رفعت الوزن الجديد»).
 //
 // Every set: the «set-done» sound and a light haptic tick, in the tap.
 //
@@ -118,27 +122,13 @@ const firstUnfinished = (list, from = 0) => {
   return -1
 }
 
-/**
- * The one definition of a personal record: the heaviest done set that is
- * heavier than anything on record — never in a deload, never the first
- * time an exercise is done (nothing on record). The row turns gold for
- * it, and the celebration fires for it; both read this.
- */
-export function prIndexOf(sets, maxWeight, deloadPct = 0) {
-  if (deloadPct > 0 || maxWeight == null) return null
-  let best = null, bestW = maxWeight
-  sets.forEach((s, i) => {
-    const w = parseFloat(s.weight)
-    if (s.done && w > bestW) { best = i; bestW = w }
-  })
-  return best
-}
-
 // The coach line under the counters: what this set was last time, in the
 // rows' own words («آخر مرة 72.5 كجم × 10 عدّات»), then what to do about
 // it. The dash stays with the first part, so a narrow phone breaks the
 // line after it and the advice («جرّب 77.5 كجم») starts its line whole.
-function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct, unit }) {
+// Never less than he already lifted today: after 45, not «جرّب 42.5» but
+// «ثبّت على 45» (records.js).
+function coachFor({ prog, prevSet, lastWeight, raisedW, todayTop, deloadPct, unit }) {
   const t = prog?.target
   const lead = setParts(prevSet) ? <>آخر مرة <SetPhrase set={prevSet} unit={unit} /></>
     : lastWeight != null ? <>آخر مرة <span className="s-pair"><Num>{kg(lastWeight)}</Num> كجم</span></>
@@ -146,8 +136,13 @@ function coachFor({ prog, prevSet, lastWeight, raisedW, deloadPct, unit }) {
   const line = (advice) => <>{lead}&nbsp;— <span className="s-coach-adv">{advice}</span></>
   if (deloadPct > 0) return line(<>ديلود، أخف بـ<Num>{deloadPct}%</Num></>)
   switch (prog?.hint) {
-    case 'raise':
-      return raisedW != null ? line(<>جرّب <Num>{kg(raisedW)}</Num> كجم</>) : lead
+    case 'raise': {
+      const a = raiseAdvice(raisedW, todayTop)
+      if (!a) return lead
+      return a.kind === 'hold'
+        ? line(<>ثبّت على <Num>{kg(a.kg)}</Num> كجم</>)
+        : line(<>جرّب <Num>{kg(a.kg)}</Num> كجم</>)
+    }
     case 'lower':
       return prog.suggestedWeight != null
         ? line(<>خفّف إلى <Num>{kg(prog.suggestedWeight)}</Num> كجم</>)
@@ -194,21 +189,15 @@ export default function WorkoutPlayer({
   const [touched, setTouched] = useState(() => new Set(readMotion(sessionId).touched))
   // What the player finds when it mounts (a reload, ⌄ and back) already
   // happened: an exercise already complete is not celebrated again (nor
-  // moved on from by itself), and one that already holds a record has had
-  // its big moment — a new one there is the small flash.
+  // moved on from by itself).
   const celebratedRef = useRef(null)
   if (!celebratedRef.current) {
     celebratedRef.current = new Set(exercises.filter(e => e.sets.length && e.sets.every(s => s.done)).map(e => e.id))
   }
-  const prShown = useRef(null)                         // exercises that had their big record moment
-  if (!prShown.current) {
-    prShown.current = new Set(exercises
-      .filter(e => prIndexOf(e.sets, statsFor(e.name)?.maxWeight ?? null, deloadPct) != null).map(e => e.id))
-  }
   const introPlayed = useRef(null)                     // exercises whose raise intro played in full
   if (!introPlayed.current) introPlayed.current = new Set(readMotion(sessionId).intro)
   const prHeld = useRef(null)                          // the exercise whose completion a record's moment held
-  const flash = useRef({ token: 0, done: 0, exId: null, si: null, kind: null })
+  const flash = useRef({ token: 0, done: 0, exId: null, si: null })
   const intro = useRef(new Map())                      // exId → { kind, at, showing, ran } — this showing's raise reminder
   const scrollRef = useRef(null)
   const dockRef = useRef(null)
@@ -489,11 +478,13 @@ export default function WorkoutPlayer({
   // The ring breathes until the weight is touched — or a set is done on it.
   const breathing = !!ex && !started && !touched.has(rk)
 
-  // A set heavier than anything on record: the heaviest such done set.
-  const prIndex = useMemo(
-    () => (ex ? prIndexOf(ex.sets, stats.maxWeight, deloadPct) : null),
+  // The sets at a new weight (heavier than anything before today): each wears the trophy.
+  const prSets = useMemo(
+    () => (ex ? prSetsOf(ex.sets, stats.maxWeight, deloadPct) : []),
     [ex, stats.maxWeight, deloadPct],
   )
+  // The heaviest already done today: the coach never suggests less.
+  const todayTop = ex ? todayTopOf(ex.sets) : null
 
   const summary = useMemo(() => {
     if (!ex || !exComplete) return null
@@ -503,9 +494,8 @@ export default function WorkoutPlayer({
     return { sets: ex.sets.filter(s => s.done).length, top, delta }
   }, [ex, exComplete, stats.lastWeight])
 
-  // The row flashes gold when a record lands on it (and on a second record
-  // in the same exercise, which gets only this): the tint warms and cools
-  // back to the done green, the trophy pops.
+  // The row flashes gold when a record's trophy lands on it: the tint
+  // warms and cools back to the done green, the trophy pops.
   useLayoutEffect(() => {
     const f = flash.current
     if (f.token === f.done) return
@@ -513,11 +503,9 @@ export default function WorkoutPlayer({
     const row = scrollRef.current?.querySelector(`.s-table[data-ex="${f.exId}"] [data-set="${f.si}"]`)
     if (!row) return
     const reduce = reducedMotion()
-    animate(row, [{ backgroundColor: 'rgba(251,191,36,0.30)' }, { backgroundColor: 'rgba(94,195,42,0.10)' }], { d: reduce ? 600 : (f.kind === 'small' ? 1100 : 900), fill: 'none' })
+    animate(row, [{ backgroundColor: 'rgba(251,191,36,0.30)' }, { backgroundColor: 'rgba(94,195,42,0.10)' }], { d: reduce ? 600 : 900, fill: 'none' })
     if (reduce) return
-    const tro = row.querySelector('.s-pr-icon')
-    if (f.kind === 'small') animate(tro, [{ opacity: 0, transform: 'scale(.4) rotate(-10deg)' }, { opacity: 1, transform: 'none' }], { spring: 'bouncy', delay: 80 })
-    else animate(tro, [{ transform: 'scale(1.5)' }, { transform: 'none' }], { spring: 'bouncy' })
+    animate(row.querySelector('.s-pr-icon'), [{ transform: 'scale(1.5)' }, { transform: 'none' }], { spring: 'bouncy' })
   })
 
   // ── Phase 3 · the button becomes the rest ──
@@ -592,26 +580,20 @@ export default function WorkoutPlayer({
 
   // «تمّت المجموعة». Everything that must happen inside the tap happens
   // here: the sound, the haptic (iOS only allows it in a tap), and the
-  // record decision — the same prIndexOf the row is painted by, run on
-  // the sets as they will be.
+  // record decision — the same prSetsOf the rows are painted by, run on
+  // the sets as they will be. Every set at a new weight gets the moment.
   const complete = () => {
     if (currentSetIndex < 0) return
     const si = currentSetIndex
     primeAudio()
     play('set-done')
     const after = ex.sets.map((s, i) => (i === si ? { ...s, done: true } : s))
-    const isPR = prIndexOf(after, stats.maxWeight, deloadPct) === si
+    const isPR = prSetsOf(after, stats.maxWeight, deloadPct).includes(si)
     if (isPR) {
       haptic('pr')
       play('pr', { at: 0.35 })
-      const before = Math.max(stats.maxWeight, ...ex.sets.filter((s, i) => s.done && i !== si).map(s => parseFloat(s.weight) || 0))
-      const to = parseFloat(ex.sets[si].weight)
-      if (!prShown.current.has(ex.id)) {
-        prShown.current.add(ex.id)
-        setPr({ exId: ex.id, si, from: before, to, name })
-      } else {
-        flash.current = { ...flash.current, token: flash.current.token + 1, exId: ex.id, si, kind: 'small' }
-      }
+      // Measured against the best before today, as the record itself is.
+      setPr({ exId: ex.id, si, from: stats.maxWeight, to: parseFloat(ex.sets[si].weight), name })
     } else {
       haptic('set')
     }
@@ -628,7 +610,7 @@ export default function WorkoutPlayer({
     const p = pr
     setPr(null)
     if (!p) return
-    flash.current = { ...flash.current, token: flash.current.token + 1, exId: p.exId, si: p.si, kind: 'land' }
+    flash.current = { ...flash.current, token: flash.current.token + 1, exId: p.exId, si: p.si }
   }
   // The row's trophy, if it is on screen and clear of the dock.
   const prTarget = (p) => () => {
@@ -654,7 +636,7 @@ export default function WorkoutPlayer({
       coach={editing != null ? null : coachFor({
         prog, prevSet: prevSets[liveIndex] || prevSets[prevSets.length - 1] || null,
         lastWeight: stats.lastWeight ?? (deloadPct === 0 && Number.isFinite(snapW) && snapW > 0 ? snapW : null),
-        raisedW, deloadPct, unit: ex.unit,
+        raisedW, todayTop, deloadPct, unit: ex.unit,
       })}
       raise={raiseOn && base != null && editing == null ? {
         base, raised: raisedW,
@@ -742,7 +724,7 @@ export default function WorkoutPlayer({
             editingIndex={editing}
             prevSets={prevSets}
             freshIndex={fresh && fresh.exId === ex.id ? fresh.si : null}
-            prIndex={prIndex}
+            prSets={prSets}
             holdIndex={pr && pr.exId === ex.id ? pr.si : null}
             onEdit={(si) => { setFresh(null); holdAuto(); setEditingSet(cur => (cur && cur.exId === ex.id && cur.si === si ? null : { exId: ex.id, si })) }}
             live={live}

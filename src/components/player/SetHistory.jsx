@@ -62,7 +62,7 @@ function Tick({ on, fresh, pr, hold }) {
 const dash = <span className="s-dash">—</span>
 
 export default function SetHistory({
-  ex, liveIndex, currentIndex, editingIndex, prevSets = [], freshIndex = null, prIndex = null,
+  ex, liveIndex, currentIndex, editingIndex, prevSets = [], freshIndex = null, prSets = [],
   holdIndex = null, onEdit, live,
 }) {
   const hasHistory = ex.sets.some((_, i) => i !== liveIndex && setWords(prevSets[i], ex.unit))
@@ -71,7 +71,7 @@ export default function SetHistory({
       {ex.sets.map((s, i) => {
         if (i === liveIndex && live) return <div key={i} role="listitem" className="s-trow-live">{live}</div>
         const prev = setWords(prevSets[i], ex.unit)
-        const isPR = i === prIndex
+        const isPR = prSets.includes(i)
         const w = kg(s.weight)
         const r = parseInt(s.reps)
         const state = s.done ? 'done' : i === currentIndex ? 'current' : 'next'
