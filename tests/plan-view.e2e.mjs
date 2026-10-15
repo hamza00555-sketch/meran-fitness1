@@ -20,12 +20,23 @@
 // touches only the session and «دايماً بخطتي» the plan too. Nothing may
 // stick out sideways at 320, 390 or 430.
 //
+// حمزة again, on the first version: «مشاكل كثير في التصميم والتباين». So
+// every line of text on «خطتي», its card sheet, the alternatives and the
+// session swap is measured against the real pixels behind it (a screenshot
+// with the text made transparent; the glyphs found by diffing it with the
+// normal one) and must reach WCAG AA: 4.5:1, or 3:1 at 24px / 18.66px
+// bold. The body figure must be 3:1 where it carries meaning, a card holds
+// no box inside it, the English name sits under the Arabic on its edge,
+// and no green or gold is drawn on the page.
+//
 // The pack is installed once, from Settings, the way pack-install.e2e
 // does it: the preview serves dist/pack at /pack/.
 
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
 import { APP_VERSION, ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
+import { planTitle } from '../src/plan/title.js'
+import { makeContrast } from './contrast.mjs'
 
 const APP = process.env.APP || 'http://127.0.0.1:4901/'
 const SHOTS = process.env.SHOTS || null
@@ -39,6 +50,10 @@ const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
 // press, and the pec deck remembered as its first alternative (the cable fly).
 const machine = JSON.parse(JSON.stringify(BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')))
 machine.startDate = '2026-09-01'
+// stored the day he started it, with the name as it was spelt then
+const OLD_NAME = 'خطة المبتدأ — ماشينات فقط'
+const NAME = planTitle(OLD_NAME)
+machine.planName = OLD_NAME
 Object.assign(machine.weeklySchedule[1].exercises[1], { sets: 5, was: { sets: 4 } })
 Object.assign(machine.weeklySchedule[0].exercises[0], { repsMin: 8, repsMax: 12, repsOwn: true })
 const SUBS = { 'Pec Deck': 1 }
@@ -52,6 +67,8 @@ const SESSIONS = [
   sess(2, 6, [['Hammer Strength Machine Bench Press', 'Chest', 70, 10], ['Machine Shoulder Press', 'Shoulders', 40, 10]]),
   sess(3, 5, [['Hack Squat', 'Legs', 100, 10], ['Leg Curl', 'Legs', 45, 12]]),
   sess(5, 4, [['Lat Pulldown', 'Back', 60, 10], ['Seated Cable Row', 'Back', 55, 12], ['Machine Preacher Curl', 'Biceps', 25, 12]]),
+  // a heavier day on the pulldown, before the last one: his best is more than last time
+  sess(12, 1, [['Lat Pulldown', 'Back', 65, 8]]),
 ]
 const SEED = {
   hf_plan: machine, hf_plan_index: 7, hf_exercise_subs: SUBS, hf_sessions: SESSIONS,
@@ -87,7 +104,7 @@ async function home() {
 }
 async function openFromHome() {
   await home()
-  const row = page.locator('.k-row').filter({ hasText: machine.planName }).first()
+  const row = page.locator('.k-row').filter({ hasText: NAME }).first()
   await row.scrollIntoViewIfNeeded()
   await row.click()
   await view().waitFor({ timeout: 8000 }).catch(() => {})
@@ -133,6 +150,45 @@ async function noCrowding(label) {
   ok(`${label} — no line set tighter than its letters`, bad.length === 0, bad.join(' | '))
 }
 
+// ── Contrast, measured (tests/contrast.mjs) ──────────────────
+// Every text run in view under some roots, against the real pixels behind
+// its glyphs; AA: 4.5:1, or 3:1 for large text. `scroller` steps a
+// scrolling box through its whole height so text below the fold counts.
+const contrastLog = []
+const { measure, ratioOf, rgbOf } = await makeContrast(browser, page)
+async function contrast(label, roots, opts = {}) {
+  const r = await measure(roots, opts)
+  contrastLog.push(`${label}: ${r.runs} text runs, lowest ${r.min.toFixed(2)}:1 (${r.minAt})`)
+  ok(`${label} — every text run reaches ${opts.aaa ? 'AAA (7:1)' : 'AA'} against what is behind it (${r.runs} measured)`, r.runs > 0 && r.fails.length === 0, r.fails.slice(0, 6).join(' | '))
+}
+/* The body figure carries the day's muscles: 3:1 where it means something. */
+async function figureContrast(label, day) {
+  const f = await page.evaluate((day) => {
+    const svg = document.querySelector(`.pv-page[data-page="${day}"] .pv-body`)
+    const fill = (sel) => { const el = svg?.querySelector(sel); return el ? getComputedStyle(el).fill : null }
+    let bg = 'rgb(0,0,0)'
+    for (let a = svg?.parentElement; a; a = a.parentElement) { const c = getComputedStyle(a).backgroundColor; if (c && !/rgba\(.*,\s*0\)|transparent/.test(c)) { bg = c; break } }
+    return { out: fill('.pv-b-out'), base: fill('.pv-b-base'), lit: fill('.pv-b-lit:not([data-s="some"])'), some: fill('.pv-b-lit[data-s="some"]'), bg }
+  }, day)
+  const out = ratioOf(rgbOf(f.out), rgbOf(f.bg)), lit = ratioOf(rgbOf(f.lit), rgbOf(f.base))
+  const some = f.some ? ratioOf(rgbOf(f.some), rgbOf(f.base)) : 99
+  ok(`${label} — the body figure reads: outline ${out.toFixed(2)}, lit ${lit.toFixed(2)}, half-lit ${f.some ? some.toFixed(2) : '–'} (all ≥ 3:1)`,
+    out >= 3 && lit >= 3 && some >= 3, JSON.stringify(f))
+}
+/* Palette: no green and no gold drawn anywhere on «خطتي» (its pictures aside). */
+async function noAccent(label) {
+  const hits = await page.evaluate(() => {
+    const bad = ['rgb(94, 195, 42)', 'rgb(251, 191, 36)', 'rgb(92, 201, 238)']
+    const out = []
+    for (const el of document.querySelectorAll('[data-testid="plan-view"] *')) {
+      const cs = getComputedStyle(el)
+      for (const p of ['color', 'backgroundColor', 'fill', 'borderTopColor']) if (bad.includes(cs[p]) && (p !== 'color' || el.textContent.trim())) out.push(`${el.className?.baseVal ?? el.className} ${p}`)
+    }
+    return out.slice(0, 4)
+  })
+  ok(`${label} — no green or gold on the page`, hits.length === 0, hits.join(' | '))
+}
+
 // ── 0. The pack, from Settings ────────────────────────────────
 await page.goto(APP); await settle(800)
 await seed()
@@ -161,18 +217,43 @@ await seed()
   ok('three days, one tab each', await page.locator('.pv-tab').count() === 3)
   const pull = page.locator('.pv-page[data-page="1"] [data-testid="plan-card"]')
   ok('the day: one card per exercise (5)', await pull.count() === 5)
-  ok('the day header: the word, the muscles, the count and minutes', /سحب/.test(await page.locator('.pv-page[data-page="1"] .pv-word').innerText())
-    && /5/.test(await page.locator('.pv-page[data-page="1"] .pv-meta').innerText()) && /د/.test(await page.locator('.pv-page[data-page="1"] .pv-meta').innerText()))
+  const meta = await page.locator('.pv-page[data-page="1"] .pv-meta').innerText()
+  ok('the day header: its muscles (the tab names the day), the count, the sets and minutes',
+    /سحب/.test(await page.locator('.pv-page[data-page="1"]').getAttribute('aria-label'))
+    && /ظهر/.test(await page.locator('.pv-page[data-page="1"] .pv-day-title').innerText())
+    && /5 تمارين/.test(meta) && /مجموعة|مجموعات/.test(meta) && /≈\s*\d+ د/.test(meta), meta)
   ok('the day header: the muscles lit on the body', await page.locator('.pv-page[data-page="1"] .pv-body .pv-b-lit').count() > 0)
   const imgs = await page.locator('.pv-page[data-page="1"] [data-testid="plan-card"] .pv-art img').evaluateAll(els => els.map(i => i.src))
   ok('the cards show the machines\' own pictures, from the installed pack', imgs.length === 5 && imgs.every(s => s.startsWith('blob:')), imgs.slice(0, 2).join(' '))
   const lat = (await card(1, 'Lat Pulldown').innerText()).replace(/\s+/g, ' ')
-  ok('a card: Arabic name, English, muscle, tool', /سحب أمامي/.test(lat) && /Lat Pulldown/.test(lat) && /ظهر/.test(lat) && /جهاز/.test(lat), lat)
+  ok('a card: Arabic name, English, muscle, tool', /سحب أمامي/.test(lat) && /Lat Pulldown/.test(lat) && /ظهر · جهاز/.test(lat), lat)
   ok('a card: sets × his Settings reps (the template\'s 10 is not his) and rest', /4/.test(lat) && /12–15/.test(lat) && /راحة/.test(lat), lat)
-  ok('a card: last time\'s weight × reps and his best', /آخر مرة 62\.5 كجم × 10/.test(lat) && /أعلى 62\.5 كجم/.test(lat), lat)
+  ok('a card: last time\'s weight × reps, and his best because it is more', /آخر مرة 62\.5 كجم × 10/.test(lat) && /أعلى 67\.5 كجم/.test(lat), lat)
   const row = (await card(1, 'Seated Cable Row').innerText()).replace(/\s+/g, ' ')
   ok('a set he added says so: «مجموعة زيادة», on 5 sets', /مجموعة زيادة/.test(row) && /\b5\b/.test(row), row)
-  ok('nothing changed, nothing said: no badge on the pulldown', await card(1, 'Lat Pulldown').locator('.pv-badge').count() === 0)
+  ok('his best is not said again when it is last time\'s weight', /آخر مرة 57\.5 كجم/.test(row) && !/أعلى/.test(row), row)
+  ok('nothing changed, nothing said: no note on the pulldown', await card(1, 'Lat Pulldown').locator('.pv-note').count() === 0)
+  // the name: the stored plan's old spelling printed right, the stored plan untouched
+  const sub = await page.locator('.pv-title p').innerText()
+  ok('the plan\'s name reads «خطة المبتدئ», his stored plan left as it was', sub === NAME && (await get('hf_plan')).planName === OLD_NAME, sub)
+  // the English under the Arabic, on its edge; no box inside a card; no number on the picture
+  const edges = await card(1, 'Lat Pulldown').evaluate((c) => {
+    const right = (el) => { const r = document.createRange(); r.selectNodeContents(el); return Math.max(...[...r.getClientRects()].map(x => x.right)) }
+    const ar = c.querySelector('.pv-ar'), en = c.querySelector('.pv-en')
+    return { ar: right(ar), en: right(en), below: en.getBoundingClientRect().top >= ar.getBoundingClientRect().bottom - 1 }
+  })
+  ok('the English name sits under the Arabic, on the same edge', edges.below && Math.abs(edges.ar - edges.en) <= 2, JSON.stringify(edges))
+  const boxes = await page.locator('.pv-page[data-page="1"] [data-testid="plan-card"]').first().evaluate((c) => [...c.querySelectorAll('*')]
+    .filter(el => !el.closest('button.pv-swap') && (() => { const cs = getComputedStyle(el); return !/rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor) || (cs.boxShadow !== 'none' && !el.matches('img')) || cs.borderTopWidth !== '0px' && !el.matches('.pv-stats') })())
+    .map(el => String(el.className?.baseVal ?? el.className)))
+  ok('a card holds no box inside it (one surface, a hairline over the numbers)', boxes.length === 0, boxes.join(', '))
+  ok('no number on the picture', await page.locator('.pv-card .pv-n').count() === 0)
+  await figureContrast('390: pull day', 1)
+  await noAccent('390: «خطتي»')
+  await contrast('390: «خطتي», pull day (top to bottom)', '[data-testid="plan-view"]', { scroller: '.pv-page[data-page="1"]' })
+  // what he reads to understand a card, the day and the tabs: no faint grey at all
+  await contrast('390: the cards, the day header, the tabs, the title', '.pv-top, .pv-tabs, .pv-page[data-page="1"] .pv-day, .pv-page[data-page="1"] .pv-card',
+    { scroller: '.pv-page[data-page="1"]', aaa: true })
   await shot('390-plan-view-today')
   await page.locator('.pv-tab[data-day="0"]').click(); await settle(1100)
   ok('a tab moves to its day', (await page.locator('.pv-tab[aria-selected="true"]').innerText()).includes('دفع'))
@@ -181,6 +262,8 @@ await seed()
     await fly.count() === 1 && /بدّلته بدل تفتيح جهاز \(بك دك\)/.test((await fly.innerText()).replace(/\s+/g, ' ')))
   const ham = (await card(0, 'Hammer Strength Machine Bench Press').innerText()).replace(/\s+/g, ' ')
   ok('his own reps: 8–12, «عدّاتك أنت»', /8–12/.test(ham) && /عدّاتك أنت/.test(ham), ham)
+  await figureContrast('390: push day', 0)
+  await contrast('390: «خطتي», push day (top to bottom)', '[data-testid="plan-view"]', { scroller: '.pv-page[data-page="0"]' })
   await shot('390-plan-view-push')
   // a swipe to the next day moves the tab with it
   await page.locator('.pv-pages').evaluate(el => el.scrollTo({ left: -el.clientWidth * 2, behavior: 'auto' })); await settle(700)
@@ -193,6 +276,22 @@ await seed()
     if (w === 320) {
       await page.locator('.pv-tab[data-day="1"]').click(); await settle(900)
       await shot('320-plan-view')
+      await contrast('320: «خطتي», pull day (top)', '[data-testid="plan-view"]')
+      // the card sheet at 320: its rows keep the gutter on both sides
+      await card(1, 'Seated Cable Row').click(); await settle(900)
+      const g = await page.evaluate(() => {
+        const body = document.querySelector('.k-sheet-body')
+        const b = body.getBoundingClientRect(), cs = getComputedStyle(body)
+        const L = b.left + parseFloat(cs.paddingLeft), R = b.right - parseFloat(cs.paddingRight)
+        return ['.xs-head', '.xs-actions', '.xs-steps', '.xs-end'].map(s => {
+          const r = document.querySelector(s).getBoundingClientRect()
+          return { s, ok: r.left >= L - 1 && r.right <= R + 1, l: Math.round(r.left), r: Math.round(r.right), L: Math.round(L), R: Math.round(R) }
+        })
+      })
+      ok('320: the card sheet keeps its gutter on both sides', g.every(x => x.ok), JSON.stringify(g.filter(x => !x.ok)))
+      await contrast('320: the card sheet', '.k-sheet', { scroller: '.k-sheet-body' })
+      await shot('320-card-sheet')
+      await page.locator('.k-sheet [aria-label="إغلاق"]').click(); await settle(600)
     }
   }
   await page.setViewportSize({ width: 390, height: 844 }); await settle(500)
@@ -217,11 +316,24 @@ await seed()
 // ── 3. From a card: swap, steppers, remove and تراجع ──────────
 {
   await openFromHome()
+  // «بدّله» on a card: the sheet opens on the alternatives, a back arrow to its first page
+  await card(1, 'Lat Pulldown').locator('[data-testid="plan-card-swap"]').click(); await settle(900)
+  ok('«بدّله» on a card opens the sheet straight on the alternatives',
+    await page.locator('[data-testid="exercise-sheet"][data-mode="swap"]').count() === 1 && await page.locator('.k-sheet [data-testid="alt-card"]').count() >= 4)
+  ok('the alternatives say what the swap keeps: «4 × 12–15 · راحة 2 د»', /4 × 12–15 · راحة 2 د/.test((await page.locator('[data-testid="xs-keeps"]').innerText()).replace(/\s+/g, ' ')))
+  await page.locator('[data-testid="sheet-back"]').click(); await settle(700)
+  ok('its back arrow turns to the sheet\'s first page', await page.locator('[data-testid="exercise-sheet"][data-mode="main"]').count() === 1
+    && await page.locator('[data-testid="sheet-back"]').count() === 0)
+  await page.locator('.k-sheet [aria-label="إغلاق"]').click(); await settle(600)
+
   await card(1, 'Lat Pulldown').click(); await settle(800)
   ok('a card opens its sheet', await page.locator('[data-testid="exercise-sheet"]').count() === 1)
   await shot('390-card-sheet')
   await noOverflow('390: a card\'s sheet', '.k-sheet')
+  await contrast('390: the card sheet', '.k-sheet', { scroller: '.k-sheet-body' })
+  await contrast('390: the card sheet\'s names, actions and steppers', '.k-sheet-h, .xs-head, .xs-actions, .xs-steps', { aaa: true })
   await page.locator('[data-testid="xs-swap"]').click(); await settle(800)
+  await contrast('390: the alternatives', '.k-sheet', { scroller: '.k-sheet-body' })
   const alts = page.locator('.k-sheet [data-testid="alt-card"]')
   const n = await alts.count()
   const altImgs = await alts.locator('img').evaluateAll(els => els.map(i => i.src))
@@ -270,6 +382,7 @@ await seed()
     && !(await get('hf_plan')).weeklySchedule[1].exercises.some(x => x.name === 'Machine Pullover'))
   const undo = page.locator('[data-testid="plan-undo"]')
   ok('«شيله»: «تراجع» in its place, naming it', await undo.count() === 1 && /بلأوفر جهاز/.test(await undo.innerText()))
+  await contrast('390: «تراجع» in the card\'s place', '[data-testid="plan-undo"]')
   await shot('390-removed-undo')
   await undo.getByRole('button', { name: 'تراجع' }).click(); await settle(900)
   const back = (await get('hf_plan')).weeklySchedule[1].exercises
@@ -329,6 +442,10 @@ await seed()
   await cards.first().click(); await settle(600)
   ok('session swap: a pick offers «بس هالمرة» and «دايماً بخطتي»', await page.locator('[data-testid="swap-once"]').count() === 1
     && await page.locator('[data-testid="swap-always"]').count() === 1)
+  ok('session swap: nothing in the upcoming strip looks picked (no ring, no card)', await sheet.locator('[data-testid="swap-upcoming"] li').evaluateAll(els => els.every(li => {
+    const cs = getComputedStyle(li); return cs.boxShadow === 'none' && /rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor)
+  })))
+  await contrast('390: the session swap, a pick made', '.k-sheet', { scroller: '.k-sheet-body' })
   await shot('390-session-swap')
   await noOverflow('390: the session swap', '.k-sheet')
   await page.setViewportSize({ width: 320, height: 568 }); await settle(600)
@@ -370,6 +487,7 @@ await seed()
 ok('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
 
 for (const [n, p, e] of results) console.log(p ? '✅' : '❌', n, !p && e ? `— ${e}` : '')
+console.log('\ncontrast, measured:\n  ' + contrastLog.join('\n  '))
 await browser.close()
 const failed = results.filter(r => !r[1]).length
 console.log(failed ? `\n${failed} failed` : `\nall ${results.length} passed`)

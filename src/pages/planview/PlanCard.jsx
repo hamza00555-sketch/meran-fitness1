@@ -154,7 +154,7 @@ export default function PlanCard({ row, mapping = {}, sessions = [], flash = 0, 
           )}
         </span>
         <button type="button" className="pv-swap" data-testid="plan-card-swap" aria-label={`بدّل ${ar}`} onClick={onSwap}>
-          <ArrowsLeftRight size={16} weight="bold" aria-hidden="true" />بدّله
+          <ArrowsLeftRight size={16} weight="bold" aria-hidden="true" /><span className="pv-swap-t">بدّله</span>
         </button>
       </span>
     </div>

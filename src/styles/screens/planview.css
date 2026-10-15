@@ -112,6 +112,18 @@
 .pv-b-lit { fill: var(--ink); }
 .pv-b-lit[data-s="some"] { fill: var(--ink-3); }
 
+/* a short phone (an SE): the top, the days and the day's header give
+   their room to the first card */
+@media (max-height: 700px) {
+  .pv-top { padding-block: 6px 0; }
+  .pv-title { gap: 2px; }
+  .pv-title h1 { font-size: 24px; }
+  .pv-tabs { margin-top: 6px; }
+  .pv-tab { min-height: 46px; padding-block: 4px 9px; }
+  .pv-day { padding-block: 12px; }
+  .pv-body { height: 64px; }
+}
+
 /* ── the cards ── */
 .pv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .pv-list > li { display: grid; gap: 12px; }
@@ -202,7 +214,13 @@
 }
 .pv-swap::before { content: ""; position: absolute; inset: -4px -2px; }
 .pv-swap:active { transform: scale(0.95); }
-.pv-swap svg { color: var(--ink-2); }
+.pv-swap svg { flex: none; color: var(--ink-2); }
+/* a narrow phone: the history gets the room, «بدّله» is its arrows alone */
+@media (max-width: 360px) {
+  .pv-swap { width: 40px; height: 40px; min-height: 0; padding: 0; justify-content: center; }
+  .pv-swap svg { width: 18px; height: 18px; color: var(--ink); }
+  .pv-swap-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 
 /* «تراجع» in a card's place */
 .pv-undo {
@@ -290,8 +308,10 @@
   color: var(--ink-2); font: inherit; font-size: var(--t-label); font-weight: 700; text-align: start;
   text-decoration: underline; text-decoration-color: var(--ink-4); text-underline-offset: 4px;
 }
-/* a narrow phone: the controls give the label room; the discs keep a 44pt target */
+/* a narrow phone: the controls give the label room; the discs keep a 44pt
+   target; an action's icon goes over its word */
 @media (max-width: 360px) {
+  .xs-act { flex-direction: column; gap: 4px; min-height: 64px; font-size: var(--t-label); }
   .xs-step-v { min-width: 56px; }
   .xs-step-b { width: 40px; height: 40px; }
   .xs-step-b::after { content: ""; position: absolute; inset: -2px; }
