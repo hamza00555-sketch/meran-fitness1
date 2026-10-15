@@ -28,7 +28,7 @@ const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
 
 const ACCENT = 'rgb(94, 195, 42)'
 const GOLD   = 'rgb(251, 191, 36)'
-const DANGER = 'rgb(242, 85, 85)'
+const DANGER = 'rgb(255, 122, 122)'   // --danger (#FF7A7A: AA on every surface)
 
 const ACTIVE = {
   id: Date.now() - 5 * 60000, date: new Date().toISOString(), name: 'Push — اختبار',

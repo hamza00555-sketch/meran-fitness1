@@ -262,7 +262,8 @@ test('every alternative a swap can offer has an Arabic name to show', () => {
   for (const g of Object.values(MUSCLE_GROUPS)) for (const e of g.exercises || []) names.add(e.name)
   const missing = []
   for (const n of names) {
-    const a = V.rankAlternatives(n, {})
+    // every one it could ever offer, not just the first eight
+    const a = V.rankAlternatives(n, { max: { muscle: 99, tool: 99 } })
     for (const x of [...a.muscle, ...a.tool]) if (!arabicName(x)) missing.push(x)
   }
   assert.deepEqual([...new Set(missing)], [])
