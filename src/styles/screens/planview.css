@@ -259,6 +259,83 @@
 }
 @keyframes pv-undo-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
+/* ── «تسويها بالجلسة» (ExtraCard.jsx): what he does on this day in his
+   sessions that the day doesn't have. The plan card's picture and names
+   (the same machine looks the same), but not a plan card: no surface — a
+   dashed edge where a plan card's surface would end (ink-4 on the ground,
+   3.4:1) — and its first line says it. The one filled thing on it is
+   «ثبّته بخطتي», in ink like the day shown above, never the session's
+   green; «مو هنا» is a word. Pinned, it flies up into the list above and
+   fills in as a plan card (PlanView). ── */
+
+/* the line on the day's header: how many, a way down to them — the same
+   dashed edge, so the two read as one thing */
+.pv-xnote {
+  justify-self: start; display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 6px; min-height: 32px; padding: 0 12px;
+  border: 1.5px dashed var(--ink-4); border-radius: var(--r-pill); cursor: pointer;
+  background: none; color: var(--ink); font: inherit; font-size: var(--t-label); font-weight: 700; line-height: 1.4; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent; transition: transform var(--dur-press) var(--ease-out);
+}
+.pv-xnote svg { flex: none; color: var(--ink-2); }
+.pv-xnote:active { transform: scale(0.96); }
+
+.pv-extra { display: grid; gap: 12px; margin-top: var(--space-6); scroll-margin-top: 20px; }
+.pv-extra-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+/* «ثبّت كلهم» beside the words while both fit; under them on a narrow phone */
+.pv-extra-text { flex: 1 1 200px; min-width: 0; display: grid; gap: 2px; }
+.pv-extra-text h3 { margin: 0; font-size: var(--t-headline); font-weight: 800; line-height: 1.35; }
+.pv-extra-text p { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); text-wrap: balance; }
+
+.pv-xcard {
+  --pv-art: clamp(88px, 27vw, 112px);
+  position: relative; min-width: 0;
+  display: grid; grid-template-columns: var(--pv-art) minmax(0, 1fr);
+  grid-template-areas: "tag tag" "art head" "facts facts" "acts acts";
+  column-gap: 16px; row-gap: 12px; align-items: center;
+  /* the plan card's 16px, less the dashed edge */
+  padding: 14.5px; border-radius: var(--r-md);
+  border: 1.5px dashed var(--ink-4); color: var(--ink);
+}
+/* what it is, first, across the card */
+.pv-xtag {
+  grid-area: tag; min-width: 0; display: flex; align-items: center; gap: 6px; margin-bottom: -4px;
+  font-size: var(--t-label); font-weight: 700; line-height: 1.45; color: var(--ink-2);
+}
+.pv-xtag svg { flex: none; }
+.pv-xfacts {
+  grid-area: facts; min-width: 0; display: grid; gap: 2px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
+}
+.pv-xfacts .k-num { color: var(--ink); font-weight: 700; }
+.pv-xacts { grid-area: acts; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.pv-pin {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 18px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--ink); color: var(--ground); font: inherit; font-size: var(--t-body); font-weight: 800; line-height: 1.2; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent; transition: transform var(--dur-press) var(--ease-out);
+}
+.pv-pin svg { flex: none; }
+.pv-pin:active { transform: scale(0.96); }
+/* all of them at once: the same answer, a step quieter — its outline in
+   ink-3 (6:1 on the ground), not a white fill beside the cards' own */
+.pv-pin-all {
+  min-height: 40px; padding: 0 14px; background: none; color: var(--ink); font-size: var(--t-label);
+  box-shadow: inset 0 0 0 1.5px var(--ink-3);
+}
+.pv-pin-all svg { color: var(--ink-2); }
+.pv-pin-all:active { background: var(--surface-3); }
+.pv-skip {
+  flex: none; min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: none; color: var(--ink-2); font: inherit; font-size: var(--t-body); font-weight: 700; line-height: 1.2; white-space: nowrap;
+  -webkit-tap-highlight-color: transparent; transition: background var(--dur-press);
+}
+.pv-skip:active { background: var(--surface-3); }
+@media (prefers-reduced-motion: reduce) {
+  .pv-xnote, .pv-pin, .pv-skip { transition: none; }
+  .pv-xnote:active, .pv-pin:active { transform: none; }
+}
+
 .pv-end { display: grid; gap: 8px; margin-top: var(--space-6); }
 .pv-end p { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; text-wrap: balance; }
 

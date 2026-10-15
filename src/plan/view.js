@@ -569,6 +569,8 @@ export function doneNotInPlan(plan, d, sessions, { subs = {}, mapping = {}, dism
         sets: Math.max(MIN_SETS, Math.min(MAX_SETS, usual(t.sets))),
       }
     })
+    // a name with no muscle group can't be a plan row (validatePlan)
+    .filter(x => x.muscle)
 }
 
 /** doneNotInPlan for every day of the plan; `dismissed` the stored { [dayId]: keys }. */

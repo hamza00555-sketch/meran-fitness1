@@ -18,7 +18,10 @@
 //   a day       a short header — the muscles (the tab already names the
 //               day), how many exercises and sets and the minutes, and
 //               the muscles lit on a small grey body — then one card per
-//               exercise (PlanCard), then «عدّل الخطة كاملة» (the
+//               exercise (PlanCard), then what he does on this day in his
+//               sessions that the day doesn't have («تسويها بالجلسة»,
+//               ExtraCard: «ثبّته بخطتي» or «مو هنا»; a line on the
+//               header counts them), then «عدّل الخطة كاملة» (the
 //               builder, on this day)
 //
 // What it shows is the effective plan (src/plan/view.js): his remembered
@@ -33,11 +36,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, IconButton, Num } from '../../components/kit/index.jsx'
-import { X, PencilSimple, ArrowCounterClockwise, Info } from '../../components/kit/icons.js'
+import { X, PencilSimple, ArrowCounterClockwise, Info, PushPin, ClockCounterClockwise } from '../../components/kit/icons.js'
 import { dayWord, musclesLine, estimateMinutes, setsUnit } from '../../components/home/dayParts.js'
 import { planTitle } from '../../plan/title.js'
 import { unitAr } from '../../streak.js'
-import { getExerciseStats, durationShort } from '../../utils.js'
+import { getExerciseStats, durationShort, ls } from '../../utils.js'
 import { lockScroll } from '../../scrollLock.js'
 import { animate, reducedMotion, rise } from '../../motion.js'
 import { haptic } from '../../haptics.js'
@@ -46,9 +49,10 @@ import { arabicName } from '../../exerciseMedia.js'
 import { withNums } from '../../components/home/HomeBits.jsx'
 import {
   effectivePlan, effectiveDay, dayMarks, swapRow, setRowSets, setRowReps, clearRowReps, setRowRest,
-  removeRow, insertRow,
+  removeRow, insertRow, fromSessions, addRow, addRows, withDismissed, DISMISS_KEY,
 } from '../../plan/view.js'
 import PlanCard from './PlanCard.jsx'
+import ExtraCard from './ExtraCard.jsx'
 import ExerciseSheet from './ExerciseSheet.jsx'
 import BodyFigure from './BodyFigure.jsx'
 import '../../styles/screens/planview.css'
@@ -229,6 +233,104 @@ export default function PlanView({
     if (commit(back, undo.d, undo.j)) haptic('set')
   }
 
+  // ── «تسويها بالجلسة»: what he does on a day that the day doesn't say ──
+  // (src/plan/view.js doneNotInPlan). «مو هنا» is remembered per day under
+  // DISMISS_KEY, a key of the new design's own.
+  const [dismissed, setDismissed] = useState(() => {
+    const v = ls.get(DISMISS_KEY, {})
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {}
+  })
+  const dismissedOnce = useRef(true)
+  useEffect(() => {
+    if (dismissedOnce.current) { dismissedOnce.current = false; return }
+    ls.set(DISMISS_KEY, dismissed)
+  }, [dismissed])
+  const extras = useMemo(
+    () => fromSessions(plan, sessions, { subs, mapping: exerciseMapping, dismissed }),
+    [plan, sessions, subs, exerciseMapping, dismissed],
+  )
+
+  // What a pin or a «مو هنا» moves, measured before it: the pinned cards'
+  // places (they fly from there into the plan's list, filling in as they
+  // go) and where everything under them stood (it slides to its new place).
+  const moves = useRef(null)
+  const pageEl = (d) => pager.current?.querySelector(`[data-page="${d}"]`)
+  const byName = (root, sel, name) => [...(root?.querySelectorAll(sel) || [])].find(el => el.dataset.name === name) || null
+  const snapshot = (d, names = []) => {
+    const page = pageEl(d)
+    if (!page) return null
+    const from = new Map()
+    for (const nm of names) {
+      const el = byName(page, '[data-testid="extra-card"]', nm)
+      if (el) from.set(nm, el.getBoundingClientRect())
+    }
+    const tops = new Map([...page.querySelectorAll('.pv-extra-head, [data-testid="extra-card"], .pv-end')]
+      .map(el => [el, el.getBoundingClientRect().top]))
+    return { d, from, tops }
+  }
+  const pin = (d, items) => {
+    if (!items?.length) return
+    const next = items.length > 1 ? addRows(plan, d, items, { repTarget }) : addRow(plan, d, items[0], { repTarget })
+    if (!next) return
+    moves.current = snapshot(d, items.map(x => x.name))
+    if (!commit(next)) { moves.current = null; return }
+    haptic('set')
+  }
+  const dismiss = (d, item) => {
+    const el = byName(pageEl(d), '[data-testid="extra-card"]', item.name)
+    const go = () => {
+      moves.current = snapshot(d)
+      setDismissed(prev => withDismissed(prev, plan, d, item.key))
+    }
+    haptic('swipe')
+    if (!el || reducedMotion()) { go(); return }
+    el.style.pointerEvents = 'none'
+    const a = animate(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(0.94)' }], { d: 180, e: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' })
+    if (a) a.onfinish = go
+    else go()
+  }
+  useLayoutEffect(() => {
+    const m = moves.current
+    if (!m) return
+    moves.current = null
+    const page = pageEl(m.d)
+    if (!page) return
+    const quiet = reducedMotion()
+    let k = 0
+    for (const [nm, r] of m.from) {
+      const el = byName(page, '.pv-list [data-testid="plan-card"]', nm)
+      if (!el) continue
+      if (quiet) { animate(el, [{ opacity: 0 }, { opacity: 1 }], { d: 200, e: 'linear' }); continue }
+      const b = el.getBoundingClientRect()
+      const fill = getComputedStyle(el).backgroundColor
+      // over whatever it passes on its way up (the heading under the list)
+      el.style.zIndex = '3'
+      const a = animate(el, [
+        { transform: `translate(${r.left - b.left}px, ${r.top - b.top}px)`, backgroundColor: 'rgba(20,23,27,0)' },
+        { backgroundColor: fill, offset: 0.3 },
+        { transform: 'none', backgroundColor: fill },
+      ], { spring: 'smooth', delay: k * 70 })
+      const settle = () => { el.style.zIndex = '' }
+      if (a) { a.onfinish = settle; a.oncancel = settle } else settle()
+      animate(el, [{ boxShadow: 'inset 0 0 0 2px var(--ink-2)' }, { boxShadow: 'inset 0 0 0 1px var(--edge)' }], { d: 900, delay: 200 + k * 70, fill: 'none' })
+      k += 1
+    }
+    if (quiet) return
+    for (const [el, top] of m.tops) {
+      if (!el.isConnected) continue
+      const dy = top - el.getBoundingClientRect().top
+      if (Math.abs(dy) <= 1) continue
+      // the heading the pinned card flew past comes in where it is now
+      if (m.from.size && el.matches('.pv-extra-head')) animate(el, [{ opacity: 0 }, { opacity: 1 }], { d: 220, delay: 260, e: 'linear' })
+      else animate(el, [{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { spring: 'smooth' })
+    }
+  }, [days, extras])
+  // The note on the day's header takes him to them.
+  const toExtras = (d) => {
+    const sec = pageEl(d)?.querySelector('.pv-extra')
+    sec?.scrollIntoView?.({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
+  }
+
   if (!n) return null
 
   return createPortal(
@@ -271,6 +373,7 @@ export default function PlanView({
           const muscles = musclesLine(eff, word)
           const mins = estimateMinutes(eff)
           const sets = d.rows.reduce((s, r) => s + (Number(r.sets) || 0), 0)
+          const extra = extras[i] || []
           return (
             <section key={i} className="pv-page" data-page={i} role="tabpanel" aria-label={name}>
               <header className="pv-day">
@@ -284,6 +387,12 @@ export default function PlanView({
                     {/* «≈45 د»: the digits isolated, the unit after them in the Arabic order */}
                     {mins > 0 && <span>≈{withNums(durationShort(mins))}</span>}
                   </p>
+                  {extra.length > 0 && (
+                    <button type="button" className="pv-xnote" data-testid="plan-extra-note" onClick={() => toExtras(i)}>
+                      <ClockCounterClockwise size={16} weight="bold" aria-hidden="true" />
+                      <Num>+{extra.length}</Num> {extra.length === 1 ? 'تسويه بالجلسة' : 'تسويها بالجلسة'}
+                    </button>
+                  )}
                 </div>
                 <BodyFigure exercises={eff.exercises} />
               </header>
@@ -300,6 +409,30 @@ export default function PlanView({
                   <li><UndoRow name={undo.name} mapping={exerciseMapping} onUndo={doUndo} /></li>
                 )}
               </ol>
+
+              {extra.length > 0 && (
+                <section className="pv-extra" data-testid="plan-extra" aria-labelledby={`pv-x-${i}`}>
+                  <div className="pv-extra-head">
+                    <div className="pv-extra-text">
+                      <h3 id={`pv-x-${i}`}>{extra.length === 1 ? 'تسويه بالجلسة' : 'تسويها بالجلسة'}</h3>
+                      <p>مو بخطتك. اللي تثبّته ينضاف لهاليوم.</p>
+                    </div>
+                    {extra.length > 1 && (
+                      <button type="button" className="pv-pin pv-pin-all" data-testid="extra-pin-all" onClick={() => pin(i, extra)}>
+                        <PushPin size={18} weight="bold" aria-hidden="true" />ثبّت كلهم
+                      </button>
+                    )}
+                  </div>
+                  <ol className="pv-list pv-xlist">
+                    {extra.map(item => (
+                      <li key={item.key}>
+                        <ExtraCard item={item} mapping={exerciseMapping} sessions={sessions}
+                          onPin={() => pin(i, [item])} onDismiss={() => dismiss(i, item)} />
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
 
               <div className="pv-end">
                 <Button variant="secondary" size="lg" full icon={PencilSimple} data-testid="plan-view-builder"

@@ -60,7 +60,7 @@ export const groupWord = (muscle) => GROUP_WORD[muscle] || MUSCLE_GROUPS[muscle]
 export const kindLine = (name, muscle, mapping) => [groupWord(muscle), equipLabel(name, mapping)].filter(Boolean).join(' · ')
 
 /** The heaviest set of the last session that had it (more reps on a tie). */
-function topSet(sets) {
+export function topSet(sets) {
   let best = null
   for (const s of sets || []) {
     const w = parseFloat(s.weight) || 0, r = parseInt(s.reps) || 0

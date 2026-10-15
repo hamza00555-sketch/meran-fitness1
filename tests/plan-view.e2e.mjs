@@ -34,6 +34,15 @@
 // has scrolled), the pills' words sit in their middle, and «الأصلي» is a
 // word over the name, not a badge on the machine.
 //
+// And «تسويها بالجلسة» (section 5): his case — the machines plan, whose leg
+// day has no hip abduction or adduction, and leg sessions that had both —
+// shows the two as cards of their own under the day's, said on the day's
+// header; «ثبّته بخطتي» writes one into his plan (the card moving up into
+// the list), «ثبّت كلهم» both in one edit, «مو هنا» waves one off for good;
+// the old design reads the plan; the new cards and their answers are
+// measured like the rest (text AA, the controls 3:1 on the ground) at 320,
+// 390 and 430.
+//
 // The pack is installed once, from Settings, the way pack-install.e2e
 // does it: the preview serves dist/pack at /pack/.
 
@@ -100,7 +109,9 @@ const card = (day, name) => page.locator(`.pv-page[data-page="${day}"] [data-tes
 const shot = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` }) }
 async function seed(extra = {}) {
   await page.evaluate(([s, extra]) => {
-    for (const k of ['hf_active', 'hf_rest_timer', 'hf_plan_prev']) localStorage.removeItem(k)
+    // (meran_rest_announced: each seed is a first run for «كسبت يوم راحة»,
+    // which says nothing of rest days he already had — no sheet over Home)
+    for (const k of ['hf_active', 'hf_rest_timer', 'hf_plan_prev', 'meran_plan_dismissed', 'meran_rest_announced']) localStorage.removeItem(k)
     for (const [k, v] of Object.entries({ ...s, ...extra })) localStorage.setItem(k, JSON.stringify(v))
   }, [SEED, extra])
   await page.reload(); await settle(1300)
@@ -714,6 +725,178 @@ await seed()
   await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await settle(600)
   ok('after a set is done there is no swap', await page.locator('.k-sheet').last().getByRole('button', { name: /استبدال التمرين/ }).count() === 0)
   await page.keyboard.press('Escape'); await settle(500)
+}
+
+// ── 5. «تسويها بالجلسة»: what he does on a day that his plan doesn't say ─
+// حمزة: «في خطتي تمارين الرجلين مالقيت تمرين abdication و addactor معناها في
+// تمارين كثير مو مضافه». His last four leg days: the hip abduction and
+// adduction machines added in the session in three of them (once logged
+// under the mapping's «Hip Adduction»), a lunge once. Under the leg day's
+// cards: the two, as cards of their own, «ثبّته بخطتي» / «ثبّت كلهم» /
+// «مو هنا»; the old design reads the plan they go into.
+{
+  const AB = 'Machine Hip Abduction', AD = 'Machine Hip Adduction'
+  const legDay = (daysAgo, extra) => sess(daysAgo, 5, [['Hack Squat', 'Legs', 100, 10], ['Leg Press', 'Legs', 160, 10], ['Leg Curl', 'Legs', 45, 12], ...extra])
+  const HIS = [
+    ...SESSIONS.filter(s => s.planDayIndex % 3 !== 2),
+    legDay(1, [[AB, 'Legs', 30, 12], [AD, 'Legs', 25, 12]]),
+    legDay(4, [[AB, 'Legs', 27.5, 12], ['Hip Adduction', 'Legs', 25, 10]]),
+    legDay(8, [['Lunge', 'Legs', 20, 10]]),
+    legDay(11, [[AB, 'Legs', 25, 12], [AD, 'Legs', 22.5, 12]]),
+  ]
+  const LEGS = '.pv-page[data-page="2"]'
+  const extra = (name) => page.locator(`${LEGS} [data-testid="extra-card"][data-name="${name}"]`)
+  const legsPlan = async () => (await get('hf_plan')).weeklySchedule[2].exercises
+  const toLegs = async () => { await page.locator('.pv-tab[data-day="2"]').click(); await settle(1100) }
+  const toExtras = async () => { await page.locator(`${LEGS} [data-testid="plan-extra-note"]`).click(); await settle(900) }
+  // the new controls tell themselves from the ground at 3:1: the cards'
+  // dashed edge, the header's note, «ثبّته بخطتي», «ثبّت كلهم»; «مو هنا» is a word
+  async function uiContrast(label) {
+    const r = await page.evaluate((LEGS) => {
+      const ground = getComputedStyle(document.querySelector('[data-testid="plan-view"]')).backgroundColor
+      const edge = (el) => { const cs = getComputedStyle(el); return cs.borderTopStyle !== 'none' && parseFloat(cs.borderTopWidth) > 0 ? cs.borderTopColor : (cs.boxShadow.match(/rgba?\([^)]*\)/) || [])[0] }
+      const fill = (el) => getComputedStyle(el).backgroundColor
+      const out = []
+      const q = (s) => [...document.querySelectorAll(`${LEGS} ${s}`)]
+      for (const el of q('.pv-xcard')) out.push(['the card\'s dashed edge', edge(el), getComputedStyle(el).borderTopStyle])
+      for (const el of q('.pv-xnote')) out.push(['the header\'s note', edge(el), getComputedStyle(el).borderTopStyle])
+      for (const el of q('.pv-xacts .pv-pin')) out.push(['«ثبّته بخطتي»', fill(el), 'fill'])
+      for (const el of q('.pv-pin-all')) out.push(['«ثبّت كلهم»', edge(el), 'outline'])
+      return { ground, out }
+    }, LEGS)
+    const bad = [], said = []
+    for (const [what, c, how] of r.out) {
+      const x = ratioOf(rgbOf(c), rgbOf(r.ground))
+      said.push(`${what} ${x.toFixed(2)}`)
+      if (!(x >= 3)) bad.push(`${what} (${how}) ${c} on ${r.ground}: ${x.toFixed(2)}:1`)
+    }
+    ok(`${label} — the new controls stand out from the ground at 3:1 or more: ${[...new Set(said)].join(', ')}`, r.out.length >= 4 && bad.length === 0, bad.join(' | '))
+  }
+
+  await seed({ hf_sessions: HIS })
+  await openFromHome()
+  await toLegs()
+  const note = page.locator(`${LEGS} [data-testid="plan-extra-note"]`)
+  ok('his legs: the day\'s header says «+2 تسويها بالجلسة»', await note.count() === 1 && /\+2\s*تسويها بالجلسة/.test((await note.innerText()).replace(/\s+/g, ' ')),
+    await note.innerText().catch(() => ''))
+  ok('the other days: nothing to say (all they had is in the plan)', await page.locator('[data-testid="plan-extra-note"]').count() === 1
+    && await page.locator('[data-testid="extra-card"]').count() === 2)
+  await shot('390-legs-suggested-top')
+  await toExtras()
+  const secTop = await page.locator(`${LEGS} .pv-extra`).evaluate(el => Math.round(el.getBoundingClientRect().top - el.closest('.pv-page').getBoundingClientRect().top))
+  ok('the note takes him down to them', secTop >= 0 && secTop < 80, `section ${secTop}px under the top of the day`)
+  const cards = page.locator(`${LEGS} [data-testid="extra-card"]`)
+  ok('his legs: the two he does — the abduction and adduction machines — as cards after the plan\'s', await cards.count() === 2
+    && JSON.stringify(await cards.evaluateAll(els => els.map(e => e.dataset.name))) === JSON.stringify([AB, AD])
+    && await page.locator(`${LEGS} .pv-list:not(.pv-xlist) [data-testid="plan-card"]`).count() === 6)
+  const abText = (await extra(AB).innerText()).replace(/\s+/g, ' ')
+  ok('a card: marked «تسويه بالجلسة — مو بخطتك», its names, muscle and tool', /تسويه بالجلسة — مو بخطتك/.test(abText) && /فتح ورك جهاز/.test(abText)
+    && /Machine Hip Abduction/.test(abText) && /أرجل · جهاز/.test(abText), abText)
+  ok('a card: his last weight × reps and the sets he did, and how often', /آخر مرة 32\.5 كجم × 12 عدّة · 3 مجموعات/.test(abText) && /سوّيته بـ3 من آخر 4 جلسات/.test(abText), abText)
+  ok('the one he logged under the mapping\'s «Hip Adduction» is the same machine', /ضم ورك جهاز/.test(await extra(AD).innerText()) && /سوّيته بـ3 من آخر 4/.test(await extra(AD).innerText()))
+  ok('a one-off (the lunge, once in four) is not offered', await extra('Lunge').count() === 0)
+  const ximgs = await cards.locator('.pv-art img').evaluateAll(els => els.map(i => i.src))
+  ok('the cards show the machines\' pictures, from the pack', ximgs.length === 2 && ximgs.every(s => s.startsWith('blob:')), ximgs.join(' '))
+  ok('a card offers «ثبّته بخطتي» and «مو هنا»; «ثبّت كلهم» over the two', await cards.locator('[data-testid="extra-pin"]').count() === 2
+    && await cards.locator('[data-testid="extra-dismiss"]').count() === 2 && await page.locator(`${LEGS} [data-testid="extra-pin-all"]`).count() === 1)
+  const xboxes = await extra(AB).evaluate((c) => [...c.querySelectorAll('*')]
+    .filter(el => !el.closest('button.pv-pin, button.pv-skip') && (() => { const cs = getComputedStyle(el); return !/rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor) || (cs.boxShadow !== 'none' && !el.matches('img')) || cs.borderTopWidth !== '0px' })())
+    .map(el => String(el.className?.baseVal ?? el.className)))
+  ok('a card holds no box inside it (its answers aside)', xboxes.length === 0, xboxes.join(', '))
+  const ground = await extra(AB).evaluate((c) => ({ bg: getComputedStyle(c).backgroundColor, style: getComputedStyle(c).borderTopStyle, plan: getComputedStyle(c.closest('.pv-page').querySelector('[data-testid="plan-card"]')).backgroundColor }))
+  ok('not a plan card: no surface, a dashed edge (a plan card has its surface)', /rgba\(.*,\s*0\)|transparent/.test(ground.bg) && ground.style === 'dashed' && ground.plan !== ground.bg, JSON.stringify(ground))
+  await noAccent('390: «خطتي» with «تسويها بالجلسة»')
+  await uiContrast('390: «تسويها بالجلسة»')
+  await contrast('390: the leg day with «تسويها بالجلسة» (top to bottom)', `${LEGS}`, { scroller: LEGS })
+  await contrast('390: «تسويها بالجلسة» — the note, the heading, the cards and their answers', `${LEGS} .pv-xnote, ${LEGS} .pv-extra`, { scroller: LEGS })
+  await noOverflow('390: «تسويها بالجلسة»')
+  await toExtras()
+  await shot('390-legs-suggested')
+  for (const w of [320, 430]) {
+    await page.setViewportSize({ width: w, height: w === 320 ? 568 : 932 }); await settle(700)
+    await toExtras()
+    await noOverflow(`${w}: «تسويها بالجلسة»`)
+    const fit = await page.evaluate((LEGS) => [...document.querySelectorAll(`${LEGS} .pv-xtag, ${LEGS} .pv-xacts, ${LEGS} .pv-xnote`)].map(el => ({ c: el.className, lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || 20)), over: el.scrollWidth > el.clientWidth + 1 })), LEGS)
+    ok(`${w}: the mark, the answers and the note each keep to their line`, fit.every(x => !x.over) && fit.filter(x => /pv-xtag/.test(x.c)).every(x => x.lines <= 1), JSON.stringify(fit))
+    await uiContrast(`${w}: «تسويها بالجلسة»`)
+    await contrast(`${w}: «تسويها بالجلسة»`, `${LEGS} .pv-extra`, { scroller: LEGS })
+    if (w === 320) { await toExtras(); await shot('320-legs-suggested') }
+  }
+  await page.setViewportSize({ width: 390, height: 844 }); await settle(600)
+
+  // «ثبّته بخطتي» on the abduction machine: into the plan, the card flies up into the list
+  await toExtras()
+  const before = await legsPlan()
+  await extra(AB).locator('[data-testid="extra-pin"]').click()
+  const flying = await page.evaluate((LEGS) => {
+    const el = [...document.querySelectorAll(`${LEGS} .pv-list [data-testid="plan-card"]`)].find(c => c.dataset.name === 'Machine Hip Abduction')
+    return el ? el.getAnimations().map(a => JSON.stringify(a.effect.getKeyframes()[0].transform || '')).filter(t => /translate/.test(t)).length : -1
+  }, LEGS)
+  ok('«ثبّته بخطتي»: the card moves into the plan\'s list (it flies from where it stood)', flying > 0, `animations: ${flying}`)
+  await settle(1200)
+  const after = await legsPlan()
+  const row = after.at(-1)
+  ok('«ثبّته بخطتي»: his leg day has it, at its end — his usual 3 sets, Settings\' 12–15 (not his own), the 90 s rest',
+    after.length === before.length + 1 && row.name === AB && row.muscle === 'Legs' && row.sets === 3 && row.repsMin === 12 && row.repsMax === 15
+    && !row.repsOwn && row.restSeconds === 90, JSON.stringify(row))
+  ok('«ثبّته بخطتي»: free — the day he reached and the streak\'s rule untouched', await get('hf_plan_index') === 7 && !(await get('hf_recovery'))?.lastSettingsChangeAt)
+  ok('«ثبّته بخطتي»: a plan card now, and one card left to pin; the note says «+1 تسويه بالجلسة»',
+    await page.locator(`${LEGS} .pv-list [data-testid="plan-card"][data-name="${AB}"]`).count() === 1 && await cards.count() === 1
+    && /\+1\s*تسويه بالجلسة/.test((await note.innerText()).replace(/\s+/g, ' ')) && await page.locator(`${LEGS} [data-testid="extra-pin-all"]`).count() === 0)
+  const pinnedText = (await page.locator(`${LEGS} .pv-list [data-testid="plan-card"][data-name="${AB}"]`).innerText()).replace(/\s+/g, ' ')
+  ok('the pinned card reads as his plan: 3 × 12–15, راحة 90, last time 32.5 × 12', /12–15/.test(pinnedText) && /90/.test(pinnedText) && /آخر مرة 32\.5 كجم × 12/.test(pinnedText), pinnedText)
+  await contrast('390: the leg day after a pin', `${LEGS}`, { scroller: LEGS })
+  await page.locator(`${LEGS} .pv-list [data-testid="plan-card"][data-name="${AB}"]`).scrollIntoViewIfNeeded(); await settle(400)
+  await shot('390-legs-after-pin')
+  await page.setViewportSize({ width: 320, height: 568 }); await settle(600)
+  await page.locator(`${LEGS} .pv-list [data-testid="plan-card"][data-name="${AB}"]`).scrollIntoViewIfNeeded(); await settle(400)
+  await shot('320-legs-after-pin')
+  await page.setViewportSize({ width: 390, height: 844 }); await settle(500)
+  await closeView()
+
+  // «ثبّت كلهم»: both, in one edit
+  await seed({ hf_sessions: HIS })
+  await openFromHome(); await toLegs(); await toExtras()
+  await page.locator(`${LEGS} [data-testid="extra-pin-all"]`).click(); await settle(1300)
+  const all = await legsPlan()
+  ok('«ثبّت كلهم»: both on his leg day, in the order he does them', all.length === 8 && all[6].name === AB && all[7].name === AD, all.map(x => x.name).join(', '))
+  ok('«ثبّت كلهم»: one edit — «رجّع خطتك القديمة» goes back to the day without them', (await get('hf_plan_prev'))?.plan?.weeklySchedule?.[2]?.exercises?.length === 6)
+  ok('«ثبّت كلهم»: nothing left to pin, the note gone, both plan cards', await cards.count() === 0 && await note.count() === 0
+    && await page.locator(`${LEGS} .pv-list [data-testid="plan-card"]`).count() === 8)
+  await closeView()
+  // the old design reads the plan they went into
+  {
+    const cp = await ctx.newPage()
+    const cerr = []
+    cp.on('pageerror', e => cerr.push(String(e)))
+    await cp.addInitScript(() => localStorage.setItem('meran_design', 'classic'))
+    // its Home shows the day it is on: the leg day, for this look
+    await cp.goto(new URL('/classic/', APP).href); await cp.waitForTimeout(1200)
+    await cp.evaluate(() => localStorage.setItem('hf_plan_index', '2'))
+    await cp.reload(); await cp.waitForTimeout(2200)
+    // (a training day says «عرض التمارين»; after yesterday's session, a rest day says «تمارين الغد»)
+    await cp.evaluate(() => [...document.querySelectorAll('button')].find(b => /عرض التمارين|تمارين الغد/.test(b.textContent))?.click())
+    await cp.waitForTimeout(900)
+    const ctext = await cp.locator('body').innerText()
+    ok('classic: its leg day has the pinned exercises', ctext.includes(AB) && ctext.includes(AD) && ctext.includes('Hack Squat'), ctext.slice(0, 400))
+    ok('classic: no NaN, no page errors', !ctext.includes('NaN') && cerr.length === 0, cerr.join(' | '))
+    await cp.evaluate(() => localStorage.setItem('meran_design', 'new'))
+    await cp.close()
+  }
+
+  // «مو هنا»: not on this day — remembered, the plan untouched
+  await seed({ hf_sessions: HIS })
+  await openFromHome(); await toLegs(); await toExtras()
+  await extra(AD).locator('[data-testid="extra-dismiss"]').click(); await settle(900)
+  ok('«مو هنا»: the card goes, the other stays, his plan untouched', await extra(AD).count() === 0 && await extra(AB).count() === 1 && (await legsPlan()).length === 6)
+  ok('«مو هنا»: remembered for this day (meran_plan_dismissed)', JSON.stringify(await get('meran_plan_dismissed')) === JSON.stringify({ 'machine_beginner_3day|legs — أرجل': ['hip adduction'] }),
+    JSON.stringify(await get('meran_plan_dismissed')))
+  await closeView()
+  await page.reload(); await settle(1300)
+  await openFromHome(); await toLegs()
+  ok('«مو هنا»: opened again, it stays waved off', await extra(AD).count() === 0 && await extra(AB).count() === 1
+    && /\+1\s*تسويه بالجلسة/.test((await note.innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  await closeView()
 }
 
 ok('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))
