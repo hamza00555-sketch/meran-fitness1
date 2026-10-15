@@ -7,11 +7,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as V from '../src/plan/view.js'
 import * as B from '../src/plan/builder.js'
-import { BUILT_IN_PLANS, EXERCISE_ALTERNATIVES, MUSCLE_GROUPS } from '../src/constants.js'
+import { BUILT_IN_PLANS, EXERCISE_ALTERNATIVES, MUSCLE_GROUPS, DEFAULT_EXERCISE_MAPPING } from '../src/constants.js'
 import { validatePlan } from '../src/plan/validate.js'
 import { mediaSlotFor, arabicName } from '../src/exerciseMedia.js'
 import { planTitle } from '../src/plan/title.js'
 import { applyNext } from '../src/reportStory.js'
+import { PER_USER_KEYS } from '../src/utils.js'
 
 const machine = BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')
 const clone = (x) => JSON.parse(JSON.stringify(x))
@@ -267,4 +268,164 @@ test('every alternative a swap can offer has an Arabic name to show', () => {
     for (const x of [...a.muscle, ...a.tool]) if (!arabicName(x)) missing.push(x)
   }
   assert.deepEqual([...new Set(missing)], [])
+})
+
+// ── «تسويها بالجلسة»: what he does on a day that his plan doesn't say ──
+// حمزة: «في خطتي تمارين الرجلين مالقيت تمرين abdication و addactor معناها في
+// تمارين كثير مو مضافه». His plan is the machines plan; its leg day has no
+// hip abduction or adduction, and he adds both in his leg sessions.
+
+const MAP = DEFAULT_EXERCISE_MAPPING
+const DAY_MS = 86400000
+const T0 = Date.parse('2026-10-14T18:00:00Z')
+const sets = (n, w, r) => Array.from({ length: n }, () => ({ weight: String(w), reps: String(r), done: true }))
+const lift = (name, n = 3, w = 30, r = 12, extra = {}) => ({ id: name, name, muscle: 'Legs', sets: sets(n, w, r), ...extra })
+const LEG_ROWS = machine.weeklySchedule[LEGS].exercises.map(e => lift(e.name, e.sets, 60, 10))
+// a planned session, `ago` days back, at the plan's counter `idx` (App stores the day reached)
+const planned = (ago, idx, list, plan = machine) => ({
+  id: T0 - ago * DAY_MS, date: new Date(T0 - ago * DAY_MS).toISOString(), duration: 55,
+  planDayIndex: idx, planDayName: plan.weeklySchedule[idx % plan.weeklySchedule.length].name, exercises: list,
+})
+// His last four leg days (counter 11, 8, 5, 2 — newest first): the abduction
+// machine in three of them (once logged under the mapping's «Hip Abduction»),
+// the adduction machine in three, a sissy squat once; a pull day between.
+const HIS = [
+  planned(1, 11, [...LEG_ROWS, lift('Machine Hip Abduction', 3, 32), lift('Machine Hip Adduction', 3, 27)]),
+  planned(3, 10, [lift('Lat Pulldown', 4, 60), lift('Face Pull', 3, 15)]),
+  planned(5, 8, [...LEG_ROWS, lift('Hip Abduction', 4, 30)]),
+  planned(8, 5, [...LEG_ROWS, lift('Machine Hip Adduction', 3, 25), lift('Sissy Squat', 2, 0, 12)]),
+  planned(12, 2, [...LEG_ROWS, lift('Machine Hip Abduction', 3, 28), lift('Machine Hip Adduction', 3, 25)]),
+]
+const names = (list) => list.map(x => x.name)
+
+test('his case: the abduction and adduction machines, in 3 of his last 4 leg days, are what he does and the plan doesn\'t say', () => {
+  const got = V.doneNotInPlan(machine, LEGS, HIS, { mapping: MAP })
+  assert.deepEqual(names(got), ['Machine Hip Abduction', 'Machine Hip Adduction'])
+  const [ab, ad] = got
+  assert.deepEqual({ count: ab.count, of: ab.of, muscle: ab.muscle, key: ab.key }, { count: 3, of: 4, muscle: 'Legs', key: 'hip abduction' },
+    '«Hip Abduction» and «Machine Hip Abduction» are one exercise (his mapping)')
+  assert.equal(ab.sets, 3, 'the sets he usually does (3, 4, 3)')
+  assert.equal(ad.count, 3)
+  // the other days: pull had one session — what it had is enough (the last one)
+  const all = V.fromSessions(machine, HIS, { mapping: MAP })
+  assert.deepEqual(all.map(names), [[], ['Face Pull'], ['Machine Hip Abduction', 'Machine Hip Adduction']])
+  // never in place
+  assert.equal(machine.weeklySchedule[LEGS].exercises.length, 6)
+})
+
+test('a one-off is not a habit: once in his last four leg days is not offered', () => {
+  const got = names(V.doneNotInPlan(machine, LEGS, HIS, { mapping: MAP }))
+  assert.ok(!got.includes('Sissy Squat') && !got.includes('Assisted Sissy Squat'), got.join(', '))
+  // and only the last four count: twice, but five and six leg days back
+  const old = [
+    planned(1, 14, LEG_ROWS), planned(3, 11, LEG_ROWS), planned(5, 8, LEG_ROWS), planned(7, 5, LEG_ROWS),
+    planned(9, 2, [...LEG_ROWS, lift('Machine Hip Abduction')]), planned(11, 2, [...LEG_ROWS, lift('Machine Hip Abduction')]),
+  ]
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, old, { mapping: MAP }), [])
+  // twice in the four is a habit
+  old[0].exercises = [...LEG_ROWS, lift('Machine Hip Abduction')]
+  old[3].exercises = [...LEG_ROWS, lift('Machine Hip Abduction')]
+  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, old, { mapping: MAP })), ['Machine Hip Abduction'])
+})
+
+test('a day done once or twice: what the last one had', () => {
+  const two = [planned(1, 5, [...LEG_ROWS, lift('Machine Hip Adduction')]), planned(4, 2, [...LEG_ROWS, lift('Machine Hip Abduction')])]
+  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, two, { mapping: MAP })), ['Machine Hip Adduction'], 'the older one\'s alone is not')
+  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, two.slice(1), { mapping: MAP })), ['Machine Hip Abduction'])
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, [], { mapping: MAP }), [])
+})
+
+test('«مو هنا»: a dismissed one is not offered again on that day (and only that day)', () => {
+  const got = V.doneNotInPlan(machine, LEGS, HIS, { mapping: MAP, dismissed: ['hip abduction'] })
+  assert.deepEqual(names(got), ['Machine Hip Adduction'])
+  // stored per day, under the plan and the day's name
+  const stored = V.withDismissed({}, machine, LEGS, 'hip abduction')
+  assert.deepEqual(stored, { [V.dayId(machine, LEGS)]: ['hip abduction'] })
+  assert.equal(V.dayId(machine, LEGS), 'machine_beginner_3day|legs — أرجل')
+  assert.equal(V.DISMISS_KEY, 'meran_plan_dismissed')
+  assert.ok(PER_USER_KEYS.includes(V.DISMISS_KEY), 'his, per user: a data reset clears it')
+  assert.equal(V.withDismissed(stored, machine, LEGS, 'hip abduction'), stored, 'twice is once')
+  const all = V.fromSessions(machine, HIS, { mapping: MAP, dismissed: stored })
+  assert.deepEqual(all.map(names), [[], ['Face Pull'], ['Machine Hip Adduction']])
+  // the pull day's own is still offered, until it is waved off there
+  const pullOff = V.withDismissed(stored, machine, 1, 'face pull')
+  assert.deepEqual(V.fromSessions(machine, HIS, { mapping: MAP, dismissed: pullOff }).map(names), [[], [], ['Machine Hip Adduction']])
+})
+
+test('pinned is in the plan: «ثبّته بخطتي» once, and it is not offered again', () => {
+  const [ab, ad] = V.doneNotInPlan(machine, LEGS, HIS, { mapping: MAP })
+  const one = V.addRow(machine, LEGS, ab, { repTarget: SETTINGS })
+  assert.deepEqual(names(V.doneNotInPlan(one, LEGS, HIS, { mapping: MAP })), ['Machine Hip Adduction'])
+  // «ثبّت كلهم»: both, in one edit
+  const both = V.addRows(machine, LEGS, [ab, ad], { repTarget: SETTINGS })
+  assert.deepEqual(both.weeklySchedule[LEGS].exercises.slice(-2).map(x => x.name), ['Machine Hip Abduction', 'Machine Hip Adduction'])
+  assert.deepEqual(V.doneNotInPlan(both, LEGS, HIS, { mapping: MAP }), [])
+  assert.equal(V.addRows(both, LEGS, [ab, ad]), null, 'nothing new: no edit')
+  assert.equal(V.addRow(both, LEGS, { name: 'Machine Hip Abduction', muscle: 'Legs' }), null, 'never twice on a day')
+})
+
+test('the row «ثبّته بخطتي» writes: his usual sets, the reps on Settings, the player\'s rest — a row both designs and the builder read', () => {
+  const [ab] = V.doneNotInPlan(machine, LEGS, HIS, { mapping: MAP })
+  const plan = V.addRow(machine, LEGS, ab, { repTarget: SETTINGS })
+  const row = plan.weeklySchedule[LEGS].exercises[6]
+  assert.deepEqual(row, { name: 'Machine Hip Abduction', muscle: 'Legs', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90, by: 'user', equip: 'machine', part: 'glutes' })
+  assert.equal(validatePlan(plan), null)
+  // the reps rule: not his own, so it follows Settings wherever Settings goes
+  const eff = V.effectiveRow(plan, LEGS, 6, { repTarget: { id: 'custom', base: 8, top: 12 } })
+  assert.equal(eff.own, false)
+  assert.deepEqual(eff.reps, { base: 8, top: 12 })
+  assert.equal(eff.rest, 90)
+  assert.equal(eff.extra, 0, 'a new row says no «مجموعة زيادة»')
+  assert.equal(eff.swap, null)
+  // the builder opens it and saves it back as it is
+  const st = B.fromHfPlan(plan, { days: 4 })
+  const cfg = { days: 4, goal: 'muscle', eq: st.eq, excluded: new Set(), dismissed: new Set(), picks: st.picks, mtool: {}, cycle: st.cycle, split: st.split, keepOrder: true }
+  const again = B.toHfPlan(B.buildFromPicks(cfg), cfg, { today: '2026-10-15', base: plan })
+  const back = again.weeklySchedule[LEGS].exercises.find(x => x.name === 'Machine Hip Abduction')
+  assert.ok(back, 'still on the leg day')
+  assert.deepEqual([back.sets, back.repsMin, back.repsMax, back.restSeconds, back.repsOwn], [3, 12, 15, 90, undefined])
+  assert.equal(validatePlan(again), null)
+  // the original is untouched
+  assert.equal(machine.weeklySchedule[LEGS].exercises.length, 6)
+  // a name the app can't place in a group needs its muscle
+  assert.equal(V.addRow(machine, LEGS, { name: 'Zercher Hold' }), null)
+  assert.equal(V.addRow(machine, LEGS, { name: 'Zercher Hold', muscle: 'Legs', sets: 9 }).weeklySchedule[LEGS].exercises[6].sets, 6, 'sets stay 1–6')
+})
+
+test('after his swaps: what the session runs instead of a plan row is the plan\'s, not an addition', () => {
+  const alt = EXERCISE_ALTERNATIVES['Leg Press'][1]       // a remembered swap: Leg Press → its second alternative
+  const subs = { 'Leg Press': 2 }
+  const rows = LEG_ROWS.filter(x => x.name !== 'Leg Press')
+  const ran = [1, 4, 7, 10].map((ago, k) => planned(ago, 2 + 3 * (3 - k), [...rows, lift(alt, 4, 60, 10, { originalName: 'Leg Press' })]))
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, ran, { subs, mapping: MAP }), [], 'the swap he keeps')
+  // the plan's own, from before he swapped it: not offered back
+  const before = [1, 4, 7, 10].map((ago, k) => planned(ago, 2 + 3 * (3 - k), LEG_ROWS))
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, before, { subs, mapping: MAP }), [])
+  // a swap written into the plan: what it replaced is not offered back either
+  const written = V.swapRow(machine, LEGS, 1, 'Barbell Squat')
+  assert.deepEqual(V.doneNotInPlan(written, LEGS, before, { mapping: MAP }), [])
+  // «بس هالمرة»: the machine taken, another in its place for the session
+  const once = [1, 4, 7].map((ago, k) => planned(ago, 2 + 3 * (2 - k), [...LEG_ROWS.slice(1), lift('Goblet Squat', 3, 20, 12, { originalName: 'Hack Squat' })]))
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, once, { mapping: MAP }), [])
+})
+
+test('which day a saved session was: its day\'s name first, the counter only between two of one name', () => {
+  const legs = machine.weeklySchedule[LEGS].name
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 11, planDayName: legs }), LEGS)
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 0, planDayName: legs }), LEGS, 'the counter starts again with a new plan; the name doesn\'t')
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 4 }), 1, 'no name: the counter')
+  assert.equal(V.sessionPlanDay(machine, {}), null, 'a free session')
+  assert.equal(V.sessionPlanDay(machine, { name: 'Pull Day 🗂️' }), null, 'a routine')
+  // another plan's day (or a day renamed since): the one day of its kind
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 5, planDayName: 'Legs B — أرجل' }), LEGS)
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 0, planDayName: 'Push A — صدر، أكتاف، ترايسبس' }), 0)
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 3, planDayName: 'Upper A — صدر، ظهر' }), null, 'nothing like it')
+  // two leg days: the variant, else the counter, else not a guess
+  const ppl = BUILT_IN_PLANS.find(p => p.planId === 'ppl_alex_lueth_v2')
+  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 0, planDayName: 'Legs B — أرجل' }), 5)
+  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 2, planDayName: legs }), 2)
+  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 0, planDayName: legs }), null)
+  // free sessions and other days never count for a day
+  const free = [1, 2, 3].map(ago => ({ ...planned(ago, 2, [lift('Machine Hip Abduction')]), planDayIndex: undefined, planDayName: undefined }))
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, free, { mapping: MAP }), [])
 })

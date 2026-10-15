@@ -28,8 +28,9 @@
 // edit of his own plan: free for the streak, the day he reached kept.
 
 import { EXERCISE_ALTERNATIVES, MUSCLE_GROUPS, BUILT_IN_PLANS } from '../constants.js'
-import { substitutedName } from '../utils.js'
-import { effectiveRepTarget, DEFAULT_REP_TARGET } from '../progression.js'
+import { substitutedName, resolveExerciseName, planDayType } from '../utils.js'
+import { normalizeSession } from '../sets.js'
+import { effectiveRepTarget, repTargetOf, DEFAULT_REP_TARGET } from '../progression.js'
 import { entryForName, EX, EQ } from './catalogue.js'
 import { mediaSlotFor } from '../exerciseMedia.js'
 
@@ -422,4 +423,197 @@ export function sessionDay(plan, active) {
   const i = Number(active?.planDayIndex)
   if (!n || active?.planDayIndex == null || !Number.isFinite(i)) return null
   return ((i % n) + n) % n
+}
+
+// ── «تسويها بالجلسة»: what he does on a day that his plan doesn't say ──
+//
+// حمزة: «في خطتي تمارين الرجلين مالقيت تمرين abdication و addactor معناها في
+// تمارين كثير مو مضافه» (the hip abduction and adduction machines). He adds
+// them in the session (⋯ › إضافة تمرين), and
+// until now nothing of that reached his plan, so «خطتي» showed less than he
+// really does. These find, per plan day, the exercises his recent sessions
+// of that day had and the day hasn't — offered under the day's cards to
+// pin («ثبّته بخطتي»: addRow, through the same commit as every edit) or
+// to wave off («مو هنا», remembered under DISMISS_KEY, a key of the new
+// design's own).
+
+export const FROM_SESSIONS_WINDOW = 4
+/** { [dayId]: [exercise key, …] } — what «مو هنا» waved off, per plan day. */
+export const DISMISS_KEY = 'meran_plan_dismissed'
+
+const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+
+/** The kind of day a day's label says: «Legs A — أرجل» → { base: 'legs', v: 'a' }. */
+function kindOf(day) {
+  const t = norm(planDayType(day)).replace(/\s+day$/, '')
+  const m = t.match(/^(.*?)[\s-]+([a-z]|\d{1,2})$/)
+  return m ? { base: m[1], v: m[2] } : { base: t, v: '' }
+}
+
+/**
+ * The day of the plan (0…n−1) a saved session was a session of, or null
+ * (a free session, or a day this plan has nothing like). What a planned
+ * session stores (App.startPlannedWorkout, both designs): planDayName, the
+ * day's name, and planDayIndex, the day reached — a counter that grows
+ * past the cycle and starts again at 0 with each new plan. So the name
+ * decides; the counter only tells apart two days of one name. A day
+ * renamed since (or a session of another plan) goes to the one day of the
+ * same kind («Legs A» → «Legs»), the counter choosing among several.
+ */
+export function sessionPlanDay(plan, s) {
+  const days = Array.isArray(plan?.weeklySchedule) ? plan.weeklySchedule : []
+  const n = days.length
+  if (!n || !s) return null
+  const i = Number(s.planDayIndex)
+  const at = s.planDayIndex != null && Number.isFinite(i) ? ((Math.round(i) % n) + n) % n : null
+  const name = norm(s.planDayName)
+  if (!name) return at
+  const same = days.map((d, k) => (norm(d?.name) === name ? k : -1)).filter(k => k >= 0)
+  if (same.length) return same.includes(at) ? at : same[0]
+  const want = kindOf({ name: s.planDayName, exercises: s.exercises })
+  if (!want.base) return null
+  let kin = days.map((d, k) => [k, kindOf(d)]).filter(([, k]) => k.base === want.base)
+  const exact = kin.filter(([, k]) => k.v === want.v)
+  if (exact.length) kin = exact
+  const ids = kin.map(([k]) => k)
+  if (ids.includes(at)) return at
+  return ids.length === 1 ? ids[0] : null
+}
+
+/** Where «مو هنا» is kept for a day: the plan and the day's name. */
+export const dayId = (plan, d) => `${plan?.planId || 'plan'}|${norm(plan?.weeklySchedule?.[d]?.name) || d}`
+
+/** The usual: the count he did most often, the latest on a tie (newest first). */
+function usual(list) {
+  const seen = new Map()
+  list.forEach((v, i) => { const c = seen.get(v); seen.set(v, { n: (c?.n || 0) + 1, first: c ? c.first : i }) })
+  let best = null
+  for (const [v, c] of seen) if (!best || c.n > best.n || (c.n === best.n && c.first < best.first)) best = { v, ...c }
+  return best ? best.v : 3
+}
+
+/** The name to pin: one the app has a picture for, under his mapping's same exercise. */
+function pinName(logged, key, mapping) {
+  if (mediaSlotFor(logged)) return logged
+  for (const g of Object.values(MUSCLE_GROUPS)) {
+    for (const x of g.exercises || []) if (resolveExerciseName(x.name, mapping) === key && mediaSlotFor(x.name)) return x.name
+  }
+  for (const x of EX) if (resolveExerciseName(x.en, mapping) === key && mediaSlotFor(x.en)) return x.en
+  return catalogueName(logged)
+}
+
+/**
+ * The exercises he did in his recent sessions of day `d` that the day
+ * doesn't have. Pure.
+ *
+ *   «the day has it» — after his remembered swaps, by the alias mapping
+ *       (Hip Abduction = Machine Hip Abduction), counting also what the
+ *       day had before a swap (he swapped it away on purpose) and a
+ *       session's «بس هالمرة» swap of one of its rows
+ *   the rule — of the day's last `window` (4) sessions, done in at least
+ *       2; when the day has only been done once or twice, done in the last
+ *   dismissed — keys «مو هنا» waved off for this day
+ *
+ * Each: { key, name, muscle, count, of, sets } — name: the one to pin (a
+ * name the app has a picture for); count of `of` sessions; sets: the
+ * number of sets he usually does on it. Most often first, then in the
+ * order he does them.
+ */
+export function doneNotInPlan(plan, d, sessions, { subs = {}, mapping = {}, dismissed = [], window = FROM_SESSIONS_WINDOW } = {}) {
+  const day = plan?.weeklySchedule?.[d]
+  if (!day) return []
+  const keyOf = (n) => resolveExerciseName(String(n || ''), mapping)
+  const idOf = (n) => { const e = entryForName(n); return e && !e.foreign ? e.id : null }
+  const known = new Set(), knownIds = new Set()
+  const know = (n) => { if (!n) return; known.add(keyOf(n)); const id = idOf(n); if (id) knownIds.add(id) }
+  ;(day.exercises || []).forEach((ex, j) => {
+    const r = effectiveRow(plan, d, j, { subs })
+    know(ex.name); know(ex.was?.name); know(r?.name); know(r?.swap?.from)
+  })
+  const inDay = (n) => known.has(keyOf(n)) || (idOf(n) != null && knownIds.has(idOf(n)))
+
+  const when = (s) => Number(s?.id) || Date.parse(s?.date) || 0
+  const mine = (sessions || [])
+    .filter(s => sessionPlanDay(plan, s) === d)
+    .sort((a, b) => when(b) - when(a))
+    .map(s => normalizeSession(s))
+    .filter(Boolean)
+    .slice(0, Math.max(1, window))
+  if (!mine.length) return []
+
+  const skip = new Set((dismissed || []).map(String))
+  const tally = new Map()
+  mine.forEach((s, si) => {
+    const here = new Set()
+    ;(s.exercises || []).forEach((ex, pos) => {
+      if (!ex?.name || inDay(ex.name) || (ex.originalName && inDay(ex.originalName))) return
+      const key = keyOf(ex.name)
+      if (!key || here.has(key)) return
+      here.add(key)
+      let t = tally.get(key)
+      if (!t) { t = { key, logged: ex.name, muscle: ex.muscle, count: 0, latest: si, pos, sets: [] }; tally.set(key, t) }
+      t.count += 1
+      t.sets.push((ex.sets || []).length)
+    })
+  })
+  const few = mine.length <= 2
+  return [...tally.values()]
+    .filter(t => (few ? t.latest === 0 : t.count >= 2) && !skip.has(t.key))
+    .sort((a, b) => b.count - a.count || a.latest - b.latest || a.pos - b.pos)
+    .map(t => {
+      const name = pinName(t.logged, t.key, mapping)
+      const muscle = MUSCLE_GROUPS[t.muscle] ? t.muscle : muscleOf(name, null)
+      return {
+        key: t.key, name, muscle: MUSCLE_GROUPS[muscle] ? muscle : null,
+        count: t.count, of: mine.length,
+        sets: Math.max(MIN_SETS, Math.min(MAX_SETS, usual(t.sets))),
+      }
+    })
+}
+
+/** doneNotInPlan for every day of the plan; `dismissed` the stored { [dayId]: keys }. */
+export function fromSessions(plan, sessions, { dismissed = {}, ...opts } = {}) {
+  const days = Array.isArray(plan?.weeklySchedule) ? plan.weeklySchedule : []
+  return days.map((_, d) => doneNotInPlan(plan, d, sessions, { ...opts, dismissed: dismissed?.[dayId(plan, d)] || [] }))
+}
+
+/** The stored «مو هنا» with one more key for day `d`. */
+export function withDismissed(stored, plan, d, key) {
+  const id = dayId(plan, d)
+  const cur = Array.isArray(stored?.[id]) ? stored[id] : []
+  return cur.includes(key) ? (stored || {}) : { ...(stored || {}), [id]: [...cur, key] }
+}
+
+/**
+ * A new row at the end of day `d`, as the builder writes one: his sets,
+ * the reps on Settings (the range written, not his own — repsOwn only
+ * when he steps it), the player's rest, the tool and the part of the leg.
+ * Null when the day already has it, or for a name with no muscle group.
+ */
+export function addRow(plan, d, { name, muscle = null, sets = 3 } = {}, { repTarget = DEFAULT_REP_TARGET } = {}) {
+  const day = plan?.weeklySchedule?.[d]
+  const to = String(name || '').trim()
+  if (!day || !to) return null
+  if ((day.exercises || []).some(x => lc(x.name) === lc(to))) return null
+  const m = MUSCLE_GROUPS[muscle] ? muscle : muscleOf(to, null)
+  if (!MUSCLE_GROUPS[m]) return null
+  const rt = repTargetOf(repTarget || DEFAULT_REP_TARGET)
+  const row = retag({
+    name: to, muscle: m,
+    sets: Math.max(MIN_SETS, Math.min(MAX_SETS, Math.round(Number(sets) || 3))),
+    repsMin: rt.base, repsMax: rt.top, restSeconds: DEFAULT_REST, by: 'user',
+  }, to)
+  if (row.unit === 'min') row.restSeconds = 0
+  return insertRow(plan, d, (day.exercises || []).length, row)
+}
+
+/** Several rows at once (one edit, one undo): each that the day doesn't have yet. */
+export function addRows(plan, d, rows, opts) {
+  let next = plan
+  let any = false
+  for (const r of rows || []) {
+    const p = addRow(next, d, r, opts)
+    if (p) { next = p; any = true }
+  }
+  return any ? next : null
 }

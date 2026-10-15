@@ -74,6 +74,10 @@ export const PER_USER_KEYS = [
   // builder's own memory (the tools picked per muscle, the swipe hint
   // seen). Both new in the redesign; the old design never reads them.
   'hf_plan_prev', 'meran_planner',
+  // «خطتي»'s «مو هنا»: what he waved off of «تسويها بالجلسة», per plan day
+  // (src/plan/view.js DISMISS_KEY). New in the redesign; the old design
+  // never reads it.
+  'meran_plan_dismissed',
 ]
 
 export const deleteUserData = (id) => {
