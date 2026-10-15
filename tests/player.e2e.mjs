@@ -3054,6 +3054,128 @@ const timeline = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// ══ «إضافة تمرين» / «إضافة مجموعة» in a plan day: for this time, or his plan ══
+// حمزة: «في خطتي تمارين الرجلين مالقيت تمرين abdication و addactor». He adds
+// them in the session, and that never reached his plan. Now, in a plan day's
+// session, the add sheet asks as the swap does: «بس هالمرة» (green, the
+// default) or «دايماً بخطتي» (into today's day of his plan, free); a set more
+// than his plan has asks quietly under the sets. A free session asks nothing.
+{
+  const SHOTS = process.env.SHOTS || OUT
+  mkdirSync(SHOTS, { recursive: true })
+  const machine = JSON.parse(JSON.stringify(BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')))
+  const legsNow = () => page.evaluate(() => JSON.parse(localStorage.getItem('hf_plan')).weeklySchedule[2].exercises)
+  const { ctx, page, errors } = await open({ active: null, sessions: [], viewport: { width: 390, height: 844 },
+    extra: { hf_plan: machine, hf_plan_index: 2, hf_rep_target: { id: 'volume', base: 12, top: 15 }, hf_recovery: { daysPerWeek: 3 } } })
+  await page.getByRole('button', { name: 'ابدأ التمرين' }).first().click()
+  await page.locator('[data-testid="session"]').waitFor({ timeout: 6000 }).catch(() => {})
+  await page.waitForTimeout(900)
+  const a0 = await activeStored(page)
+  ok('plan add: the session is his leg day (the counter at 2)', a0?.planDayIndex === 2 && a0.exercises[0].name === 'Hack Squat', JSON.stringify(a0?.exercises?.map(e => e.name)))
+  const addSheet = async (name) => {
+    await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await page.waitForTimeout(600)
+    await page.locator('.k-sheet').last().getByRole('button', { name: /إضافة تمرين/ }).click(); await page.waitForTimeout(800)
+    await page.locator('.k-sheet .ax-chips button').filter({ hasText: 'الأرجل' }).click(); await page.waitForTimeout(300)
+    await page.locator('.k-sheet .k-row').filter({ hasText: name }).first().click(); await page.waitForTimeout(500)
+  }
+  await addSheet('Machine Hip Abduction')
+  const foot = page.locator('[data-testid="add-foot"]')
+  const once = page.locator('[data-testid="add-once"]'), always = page.locator('[data-testid="add-always"]')
+  const footText = (await foot.innerText().catch(() => '')).replace(/\s+/g, ' ')
+  ok('plan add: picked, the sheet asks as the swap does — «بس هالمرة» and «دايماً بخطتي»',
+    await once.count() === 1 && await always.count() === 1 && /أضف فتح ورك جهاز للجلسة/.test(footText) && /ليوم أرجل بخطتك/.test(footText), footText)
+  const looks = await page.evaluate(() => {
+    const cs = (s) => getComputedStyle(document.querySelector(s))
+    const o = document.querySelector('[data-testid="add-once"]').getBoundingClientRect(), a = document.querySelector('[data-testid="add-always"]').getBoundingClientRect()
+    return { once: cs('[data-testid="add-once"]').backgroundColor, always: cs('[data-testid="add-always"]').backgroundColor, onceFirst: o.left > a.left }
+  })
+  ok('plan add: «بس هالمرة» is the green one, first (on the right); «دايماً بخطتي» beside it, not green',
+    looks.once === ACCENT && looks.always !== ACCENT && looks.onceFirst, JSON.stringify(looks))
+  await page.screenshot({ path: `${SHOTS}/390-session-add-prompt.png` })
+  await page.setViewportSize({ width: 320, height: 568 }); await page.waitForTimeout(500)
+  // (what a scrolling row clips — the muscle chips — is fine)
+  const over = await page.evaluate(() => [...document.querySelectorAll('.k-sheet *')].filter(el => {
+    const r = el.getBoundingClientRect()
+    if (!r.width || !r.height) return false
+    let left = r.left, right = r.right
+    for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      if (getComputedStyle(a).overflowX !== 'visible') { const b = a.getBoundingClientRect(); left = Math.max(left, b.left); right = Math.min(right, b.right) }
+    }
+    return right > left && (right > innerWidth + 1 || left < -1)
+  }).map(el => el.className).slice(0, 3))
+  ok('plan add: at 320 nothing in the sheet sticks out', over.length === 0, over.join(' | '))
+  const fits = await page.evaluate(() => [...document.querySelectorAll('[data-testid="add-foot"] .k-btn')].every(b => b.scrollWidth <= b.clientWidth + 1))
+  ok('plan add: at 320 both answers fit their buttons', fits)
+  await page.screenshot({ path: `${SHOTS}/320-session-add-prompt.png` })
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(400)
+  await always.click(); await page.waitForTimeout(900)
+  const legs1 = await legsNow()
+  const added = legs1.find(x => x.name === 'Machine Hip Abduction')
+  ok('«دايماً بخطتي»: his leg day has it now — 3 sets, Settings\' 12–15 (not his own), the 90 s rest', !!added && legs1.length === 7
+    && added.sets === 3 && added.repsMin === 12 && added.repsMax === 15 && !added.repsOwn && added.restSeconds === 90 && added.muscle === 'Legs', JSON.stringify(added))
+  const a1 = await activeStored(page)
+  ok('«دايماً بخطتي»: and the session has it, at its end', a1.exercises.at(-1).name === 'Machine Hip Abduction' && a1.exercises.at(-1).sets.length === 3)
+  ok('«دايماً بخطتي»: free — the day he reached and the streak\'s rule untouched',
+    await page.evaluate(() => JSON.parse(localStorage.getItem('hf_plan_index'))) === 2
+    && !(await page.evaluate(() => JSON.parse(localStorage.getItem('hf_recovery'))))?.lastSettingsChangeAt)
+
+  await addSheet('Machine Hip Adduction')
+  await once.click(); await page.waitForTimeout(900)
+  const legs2 = await legsNow()
+  const a2 = await activeStored(page)
+  ok('«بس هالمرة»: the session has it', a2.exercises.at(-1).name === 'Machine Hip Adduction')
+  ok('«بس هالمرة»: his plan untouched', legs2.length === 7 && !legs2.some(x => x.name === 'Machine Hip Adduction'), legs2.map(x => x.name).join(', '))
+
+  // one the day already has: nothing to ask
+  await addSheet('Leg Extension')
+  ok('one his day already has: the one «أضف» button, no «دايماً بخطتي»', await always.count() === 0 && await foot.count() === 0
+    && /أضف/.test(await page.locator('.k-sheet .k-btn-primary').last().innerText()))
+  await page.locator('.k-sheet [aria-label="إغلاق"]').last().click(); await page.waitForTimeout(600)
+
+  // «إضافة مجموعة» on the hack squat (4 in his plan): asked under its sets
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await page.waitForTimeout(600)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /إضافة مجموعة/ }).click(); await page.waitForTimeout(900)
+  const ask = page.locator('[data-testid="set-ask"]')
+  const askText = (await ask.innerText().catch(() => '')).replace(/\s+/g, ' ')
+  ok('a set more than his plan: a small question under the sets — «خطتك فيها 4 مجموعات», «دايماً بخطتي»',
+    await ask.count() === 1 && /زدت مجموعة لهالجلسة/.test(askText) && /خطتك فيها 4 مجموعات/.test(askText)
+    && (await activeStored(page)).exercises[0].sets.length === 5, askText)
+  await page.screenshot({ path: `${SHOTS}/390-session-set-ask.png` })
+  await page.locator('[data-testid="set-ask-always"]').click(); await page.waitForTimeout(700)
+  const hack = (await legsNow())[0]
+  ok('«دايماً بخطتي» (a set): the hack squat has 5 in his plan, noting the 4 it had', hack.name === 'Hack Squat' && hack.sets === 5 && hack.was?.sets === 4, JSON.stringify(hack))
+  ok('«دايماً بخطتي» (a set): it says so — «صارت 5 مجموعات بخطتك»', /صارت 5 مجموعات بخطتك/.test((await ask.innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  await page.waitForTimeout(2800)
+  ok('…and goes', await ask.count() === 0)
+  // × is «بس هالمرة»: the plan keeps its number
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await page.waitForTimeout(600)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /إضافة مجموعة/ }).click(); await page.waitForTimeout(900)
+  ok('another set more: asked again, against the 5 now in his plan', /خطتك فيها 5 مجموعات/.test((await ask.innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  await page.locator('[data-testid="set-ask-close"]').click(); await page.waitForTimeout(500)
+  ok('×: gone, his plan keeps 5', await ask.count() === 0 && (await legsNow())[0].sets === 5 && (await activeStored(page)).exercises[0].sets.length === 6)
+  ok('plan add: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  // a free session: nothing of his plan to ask about
+  const machine = BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')
+  const { ctx, page, errors } = await open({ extra: { hf_plan: machine, hf_plan_index: 2 } })
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await page.waitForTimeout(600)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /إضافة تمرين/ }).click(); await page.waitForTimeout(800)
+  await page.locator('.k-sheet .ax-chips button').filter({ hasText: 'الأرجل' }).click(); await page.waitForTimeout(300)
+  await page.locator('.k-sheet .k-row').filter({ hasText: 'Machine Hip Abduction' }).first().click(); await page.waitForTimeout(500)
+  ok('free session: adding asks nothing — the one «أضف» button', await page.locator('[data-testid="add-always"]').count() === 0
+    && /أضف/.test(await page.locator('.k-sheet .k-btn-primary').last().innerText()))
+  await page.locator('.k-sheet .k-btn-primary').last().click(); await page.waitForTimeout(700)
+  ok('free session: added to the session, his plan untouched', (await activeStored(page)).exercises.at(-1).name === 'Machine Hip Abduction'
+    && (await page.evaluate(() => JSON.parse(localStorage.getItem('hf_plan')).weeklySchedule[2].exercises.length)) === 6)
+  await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await page.waitForTimeout(600)
+  await page.locator('.k-sheet').last().getByRole('button', { name: /إضافة مجموعة/ }).click(); await page.waitForTimeout(700)
+  ok('free session: a set added asks nothing', await page.locator('[data-testid="set-ask"]').count() === 0)
+  ok('free session add: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT}\n`)

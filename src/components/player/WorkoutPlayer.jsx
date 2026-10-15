@@ -9,6 +9,7 @@ import ExerciseQueue from './ExerciseQueue.jsx'
 import InlineRest from './InlineRest.jsx'
 import PRMoment from './PRMoment.jsx'
 import SessionMedia from './SessionMedia.jsx'
+import SetAsk from './SetAsk.jsx'
 import { primeAudio } from './sessionAudio.js'
 import { play } from '../../sound.js'
 import { haptic } from '../../haptics.js'
@@ -177,6 +178,7 @@ export default function WorkoutPlayer({
   getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapOptions,
   onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwapTo,
   onAddExercise, onRequestFinish, onDiscard, onCloseRest, onOpenPlan,
+  setAsk = null, onSetAskAlways, onSetAskClose,
 }) {
   const [index, setIndex] = useState(() => Math.max(0, firstUnfinished(exercises)))
   const [editingSet, setEditingSet] = useState(null)   // { exId, si }
@@ -736,6 +738,10 @@ export default function WorkoutPlayer({
           />
         ) : (
           <p className="s-note">ما فيه مجموعات — أضف مجموعة من <span aria-hidden="true">⋯</span>.</p>
+        )}
+
+        {setAsk && setAsk.exId === ex.id && editing == null && (
+          <SetAsk key={`${setAsk.exId}:${setAsk.n}`} ask={setAsk} onAlways={onSetAskAlways} onClose={onSetAskClose} />
         )}
 
         {exComplete && editing == null && summary && (

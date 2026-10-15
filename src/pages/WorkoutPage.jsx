@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Button, ConfirmSheet, EmptyState, Num } from '../components/kit/index.jsx'
 import { Barbell, Plus, ListChecks } from '../components/kit/icons.js'
 import WorkoutPlayer from '../components/player/WorkoutPlayer.jsx'
@@ -7,10 +7,10 @@ import FinishSheet from '../components/player/FinishSheet.jsx'
 import { dayWord, previousSets, setsPhrase } from '../components/player/sessionWords.js'
 import AddExerciseModal from '../components/AddExerciseModal.jsx'
 import RoutinesModal from '../components/RoutinesModal.jsx'
-import { buildExercise, blankSet, getExerciseStats, suggestedWeightFor, markSetDone, resolveExerciseName } from '../utils.js'
+import { buildExercise, blankSet, getExerciseStats, suggestedWeightFor, markSetDone, resolveExerciseName, substitutedName } from '../utils.js'
 import { deloadWeight } from '../deload.js'
-import { MUSCLE_GROUPS } from '../constants.js'
-import { rankAlternatives, findPlanRow, sessionDay, swapRow, muscleOf } from '../plan/view.js'
+import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
+import { rankAlternatives, findPlanRow, sessionDay, swapRow, muscleOf, addRow, setRowSets, MAX_SETS } from '../plan/view.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
 import { toWesternDigits } from '../day.js'
 import '../styles/screens/session.css'
@@ -25,6 +25,11 @@ import '../styles/screens/session.css'
 // While it is open the screen stays awake (Wake Lock, where the
 // platform has it), so the rest countdown and its tones keep running.
 
+// «إضافة مجموعة»'s question: up this long, then gone (= «بس هالمرة»);
+// its «انحفظت» answer a moment.
+const SET_ASK_MS = 9000
+const SET_ASK_DONE_MS = 2400
+
 export default function WorkoutPage({
   active, sessions, onUpdateActive, onFinish, onFinishing, onShowRest, onCloseRest, addXP, onGoBack,
   onMinimize, isResting, exerciseMapping = {}, repTarget = DEFAULT_REP_TARGET,
@@ -34,6 +39,16 @@ export default function WorkoutPage({
   const [showRoutines,  setShowRoutines]  = useState(false)
   const [askFinish,     setAskFinish]     = useState(false)
   const [askDiscard,    setAskDiscard]    = useState(false)
+  // «إضافة مجموعة» on a plan exercise: a small question under its sets —
+  // keep the extra set in the plan too? { exId, n, from, done } while up.
+  const [setAsk,        setSetAsk]        = useState(null)
+  const askTimer = useRef(0)
+  useEffect(() => () => clearTimeout(askTimer.current), [])
+  const showAsk = (ask, ms) => {
+    clearTimeout(askTimer.current)
+    setSetAsk(ask)
+    if (ask) askTimer.current = setTimeout(() => setSetAsk(null), ms)
+  }
 
   // «إنهاء» asked: whatever the summary will show starts getting ready
   // while the sheet is up (App builds the medal stage ahead).
@@ -134,12 +149,30 @@ export default function WorkoutPage({
     updateEx(exId, ex => ({ ...ex, sets: markSetDone(ex.sets, si, done) }))
   }
 
-  const handleAddSet = (exId) =>
+  const handleAddSet = (exId) => {
     updateEx(exId, ex => {
       const prev = ex.sets.at(-1)?.weight || ''
       const prevReps = ex.sets[ex.sets.length - 1]?.reps || ''
       return { ...ex, sets: [...ex.sets, blankSet(prev, prevReps)] }
     })
+    // One more than his plan has for it: ask, quietly, whether for good.
+    // Ignoring it is «بس هالمرة»: the question goes by itself.
+    const ex = exercises.find(e => e.id === exId)
+    const at = ex && onEditPlan ? planRowOf(ex) : null
+    if (!at) return
+    const from = Number(plan.weeklySchedule[at.d].exercises[at.j].sets) || 3
+    const n = ex.sets.length + 1
+    if (n > from && n <= MAX_SETS) showAsk({ exId, n, from, done: false }, SET_ASK_MS)
+  }
+  // «دايماً بخطتي»: the plan's row gets the sets this session has now.
+  const handleSetAskAlways = () => {
+    const ask = setAsk
+    if (!ask || ask.done) return
+    const ex = exercises.find(e => e.id === ask.exId)
+    const at = ex ? planRowOf(ex) : null
+    if (at) onEditPlan?.(setRowSets(plan, at.d, at.j, ask.n))
+    showAsk({ ...ask, done: true }, SET_ASK_DONE_MS)
+  }
 
   const handleRemoveSet = (exId, si) =>
     updateEx(exId, ex => ({ ...ex, sets: ex.sets.filter((_, i) => i !== si) }))
@@ -227,7 +260,28 @@ export default function WorkoutPage({
     }))
   }
 
-  const handleAddExercise = ({ muscle, name, numSets }) => {
+  // «إضافة تمرين». In a plan day's session the sheet asks as the swap
+  // does: «بس هالمرة» adds it to this session; «دايماً بخطتي» to today's
+  // day of his plan as well (addRow: his sets, the reps on Settings, the
+  // player's rest — App's editPlan, free for the streak). Not offered for
+  // one the day already has (after his remembered swaps, by his mapping).
+  const today = sessionDay(plan, active)
+  const dayRows = today != null ? (plan?.weeklySchedule?.[today]?.exercises || []) : []
+  const word = dayWord(active)
+  const addAlways = onEditPlan && today != null ? {
+    can: (name) => {
+      const k = resolveExerciseName(name, exerciseMapping)
+      return !!k && !dayRows.some(x => resolveExerciseName(x.name, exerciseMapping) === k
+        || resolveExerciseName(substitutedName(x.name, exerciseSubs, EXERCISE_ALTERNATIVES), exerciseMapping) === k)
+    },
+    note: `«بس هالمرة» لهالجلسة بس. «دايماً» ينضاف ليوم ${word === 'تمرين' ? 'تمرينك' : word} بخطتك وما يلمس الستريك.`,
+  } : null
+
+  const handleAddExercise = ({ muscle, name, numSets, always = false }) => {
+    if (always && addAlways?.can(name)) {
+      const next = addRow(plan, today, { name, muscle, sets: numSets }, { repTarget })
+      if (next) onEditPlan?.(next)
+    }
     const ex = buildExercise({ muscle, name, numSets, prevWeight: getLastW(name), prevReps: getSuggestedReps(name) })
     onUpdateActive(prev => ({ ...prev, exercises: [...prev.exercises, ex] }))
     setShowAdd(false)
@@ -330,6 +384,9 @@ export default function WorkoutPage({
           onStepSet={handleStepSet}
           onDoneSet={handleDoneSet}
           onAddSet={handleAddSet}
+          setAsk={setAsk}
+          onSetAskAlways={handleSetAskAlways}
+          onSetAskClose={() => showAsk(null)}
           onRemoveSet={handleRemoveSet}
           onRemoveEx={handleRemoveEx}
           onMoveSet={handleMoveSet}
@@ -364,7 +421,7 @@ export default function WorkoutPage({
         onConfirm={discard}
       />
 
-      {showAdd      && <AddExerciseModal onAdd={handleAddExercise} onClose={() => setShowAdd(false)} />}
+      {showAdd      && <AddExerciseModal always={addAlways} onAdd={handleAddExercise} onClose={() => setShowAdd(false)} />}
       {showRoutines && <RoutinesModal onSelect={handleLoadRoutine} onClose={() => setShowRoutines(false)} />}
     </div>
   )

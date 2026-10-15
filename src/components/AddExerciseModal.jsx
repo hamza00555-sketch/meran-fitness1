@@ -11,8 +11,14 @@ import './../styles/screens/session-sheets.css'
 // it in the Latin face — a custom name when the list lacks one, the
 // number of sets as a segmented control, and one green action at the
 // foot. Same contract: onAdd({ muscle, name, numSets }) then onClose().
+//
+// In a session of a plan day (`always`), once he picks one the foot asks
+// as the swap does (SwapSheet): «بس هالمرة» (green, the default — this
+// session only) or «دايماً بخطتي» (onAdd gets always: true: it goes into
+// today's day of his plan too, free for the streak). Not for one the day
+// already has (`always.can(name)` says no).
 
-export default function AddExerciseModal({ onAdd, onClose }) {
+export default function AddExerciseModal({ onAdd, onClose, always = null }) {
   const muscles = Object.keys(MUSCLE_GROUPS)
   const [open, setOpen]             = useState(true)
   const [muscle, setMuscle]         = useState('Chest')
@@ -28,16 +34,27 @@ export default function AddExerciseModal({ onAdd, onClose }) {
 
   const close = () => { setOpen(false); setTimeout(() => onClose?.(), 220) }
 
-  const handleAdd = () => {
+  const handleAdd = (keep = false) => {
     if (!canAdd) return
-    onAdd({ muscle, name: finalName.trim(), numSets })
+    onAdd({ muscle, name: finalName.trim(), numSets, ...(keep ? { always: true } : null) })
     close()
   }
 
+  const ask = canAdd && !!always && always.can(finalName.trim(), muscle)
+
   return (
     <Sheet open={open} onClose={close} title="إضافة تمرين" tall
-      footer={(
-        <Button variant="primary" size="lg" full icon={canAdd ? Check : undefined} disabled={!canAdd} onClick={handleAdd}>
+      footer={ask ? (
+        <div className="ax-foot" data-testid="add-foot">
+          <p className="ax-foot-what">أضف <b><bdi>{shownName}</bdi></b> للجلسة</p>
+          <div className="ax-foot-btns">
+            <Button variant="primary" size="lg" onClick={() => handleAdd(false)} data-testid="add-once">بس هالمرة</Button>
+            <Button variant="secondary" size="lg" onClick={() => handleAdd(true)} data-testid="add-always">دايماً بخطتي</Button>
+          </div>
+          <p className="ax-foot-note">{always.note || '«بس هالمرة» لهالجلسة بس. «دايماً» ينضاف ليومك بخطتك وما يلمس الستريك.'}</p>
+        </div>
+      ) : (
+        <Button variant="primary" size="lg" full icon={canAdd ? Check : undefined} disabled={!canAdd} onClick={() => handleAdd(false)}>
           {canAdd ? <span className="ax-cta">أضف <bdi>{shownName}</bdi></span> : 'اختر تمريناً أولاً'}
         </Button>
       )}>

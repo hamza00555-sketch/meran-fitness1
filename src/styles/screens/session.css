@@ -480,6 +480,22 @@ button.s-trow { cursor: pointer; -webkit-tap-highlight-color: transparent; trans
 .s-done-delta svg { vertical-align: -2px; color: var(--accent); margin-inline-end: 2px; }
 .s-note { margin: 8px 0; font-size: var(--t-body); color: var(--ink-2); }
 
+/* «إضافة مجموعة» on a plan exercise (SetAsk.jsx): one quiet line under
+   the sets, on the page (not a card): the words, «دايماً بخطتي», ×. */
+.s-ask {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 8px;
+  border-top: 1px solid var(--hairline);
+}
+.s-ask-text {
+  flex: 1; min-width: 0; margin: 0; display: flex; align-items: center; gap: 8px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); text-wrap: balance;
+}
+.s-ask-text .k-num { color: var(--ink); font-weight: 700; }
+.s-ask .k-btn { flex: none; }
+.s-ask .k-iconbtn { margin-inline-end: -8px; color: var(--ink-2); }
+.s-ask-ok { flex: none; color: var(--accent); }
+.s-ask[data-done="1"] .s-ask-text { min-height: 40px; color: var(--ink); }
+
 /* ── The rest of the session, as a list ── */
 .s-queue { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--hairline); }
 .s-queue-h { margin: 0 0 8px; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
