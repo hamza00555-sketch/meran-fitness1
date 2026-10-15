@@ -112,15 +112,18 @@
 
 /* The body (BodyFigure.jsx): surface-3 plates on seams of the ground, the
    silhouette a 1px ink-4 contour 1.25px outside it (3.4:1 on the ground on
-   both its sides). The day's muscles in ink; the half-worked ones in
-   --pv-half, a grey between: 3.2:1 against ink, 4.0:1 against a plate,
-   5.8:1 against the seams. No grey could be 3:1 against both ink and an
-   ink-4 seam, so nothing lit ever touches ink-4. */
-.pv-body { --pv-half: #808A96; height: clamp(76px, 22vw, 92px); width: auto; aspect-ratio: 1448 / 1284; display: block; overflow: visible; }
+   both its sides). The day's muscles in the app's muscle green — Hamza's
+   choice for the body («أخضر، زي صور العضلات»), the one green on «خطتي»
+   besides the pictures: 6.1:1 against a plate, 9.0:1 against the seams.
+   The half-worked ones in --pv-half, a deeper green: 3.9:1 against a
+   plate, 5.8:1 against the seams, and 1.5:1 from the full green — told
+   apart by depth, while the plates and seams carry the 3:1. Nothing lit
+   ever touches ink-4. */
+.pv-body { --pv-half: #4C9A22; height: clamp(76px, 22vw, 92px); width: auto; aspect-ratio: 1448 / 1284; display: block; overflow: visible; }
 .pv-b-rim { fill: none; stroke: var(--ink-4); stroke-width: 4.5px; stroke-linejoin: round; }
 .pv-b-out { fill: var(--ground); stroke: var(--ground); stroke-width: 2.5px; stroke-linejoin: round; }
 .pv-b-base, .pv-b-hair { fill: var(--surface-3); }
-.pv-b-lit { fill: var(--ink); }
+.pv-b-lit { fill: var(--accent); }
 .pv-b-lit[data-s="some"] { fill: var(--pv-half); }
 
 /* a short phone (an SE): the top, the days and the day's header give

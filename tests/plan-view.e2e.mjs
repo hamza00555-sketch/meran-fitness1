@@ -191,11 +191,15 @@ async function figureContrast(label, day) {
     if (!n) { if (name !== 'half-lit') bad.push(`${name}: not drawn`); continue }
     if (!n.marked || !n.neighbours.length) { bad.push(`${name}: no pixels found`); continue }
     said.push(`${name} ${n.min.toFixed(2)}`)
-    for (const g of n.neighbours) if (g.ratio < 3) bad.push(`${name} rgb(${n.color}) vs rgb(${g.rgb}) ${g.ratio.toFixed(2)}:1 (${(g.share * 100).toFixed(1)}% of its neighbours)`)
+    // The two greens touch each other: told apart by depth (≥ 1.4:1), the
+    // plates and seams around them carry the 3:1.
+    const isGreen = (rgb) => { const [r, g2, b] = (Array.isArray(rgb) ? rgb : String(rgb).split(',')).map(Number); return g2 > r + 40 && g2 > b + 40 }
+    for (const g of n.neighbours) if (g.ratio < (name !== 'outline' && isGreen(g.rgb) ? 1.4 : 3)) bad.push(`${name} rgb(${n.color}) vs rgb(${g.rgb}) ${g.ratio.toFixed(2)}:1 (${(g.share * 100).toFixed(1)}% of its neighbours)`)
   }
-  ok(`${label} — the body figure reads against what touches it: ${said.join(', ')} (all ≥ 3:1)`, bad.length === 0, bad.join(' | '))
+  ok(`${label} — the body figure reads against what touches it: ${said.join(', ')} (≥ 3:1 against plates, seams and contour; the two greens ≥ 1.4:1)`, bad.length === 0, bad.join(' | '))
 }
-/* Palette: no green anywhere on «خطتي» (its pictures aside), and gold only
+/* Palette: no green anywhere on «خطتي» (its pictures and the body figure's
+   muscles aside — Hamza chose green for those), and gold only
    on the figure of his best weight (.pv-best's number) — the raise/best
    colour, nothing else. */
 async function noAccent(label) {
@@ -209,12 +213,14 @@ async function noAccent(label) {
         // the best's figure: its text gold (and the border colour that follows it, drawn nowhere)
         if (cs[p] === 'rgb(251, 191, 36)' && el.matches('.pv-best .k-num, .pv-best .k-num *')
           && (p === 'color' || (p === 'borderTopColor' && cs.borderTopWidth === '0px'))) continue
+        // the day's muscles on the body: green by his choice
+        if (cs[p] === 'rgb(94, 195, 42)' && p === 'fill' && el.matches('.pv-body .pv-b-lit')) continue
         out.push(`${el.className?.baseVal ?? el.className} ${p}`)
       }
     }
     return out.slice(0, 4)
   })
-  ok(`${label} — no green on the page, gold only on his best weight's figure`, hits.length === 0, hits.join(' | '))
+  ok(`${label} — no green on the page but the body's muscles, gold only on his best weight's figure`, hits.length === 0, hits.join(' | '))
 }
 /* The names block: the English directly under the Arabic, on the same right
    edge, and that edge beside the picture (nothing floating mid-row). */
