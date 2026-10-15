@@ -41,7 +41,13 @@
 // the list), «ثبّت كلهم» both in one edit, «مو هنا» waves one off for good;
 // the old design reads the plan; the new cards and their answers are
 // measured like the rest (text AA, the controls 3:1 on the ground) at 320,
-// 390 and 430.
+// 390 and 430; every English name on the day whole, in two lines at most.
+//
+// Section 6, only what he added: his leg sessions hold every row the plan
+// put in them, so a row he takes out («شيله», or left out in the builder)
+// or swaps away twice must not come back as «مو بخطتك», and after a switch
+// from Settings (or a plan rebuilt today, its leg day of the same name)
+// no day offers the old plan's exercises.
 //
 // The pack is installed once, from Settings, the way pack-install.e2e
 // does it: the preview serves dist/pack at /pack/.
@@ -50,6 +56,7 @@ import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
 import { APP_VERSION, ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
 import { planTitle } from '../src/plan/title.js'
+import { arabicName } from '../src/exerciseMedia.js'
 import { makeContrast } from './contrast.mjs'
 
 const APP = process.env.APP || 'http://127.0.0.1:4901/'
@@ -111,7 +118,7 @@ async function seed(extra = {}) {
   await page.evaluate(([s, extra]) => {
     // (meran_rest_announced: each seed is a first run for «كسبت يوم راحة»,
     // which says nothing of rest days he already had — no sheet over Home)
-    for (const k of ['hf_active', 'hf_rest_timer', 'hf_plan_prev', 'meran_plan_dismissed', 'meran_rest_announced']) localStorage.removeItem(k)
+    for (const k of ['hf_active', 'hf_rest_timer', 'hf_plan_prev', 'meran_plan_dismissed', 'meran_plan_dropped', 'meran_rest_announced']) localStorage.removeItem(k)
     for (const [k, v] of Object.entries({ ...s, ...extra })) localStorage.setItem(k, JSON.stringify(v))
   }, [SEED, extra])
   await page.reload(); await settle(1300)
@@ -714,6 +721,8 @@ await seed()
   ok('«دايماً بخطتي»: the session runs on it', a2.exercises[0].name === always, a2.exercises[0].name)
   ok('«دايماً بخطتي»: his plan\'s row is it now, noting the pulldown', p2.name === always && p2.was?.name === 'Lat Pulldown', JSON.stringify(p2))
   ok('«دايماً بخطتي»: free — the day he reached and the streak\'s rule untouched', await get('hf_plan_index') === 7 && !(await get('hf_recovery'))?.lastSettingsChangeAt)
+  ok('a planned session says which plan it is a day of (planId, an optional field)', a2.planId === 'machine_beginner_3day', String(a2.planId))
+  ok('«دايماً بخطتي» from the plan\'s own row: nothing noted as gone (the row says it was the pulldown)', !(await get('meran_plan_dropped')), JSON.stringify(await get('meran_plan_dropped')))
   // and «خطتي» shows it
   await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await settle(600)
   await page.locator('.k-sheet').last().getByRole('button', { name: /شوف خطتي/ }).click(); await settle(1100)
@@ -736,7 +745,10 @@ await seed()
 // «مو هنا»; the old design reads the plan they go into.
 {
   const AB = 'Machine Hip Abduction', AD = 'Machine Hip Adduction'
-  const legDay = (daysAgo, extra) => sess(daysAgo, 5, [['Hack Squat', 'Legs', 100, 10], ['Leg Press', 'Legs', 160, 10], ['Leg Curl', 'Legs', 45, 12], ...extra])
+  // a leg day as the plan puts it in his session — all six of its rows — and what he adds
+  const LEG_ROWS = [['Hack Squat', 'Legs', 100, 10], ['Leg Press', 'Legs', 160, 10], ['Leg Curl', 'Legs', 45, 12],
+    ['Leg Extension', 'Legs', 50, 12], ['Machine Glute Kickbacks', 'Legs', 30, 12], ['Standing Calf Raise', 'Legs', 50, 10]]
+  const legDay = (daysAgo, extra, rows = LEG_ROWS) => sess(daysAgo, 5, [...rows, ...extra])
   const HIS = [
     ...SESSIONS.filter(s => s.planDayIndex % 3 !== 2),
     legDay(1, [[AB, 'Legs', 30, 12], [AD, 'Legs', 25, 12]]),
@@ -818,6 +830,13 @@ await seed()
     await noOverflow(`${w}: «تسويها بالجلسة»`)
     const fit = await page.evaluate((LEGS) => [...document.querySelectorAll(`${LEGS} .pv-xtag, ${LEGS} .pv-xacts, ${LEGS} .pv-xnote`)].map(el => ({ c: el.className, lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight || 20)), over: el.scrollWidth > el.clientWidth + 1 })), LEGS)
     ok(`${w}: the mark, the answers and the note each keep to their line`, fit.every(x => !x.over) && fit.filter(x => /pv-xtag/.test(x.c)).every(x => x.lines <= 1), JSON.stringify(fit))
+    // the English names whole — on his own cases and on the day's cards («Machine Hip Abducti…» at 320 before)
+    const ens = await page.evaluate((LEGS) => [...document.querySelectorAll(`${LEGS} .pv-en`)].map(el => ({
+      t: el.textContent, whole: el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1,
+      lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
+    })), LEGS)
+    ok(`${w}: every English name on the leg day is whole (two lines at most)`, ens.length >= 8 && ens.every(x => x.whole && x.lines <= 2),
+      JSON.stringify(ens.filter(x => !x.whole || x.lines > 2).concat(ens.filter(x => x.lines === 2).map(x => ({ twoLines: x.t })))))
     await uiContrast(`${w}: «تسويها بالجلسة»`)
     await contrast(`${w}: «تسويها بالجلسة»`, `${LEGS} .pv-extra`, { scroller: LEGS })
     if (w === 320) { await toExtras(); await shot('320-legs-suggested') }
@@ -896,6 +915,119 @@ await seed()
   await openFromHome(); await toLegs()
   ok('«مو هنا»: opened again, it stays waved off', await extra(AD).count() === 0 && await extra(AB).count() === 1
     && /\+1\s*تسويه بالجلسة/.test((await note.innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  await closeView()
+
+  // ── 6. Only what he added: never what a plan put in his sessions ──
+  // His leg sessions have every row of the leg day (the plan put them
+  // there). What he takes out of the day — «شيله» here, a row left out in
+  // the builder — or swaps away twice is not offered back; another plan,
+  // switched to or rebuilt today, starts with nothing to offer.
+  const extraNames = () => page.locator(`${LEGS} [data-testid="extra-card"]`).evaluateAll(els => els.map(e => e.dataset.name))
+  const noteText = async () => (await note.innerText().catch(() => '')).replace(/\s+/g, ' ')
+  const legsLeft = async () => (await get('meran_plan_dropped'))?.['machine_beginner_3day|legs — أرجل'] || {}
+
+  // «شيله» the calf raise, a row in all four of his leg sessions
+  await seed({ hf_sessions: HIS })
+  await openFromHome(); await toLegs()
+  await card(2, 'Standing Calf Raise').click(); await settle(800)
+  await page.locator('[data-testid="xs-remove"]').click(); await settle(1200)
+  ok('«شيله» a leg row: gone from his leg day', (await legsPlan()).length === 5 && !(await legsPlan()).some(x => x.name === 'Standing Calf Raise'))
+  const afterRemove = await extraNames()
+  ok('«شيله» a leg row: not offered back as «تسويه بالجلسة — مو بخطتك» (his sessions had it because the plan did)',
+    JSON.stringify(afterRemove) === JSON.stringify([AB, AD]), JSON.stringify(afterRemove))
+  ok('«شيله» a leg row: the day\'s note still says «+2»', /\+2\s*تسويها بالجلسة/.test(await noteText()), await noteText())
+  ok('«شيله» a leg row: noted as gone from the leg day (meran_plan_dropped, a key of the new design\'s own)',
+    typeof (await legsLeft())['standing calf raise'] === 'number', JSON.stringify(await legsLeft()))
+  await toExtras(); await shot('390-legs-after-remove')
+  await page.locator('[data-testid="plan-undo"]').getByRole('button', { name: 'تراجع' }).click(); await settle(1000)
+  ok('«تراجع»: the calf raise is a plan card again, and nothing extra', await card(2, 'Standing Calf Raise').count() === 1
+    && JSON.stringify(await extraNames()) === JSON.stringify([AB, AD]))
+  // out again, and «خطتي» opened again after a reload: still not offered
+  await card(2, 'Standing Calf Raise').click(); await settle(800)
+  await page.locator('[data-testid="xs-remove"]').click(); await settle(1000)
+  await closeView()
+  await page.reload(); await settle(1300)
+  await openFromHome(); await toLegs()
+  ok('«شيله», reloaded: still only the two he adds', JSON.stringify(await extraNames()) === JSON.stringify([AB, AD]), JSON.stringify(await extraNames()))
+  await closeView()
+
+  // a row left out in the builder («عدّل الخطة كاملة» › شيله › احفظ)
+  await seed({ hf_sessions: HIS })
+  await openFromHome(); await toLegs()
+  await page.locator(`${LEGS} [data-testid="plan-view-builder"]`).click(); await settle(1300)
+  const ext = page.locator('#plist .prow').filter({ hasText: arabicName('Leg Extension') }).first()
+  await ext.locator('.pr-main').click(); await settle(500)
+  await ext.locator('[data-act="rm"]').click(); await settle(700)
+  await page.locator('[data-act="plan-start"]').click(); await settle(700)
+  await page.locator('[data-act="activate"]').click(); await settle(1300)
+  ok('the builder: the leg extension left out of his leg day', !(await legsPlan()).some(x => x.name === 'Leg Extension') && (await legsPlan()).length === 5,
+    (await legsPlan()).map(x => x.name).join(', '))
+  await page.keyboard.press('Escape'); await settle(900)
+  ok('the builder: back on «خطتي»', await view().count() === 1 && await page.locator('.pb').count() === 0)
+  await toLegs()
+  ok('the builder: what it left out is not offered back on «خطتي»', JSON.stringify(await extraNames()) === JSON.stringify([AB, AD]), JSON.stringify(await extraNames()))
+  await closeView()
+
+  // swapped twice: the hack squat → the smith squat (three sessions on it) → another
+  const smith = JSON.parse(JSON.stringify(machine))
+  Object.assign(smith.weeklySchedule[2].exercises[0], { name: 'Smith Machine Squat', was: { name: 'Hack Squat', muscle: 'Legs' } })
+  const SMITH_ROWS = [['Smith Machine Squat', 'Legs', 60, 10], ...LEG_ROWS.slice(1)]
+  await seed({ hf_plan: smith, hf_sessions: [...SESSIONS.filter(s => s.planDayIndex % 3 !== 2),
+    legDay(1, [[AB, 'Legs', 30, 12]], SMITH_ROWS), legDay(4, [[AB, 'Legs', 30, 12]], SMITH_ROWS), legDay(8, [], SMITH_ROWS), legDay(11, [], LEG_ROWS)] })
+  await openFromHome(); await toLegs()
+  ok('swapped once: the smith squat is the plan\'s, only the abduction machine offered', JSON.stringify(await extraNames()) === JSON.stringify([AB]), JSON.stringify(await extraNames()))
+  await card(2, 'Smith Machine Squat').locator('.pv-swap').click(); await settle(900)
+  const twice = (await page.locator('.k-sheet .ac-group[data-group="muscle"] [data-testid="alt-card"]').evaluateAll(els => els.map(e => e.dataset.name)))
+    .find(x => !['Hack Squat', 'Smith Machine Squat', 'Leg Press', AB, AD].includes(x))
+  await page.locator(`.k-sheet [data-testid="alt-card"][data-name="${twice}"]`).click(); await settle(1200)
+  const r0 = (await legsPlan())[0]
+  ok(`swapped twice (→ ${twice}): the row is it, still noting the hack squat`, r0.name === twice && r0.was?.name === 'Hack Squat', JSON.stringify(r0))
+  ok('swapped twice: the one in the middle is not offered back', JSON.stringify(await extraNames()) === JSON.stringify([AB]), JSON.stringify(await extraNames()))
+  ok('swapped twice: the smith squat noted as gone from the day', typeof (await legsLeft())['smith machine squat'] === 'number', JSON.stringify(await legsLeft()))
+  await closeView()
+
+  // a switch from Settings (a ready-made plan, today): nothing of the machines plan is offered on its days
+  const ppl = BUILT_IN_PLANS.find(p => p.planId === 'ppl_alex_lueth_v2')
+  await seed({ hf_sessions: HIS })
+  await page.getByRole('button', { name: 'الإعدادات' }).first().click(); await settle(700)
+  await page.locator('.k-row').filter({ hasText: 'الخطة' }).first().click(); await settle(700)
+  await page.getByText(planTitle(ppl.planName)).first().click(); await settle(800)
+  await page.getByRole('button', { name: 'فعّل البرنامج' }).click(); await settle(800)
+  await page.getByRole('button', { name: /أكّد التغيير|غيّر واكسر الستريك/ }).click(); await settle(1100)
+  const switched = await get('hf_plan')
+  ok('switch: PPL is in, starting today', switched?.planId === ppl.planId && switched.startDate === await page.evaluate(() => {
+    const d = new Date(Date.now() - 3 * 3600000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }), JSON.stringify({ id: switched?.planId, start: switched?.startDate }))
+  await home()
+  const pplRow = page.locator('.k-row').filter({ hasText: planTitle(ppl.planName) }).first()
+  await pplRow.scrollIntoViewIfNeeded(); await pplRow.click()
+  await view().waitFor({ timeout: 8000 }).catch(() => {}); await settle(1100)
+  const perDay = []
+  for (let d = 0; d < ppl.weeklySchedule.length; d++) perDay.push(await page.locator(`.pv-page[data-page="${d}"] [data-testid="extra-card"]`).count())
+  ok('switch: no day of the new plan offers the old plan\'s exercises (nor his additions to it)', perDay.every(x => x === 0)
+    && await page.locator('[data-testid="plan-extra-note"]').count() === 0, JSON.stringify(perDay))
+  await page.locator('.pv-tab[data-day="2"]').click(); await settle(900)
+  await shot('390-switch-ppl-legs')
+  await closeView()
+
+  // a plan rebuilt today in the builder: a new plan, the same «Legs — أرجل» day, other rows
+  const rebuilt = JSON.parse(JSON.stringify(machine))
+  Object.assign(rebuilt, { planId: 'custom_rebuilt', planName: 'خطة الأرجل الجديدة', source: 'builder', startDate: await page.evaluate(() => {
+    const d = new Date(Date.now() - 3 * 3600000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }) })
+  rebuilt.weeklySchedule[2].exercises = [
+    { name: 'Barbell Squat', muscle: 'Legs', sets: 4, repsMin: 6, repsMax: 10, restSeconds: 150 },
+    { name: 'Romanian Deadlift', muscle: 'Legs', sets: 3, repsMin: 8, repsMax: 12, restSeconds: 120 },
+    { name: AB, muscle: 'Legs', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90 },
+  ]
+  await seed({ hf_plan: rebuilt, hf_plan_index: 0, hf_sessions: HIS })
+  await home()
+  const rbRow = page.locator('.k-row').filter({ hasText: planTitle('خطة الأرجل الجديدة') }).first()
+  await rbRow.scrollIntoViewIfNeeded(); await rbRow.click()
+  await view().waitFor({ timeout: 8000 }).catch(() => {}); await settle(1100)
+  await toLegs()
+  ok('rebuilt today (the same day name): the old plan\'s leg rows are not offered', await page.locator(`${LEGS} [data-testid="extra-card"]`).count() === 0
+    && await page.locator('[data-testid="extra-card"]').count() === 0, JSON.stringify(await extraNames()))
   await closeView()
 }
 

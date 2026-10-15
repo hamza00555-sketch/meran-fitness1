@@ -89,6 +89,7 @@ import {
 import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine, REPORT_APPLIED_KEY, appliedOn, withApplied } from './reportStory.js'
 import { validatePlan } from './plan/validate.js'
 import { planTitle } from './plan/title.js'
+import { dropsOf, withDropped, DROPPED_KEY } from './plan/view.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly
@@ -566,6 +567,11 @@ export default function App() {
       exercises,
       planDayName:  planDay.name,
       planDayIndex: planIndex,
+      // The plan it was a day of (an optional field the old design
+      // ignores): «خطتي» counts what he adds on a day only in this plan's
+      // own sessions (src/plan/view.js ofThisPlan), even after he goes
+      // back to an older plan whose days have the same names.
+      ...(plan?.planId ? { planId: plan.planId } : null),
       // Decided once, here, and it stays decided. A deload that ends
       // mid-workout does not turn the light weights already on screen
       // into normal training. Null when there is no deload running, so
@@ -574,7 +580,7 @@ export default function App() {
     }
     setActive(session)
     setSessionOpen(true)
-  }, [planIndex, sessions, exerciseMapping, exerciseSubs, repTarget, recoveryCfg])
+  }, [plan, planIndex, sessions, exerciseMapping, exerciseSubs, repTarget, recoveryCfg])
 
   // Skipping only moves the plan. The streak still wants today's
   // workout, which is why the skip sheet states the cost before this
@@ -1128,7 +1134,11 @@ export default function App() {
     // Every plan that is replaced is kept for «رجّع خطتك القديمة» — a
     // ready-made switch and an import as much as the builder's.
     keepPrevPlan({ stamps: !!plan })
-    setPlan(newPlan)
+    // It starts today, the day it is put in (Settings stamps a ready-made
+    // one so; an imported file says whatever it says): an older start would
+    // let the sessions of the plan it replaces count as its own («خطتي»,
+    // src/plan/view.js ofThisPlan).
+    setPlan({ ...newPlan, startDate: today })
     setPlanIndex(0)
     setRecoveryCfg(prev => ({
       ...prev,
@@ -1153,6 +1163,21 @@ export default function App() {
   // القديمة» (حمزة: «إيه، احفظها»). A key of the new design's own.
   const [planPrev, setPlanPrev] = useState(() => ls.get('hf_plan_prev', null))
   useEffect(() => { ls.set('hf_plan_prev', planPrev) }, [planPrev])
+
+  // When a name left a day of his plan (src/plan/view.js DROPPED_KEY): an
+  // edit that takes a row out or swaps one away — from «خطتي», the
+  // builder, the session's «دايماً بخطتي», «رجّع خطتك القديمة» the same
+  // day — so «تسويها بالجلسة» never offers back what the plan itself had
+  // put in his sessions. A key of the new design's own; the old design
+  // never reads it. Written with the plan, in the same render.
+  const [planDropped, setPlanDropped] = useState(() => ls.get(DROPPED_KEY, {}))
+  function notePlanDrops(before, after) {
+    const drops = dropsOf(before, after, { subs: exerciseSubs, mapping: exerciseMapping })
+    if (!drops.length) return
+    const next = withDropped(ls.get(DROPPED_KEY, {}), drops, Date.now())
+    ls.set(DROPPED_KEY, next)
+    setPlanDropped(next)
+  }
 
   // The plan in force, saved before it is replaced. `stamps` keeps what
   // the replacement is about to stamp on the streak's rule (the free
@@ -1202,6 +1227,7 @@ export default function App() {
     const daysChange = days != null && days !== recoveryRef.current.daysPerWeek
     const stamps = !isFirst && (!edit || daysChange)
     if (keepPrev) keepPrevPlan({ stamps })
+    if (edit && plan) notePlanDrops(plan, newPlan)
     setPlan(newPlan)
     if (!edit || !plan) setPlanIndex(0)
     else if ((plan.weeklySchedule || []).length !== newPlan.weeklySchedule.length) setPlanIndex(carryIndex(plan, planIndex, newPlan))
@@ -1220,7 +1246,7 @@ export default function App() {
       breaks ? `${planTitle(newPlan.planName)} — بدأ ستريك جديد`
         : edit ? 'انحفظ تعديل خطتك' : `تم تفعيل: ${planTitle(newPlan.planName)}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, planIndex, pushAlert])
+  }, [plan, planIndex, pushAlert, exerciseSubs, exerciseMapping])
 
   // «رجّع خطتك القديمة»: the saved plan back, at the day it had reached,
   // and the one it replaces saved in its place (so it can go back again).
@@ -1235,6 +1261,8 @@ export default function App() {
     const sameDay = prev.savedAt === today
     const now = stampOf(recoveryRef.current)
     setPlanPrev(plan ? { plan, planIndex, savedAt: today, ...(sameDay && prev.undo ? { undo: now } : null) } : null)
+    // back to the same plan before today's edits: what they put in leaves it
+    if (plan) notePlanDrops(plan, prev.plan)
     setPlan(prev.plan)
     setPlanIndex(prev.planIndex || 0)
     if (sameDay) {
@@ -1244,7 +1272,7 @@ export default function App() {
     }
     pushAlert('↩️', `رجعت خطتك: ${planTitle(prev.plan.planName)}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planPrev, plan, planIndex, pushAlert])
+  }, [planPrev, plan, planIndex, pushAlert, exerciseSubs, exerciseMapping])
 
   // ── «خطتي» (src/pages/planview) ─────────────────────────────
   // Three doors: Home › تقدّم البرنامج, Settings › الخطة › «شوف خطتي», and
@@ -1584,7 +1612,9 @@ export default function App() {
             // setup must not spend the one free change per 30 days.
             if (name) setProfile(prev => ({ ...prev, name }))
             setRecoveryCfg(prev => ({ ...prev, daysPerWeek }))
-            if (chosen) { setPlan(chosen); setPlanIndex(0) }
+            // (its start, as every activation stamps it: «خطتي» counts
+            // only this plan's sessions — src/plan/view.js ofThisPlan)
+            if (chosen) { setPlan({ ...chosen, startDate: todayKey() }); setPlanIndex(0) }
             ls.set('hf_onboarded', true)
             setOnboarding(false)
             // «أبني خطتي بنفسي»: the builder opens once the setup is done.
@@ -1628,6 +1658,7 @@ export default function App() {
             sessions={sessions}
             exerciseMapping={exerciseMapping}
             repTarget={repTarget}
+            dropped={planDropped}
             status={recovery.status === DAY_STATUS.COMPLETED ? 'completed'
               : recovery.status === DAY_STATUS.RECOVERY || recovery.status === DAY_STATUS.REST_TAKEN ? 'recovery' : 'training'}
             active={active}

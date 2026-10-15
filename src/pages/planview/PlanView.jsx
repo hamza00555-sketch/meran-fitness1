@@ -66,7 +66,7 @@ const MARK = {
 }
 
 export default function PlanView({
-  plan, planIndex = 0, exerciseSubs = {}, sessions = [], exerciseMapping = {}, repTarget,
+  plan, planIndex = 0, exerciseSubs = {}, sessions = [], exerciseMapping = {}, repTarget, dropped = {},
   status = 'training', active = null, from = 'home',
   onCommit, onClearSub, onOpenBuilder, onClose,
 }) {
@@ -235,7 +235,9 @@ export default function PlanView({
 
   // ── «تسويها بالجلسة»: what he does on a day that the day doesn't say ──
   // (src/plan/view.js doneNotInPlan). «مو هنا» is remembered per day under
-  // DISMISS_KEY, a key of the new design's own.
+  // DISMISS_KEY, a key of the new design's own; `dropped` (App, DROPPED_KEY)
+  // says when a name left a day, so what he takes out or swaps away here
+  // is not offered straight back from the sessions the plan put it in.
   const [dismissed, setDismissed] = useState(() => {
     const v = ls.get(DISMISS_KEY, {})
     return v && typeof v === 'object' && !Array.isArray(v) ? v : {}
@@ -246,8 +248,8 @@ export default function PlanView({
     ls.set(DISMISS_KEY, dismissed)
   }, [dismissed])
   const extras = useMemo(
-    () => fromSessions(plan, sessions, { subs, mapping: exerciseMapping, dismissed }),
-    [plan, sessions, subs, exerciseMapping, dismissed],
+    () => fromSessions(plan, sessions, { subs, mapping: exerciseMapping, dismissed, dropped }),
+    [plan, sessions, subs, exerciseMapping, dismissed, dropped],
   )
 
   // What a pin or a «مو هنا» moves, measured before it: the pinned cards'
