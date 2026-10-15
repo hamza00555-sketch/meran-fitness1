@@ -288,11 +288,13 @@ const planned = (ago, idx, list, plan = machine) => ({
 })
 // His last four leg days (counter 11, 8, 5, 2 — newest first): the abduction
 // machine in three of them (once logged under the mapping's «Hip Abduction»),
-// the adduction machine in three, a sissy squat once; a pull day between.
+// the adduction machine in three, a sissy squat once; two pull days between,
+// both with a face pull.
 const HIS = [
   planned(1, 11, [...LEG_ROWS, lift('Machine Hip Abduction', 3, 32), lift('Machine Hip Adduction', 3, 27)]),
   planned(3, 10, [lift('Lat Pulldown', 4, 60), lift('Face Pull', 3, 15)]),
   planned(5, 8, [...LEG_ROWS, lift('Hip Abduction', 4, 30)]),
+  planned(6, 7, [lift('Lat Pulldown', 4, 60), lift('Face Pull', 3, 15)]),
   planned(8, 5, [...LEG_ROWS, lift('Machine Hip Adduction', 3, 25), lift('Sissy Squat', 2, 0, 12)]),
   planned(12, 2, [...LEG_ROWS, lift('Machine Hip Abduction', 3, 28), lift('Machine Hip Adduction', 3, 25)]),
 ]
@@ -306,7 +308,7 @@ test('his case: the abduction and adduction machines, in 3 of his last 4 leg day
     '«Hip Abduction» and «Machine Hip Abduction» are one exercise (his mapping)')
   assert.equal(ab.sets, 3, 'the sets he usually does (3, 4, 3)')
   assert.equal(ad.count, 3)
-  // the other days: pull had one session — what it had is enough (the last one)
+  // the other days: the face pull in both pull days; push never done
   const all = V.fromSessions(machine, HIS, { mapping: MAP })
   assert.deepEqual(all.map(names), [[], ['Face Pull'], ['Machine Hip Abduction', 'Machine Hip Adduction']])
   // never in place
@@ -328,11 +330,38 @@ test('a one-off is not a habit: once in his last four leg days is not offered', 
   assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, old, { mapping: MAP })), ['Machine Hip Abduction'])
 })
 
-test('a day done once or twice: what the last one had', () => {
+test('a new day is no exception: twice at the least, a one-off (a warm-up, a plank) never', () => {
   const two = [planned(1, 5, [...LEG_ROWS, lift('Machine Hip Adduction')]), planned(4, 2, [...LEG_ROWS, lift('Machine Hip Abduction')])]
-  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, two, { mapping: MAP })), ['Machine Hip Adduction'], 'the older one\'s alone is not')
-  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, two.slice(1), { mapping: MAP })), ['Machine Hip Abduction'])
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, two, { mapping: MAP }), [], 'each once in two: neither')
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, two.slice(0, 1), { mapping: MAP }), [], 'a day done once: nothing yet')
   assert.deepEqual(V.doneNotInPlan(machine, LEGS, [], { mapping: MAP }), [])
+  // both times: a habit already
+  two[1].exercises = [...two[1].exercises, lift('Machine Hip Adduction')]
+  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, two, { mapping: MAP })), ['Machine Hip Adduction'])
+  // the review's cases: a one-set treadmill on a day done once, a plank once in two
+  const tread = { ...lift('Treadmill', 1, 0, 10), muscle: 'Cardio' }
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, [planned(1, 2, [tread, ...LEG_ROWS])], { mapping: MAP }), [])
+  const plank = { ...lift('Plank', 1, 0, 60), muscle: 'Core' }
+  assert.deepEqual(V.doneNotInPlan(machine, LEGS, [planned(1, 5, [plank, ...LEG_ROWS]), planned(4, 2, LEG_ROWS)], { mapping: MAP }), [])
+  // a warm-up he does every other leg day is a habit, and offered
+  const four = [1, 4, 7, 10].map((ago, k) => planned(ago, 2 + 3 * (3 - k), k % 2 ? LEG_ROWS : [tread, ...LEG_ROWS]))
+  assert.deepEqual(names(V.doneNotInPlan(machine, LEGS, four, { mapping: MAP })), ['Treadmill'])
+})
+
+test('his usual sets are his ordinary sessions\' — a deload\'s fewer don\'t write the plan', () => {
+  const deload = { pct: 0.6 }
+  const mixed = [
+    { ...planned(1, 11, [...LEG_ROWS, lift('Machine Hip Abduction', 2, 20)]), deload },
+    { ...planned(4, 8, [...LEG_ROWS, lift('Machine Hip Abduction', 2, 20)]), deload },
+    planned(7, 5, [...LEG_ROWS, lift('Machine Hip Abduction', 4, 30)]),
+    planned(10, 2, [...LEG_ROWS, lift('Machine Hip Abduction', 4, 30)]),
+  ]
+  const [ab] = V.doneNotInPlan(machine, LEGS, mixed, { mapping: MAP })
+  assert.equal(ab.sets, 4, 'not the deload\'s 2, though the deload is newer')
+  assert.equal(ab.count, 4, 'a deload is still a session he did it in')
+  // nothing but deloads: the plan's ordinary 3
+  const only = mixed.map(s => ({ ...s, deload }))
+  assert.equal(V.doneNotInPlan(machine, LEGS, only, { mapping: MAP })[0].sets, 3)
 })
 
 test('«مو هنا»: a dismissed one is not offered again on that day (and only that day)', () => {
@@ -416,16 +445,119 @@ test('which day a saved session was: its day\'s name first, the counter only bet
   assert.equal(V.sessionPlanDay(machine, { planDayIndex: 4 }), 1, 'no name: the counter')
   assert.equal(V.sessionPlanDay(machine, {}), null, 'a free session')
   assert.equal(V.sessionPlanDay(machine, { name: 'Pull Day 🗂️' }), null, 'a routine')
-  // another plan's day (or a day renamed since): the one day of its kind
-  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 5, planDayName: 'Legs B — أرجل' }), LEGS)
-  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 0, planDayName: 'Push A — صدر، أكتاف، ترايسبس' }), 0)
-  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 3, planDayName: 'Upper A — صدر، ظهر' }), null, 'nothing like it')
-  // two leg days: the variant, else the counter, else not a guess
+  // another plan's day is not one of this plan's — never a guess by kind
+  // (the review: «Legs B» counted as the machines plan's legs)
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 5, planDayName: 'Legs B — أرجل' }), null)
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 0, planDayName: 'Push A — صدر، أكتاف، ترايسبس' }), null)
+  assert.equal(V.sessionPlanDay(machine, { planDayIndex: 3, planDayName: 'Upper A — صدر، ظهر' }), null)
+  // two leg days: each by its own name
   const ppl = BUILT_IN_PLANS.find(p => p.planId === 'ppl_alex_lueth_v2')
   assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 0, planDayName: 'Legs B — أرجل' }), 5)
-  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 2, planDayName: legs }), 2)
-  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 0, planDayName: legs }), null)
+  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 2, planDayName: 'Legs A — أرجل' }), 2)
+  assert.equal(V.sessionPlanDay(ppl, { planDayIndex: 2, planDayName: legs }), null)
   // free sessions and other days never count for a day
   const free = [1, 2, 3].map(ago => ({ ...planned(ago, 2, [lift('Machine Hip Abduction')]), planDayIndex: undefined, planDayName: undefined }))
   assert.deepEqual(V.doneNotInPlan(machine, LEGS, free, { mapping: MAP }), [])
+})
+
+// ── Only what he added: never what a plan (this one, or the last) put in his sessions ──
+
+const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10)
+// every row of each day, as the plan put them in his sessions
+const fullDay = (plan, d) => plan.weeklySchedule[d].exercises.map(e => ({ ...lift(e.name, e.sets, 50, 10), muscle: e.muscle }))
+
+test('a plan switch starts clean: the old plan\'s sessions are not the new plan\'s days', () => {
+  // the review's probe: the machines plan's history, then PPL (6 days) activated today
+  const ppl = { ...clone(BUILT_IN_PLANS.find(p => p.planId === 'ppl_alex_lueth_v2')), startDate: dayOf(T0) }
+  const history = [2, 3, 5, 7, 9, 11].map((ago, k) => planned(ago, 5 - k, fullDay(machine, (5 - k) % 3)))
+  assert.deepEqual(V.fromSessions(ppl, history, { mapping: MAP }).map(names), [[], [], [], [], [], []])
+  // a new plan from the builder: the same «Legs — أرجل» day, other rows, started today
+  const built = clone(machine)
+  Object.assign(built, { planId: 'custom_20261014', planName: 'خطتي', source: 'builder', startDate: dayOf(T0) })
+  built.weeklySchedule[LEGS].exercises = [
+    { name: 'Barbell Squat', muscle: 'Legs', sets: 4, repsMin: 6, repsMax: 10 },
+    { name: 'Romanian Deadlift', muscle: 'Legs', sets: 3, repsMin: 8, repsMax: 12 },
+  ]
+  const legsHistory = [2, 5, 8, 11].map((ago, k) => planned(ago, 2 + 3 * (3 - k), fullDay(machine, LEGS)))
+  assert.deepEqual(V.doneNotInPlan(built, LEGS, legsHistory, { mapping: MAP }), [], 'the old leg rows are not «مو بخطتك»')
+  // its own sessions count, from the day it began on
+  const own = [0, -3].map(ago => planned(ago, 2, [
+    { ...lift('Barbell Squat', 4, 80, 8) }, { ...lift('Romanian Deadlift', 3, 60, 10) }, lift('Machine Hip Abduction'),
+  ], built))
+  assert.deepEqual(names(V.doneNotInPlan(built, LEGS, [...own, ...legsHistory], { mapping: MAP })), ['Machine Hip Abduction'])
+  // a session stamped with another plan's id is not this plan's, whatever its day and date
+  const started = { ...machine, startDate: '2026-09-01' }
+  assert.deepEqual(V.doneNotInPlan(started, LEGS, HIS.map(s => ({ ...s, planId: 'ppl_alex_lueth_v2' })), { mapping: MAP }), [])
+  assert.deepEqual(names(V.doneNotInPlan(started, LEGS, HIS.map(s => ({ ...s, planId: machine.planId })), { mapping: MAP })),
+    ['Machine Hip Abduction', 'Machine Hip Adduction'], 'its own id: counted')
+  assert.deepEqual(names(V.doneNotInPlan(started, LEGS, HIS, { mapping: MAP })), ['Machine Hip Abduction', 'Machine Hip Adduction'],
+    'no id (the old design\'s sessions): the start decides')
+  // the start, as the training day reads it (the day turns at 03:00)
+  assert.equal(V.ofThisPlan({ startDate: '2026-10-14' }, { date: '2026-10-14T00:30:00' }), false, '00:30 is still the 13th\'s training day')
+  assert.equal(V.ofThisPlan({ startDate: '2026-10-14' }, { date: '2026-10-14T09:00:00' }), true)
+  assert.equal(V.ofThisPlan({ startDate: '2026-10-14T00:00:00Z' }, { date: '2026-10-15T09:00:00' }), true, 'a start with a time is read as its day')
+  assert.equal(V.ofThisPlan({}, { date: '2020-01-01T09:00:00' }), true, 'a plan with no start takes every session')
+})
+
+test('what an edit takes off a day (dropsOf) is offered only from the sessions after it left', () => {
+  const plan = { ...clone(machine), startDate: '2026-09-01' }
+  const at = (before, after, stored = {}, t = T0, opts = {}) => V.withDropped(stored, V.dropsOf(before, after, { mapping: MAP, ...opts }), t)
+  const legsId = V.dayId(plan, LEGS)
+  // his leg days had every row of the plan: the plan put them there
+  const full = [1, 4, 7, 10].map((ago, k) => planned(ago, 2 + 3 * (3 - k), fullDay(plan, LEGS)))
+  assert.deepEqual(V.doneNotInPlan(plan, LEGS, full, { mapping: MAP }), [])
+
+  // «شيله» the calf raise in «خطتي»
+  const out = V.removeRow(plan, LEGS, 5)
+  assert.deepEqual(names(V.doneNotInPlan(out.plan, LEGS, full, { mapping: MAP })), ['Standing Calf Raise'], 'with nothing kept: the review\'s case')
+  const dropped = at(plan, out.plan)
+  assert.deepEqual(Object.keys(dropped), [legsId])
+  assert.equal(dropped[legsId]['standing calf raise'], T0)
+  assert.deepEqual(V.fromSessions(out.plan, full, { mapping: MAP, dropped }).map(names), [[], [], []])
+  // «تراجع» puts it back: an edit that takes nothing off
+  assert.deepEqual(V.dropsOf(out.plan, V.insertRow(out.plan, LEGS, 5, out.row), { mapping: MAP }), [])
+  // he goes on doing it, by hand, in two sessions after: a habit of his again
+  const after = [planned(-1, 14, fullDay(plan, LEGS)), planned(-3, 17, fullDay(plan, LEGS)), ...full]
+  assert.deepEqual(V.fromSessions(out.plan, after, { mapping: MAP, dropped })[LEGS].map(x => [x.name, x.count, x.of]), [['Standing Calf Raise', 2, 4]])
+
+  // swapped twice, A → B → C (in «خطتي», or the session's «دايماً بخطتي»)
+  const p1 = V.swapRow(plan, LEGS, 0, 'Smith Machine Squat')
+  assert.deepEqual(at(plan, p1), {}, 'the first swap takes nothing off: the row says it was the hack squat')
+  const withB = [1, 4, 7].map((ago, k) => planned(ago, 2 + 3 * (2 - k), fullDay(p1, LEGS)))
+  const p2 = V.swapRow(p1, LEGS, 0, 'Goblet Squat')
+  assert.deepEqual(p2.weeklySchedule[LEGS].exercises[0].was, { name: 'Hack Squat', muscle: 'Legs' })
+  assert.deepEqual(names(V.doneNotInPlan(p2, LEGS, withB, { mapping: MAP })), ['Smith Machine Squat'], 'with nothing kept: the review\'s case')
+  const d2 = at(p1, p2)
+  assert.deepEqual(Object.keys(d2[legsId]), ['smith machine squat'])
+  assert.deepEqual(V.fromSessions(p2, withB, { mapping: MAP, dropped: d2 })[LEGS], [])
+
+  // a row with a remembered swap taken out: its sessions ran the swap — both names leave
+  const subs = { 'Leg Press': 2 }
+  const alt = EXERCISE_ALTERNATIVES['Leg Press'][1]
+  const ran = [1, 4, 7, 10].map((ago, k) => planned(ago, 2 + 3 * (3 - k), [...LEG_ROWS.filter(x => x.name !== 'Leg Press'), lift(alt, 4, 60, 10, { originalName: 'Leg Press' })]))
+  const noPress = V.removeRow(plan, LEGS, 1).plan
+  assert.deepEqual(V.fromSessions(noPress, ran, { subs, mapping: MAP, dropped: at(plan, noPress, {}, T0, { subs }) })[LEGS], [])
+
+  // the builder: his plan opened and saved without the leg extension (the same plan, the day kept by name)
+  const st = B.fromHfPlan(plan, { days: 3 })
+  const cfg = { days: 3, goal: 'muscle', eq: st.eq, excluded: new Set(), dismissed: new Set(), picks: st.picks.filter(p => p.name !== 'Leg Extension'), mtool: {}, cycle: st.cycle, split: st.split, keepOrder: true }
+  const edited = B.toHfPlan(B.buildFromPicks(cfg), cfg, { today: '2026-10-15', base: plan })
+  assert.equal(edited.weeklySchedule[LEGS].name, plan.weeklySchedule[LEGS].name)
+  assert.ok(!edited.weeklySchedule[LEGS].exercises.some(x => x.name === 'Leg Extension'))
+  const d3 = at(plan, edited)
+  assert.ok(d3[legsId]?.['leg extension'] === T0, JSON.stringify(d3))
+  assert.ok(!V.fromSessions(edited, full, { mapping: MAP, dropped: d3 })[LEGS].some(x => x.name === 'Leg Extension'))
+
+  // a switch takes nothing off (its start does that); nor does an edit that adds
+  assert.deepEqual(V.dropsOf(plan, clone(BUILT_IN_PLANS.find(p => p.planId === 'ppl_alex_lueth_v2')), { mapping: MAP }), [])
+  assert.deepEqual(V.dropsOf(plan, V.addRow(plan, LEGS, { name: 'Machine Hip Abduction', muscle: 'Legs' }), { mapping: MAP }), [])
+  // kept together per day, the newest time a name left
+  const both = V.withDropped(dropped, [{ id: legsId, keys: ['leg extension', 'standing calf raise'] }], T0 + 5)
+  assert.equal(both[legsId]['standing calf raise'], T0 + 5)
+  assert.equal(both[legsId]['leg extension'], T0 + 5)
+  assert.equal(Object.keys(both[legsId]).length, Object.keys(dropped[legsId]).length + 1)
+  assert.equal(V.withDropped(dropped, []), dropped, 'nothing taken off: the same store')
+  // the key is his, per user — a new one the old design never reads
+  assert.equal(V.DROPPED_KEY, 'meran_plan_dropped')
+  assert.ok(PER_USER_KEYS.includes(V.DROPPED_KEY), 'a data reset clears it')
 })

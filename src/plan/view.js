@@ -28,8 +28,9 @@
 // edit of his own plan: free for the streak, the day he reached kept.
 
 import { EXERCISE_ALTERNATIVES, MUSCLE_GROUPS, BUILT_IN_PLANS } from '../constants.js'
-import { substitutedName, resolveExerciseName, planDayType } from '../utils.js'
+import { substitutedName, resolveExerciseName } from '../utils.js'
 import { normalizeSession } from '../sets.js'
+import { dayKey } from '../day.js'
 import { effectiveRepTarget, repTargetOf, DEFAULT_REP_TARGET } from '../progression.js'
 import { entryForName, EX, EQ } from './catalogue.js'
 import { mediaSlotFor } from '../exerciseMedia.js'
@@ -436,52 +437,126 @@ export function sessionDay(plan, active) {
 // pin («ثبّته بخطتي»: addRow, through the same commit as every edit) or
 // to wave off («مو هنا», remembered under DISMISS_KEY, a key of the new
 // design's own).
+//
+// Only what HE added counts, never what the plan put in his sessions:
+//   — a session from before the plan in force began (plan.startDate:
+//     today on every activation here — a ready-made plan, an import, the
+//     builder's new plan, the first run — and on the old design's
+//     ready-made switch) or from another plan (the session's optional
+//     planId) is not one of this plan's days, so a switch or a rebuild
+//     starts clean
+//   — a name that left a day (taken out, swapped away — in «خطتي», the
+//     builder or the session's «دايماً بخطتي») is counted only in the
+//     sessions after it left (DROPPED_KEY, kept by App on every edit
+//     through dropsOf): his old sessions had it because the plan did.
 
 export const FROM_SESSIONS_WINDOW = 4
+/** Sessions of a day that must have it, at the least: once is not a habit. */
+export const FROM_SESSIONS_MIN = 2
 /** { [dayId]: [exercise key, …] } — what «مو هنا» waved off, per plan day. */
 export const DISMISS_KEY = 'meran_plan_dismissed'
+/** { [dayId]: { [exercise key]: ms } } — when a name left a plan day. */
+export const DROPPED_KEY = 'meran_plan_dropped'
 
 const norm = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ')
+const when = (s) => Number(s?.id) || Date.parse(s?.date) || 0
 
-/** The kind of day a day's label says: «Legs A — أرجل» → { base: 'legs', v: 'a' }. */
-function kindOf(day) {
-  const t = norm(planDayType(day)).replace(/\s+day$/, '')
-  const m = t.match(/^(.*?)[\s-]+([a-z]|\d{1,2})$/)
-  return m ? { base: m[1], v: m[2] } : { base: t, v: '' }
+/**
+ * Whether a saved session was done on this plan: not before the day it
+ * began (startDate, 'YYYY-MM-DD', as the training day reads it), and not
+ * on another plan (planId, stamped on a planned session since; one the
+ * old design started has none, and its day decides alone). A plan with no
+ * start (one chosen on the first run before it stamped one) takes every
+ * session.
+ */
+export function ofThisPlan(plan, s) {
+  if (!s) return false
+  if (s.planId != null && plan?.planId != null && String(s.planId) !== String(plan.planId)) return false
+  const m = String(plan?.startDate || '').match(/^\d{4}-\d{2}-\d{2}/)
+  if (!m) return true
+  const at = s.date || when(s)
+  if (!at) return false
+  return dayKey(at) >= m[0]
 }
 
 /**
  * The day of the plan (0…n−1) a saved session was a session of, or null
- * (a free session, or a day this plan has nothing like). What a planned
- * session stores (App.startPlannedWorkout, both designs): planDayName, the
- * day's name, and planDayIndex, the day reached — a counter that grows
- * past the cycle and starts again at 0 with each new plan. So the name
- * decides; the counter only tells apart two days of one name. A day
- * renamed since (or a session of another plan) goes to the one day of the
- * same kind («Legs A» → «Legs»), the counter choosing among several.
+ * (a free session, a day this plan doesn't have, a session from before
+ * the plan began or of another plan — ofThisPlan). What a planned session
+ * stores (App.startPlannedWorkout, both designs): planDayName, the day's
+ * name, and planDayIndex, the day reached — a counter that grows past the
+ * cycle and starts again at 0 with each new plan. So the name decides;
+ * the counter only tells apart two days of one name. Never a guess by
+ * kind («Legs» for «Legs A»): that is how another plan's day got in.
  */
 export function sessionPlanDay(plan, s) {
   const days = Array.isArray(plan?.weeklySchedule) ? plan.weeklySchedule : []
   const n = days.length
-  if (!n || !s) return null
+  if (!n || !s || !ofThisPlan(plan, s)) return null
   const i = Number(s.planDayIndex)
   const at = s.planDayIndex != null && Number.isFinite(i) ? ((Math.round(i) % n) + n) % n : null
   const name = norm(s.planDayName)
   if (!name) return at
   const same = days.map((d, k) => (norm(d?.name) === name ? k : -1)).filter(k => k >= 0)
-  if (same.length) return same.includes(at) ? at : same[0]
-  const want = kindOf({ name: s.planDayName, exercises: s.exercises })
-  if (!want.base) return null
-  let kin = days.map((d, k) => [k, kindOf(d)]).filter(([, k]) => k.base === want.base)
-  const exact = kin.filter(([, k]) => k.v === want.v)
-  if (exact.length) kin = exact
-  const ids = kin.map(([k]) => k)
-  if (ids.includes(at)) return at
-  return ids.length === 1 ? ids[0] : null
+  if (!same.length) return null
+  return same.includes(at) ? at : same[0]
 }
 
-/** Where «مو هنا» is kept for a day: the plan and the day's name. */
+/** Where «مو هنا» (and when a name left) is kept for a day: the plan and the day's name. */
 export const dayId = (plan, d) => `${plan?.planId || 'plan'}|${norm(plan?.weeklySchedule?.[d]?.name) || d}`
+
+/** The keys a name is known by: his mapping's, and the catalogue's id. */
+function keysOf(name, mapping) {
+  const n = String(name || '').trim()
+  if (!n) return []
+  const e = entryForName(n)
+  return [resolveExerciseName(n, mapping), ...(e && !e.foreign ? [`#${e.id}`] : [])].filter(Boolean)
+}
+
+/** Every name day `d` stands for: its rows, what a row was before he
+ *  swapped it (`was`), and what his remembered swaps run instead. */
+function dayNames(plan, d, subs = {}) {
+  const out = []
+  ;(plan?.weeklySchedule?.[d]?.exercises || []).forEach((ex, j) => {
+    const r = effectiveRow(plan, d, j, { subs })
+    out.push(ex.name, ex.was?.name, r?.name)
+  })
+  return out.filter(Boolean)
+}
+
+/**
+ * What an edit of his plan took off each day: the keys of the names the
+ * day stood for `before` and doesn't `after` — a row taken out, the
+ * exercise a row was swapped away from (and the one in the middle, A → B
+ * → C), what a remembered swap ran for a row that went. Days are matched
+ * by name (the builder keeps a day's name while its kind stays); another
+ * plan (a switch) takes nothing off: its start says it all.
+ * → [{ id: dayId, keys }]
+ */
+export function dropsOf(before, after, { subs = {}, mapping = {} } = {}) {
+  const was = Array.isArray(before?.weeklySchedule) ? before.weeklySchedule : []
+  const now = Array.isArray(after?.weeklySchedule) ? after.weeklySchedule : []
+  if (!was.length || !now.length || (before.planId ?? null) !== (after.planId ?? null)) return []
+  const out = []
+  now.forEach((day, d) => {
+    const name = norm(day?.name)
+    const same = was.map((x, k) => (norm(x?.name) === name ? k : -1)).filter(k => k >= 0)
+    if (!same.length) return
+    const k = same.includes(d) ? d : same[0]
+    const keep = new Set(dayNames(after, d, subs).flatMap(n => keysOf(n, mapping)))
+    const gone = [...new Set(dayNames(before, k, subs).flatMap(n => keysOf(n, mapping)))].filter(x => !keep.has(x))
+    if (gone.length) out.push({ id: dayId(after, d), keys: gone })
+  })
+  return out
+}
+
+/** The stored DROPPED_KEY with what dropsOf found, stamped `at` (ms). */
+export function withDropped(stored, drops, at = Date.now()) {
+  if (!drops?.length) return stored || {}
+  const next = { ...(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {}) }
+  for (const { id, keys } of drops) next[id] = { ...(next[id] || {}), ...Object.fromEntries(keys.map(k => [k, at])) }
+  return next
+}
 
 /** The usual: the count he did most often, the latest on a tie (newest first). */
 function usual(list) {
@@ -510,55 +585,58 @@ function pinName(logged, key, mapping) {
  *       (Hip Abduction = Machine Hip Abduction), counting also what the
  *       day had before a swap (he swapped it away on purpose) and a
  *       session's «بس هالمرة» swap of one of its rows
+ *   his sessions of the day — only this plan's (sessionPlanDay: none from
+ *       before it began, none of another plan)
+ *   dropped — { key: ms } when a name left this day (DROPPED_KEY): a
+ *       session up to then had it because the plan did, so it counts
+ *       only in the ones after (and a session's swap of it as well)
  *   the rule — of the day's last `window` (4) sessions, done in at least
- *       2; when the day has only been done once or twice, done in the last
+ *       FROM_SESSIONS_MIN (2), however new the day: once is not a habit
+ *       (a warm-up on the treadmill, a plank one evening)
  *   dismissed — keys «مو هنا» waved off for this day
  *
  * Each: { key, name, muscle, count, of, sets } — name: the one to pin (a
  * name the app has a picture for); count of `of` sessions; sets: the
- * number of sets he usually does on it. Most often first, then in the
- * order he does them.
+ * number of sets he usually does on it, in his ordinary sessions (a
+ * deload's fewer don't count; with nothing else, 3). Most often first,
+ * then in the order he does them.
  */
-export function doneNotInPlan(plan, d, sessions, { subs = {}, mapping = {}, dismissed = [], window = FROM_SESSIONS_WINDOW } = {}) {
+export function doneNotInPlan(plan, d, sessions, { subs = {}, mapping = {}, dismissed = [], dropped = {}, window = FROM_SESSIONS_WINDOW } = {}) {
   const day = plan?.weeklySchedule?.[d]
   if (!day) return []
   const keyOf = (n) => resolveExerciseName(String(n || ''), mapping)
-  const idOf = (n) => { const e = entryForName(n); return e && !e.foreign ? e.id : null }
-  const known = new Set(), knownIds = new Set()
-  const know = (n) => { if (!n) return; known.add(keyOf(n)); const id = idOf(n); if (id) knownIds.add(id) }
-  ;(day.exercises || []).forEach((ex, j) => {
-    const r = effectiveRow(plan, d, j, { subs })
-    know(ex.name); know(ex.was?.name); know(r?.name); know(r?.swap?.from)
-  })
-  const inDay = (n) => known.has(keyOf(n)) || (idOf(n) != null && knownIds.has(idOf(n)))
+  const known = new Set(dayNames(plan, d, subs).flatMap(n => keysOf(n, mapping)))
+  const inDay = (n) => keysOf(n, mapping).some(k => known.has(k))
+  // when a name left the day (0: never)
+  const leftAt = (n) => Math.max(0, ...keysOf(n, mapping).map(k => Number(dropped?.[k]) || 0))
 
-  const when = (s) => Number(s?.id) || Date.parse(s?.date) || 0
   const mine = (sessions || [])
     .filter(s => sessionPlanDay(plan, s) === d)
     .sort((a, b) => when(b) - when(a))
     .map(s => normalizeSession(s))
     .filter(Boolean)
     .slice(0, Math.max(1, window))
-  if (!mine.length) return []
+  if (mine.length < FROM_SESSIONS_MIN) return []
 
   const skip = new Set((dismissed || []).map(String))
   const tally = new Map()
   mine.forEach((s, si) => {
     const here = new Set()
+    const t0 = when(s)
     ;(s.exercises || []).forEach((ex, pos) => {
       if (!ex?.name || inDay(ex.name) || (ex.originalName && inDay(ex.originalName))) return
+      if (t0 <= leftAt(ex.name) || (ex.originalName && t0 <= leftAt(ex.originalName))) return
       const key = keyOf(ex.name)
       if (!key || here.has(key)) return
       here.add(key)
       let t = tally.get(key)
       if (!t) { t = { key, logged: ex.name, muscle: ex.muscle, count: 0, latest: si, pos, sets: [] }; tally.set(key, t) }
       t.count += 1
-      t.sets.push((ex.sets || []).length)
+      if (!s.deload) t.sets.push((ex.sets || []).length)
     })
   })
-  const few = mine.length <= 2
   return [...tally.values()]
-    .filter(t => (few ? t.latest === 0 : t.count >= 2) && !skip.has(t.key))
+    .filter(t => t.count >= FROM_SESSIONS_MIN && !skip.has(t.key))
     .sort((a, b) => b.count - a.count || a.latest - b.latest || a.pos - b.pos)
     .map(t => {
       const name = pinName(t.logged, t.key, mapping)
@@ -573,10 +651,14 @@ export function doneNotInPlan(plan, d, sessions, { subs = {}, mapping = {}, dism
     .filter(x => x.muscle)
 }
 
-/** doneNotInPlan for every day of the plan; `dismissed` the stored { [dayId]: keys }. */
-export function fromSessions(plan, sessions, { dismissed = {}, ...opts } = {}) {
+/** doneNotInPlan for every day of the plan; `dismissed` the stored
+ *  { [dayId]: keys } (DISMISS_KEY), `dropped` the stored { [dayId]: { key: ms } } (DROPPED_KEY). */
+export function fromSessions(plan, sessions, { dismissed = {}, dropped = {}, ...opts } = {}) {
   const days = Array.isArray(plan?.weeklySchedule) ? plan.weeklySchedule : []
-  return days.map((_, d) => doneNotInPlan(plan, d, sessions, { ...opts, dismissed: dismissed?.[dayId(plan, d)] || [] }))
+  return days.map((_, d) => {
+    const id = dayId(plan, d)
+    return doneNotInPlan(plan, d, sessions, { ...opts, dismissed: dismissed?.[id] || [], dropped: dropped?.[id] || {} })
+  })
 }
 
 /** The stored «مو هنا» with one more key for day `d`. */
