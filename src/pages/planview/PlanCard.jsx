@@ -8,7 +8,8 @@
 // to say, what he changed («بدّلته بدل …», «مجموعة زيادة»). Under a
 // hairline, the numbers he trains by: sets and reps big (his own range
 // says «عدّاتك أنت» under it), the rest a step quieter. Last, what he did
-// on it last time (his best only when it is more) and «بدّله».
+// on it last time (his best only when it is more — its figure gold, as the
+// player draws «أعلى وزن») and «بدّله».
 //
 // The whole card opens the exercise's sheet (ExerciseSheet); «بدّله» opens
 // it straight on the alternatives. When the sheet changes it, the card

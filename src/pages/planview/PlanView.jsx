@@ -121,7 +121,10 @@ export default function PlanView({
     el.scrollTo({ left: (rtl() ? -1 : 1) * i * w, behavior: smooth && !reducedMotion() ? 'smooth' : 'auto' })
   }, [])
   useLayoutEffect(() => { goTo(first, false) }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  // The tab follows a swipe.
+  // The tab follows a swipe; and once the day in view has scrolled, the
+  // edge under the days draws its hairline (data-scrolled on .pv). The
+  // days scroll on their own (a scroll doesn't bubble): caught on the way
+  // down, in the capture phase.
   useEffect(() => {
     const el = pager.current
     if (!el) return
@@ -132,10 +135,12 @@ export default function PlanView({
         const w = el.clientWidth || 1
         const i = Math.max(0, Math.min(n - 1, Math.round(Math.abs(el.scrollLeft) / w)))
         if (i !== curRef.current) setCur(i)
+        const top = el.querySelector(`[data-page="${i}"]`)?.scrollTop || 0
+        root.current?.toggleAttribute('data-scrolled', top > 1)
       })
     }
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => { el.removeEventListener('scroll', onScroll); cancelAnimationFrame(raf) }
+    el.addEventListener('scroll', onScroll, { passive: true, capture: true })
+    return () => { el.removeEventListener('scroll', onScroll, { capture: true }); cancelAnimationFrame(raf) }
   }, [n])
   // The selected tab stays in view; a day seen the first time deals its cards in.
   const visited = useRef(new Set())
@@ -254,7 +259,7 @@ export default function PlanView({
       {active && (
         <p className="pv-live" role="note">
           <Info size={18} weight="bold" aria-hidden="true" />
-          جلستك شغّالة: تعديلك هنا يمشي من الجلسة الجاية، وجلسة الحين تبقى زي ما هي.
+          جلستك شغّالة: تعديلك هنا يمشي من الجلسة الجاية.
         </p>
       )}
 

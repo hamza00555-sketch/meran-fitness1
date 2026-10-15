@@ -27,8 +27,12 @@
 // normal one) and must reach WCAG AA: 4.5:1, or 3:1 at 24px / 18.66px
 // bold. The body figure must be 3:1 where it carries meaning (each lit
 // state against every colour that touches it on screen), a card holds
-// no box inside it, the English name sits under the Arabic on its edge,
-// and no green or gold is drawn on the page.
+// no box inside it, the English name sits under the Arabic on its edge
+// (on the card and in its sheet), no green is drawn on the page and gold
+// only on his best weight's figure — the player's colour for the same
+// fact. The cards fade out under the day pills (a hairline once the day
+// has scrolled), the pills' words sit in their middle, and «الأصلي» is a
+// word over the name, not a badge on the machine.
 //
 // The pack is installed once, from Settings, the way pack-install.e2e
 // does it: the preview serves dist/pack at /pack/.
@@ -45,6 +49,7 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true })
 
 const results = []
 const ok = (name, cond, extra = '') => results.push([name, !!cond, extra])
+let planBestColor = null   // the best weight's figure on «خطتي», compared with the player's
 
 // His plan: the machines plan, on its Pull day today (index 7 of 3), with
 // a set he added to the cable row (was: 4), his own 8–12 on the hammer
@@ -190,18 +195,72 @@ async function figureContrast(label, day) {
   }
   ok(`${label} — the body figure reads against what touches it: ${said.join(', ')} (all ≥ 3:1)`, bad.length === 0, bad.join(' | '))
 }
-/* Palette: no green and no gold drawn anywhere on «خطتي» (its pictures aside). */
+/* Palette: no green anywhere on «خطتي» (its pictures aside), and gold only
+   on the figure of his best weight (.pv-best's number) — the raise/best
+   colour, nothing else. */
 async function noAccent(label) {
   const hits = await page.evaluate(() => {
     const bad = ['rgb(94, 195, 42)', 'rgb(251, 191, 36)', 'rgb(92, 201, 238)']
     const out = []
     for (const el of document.querySelectorAll('[data-testid="plan-view"] *')) {
       const cs = getComputedStyle(el)
-      for (const p of ['color', 'backgroundColor', 'fill', 'borderTopColor']) if (bad.includes(cs[p]) && (p !== 'color' || el.textContent.trim())) out.push(`${el.className?.baseVal ?? el.className} ${p}`)
+      for (const p of ['color', 'backgroundColor', 'fill', 'borderTopColor']) {
+        if (!bad.includes(cs[p]) || (p === 'color' && !el.textContent.trim())) continue
+        // the best's figure: its text gold (and the border colour that follows it, drawn nowhere)
+        if (cs[p] === 'rgb(251, 191, 36)' && el.matches('.pv-best .k-num, .pv-best .k-num *')
+          && (p === 'color' || (p === 'borderTopColor' && cs.borderTopWidth === '0px'))) continue
+        out.push(`${el.className?.baseVal ?? el.className} ${p}`)
+      }
     }
     return out.slice(0, 4)
   })
-  ok(`${label} — no green or gold on the page`, hits.length === 0, hits.join(' | '))
+  ok(`${label} — no green on the page, gold only on his best weight's figure`, hits.length === 0, hits.join(' | '))
+}
+/* The names block: the English directly under the Arabic, on the same right
+   edge, and that edge beside the picture (nothing floating mid-row). */
+async function namesBlock(root, arSel, enSel, artSel) {
+  return page.locator(root).first().evaluate((c, [arSel, enSel, artSel]) => {
+    const right = (el) => { const r = document.createRange(); r.selectNodeContents(el); return Math.max(...[...r.getClientRects()].map(x => x.right)) }
+    const ar = c.querySelector(arSel), en = c.querySelector(enSel), art = c.querySelector(artSel)
+    const a = ar.getBoundingClientRect(), e = en.getBoundingClientRect(), p = art.getBoundingClientRect()
+    return { ar: Math.round(right(ar)), en: Math.round(right(en)), below: e.top >= a.bottom - 1, gapToArt: Math.round(p.left - right(ar)), artTop: Math.round(p.top), arTop: Math.round(a.top), artBottom: Math.round(p.bottom) }
+  }, [arSel, enSel, artSel])
+}
+/* A day pill's words sit in its middle: as much room on the right as on the left. */
+async function pillsCentred(label) {
+  const r = await page.evaluate(() => [...document.querySelectorAll('.pv-tab')].map((t) => {
+    const b = t.getBoundingClientRect()
+    const range = document.createRange(); range.selectNodeContents(t)
+    const rs = [...range.getClientRects()].filter(x => x.width > 1)
+    const L = Math.min(...rs.map(x => x.left)), R = Math.max(...rs.map(x => x.right))
+    return { day: t.innerText.replace(/\s+/g, ' '), right: Math.round(b.right - R), left: Math.round(L - b.left) }
+  }))
+  ok(`${label} — every day pill's words sit in its middle`, r.length > 0 && r.every(x => Math.abs(x.right - x.left) <= 2), JSON.stringify(r))
+}
+/* Where the cards go under the days: they fade out (a mask over the top of
+   the day), a hairline once it has scrolled, none at the top. */
+async function scrollEdge(label, day) {
+  const pg = `.pv-page[data-page="${day}"]`
+  const state = () => page.evaluate((pg) => {
+    const v = document.querySelector('[data-testid="plan-view"]'), p = document.querySelector(pg)
+    const cs = getComputedStyle(p)
+    return {
+      scrolled: v.hasAttribute('data-scrolled'),
+      line: getComputedStyle(document.querySelector('.pv-pages')).boxShadow,
+      mask: cs.maskImage || cs.webkitMaskImage || '',
+      pad: parseFloat(cs.paddingTop),
+    }
+  }, pg)
+  await page.locator(pg).evaluate(el => el.scrollTo(0, 0)); await settle(450)
+  const top = await state()
+  await page.locator(pg).evaluate(el => el.scrollTo(0, 260)); await settle(450)
+  const mid = await state()
+  await page.locator(pg).evaluate(el => el.scrollTo(0, 0)); await settle(450)
+  const back = await state()
+  const hairline = (s) => /rgba\(255, 255, 255, 0\.08\)/.test(s)
+  ok(`${label} — the cards fade out under the days (a mask over the top), a hairline once the day scrolls, gone at its top`,
+    /linear-gradient/.test(mid.mask) && mid.pad >= 4 && !top.scrolled && !hairline(top.line) && mid.scrolled && hairline(mid.line) && !back.scrolled,
+    JSON.stringify({ top, mid, back }))
 }
 
 /* The alternatives: no half row left empty (a group with an odd count lays
@@ -322,6 +381,15 @@ await seed()
     return { ar: right(ar), en: right(en), below: en.getBoundingClientRect().top >= ar.getBoundingClientRect().bottom - 1 }
   })
   ok('the English name sits under the Arabic, on the same edge', edges.below && Math.abs(edges.ar - edges.en) <= 2, JSON.stringify(edges))
+  // his best, in the player's colour for it: the figure gold, the words not
+  const best = await card(1, 'Lat Pulldown').evaluate((c) => {
+    const b = c.querySelector('.pv-best')
+    return b ? { words: getComputedStyle(b).color, num: getComputedStyle(b.querySelector('.k-num')).color } : null
+  })
+  ok('his best weight: the figure gold (rgb 251 191 36), its words not', best?.num === 'rgb(251, 191, 36)' && best.words !== best.num, JSON.stringify(best))
+  planBestColor = best?.num
+  await pillsCentred('390')
+  await scrollEdge('390: pull day', 1)
   const boxes = await page.locator('.pv-page[data-page="1"] [data-testid="plan-card"]').first().evaluate((c) => [...c.querySelectorAll('*')]
     .filter(el => !el.closest('button.pv-swap') && (() => { const cs = getComputedStyle(el); return !/rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor) || (cs.boxShadow !== 'none' && !el.matches('img')) || cs.borderTopWidth !== '0px' && !el.matches('.pv-stats') })())
     .map(el => String(el.className?.baseVal ?? el.className)))
@@ -365,10 +433,14 @@ await seed()
     if (w === 430) {
       await page.locator('.pv-tab[data-day="1"]').click(); await settle(900)
       await statsRhythm('430: pull day', 1)
+      await pillsCentred('430')
+      await scrollEdge('430: pull day', 1)
     }
     if (w === 320) {
       await page.locator('.pv-tab[data-day="1"]').click(); await settle(900)
       await statsRhythm('320: pull day', 1)
+      await pillsCentred('320')
+      await scrollEdge('320: pull day', 1)
       await page.locator('.pv-page[data-page="1"]').evaluate(el => el.scrollTo(0, el.scrollHeight)); await settle(500)
       await noOrphans('320: the note under «عدّل الخطة كاملة»', '.pv-page[data-page="1"] .pv-end p')
       await page.locator('.pv-page[data-page="1"]').evaluate(el => el.scrollTo(0, 0)); await settle(400)
@@ -386,6 +458,9 @@ await seed()
         })
       })
       ok('320: the card sheet keeps its gutter on both sides', g.every(x => x.ok), JSON.stringify(g.filter(x => !x.ok)))
+      const nb = await namesBlock('.k-sheet .xs-head', '.xs-ar', '.xs-en', '.xs-art')
+      ok('320: the card sheet\'s English sits under its Arabic, on the same edge, beside the picture',
+        nb.below && Math.abs(nb.ar - nb.en) <= 2 && nb.gapToArt >= 10 && nb.gapToArt <= 20, JSON.stringify(nb))
       await stepperColumn('320: the card sheet')
       await noOrphans('320: the card sheet\'s footnote', '.k-sheet .xs-foot')
       await contrast('320: the card sheet', '.k-sheet', { scroller: '.k-sheet-body' })
@@ -439,6 +514,13 @@ await seed()
 
   await card(1, 'Lat Pulldown').click(); await settle(800)
   ok('a card opens its sheet', await page.locator('[data-testid="exercise-sheet"]').count() === 1)
+  // its names together beside the picture, as on the card: the title says
+  // what the sheet does, not the Arabic name split from its English
+  const xs = await namesBlock('.k-sheet .xs-head', '.xs-ar', '.xs-en', '.xs-art')
+  ok('the card sheet: «عدّل التمرين», then the Arabic name with the English right under it, on its edge, beside the picture',
+    (await page.locator('.k-sheet [data-testid="xs-title"]').innerText()) === 'عدّل التمرين'
+    && (await page.locator('.k-sheet [data-testid="xs-name"]').innerText()) === 'سحب أمامي'
+    && xs.below && Math.abs(xs.ar - xs.en) <= 2 && xs.gapToArt >= 10 && xs.gapToArt <= 20, JSON.stringify(xs))
   await shot('390-card-sheet')
   await noOverflow('390: a card\'s sheet', '.k-sheet')
   await contrast('390: the card sheet', '.k-sheet', { scroller: '.k-sheet-body' })
@@ -535,7 +617,17 @@ await seed()
   ok('session: «خطتي» opens over it, on the session\'s day', await view().getAttribute('data-from') === 'session'
     && /جلستك الحين/.test(await page.locator('.pv-tab[aria-selected="true"]').innerText()))
   ok('session: it says an edit is for the next session', /الجلسة الجاية/.test(await page.locator('.pv-live').innerText()))
+  await page.setViewportSize({ width: 320, height: 568 }); await settle(600)
+  await noOrphans('320: «جلستك شغّالة»', '.pv-live')
+  await shot('320-plan-view-session')
+  await page.setViewportSize({ width: 390, height: 844 }); await settle(500)
   await closeView()
+  // the player's «أعلى وزن» and «خطتي»'s «أعلى»: one fact, one colour
+  const playerBest = await page.evaluate(() => {
+    const n = document.querySelector('.s-meta-part[data-best="1"] .k-num')
+    return n ? getComputedStyle(n).color : null
+  })
+  ok('his best weight is the same gold in the player and on «خطتي»', playerBest && playerBest === planBestColor, `${playerBest} vs ${planBestColor}`)
   ok('session: back in the session after ×', await page.locator('[data-testid="session"]').count() === 1)
 
   // the swap sheet
@@ -586,6 +678,17 @@ await seed()
   await page.getByRole('button', { name: 'خيارات التمرين' }).click(); await settle(600)
   await page.locator('.k-sheet').last().getByRole('button', { name: /استبدال التمرين/ }).click(); await settle(900)
   ok('swapped already: the plan\'s own comes first, «الأصلي»', await sheet.locator('.ac-group[data-group="original"] [data-name="Lat Pulldown"]').count() === 1)
+  const orig = await sheet.locator('.ac-group[data-group="original"] [data-testid="alt-card"]').evaluate((c) => {
+    const t = c.querySelector('.ac-tag'), a = c.querySelector('.ac-art').getBoundingClientRect(), ar = c.querySelector('.ac-ar').getBoundingClientRect()
+    const b = t?.getBoundingClientRect()
+    return t ? {
+      text: t.textContent, inArt: !!t.closest('.ac-art'),
+      overlaps: !(b.right <= a.left || b.left >= a.right || b.bottom <= a.top || b.top >= a.bottom),
+      aboveName: b.bottom <= ar.top + 1,
+    } : null
+  })
+  ok('«الأصلي» is a word over its name, nothing drawn on the machine\'s picture', orig?.text === 'الأصلي' && !orig.inArt && !orig.overlaps && orig.aboveName, JSON.stringify(orig))
+  await shot('390-session-swap-original')
   const always = (await sheet.locator('.ac-group[data-group="muscle"] [data-testid="alt-card"]').evaluateAll(els => els.map(e => e.dataset.name))).find(x => x !== once)
   await sheet.locator(`[data-testid="alt-card"][data-name="${always}"]`).click(); await settle(500)
   await page.locator('[data-testid="swap-always"]').click(); await settle(1100)

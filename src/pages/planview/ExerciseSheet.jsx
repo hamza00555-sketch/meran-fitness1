@@ -1,9 +1,11 @@
 // ── One exercise of «خطتي»: what he can change ───────────────
 //
-// The card's sheet (the kit's Sheet: grabber, pull down to close). Its
-// first page, all on the sheet's one surface: the machine big on its
-// fading light, the English name under the title's Arabic, the muscle
-// and the tool; two actions — «بدّله», «شوف الطريقة»; the numbers as
+// The card's sheet (the kit's Sheet: grabber, pull down to close), titled
+// «عدّل التمرين» as its second page is «بدّل التمرين». Its first page,
+// all on the sheet's one surface: the card's head, larger — the machine
+// big on its fading light and beside it the Arabic name, the English
+// directly under it on the same edge, the muscle and the tool, what he
+// changed; two actions — «بدّله», «شوف الطريقة»; the numbers as
 // open stepper rows split by hairlines: sets, reps (stepping them makes
 // the range his own, repsOwn — and «رجّعها على الإعدادات» gives it
 // back), rest; and last, quietly, «شيله من الخطة» (red text — «تراجع»
@@ -102,10 +104,13 @@ export default function ExerciseSheet({
 
   const original = row.swap?.from || null
   const swapping = mode === 'swap'
-  // The alternatives' title is the session swap's («بدّل التمرين»), short
-  // enough for one line beside ‹ and × on any phone; which exercise is the
-  // first line under it.
-  const title = swapping ? 'بدّل التمرين' : ar
+  // The titles say what the page does — «عدّل التمرين», and on the
+  // alternatives the session swap's «بدّل التمرين» — short enough for one
+  // line beside ‹ and × on any phone; which exercise is the first thing
+  // under it, its names together in one block (never the Arabic up in the
+  // title and the English left alone beside the picture).
+  const title = swapping ? 'بدّل التمرين' : 'عدّل التمرين'
+  const latinOnly = !/[؀-ۿ]/.test(ar)
   // What a swap keeps: the new machine takes this one's numbers.
   const keeps = timed
     ? <><Num>{row.reps.top}</Num> دقيقة</>
@@ -121,7 +126,8 @@ export default function ExerciseSheet({
               <span className="xs-art" aria-hidden="true">
                 <SessionMedia name={row.name} mapping={mapping} muscle={row.muscle} className="xs-art-img" />
               </span>
-              <span className="xs-names">
+              <div className="xs-names">
+                <h3 className="xs-ar" data-testid="xs-name" dir={latinOnly ? 'ltr' : undefined}>{ar}</h3>
                 {en && <bdi className="xs-en" dir="ltr">{en}</bdi>}
                 {kind && <span className="xs-tags">{kind}</span>}
                 {row.swap && (
@@ -136,7 +142,7 @@ export default function ExerciseSheet({
                     {extraWords(row.extra)}
                   </span>
                 ) : null}
-              </span>
+              </div>
             </div>
 
             <div className="xs-actions">
@@ -187,7 +193,7 @@ export default function ExerciseSheet({
         ) : (
           <>
             <p className="xs-keeps" data-testid="xs-keeps">
-              <span className="xs-keeps-name" dir={en ? undefined : 'ltr'}>{ar}</span>
+              <span className="xs-keeps-name" dir={latinOnly ? 'ltr' : undefined}>{ar}</span>
               <span>يبقى نفس نظامه: {keeps}</span>
             </p>
             <AltGroups alts={alts} original={original} muscle={row.muscle} mapping={mapping} lastFor={lastFor}

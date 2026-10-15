@@ -4,10 +4,11 @@
    before the card's edge, the numbers sit under a hairline. Text he reads
    is ink or ink-2 at 13px/600 or more (ink-3 only for footnotes), so
    nothing is faint under gym light (tests/plan-view.e2e.mjs measures every
-   line against the pixels behind it). No colour at all: no gold (the best
-   is ink), the body figure neutral, the danger red only on «شيله من
-   الخطة». The one green fill stays off this page — nothing here is the
-   session's primary action. */
+   line against the pixels behind it). Colour only where the app gives it
+   one meaning: gold on the figure of his best weight, as the player draws
+   it («أعلى وزن» — the number gold, its words ink); the body figure
+   neutral; the danger red only on «شيله من الخطة». The one green fill
+   stays off this page — nothing here is the session's primary action. */
 
 /* The machines' light and rim (--art-light, --art-rim) are in swap.css,
    shared with the alternatives and the session's swap. */
@@ -38,18 +39,19 @@
 /* ── the days: the builder's day pills (planner.css .pb .dtab), so the
    same days look the same one tap apart — surface-1 with its edge, the
    one shown filled white. The word, and under it only a true mark
-   («اليوم», «الجاي», «جلستك الحين»), bright: no count in faint grey. A
-   row that scrolls sideways when the days outgrow it. ── */
+   («اليوم», «الجاي», «جلستك الحين»), bright: no count in faint grey,
+   centred in the pill, so «دفع» alone sits in its middle as «سحب» over
+   «اليوم» does. A row that scrolls sideways when the days outgrow it. ── */
 .pv-tabs {
   flex: none; display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain;
-  margin-top: 12px; padding: 2px var(--gutter) 4px; scrollbar-width: none; scroll-padding-inline: var(--gutter);
+  margin-top: 12px; padding: 2px var(--gutter) 8px; scrollbar-width: none; scroll-padding-inline: var(--gutter);
 }
 .pv-tabs::-webkit-scrollbar { display: none; }
 .pv-tab {
   flex: none; min-width: 76px; min-height: 52px;
-  display: grid; justify-items: start; align-content: center; gap: 0;
+  display: grid; justify-items: center; align-content: center; gap: 0;
   padding: 9px 16px 8px; border: 0; border-radius: 18px; cursor: pointer;
-  background: var(--surface-1); color: var(--ink-2); font: inherit; text-align: start;
+  background: var(--surface-1); color: var(--ink-2); font: inherit; text-align: center;
   box-shadow: inset 0 0 0 1px var(--edge);
   -webkit-tap-highlight-color: transparent;
   transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), transform var(--dur-press) var(--ease-out);
@@ -66,19 +68,28 @@
   width: calc(100% - 2 * var(--gutter)); max-width: calc(560px - 2 * var(--gutter));
   padding: 10px 12px; border-radius: 12px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
   font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
+  text-wrap: balance;   /* no «هي.» alone on a third line at 320 */
 }
 .pv-live svg { flex: none; margin-top: 2px; color: var(--ink-2); }
 
-/* ── the pages: one per day, side by side, each scrolling on its own ── */
+/* ── the pages: one per day, side by side, each scrolling on its own ──
+   Where the cards go under the days they fade out over the first 14px,
+   never sliced through a name; once the day has scrolled, a hairline
+   draws the edge (data-scrolled on .pv, from the pages' scroll). */
 .pv-pages {
   flex: 1; min-height: 0; display: flex; overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
+  box-shadow: 0 -1px 0 transparent;
+  transition: box-shadow var(--dur-base) var(--ease-out);
 }
+.pv[data-scrolled] .pv-pages { box-shadow: 0 -1px 0 var(--hairline); }
 .pv-pages::-webkit-scrollbar { display: none; }
 .pv-page {
   flex: 0 0 100%; width: 100%; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain;
   scroll-snap-align: start; scroll-snap-stop: always;
-  padding: 0 var(--gutter) calc(var(--safe-bottom) + 32px);
+  padding: 4px var(--gutter) calc(var(--safe-bottom) + 32px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
 }
 
 /* ── a day's header: what it works, how long, the body ── */
@@ -207,6 +218,10 @@
   font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
 }
 .pv-hist .k-num { color: var(--ink); font-weight: 700; }
+/* his best: the figure gold, the words as the line's — the player's
+   «أعلى وزن» (session.css .s-meta-part[data-best]), the same fact in the
+   same colour one tap apart */
+.pv-hist .pv-best .k-num { color: var(--raise); }
 .pv-swap {
   position: relative; z-index: 2; flex: none;
   display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
@@ -243,7 +258,7 @@
 .pv-end p { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; text-wrap: balance; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pv-tab, .pv-card, .pv-swap { transition: none; }
+  .pv-tab, .pv-card, .pv-swap, .pv-pages { transition: none; }
   .pv-tab:active, .pv-card:has(.pv-open:active), .pv-swap:active { transform: none; }
   .pv-note { animation: none; }
   .pv-undo-clock { animation: none; display: none; }
@@ -265,18 +280,26 @@
 .xs-art-img { width: 100%; height: 100%; object-fit: cover; filter: var(--art-rim); }
 .xs-art-img[data-art="muscle"] { width: 92%; height: 92%; object-fit: contain; filter: none; }
 .xs-art svg.xs-art-img { width: 40%; height: 40%; color: var(--ink-2); filter: none; }
-.xs-names { min-width: 0; display: grid; gap: 6px; justify-items: start; }
+/* the names, as on the card: the Arabic, the English right under it on
+   the same (right) edge, then the muscle and the tool, then what he
+   changed — one block beside the picture, filling the row */
+.xs-names { min-width: 0; display: grid; gap: 0; justify-items: start; align-content: center; }
 .xs-names > * { max-width: 100%; }
+.xs-ar { margin: 0; font-size: var(--t-title); font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; text-wrap: balance; }
+.xs-ar[dir="ltr"] { width: 100%; text-align: right; font-stretch: 87.5%; }
+/* <bdi dir="ltr">: «start» would be the left; right is the Arabic's edge */
 .xs-en {
-  display: block; width: 100%; font-size: var(--t-body); font-weight: 600; font-stretch: 87.5%; line-height: 1.4;
+  display: block; width: 100%; margin-top: 2px; font-size: var(--t-body); font-weight: 600; font-stretch: 87.5%; line-height: 1.4;
   color: var(--ink-2); text-align: right; overflow-wrap: anywhere;
 }
-.xs-tags { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; }
+.xs-tags { margin-top: 6px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; }
 .xs-from {
+  margin-top: 6px;
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--t-label); font-weight: 700; line-height: 1.45; color: var(--ink);
   text-wrap: balance;   /* «بدل تفتيح / جهاز (بك دك)», not «(بك / دك)» */
 }
+.xs-from + .xs-from { margin-top: 2px; }
 .xs-from svg { flex: none; color: var(--ink-2); }
 
 .xs-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

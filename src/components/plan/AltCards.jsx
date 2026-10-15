@@ -8,7 +8,8 @@
 //
 // Two groups (src/plan/view.js rankAlternatives): the same muscle first,
 // then the same movement with another tool. When the exercise was already
-// swapped, the original leads, marked «الأصلي». Used by «خطتي»'s card
+// swapped, the original leads, «الأصلي» over its name (a word in the text,
+// never a badge on the picture). Used by «خطتي»'s card
 // sheet (a tap swaps) and the session's swap sheet (a tap picks, then «بس
 // هالمرة» or «دايماً بخطتي»).
 //
@@ -34,10 +35,11 @@ export function AltCard({ name, mapping = {}, muscle = null, last = null, tag = 
       onClick={() => onPick?.(name)}>
       <span className="ac-art" aria-hidden="true">
         <SessionMedia name={name} mapping={mapping} muscle={muscleOf(name, muscle)} className="ac-img" />
-        {tag && <span className="ac-tag">{tag}</span>}
         {selected && <span className="ac-check"><Check size={16} weight="bold" /></span>}
       </span>
       <span className="ac-names">
+        {/* «الأصلي» in the words, over the name — nothing drawn on the machine */}
+        {tag && <span className="ac-tag">{tag}</span>}
         <span className="ac-ar" dir={ar ? undefined : 'ltr'}>{ar || name}</span>
         {ar && <bdi className="ac-en" dir="ltr">{name}</bdi>}
       </span>
