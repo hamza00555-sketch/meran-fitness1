@@ -8,9 +8,16 @@
 // builder's own count (catalogue credits), the back as one muscle.
 //
 // Neutral, not green (the one green on a screen is its primary action,
-// and nothing on «خطتي» is): a grey body with light seams, the day's
-// muscles in white, the half-worked ones in light grey — the colours are
-// in planview.css (.pv-b-*), each at 3:1 or more against what it sits on.
+// and nothing on «خطتي» is): dark plates on dark seams, the body's
+// silhouette a grey contour set a hair outside it, the day's muscles in
+// white, the half-worked ones in a mid grey. A lit muscle touches only
+// the seams, the plates and the other lit state — never the contour (the
+// gap between them is the seams' colour) — and each lit state is 3:1 or
+// more against every one of those (planview.css, .pv-b-*; measured on
+// the pixels by tests/plan-view.e2e.mjs). Three layers under the
+// muscles: the contour (a wide grey stroke of the outline), the seams
+// (the outline filled, and stroked a little narrower in the same colour,
+// so 1px of the contour shows, apart from the body), the plates.
 
 import { memo, useMemo } from 'react'
 import { BODY, REGKEY } from '../planner/body.js'
@@ -48,7 +55,8 @@ function BodyFigure({ exercises = [], className = '' }) {
       aria-hidden="true" focusable="false">
       {['front', 'back'].map(side => (
         <g key={side} transform={`translate(${side === 'front' ? 724 : -724} 0)`}>
-          <path d={BODY[side].outline} className="pv-b-out" />
+          <path d={BODY[side].outline} className="pv-b-rim" vectorEffect="non-scaling-stroke" />
+          <path d={BODY[side].outline} className="pv-b-out" vectorEffect="non-scaling-stroke" />
           {REGIONS.filter(r => r.side === side).map((r, i) => (
             <path key={i} d={r.d} className={r.hair ? 'pv-b-hair' : 'pv-b-base'} />
           ))}

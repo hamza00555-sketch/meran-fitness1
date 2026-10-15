@@ -35,37 +35,31 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ── the days: a row of words on one hairline, an ink bar under the one
-   shown. Up to four share the width; more scroll sideways. ── */
+/* ── the days: the builder's day pills (planner.css .pb .dtab), so the
+   same days look the same one tap apart — surface-1 with its edge, the
+   one shown filled white. The word, and under it only a true mark
+   («اليوم», «الجاي», «جلستك الحين»), bright: no count in faint grey. A
+   row that scrolls sideways when the days outgrow it. ── */
 .pv-tabs {
-  flex: none; display: flex; overflow-x: auto; overscroll-behavior-x: contain;
-  margin-top: 12px; padding: 0 var(--gutter); scrollbar-width: none; scroll-padding-inline: var(--gutter);
-  box-shadow: inset 0 -1px 0 var(--hairline);
+  flex: none; display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain;
+  margin-top: 12px; padding: 2px var(--gutter) 4px; scrollbar-width: none; scroll-padding-inline: var(--gutter);
 }
 .pv-tabs::-webkit-scrollbar { display: none; }
 .pv-tab {
-  position: relative; flex: none; min-width: 76px; min-height: 52px;
-  display: grid; justify-items: center; align-content: start; gap: 0;
-  padding: 6px 14px 12px; border: 0; border-radius: 12px 12px 0 0; cursor: pointer;
-  background: none; color: var(--ink-2); font: inherit;
+  flex: none; min-width: 76px; min-height: 52px;
+  display: grid; justify-items: start; align-content: center; gap: 0;
+  padding: 9px 16px 8px; border: 0; border-radius: 18px; cursor: pointer;
+  background: var(--surface-1); color: var(--ink-2); font: inherit; text-align: start;
+  box-shadow: inset 0 0 0 1px var(--edge);
   -webkit-tap-highlight-color: transparent;
-  transition: color var(--dur-fast) var(--ease-out), background var(--dur-press);
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), transform var(--dur-press) var(--ease-out);
 }
-.pv-tabs[data-fit] .pv-tab { flex: 1 1 0; min-width: 0; padding-inline: 8px; }
-.pv-tab:active { background: var(--surface-1); }
-.pv-tab::after {
-  content: ""; position: absolute; bottom: 0; inset-inline: 12px; height: 3px;
-  border-radius: 3px 3px 0 0; background: var(--ink);
-  transform: scaleX(0.3); opacity: 0;
-  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
-}
-.pv-tab[aria-selected="true"] { color: var(--ink); }
-.pv-tab[aria-selected="true"]::after { transform: none; opacity: 1; }
-.pv-tab-word { font-size: var(--t-headline); font-weight: 700; line-height: 1.4; white-space: nowrap; }
-.pv-tab[aria-selected="true"] .pv-tab-word { font-weight: 800; }
-.pv-tab-v { font-size: var(--t-label); font-weight: 700; margin-inline-start: 4px; }
-.pv-tab-sub { font-size: var(--t-label); font-weight: 600; line-height: 1.35; color: var(--ink-2); white-space: nowrap; }
-.pv-tab[data-mark="today"] .pv-tab-sub, .pv-tab[data-mark="live"] .pv-tab-sub { color: var(--ink); font-weight: 700; }
+.pv-tab:active { transform: scale(0.94); }
+.pv-tab[data-mark] { color: var(--ink); }
+.pv-tab[aria-selected="true"] { background: var(--ink); color: var(--ground); box-shadow: none; }
+.pv-tab-word { font-size: 18px; font-weight: 800; line-height: 1.3; white-space: nowrap; }
+.pv-tab-v { font-size: var(--t-label); font-weight: 800; margin-inline-start: 3px; }
+.pv-tab-sub { font-size: var(--t-label); font-weight: 700; line-height: 1.35; white-space: nowrap; }
 
 .pv-live {
   flex: none; display: flex; align-items: flex-start; gap: 8px; margin: 12px auto 0;
@@ -103,14 +97,18 @@
 .pv-meta > span + span::before { content: "·"; margin-inline: 6px; color: var(--ink-3); }
 .pv-meta .k-num { color: var(--ink); font-weight: 700; }
 
-/* The body: grey (an ink-4 outline, 3.4:1 on the ground; surface-3
-   plates), the day's muscles in ink (12.8:1 on a plate), the half-worked
-   ones in ink-3 (4.6:1). */
-.pv-body { height: clamp(76px, 22vw, 92px); width: auto; aspect-ratio: 1448 / 1284; display: block; }
-.pv-b-out { fill: var(--ink-4); }
+/* The body (BodyFigure.jsx): surface-3 plates on seams of the ground, the
+   silhouette a 1px ink-4 contour 1.25px outside it (3.4:1 on the ground on
+   both its sides). The day's muscles in ink; the half-worked ones in
+   --pv-half, a grey between: 3.2:1 against ink, 4.0:1 against a plate,
+   5.8:1 against the seams. No grey could be 3:1 against both ink and an
+   ink-4 seam, so nothing lit ever touches ink-4. */
+.pv-body { --pv-half: #808A96; height: clamp(76px, 22vw, 92px); width: auto; aspect-ratio: 1448 / 1284; display: block; overflow: visible; }
+.pv-b-rim { fill: none; stroke: var(--ink-4); stroke-width: 4.5px; stroke-linejoin: round; }
+.pv-b-out { fill: var(--ground); stroke: var(--ground); stroke-width: 2.5px; stroke-linejoin: round; }
 .pv-b-base, .pv-b-hair { fill: var(--surface-3); }
 .pv-b-lit { fill: var(--ink); }
-.pv-b-lit[data-s="some"] { fill: var(--ink-3); }
+.pv-b-lit[data-s="some"] { fill: var(--pv-half); }
 
 /* a short phone (an SE): the top, the days and the day's header give
    their room to the first card */
@@ -119,7 +117,7 @@
   .pv-title { gap: 2px; }
   .pv-title h1 { font-size: 24px; }
   .pv-tabs { margin-top: 6px; }
-  .pv-tab { min-height: 46px; padding-block: 4px 9px; }
+  .pv-tab { min-height: 46px; padding-block: 6px 5px; }
   .pv-day { padding-block: 12px; }
   .pv-body { height: 64px; }
 }
@@ -185,9 +183,12 @@
 .pv-note svg { flex: none; color: var(--ink-2); }
 @keyframes pv-note-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
 
-/* the numbers: open, under a hairline that runs the card's width */
+/* the numbers: open, under a hairline that runs the card's width. Each
+   column as wide as what it holds, spread from edge to edge with equal
+   gaps between them — the sets on the right edge (over «آخر مرة»), the
+   rest on the left one (over «بدّله»). */
 .pv-stats {
-  grid-area: stats; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 0 12px;
+  grid-area: stats; display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; align-items: end; gap: 0 12px;
   margin-inline: -16px; padding: 12px 16px 0; border-top: 1px solid var(--hairline);
 }
 .pv-stat { min-width: 0; display: grid; justify-items: start; gap: 0; }
@@ -239,11 +240,11 @@
 @keyframes pv-undo-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 .pv-end { display: grid; gap: 8px; margin-top: var(--space-6); }
-.pv-end p { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; }
+.pv-end p { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; text-wrap: balance; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pv-tab, .pv-tab::after, .pv-card, .pv-swap { transition: none; }
-  .pv-card:has(.pv-open:active), .pv-swap:active { transform: none; }
+  .pv-tab, .pv-card, .pv-swap { transition: none; }
+  .pv-tab:active, .pv-card:has(.pv-open:active), .pv-swap:active { transform: none; }
   .pv-note { animation: none; }
   .pv-undo-clock { animation: none; display: none; }
 }
@@ -302,7 +303,9 @@
 }
 .xs-step-b:active { transform: scale(0.9); }
 .xs-step-b:disabled { opacity: 0.3; cursor: default; transform: none; }
-.xs-step-v { min-width: 72px; display: grid; justify-items: center; gap: 0; }
+/* one fixed slot, wide enough for «12–20»: the three rows' discs stand in
+   one column whatever the number */
+.xs-step-v { width: 80px; min-width: 0; display: grid; justify-items: center; gap: 0; }
 .xs-step-v b { font-size: 22px; font-weight: 800; line-height: 1.25; white-space: nowrap; }
 .xs-step-v small { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.35; }
 .xs-link {
@@ -314,7 +317,8 @@
    target; an action's icon goes over its word */
 @media (max-width: 360px) {
   .xs-act { flex-direction: column; gap: 4px; min-height: 64px; font-size: var(--t-label); }
-  .xs-step-v { min-width: 56px; }
+  .xs-step-v { width: 72px; }
+  .xs-step-v b { font-size: 20px; font-stretch: 87.5%; }
   .xs-step-b { width: 40px; height: 40px; }
   .xs-step-b::after { content: ""; position: absolute; inset: -2px; }
   .xs-step-c { gap: 2px; }
@@ -329,9 +333,14 @@
 }
 .xs-remove:active { background: var(--surface-3); }
 .xs-remove:disabled { opacity: 0.38; cursor: default; background: none; }
-.xs-note { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2); text-align: center; }
-.xs-foot { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; }
-.xs-keeps { margin: -8px 0 0; font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); }
+/* centred footnotes: balanced, so no word is left alone on a line */
+.xs-note { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2); text-align: center; text-wrap: balance; }
+.xs-foot { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; text-wrap: balance; }
+/* the alternatives' first lines: which exercise (the title says only
+   «بدّل التمرين»), then what the new one keeps */
+.xs-keeps { margin: 0; display: grid; gap: 2px; font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); }
+.xs-keeps-name { font-size: var(--t-body); font-weight: 700; line-height: 1.4; color: var(--ink); text-wrap: balance; }
+.xs-keeps-name[dir="ltr"] { text-align: right; font-stretch: 87.5%; }
 .xs-keeps .k-num { color: var(--ink); font-weight: 700; }
 
 @media (prefers-reduced-motion: reduce) {

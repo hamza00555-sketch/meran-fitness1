@@ -9,9 +9,12 @@
 // is judged where it is hardest to read. WCAG AA: 4.5:1; 3:1 for large
 // text (24px, or 18.66px at 700+). Disabled controls are exempt.
 //
-//   const { measure, ratioOf, rgbOf } = await makeContrast(browser, page)
+//   const { measure, neighbours, ratioOf, rgbOf } = await makeContrast(browser, page)
 //   const r = await measure('[data-testid="plan-view"]', { scroller: '.pv-page' })
 //   r → { runs, min, minAt, fails: ['«شيله» .xs-act 13px/800 4.10:1 < 4.5', …] }
+//
+// For graphics (the body figure), `neighbours(box, part)` compares a part
+// with the colours that really touch it on screen (see below).
 
 export const lum = (c) => {
   const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
@@ -92,6 +95,52 @@ async function sample({ a, b, items, dpr }) {
   })
 }
 
+/** In a blank page: the colours of the pixels just outside the marked ones
+ *  (those that differ between `a`, as drawn, and `b`, the part painted
+ *  magenta), within `r` device pixels, grouped by colour with their share. */
+async function ring({ a, b, r }) {
+  const load = async (b64) => {
+    const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob())
+    const c = new OffscreenCanvas(bmp.width, bmp.height)
+    const g = c.getContext('2d')
+    g.drawImage(bmp, 0, 0)
+    return g.getImageData(0, 0, bmp.width, bmp.height)
+  }
+  const A = await load(a), B = await load(b)
+  const W = A.width, H = A.height
+  const mark = new Uint8Array(W * H)
+  let marked = 0
+  for (let i = 0; i < W * H; i++) {
+    const j = i * 4
+    if (Math.max(Math.abs(A.data[j] - B.data[j]), Math.abs(A.data[j + 1] - B.data[j + 1]), Math.abs(A.data[j + 2] - B.data[j + 2])) > 24) { mark[i] = 1; marked++ }
+  }
+  const seen = new Uint8Array(W * H)
+  const counts = new Map()
+  let total = 0
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (!mark[y * W + x]) continue
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy > r * r) continue
+          const X = x + dx, Y = y + dy
+          if (X < 0 || Y < 0 || X >= W || Y >= H) continue
+          const q = Y * W + X
+          if (mark[q] || seen[q]) continue
+          seen[q] = 1
+          const k = `${A.data[q * 4]},${A.data[q * 4 + 1]},${A.data[q * 4 + 2]}`
+          counts.set(k, (counts.get(k) || 0) + 1)
+          total++
+        }
+      }
+    }
+  }
+  return {
+    marked, total,
+    groups: [...counts].map(([k, n]) => ({ rgb: k.split(',').map(Number), share: n / (total || 1) })).sort((p, q) => q.share - p.share),
+  }
+}
+
 const HIDE = '*, *::before, *::after { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; text-decoration-color: transparent !important; }'
 
 export async function makeContrast(browser, page) {
@@ -148,5 +197,42 @@ export async function makeContrast(browser, page) {
     return res
   }
 
-  return { measure, ratioOf, rgbOf, close: () => helper.close() }
+  /** A graphic's part against what really touches it: `part` (a selector
+   *  inside `box`) is painted magenta for a second screenshot; the pixels
+   *  that changed are the part, and the colours within 1.5 CSS px outside
+   *  it are its neighbours. Each neighbour colour holding at least `floor`
+   *  of them (blends at the edges hold little) is compared with the part's
+   *  own colour (its fill, or its stroke when it has no fill).
+   *  → { color, marked, neighbours: [{ rgb, share, ratio }], min } */
+  async function neighbours(box, part, { floor = 0.03 } = {}) {
+    const b = await page.locator(box).first().boundingBox()
+    if (!b) return null
+    const pad = 6
+    const clip = { x: Math.max(0, b.x - pad), y: Math.max(0, b.y - pad), width: b.width + 2 * pad, height: b.height + 2 * pad }
+    const info = await page.evaluate(([box, part]) => {
+      const el = document.querySelector(box)?.querySelector(part)
+      if (!el) return null
+      const cs = getComputedStyle(el)
+      const stroked = cs.fill === 'none'
+      return { color: stroked ? cs.stroke : cs.fill, prop: stroked ? 'stroke' : 'fill' }
+    }, [box, part])
+    if (!info) return null
+    const shown = await page.screenshot({ clip, animations: 'disabled' })
+    await page.evaluate(([css]) => {
+      const s = document.createElement('style')
+      s.id = 'contrast-mark'
+      s.textContent = css
+      document.head.appendChild(s)
+    }, [`${box} ${part} { ${info.prop}: #ff00ff !important; transition: none !important; }`])
+    await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))))
+    const marked = await page.screenshot({ clip, animations: 'disabled' })
+    await page.evaluate(() => document.getElementById('contrast-mark')?.remove())
+    const dpr = await page.evaluate(() => devicePixelRatio)
+    const res = await helper.evaluate(ring, { a: shown.toString('base64'), b: marked.toString('base64'), r: Math.round(1.5 * dpr) })
+    const color = rgbOf(info.color)
+    const list = res.groups.filter(g => g.share >= floor).map(g => ({ ...g, ratio: ratioOf(color, g.rgb) }))
+    return { color, marked: res.marked, neighbours: list, min: list.length ? Math.min(...list.map(g => g.ratio)) : Infinity }
+  }
+
+  return { measure, neighbours, ratioOf, rgbOf, close: () => helper.close() }
 }

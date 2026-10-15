@@ -27,6 +27,18 @@
 }
 .ac-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .ac-none { margin: 0; color: var(--ink-2); font-size: var(--t-body); }
+/* A group with an odd count: its last card takes the whole row, on its
+   side — the picture on the right, under the column above it, the names
+   and the meta beside it — so no half row stands empty. A group of one
+   («الأصلي», a single other tool) is one such row. */
+.ac-grid > .ac:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1fr auto auto 1fr;
+  column-gap: 10px; row-gap: 6px; padding: 0;
+}
+.ac-grid > .ac:last-child:nth-child(odd) .ac-art { grid-column: 1; grid-row: 1 / -1; margin: 6px; }
+.ac-grid > .ac:last-child:nth-child(odd) .ac-names { grid-column: 2; grid-row: 2; padding-inline: 0 12px; }
+.ac-grid > .ac:last-child:nth-child(odd) .ac-meta { grid-column: 2; grid-row: 3; padding-inline: 0 12px; }
 
 .ac {
   position: relative; min-width: 0; display: grid; align-content: start; gap: 6px;
@@ -79,12 +91,14 @@
   display: block; font-size: var(--t-label); font-weight: 600; font-stretch: 87.5%; line-height: 1.4; color: var(--ink-2);
   text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* the tool and the last weight, a gap between (no «·»: when the line
+   wraps, the second part starts its line clean) */
 .ac-meta {
-  display: flex; flex-wrap: wrap; align-items: center; padding-inline: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; padding-inline: 12px;
   font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-2);
 }
+.ac-meta > span { white-space: nowrap; }
 .ac-equip { color: var(--ink-2); }
-.ac-equip + .ac-last::before { content: "·"; margin-inline: 6px; color: var(--ink-3); }
 .ac-last { color: var(--ink-2); }
 .ac-last .k-num { color: var(--ink); font-weight: 700; }
 
@@ -117,9 +131,19 @@
 .sw-next { display: grid; gap: var(--space-2); margin-top: calc(-1 * var(--space-2)); }
 /* one row: a small picture and the name each, the next one first (at the
    start edge), hairlines between, scrolling sideways */
+/* The far edge (the left, in Arabic) fades out over 48px, so the one cut
+   by it reads as «more this way», not as a broken line; the strip's end
+   pads past the fade, so the last one ends clear of it. */
 .sw-next ol {
   list-style: none; margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter);
+  padding-inline-end: 56px;
   display: flex; gap: 14px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 48px);
+  mask-image: linear-gradient(to right, transparent, #000 48px);
+}
+.sw-next ol:dir(ltr) {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 48px);
+  mask-image: linear-gradient(to left, transparent, #000 48px);
 }
 .sw-next ol::-webkit-scrollbar { display: none; }
 .sw-next li { position: relative; flex: none; min-width: 0; display: flex; align-items: center; gap: 10px; }
@@ -145,7 +169,8 @@
 .sw-foot-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sw-foot-btns > :only-child { grid-column: 1 / -1; }
 .sw-foot-btns .k-btn { min-width: 0; padding-inline: 10px; }
-.sw-foot-note { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); text-align: center; line-height: 1.5; }
+.sw-foot-note { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); text-align: center; line-height: 1.5; text-wrap: balance; }
+.sw-foot-what { text-wrap: balance; }
 /* a short phone keeps the list in sight: the footer says only what and how */
 @media (max-height: 700px) {
   .sw-foot { gap: 8px; }

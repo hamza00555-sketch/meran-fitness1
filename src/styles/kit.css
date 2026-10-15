@@ -216,8 +216,8 @@ button.k-chip { cursor: pointer; min-height: 36px; }
 .k-sheet-tall { height: 92dvh; max-height: 92dvh; }
 /* The grabber and the title row are the sheet's handle: a drag there is
    always the sheet's, never a scroll. */
-/* ink-4: the decoration grey, so the handle shows on the sheet (2.6:1) */
-.k-sheet-grab { width: 36px; height: 5px; border-radius: var(--r-pill); background: var(--ink-4); margin: 8px auto 0; flex: none; touch-action: none; }
+/* the grabber is the one sign the sheet pulls down to close: ink-3, 5.3:1 on the sheet (a control, not decoration) */
+.k-sheet-grab { width: 36px; height: 5px; border-radius: var(--r-pill); background: var(--ink-3); margin: 8px auto 0; flex: none; touch-action: none; }
 .k-sheet-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 0 var(--gutter); touch-action: none; }
 .k-sheet[data-dragging] { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 @media (prefers-reduced-motion: reduce) {

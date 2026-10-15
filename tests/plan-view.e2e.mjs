@@ -25,7 +25,8 @@
 // session swap is measured against the real pixels behind it (a screenshot
 // with the text made transparent; the glyphs found by diffing it with the
 // normal one) and must reach WCAG AA: 4.5:1, or 3:1 at 24px / 18.66px
-// bold. The body figure must be 3:1 where it carries meaning, a card holds
+// bold. The body figure must be 3:1 where it carries meaning (each lit
+// state against every colour that touches it on screen), a card holds
 // no box inside it, the English name sits under the Arabic on its edge,
 // and no green or gold is drawn on the page.
 //
@@ -155,25 +156,39 @@ async function noCrowding(label) {
 // its glyphs; AA: 4.5:1, or 3:1 for large text. `scroller` steps a
 // scrolling box through its whole height so text below the fold counts.
 const contrastLog = []
-const { measure, ratioOf, rgbOf } = await makeContrast(browser, page)
+const { measure, neighbours, ratioOf, rgbOf } = await makeContrast(browser, page)
+/* The grabber is the one sign a sheet pulls down to close: a control, 3:1 on the sheet. */
+async function grabberContrast(label) {
+  const c = await page.evaluate(() => {
+    const g = [...document.querySelectorAll('.k-sheet .k-sheet-grab')].pop()
+    const s = g?.closest('.k-sheet')
+    return g && s ? { g: getComputedStyle(g).backgroundColor, s: getComputedStyle(s).backgroundColor } : null
+  })
+  const r = c ? ratioOf(rgbOf(c.g), rgbOf(c.s)) : 0
+  ok(`${label} — the sheet's grabber shows: ${r.toFixed(2)}:1 on the sheet (≥ 3:1)`, r >= 3, JSON.stringify(c))
+}
 async function contrast(label, roots, opts = {}) {
   const r = await measure(roots, opts)
   contrastLog.push(`${label}: ${r.runs} text runs, lowest ${r.min.toFixed(2)}:1 (${r.minAt})`)
   ok(`${label} — every text run reaches ${opts.aaa ? 'AAA (7:1)' : 'AA'} against what is behind it (${r.runs} measured)`, r.runs > 0 && r.fails.length === 0, r.fails.slice(0, 6).join(' | '))
 }
-/* The body figure carries the day's muscles: 3:1 where it means something. */
+/* The body figure carries the day's muscles: 3:1 where it means something,
+   against what really touches each part on the screen — the seams, the
+   plates, the contour, the other lit state — not against one colour picked
+   in the CSS. Each part is painted magenta once to find its pixels, and
+   every colour within 1.5px outside them (3% of them or more) is compared. */
 async function figureContrast(label, day) {
-  const f = await page.evaluate((day) => {
-    const svg = document.querySelector(`.pv-page[data-page="${day}"] .pv-body`)
-    const fill = (sel) => { const el = svg?.querySelector(sel); return el ? getComputedStyle(el).fill : null }
-    let bg = 'rgb(0,0,0)'
-    for (let a = svg?.parentElement; a; a = a.parentElement) { const c = getComputedStyle(a).backgroundColor; if (c && !/rgba\(.*,\s*0\)|transparent/.test(c)) { bg = c; break } }
-    return { out: fill('.pv-b-out'), base: fill('.pv-b-base'), lit: fill('.pv-b-lit:not([data-s="some"])'), some: fill('.pv-b-lit[data-s="some"]'), bg }
-  }, day)
-  const out = ratioOf(rgbOf(f.out), rgbOf(f.bg)), lit = ratioOf(rgbOf(f.lit), rgbOf(f.base))
-  const some = f.some ? ratioOf(rgbOf(f.some), rgbOf(f.base)) : 99
-  ok(`${label} — the body figure reads: outline ${out.toFixed(2)}, lit ${lit.toFixed(2)}, half-lit ${f.some ? some.toFixed(2) : '–'} (all ≥ 3:1)`,
-    out >= 3 && lit >= 3 && some >= 3, JSON.stringify(f))
+  const box = `.pv-page[data-page="${day}"] .pv-body`
+  const parts = [['outline', '.pv-b-rim'], ['lit', '.pv-b-lit:not([data-s="some"])'], ['half-lit', '.pv-b-lit[data-s="some"]']]
+  const said = [], bad = []
+  for (const [name, sel] of parts) {
+    const n = await neighbours(box, sel)
+    if (!n) { if (name !== 'half-lit') bad.push(`${name}: not drawn`); continue }
+    if (!n.marked || !n.neighbours.length) { bad.push(`${name}: no pixels found`); continue }
+    said.push(`${name} ${n.min.toFixed(2)}`)
+    for (const g of n.neighbours) if (g.ratio < 3) bad.push(`${name} rgb(${n.color}) vs rgb(${g.rgb}) ${g.ratio.toFixed(2)}:1 (${(g.share * 100).toFixed(1)}% of its neighbours)`)
+  }
+  ok(`${label} — the body figure reads against what touches it: ${said.join(', ')} (all ≥ 3:1)`, bad.length === 0, bad.join(' | '))
 }
 /* Palette: no green and no gold drawn anywhere on «خطتي» (its pictures aside). */
 async function noAccent(label) {
@@ -187,6 +202,70 @@ async function noAccent(label) {
     return out.slice(0, 4)
   })
   ok(`${label} — no green or gold on the page`, hits.length === 0, hits.join(' | '))
+}
+
+/* The alternatives: no half row left empty (a group with an odd count lays
+   its last card across the row, the picture on the right, the names
+   beside it); the meta line has no «·» that a wrap could leave at a
+   line's start. */
+async function altLayout(label) {
+  const r = await page.evaluate(() => {
+    const bad = []
+    let wide = 0
+    for (const grid of document.querySelectorAll('.k-sheet .ac-grid')) {
+      const cards = [...grid.querySelectorAll(':scope > .ac')]
+      const g = grid.getBoundingClientRect()
+      const rows = new Map()
+      for (const c of cards) { const b = c.getBoundingClientRect(); const k = Math.round(b.top); rows.set(k, (rows.get(k) || 0) + b.width) }
+      for (const [top, w] of rows) if (w < g.width - 12) bad.push(`${grid.closest('.ac-group')?.dataset.group}: a row at ${top} filled ${Math.round(w)} of ${Math.round(g.width)}`)
+      if (cards.length % 2) {
+        const last = cards[cards.length - 1]
+        const art = last.querySelector('.ac-art').getBoundingClientRect(), names = last.querySelector('.ac-names').getBoundingClientRect()
+        wide++
+        if (!(art.left > names.right - 1 && Math.abs(art.top + art.height / 2 - (names.top + names.height / 2)) < art.height / 2)) bad.push(`${last.dataset.name}: the picture not on the right of its names`)
+      }
+    }
+    for (const el of document.querySelectorAll('.k-sheet .ac-meta *')) {
+      const c = getComputedStyle(el, '::before').content
+      if (c && c !== 'none' && c !== 'normal') bad.push(`${el.className}::before ${c}`)
+    }
+    return { bad, wide }
+  })
+  ok(`${label} — every row of the alternatives is full (${r.wide} odd last card${r.wide === 1 ? '' : 's'} across its row), no «·» to start a line`, r.bad.length === 0, r.bad.slice(0, 4).join(' | '))
+}
+/* A card's numbers: three columns as wide as what they hold, equal gaps
+   between them, the outer two on the card's edges. */
+async function statsRhythm(label, day) {
+  const r = await page.locator(`.pv-page[data-page="${day}"] .pv-card`).evaluateAll((cards) => cards.slice(0, 3).map((c) => {
+    const s = c.querySelector('.pv-stats'), cs = getComputedStyle(s), b = s.getBoundingClientRect()
+    const L = b.left + parseFloat(cs.paddingLeft), R = b.right - parseFloat(cs.paddingRight)
+    const cols = [...s.querySelectorAll('.pv-stat')].map(x => x.getBoundingClientRect()).sort((p, q) => q.left - p.left)
+    const gaps = [cols[0].left - cols[1].right, cols[1].left - cols[2].right]
+    return { gaps: gaps.map(Math.round), edges: [Math.round(R - cols[0].right), Math.round(cols[2].left - L)] }
+  }))
+  ok(`${label} — the numbers stand with equal gaps between them, edge to edge`, r.every(x => Math.abs(x.gaps[0] - x.gaps[1]) <= 1.5 && x.edges.every(e => Math.abs(e) <= 1)), JSON.stringify(r))
+}
+/* A centred footnote leaves no word alone on its last line: every line at least half the longest. */
+async function noOrphans(label, sel) {
+  const r = await page.evaluate((sel) => [...document.querySelectorAll(sel)].filter(p => p.offsetParent).map((p) => {
+    const range = document.createRange()
+    range.selectNodeContents(p)
+    const lines = new Map()
+    for (const b of range.getClientRects()) { if (b.width < 1) continue; const k = Math.round(b.top / 4); const l = lines.get(k) || [Infinity, -Infinity]; lines.set(k, [Math.min(l[0], b.left), Math.max(l[1], b.right)]) }
+    const w = [...lines.values()].map(([a, b]) => b - a)
+    return { text: p.textContent.slice(0, 24), lines: w.length, shortest: w.length > 1 ? Math.round(Math.min(...w) / Math.max(...w) * 100) : 100 }
+  }), sel)
+  ok(`${label} — no word left alone on a line (${r.map(x => `${x.lines} lines, shortest ${x.shortest}%`).join('; ')})`, r.length > 0 && r.every(x => x.shortest >= 50), JSON.stringify(r))
+}
+/* The card sheet's steppers: the discs of every row in one column, the number inside its slot. */
+async function stepperColumn(label) {
+  const r = await page.evaluate(() => [...document.querySelectorAll('.k-sheet .xs-step')].filter(s => s.querySelector('.xs-step-b')).map((s) => {
+    const [dec, inc] = [...s.querySelectorAll('.xs-step-b')].map(b => b.getBoundingClientRect())
+    const v = s.querySelector('.xs-step-v'), bv = v.querySelector('b')
+    return { row: s.dataset.testid, dec: Math.round(dec.left), inc: Math.round(inc.left), fits: bv.scrollWidth <= v.clientWidth + 0.5 }
+  }))
+  const same = (k) => r.every(x => Math.abs(x[k] - r[0][k]) <= 1)
+  ok(`${label} — the steppers' discs stand in one column, every number inside its slot`, r.length >= 3 && same('dec') && same('inc') && r.every(x => x.fits), JSON.stringify(r))
 }
 
 // ── 0. The pack, from Settings ────────────────────────────────
@@ -249,6 +328,16 @@ await seed()
   ok('a card holds no box inside it (one surface, a hairline over the numbers)', boxes.length === 0, boxes.join(', '))
   ok('no number on the picture', await page.locator('.pv-card .pv-n').count() === 0)
   await figureContrast('390: pull day', 1)
+  await statsRhythm('390: pull day', 1)
+  // the day tabs are the builder's day pills: the one shown filled white, no underline
+  const tabStyle = await page.evaluate(() => {
+    const cs = (el, p) => getComputedStyle(el, p)
+    const sel = document.querySelector('.pv-tab[aria-selected="true"]'), other = document.querySelector('.pv-tab[aria-selected="false"]')
+    return { sel: cs(sel).backgroundColor, selR: cs(sel).borderTopLeftRadius, other: cs(other).backgroundColor, after: cs(sel, '::after').content }
+  })
+  ok('the day tabs are the builder\'s pills: the one shown white, the others on a surface, no underline',
+    tabStyle.sel === 'rgb(244, 246, 248)' && tabStyle.selR === '18px' && tabStyle.other !== 'rgba(0, 0, 0, 0)' && /none|normal/.test(tabStyle.after), JSON.stringify(tabStyle))
+  ok('a tab says only a true mark under its day (no count of exercises)', !/تمارين|تمرين/.test(await page.locator('.pv-tabs').innerText()))
   await noAccent('390: «خطتي»')
   await contrast('390: «خطتي», pull day (top to bottom)', '[data-testid="plan-view"]', { scroller: '.pv-page[data-page="1"]' })
   // what he reads to understand a card, the day and the tabs: no faint grey at all
@@ -273,8 +362,16 @@ await seed()
   for (const w of [320, 430]) {
     await page.setViewportSize({ width: w, height: w === 320 ? 568 : 932 }); await settle(600)
     await noOverflow(`${w}: the plan view`)
+    if (w === 430) {
+      await page.locator('.pv-tab[data-day="1"]').click(); await settle(900)
+      await statsRhythm('430: pull day', 1)
+    }
     if (w === 320) {
       await page.locator('.pv-tab[data-day="1"]').click(); await settle(900)
+      await statsRhythm('320: pull day', 1)
+      await page.locator('.pv-page[data-page="1"]').evaluate(el => el.scrollTo(0, el.scrollHeight)); await settle(500)
+      await noOrphans('320: the note under «عدّل الخطة كاملة»', '.pv-page[data-page="1"] .pv-end p')
+      await page.locator('.pv-page[data-page="1"]').evaluate(el => el.scrollTo(0, 0)); await settle(400)
       await shot('320-plan-view')
       await contrast('320: «خطتي», pull day (top)', '[data-testid="plan-view"]')
       // the card sheet at 320: its rows keep the gutter on both sides
@@ -289,8 +386,22 @@ await seed()
         })
       })
       ok('320: the card sheet keeps its gutter on both sides', g.every(x => x.ok), JSON.stringify(g.filter(x => !x.ok)))
+      await stepperColumn('320: the card sheet')
+      await noOrphans('320: the card sheet\'s footnote', '.k-sheet .xs-foot')
       await contrast('320: the card sheet', '.k-sheet', { scroller: '.k-sheet-body' })
       await shot('320-card-sheet')
+      // its alternatives at 320: a one-line title, the exercise named under it
+      await page.locator('[data-testid="xs-swap"]').click(); await settle(900)
+      const t = await page.evaluate(() => ({
+        lines: document.querySelector('.k-sheet [data-testid="xs-title"]').getClientRects().length,
+        title: document.querySelector('.k-sheet [data-testid="xs-title"]').textContent,
+        keeps: document.querySelector('[data-testid="xs-keeps"]').innerText.replace(/\s+/g, ' '),
+      }))
+      ok('320: the alternatives\' title fits one line beside ‹ and ×, the exercise named under it',
+        t.lines === 1 && /^بدّل التمرين$/.test(t.title) && /^تجديف كيبل جالس يبقى نفس نظامه/.test(t.keeps), JSON.stringify(t))
+      await altLayout('320: the alternatives')
+      await noOverflow('320: the alternatives', '.k-sheet')
+      await contrast('320: the alternatives', '.k-sheet', { scroller: '.k-sheet-body' })
       await page.locator('.k-sheet [aria-label="إغلاق"]').click(); await settle(600)
     }
   }
@@ -332,6 +443,8 @@ await seed()
   await noOverflow('390: a card\'s sheet', '.k-sheet')
   await contrast('390: the card sheet', '.k-sheet', { scroller: '.k-sheet-body' })
   await contrast('390: the card sheet\'s names, actions and steppers', '.k-sheet-h, .xs-head, .xs-actions, .xs-steps', { aaa: true })
+  await grabberContrast('390: the card sheet')
+  await stepperColumn('390: the card sheet')
   await page.locator('[data-testid="xs-swap"]').click(); await settle(800)
   await contrast('390: the alternatives', '.k-sheet', { scroller: '.k-sheet-body' })
   const alts = page.locator('.k-sheet [data-testid="alt-card"]')
@@ -347,6 +460,7 @@ await seed()
   ok('a card says its tool and his last weight on it (or that he never did it)', /(جهاز|كيبل|دمبل|بار|وزن الجسم)/.test(firstText) && /(آخر مرة|ما جرّبته)/.test(firstText), firstText)
   await shot('390-alternatives')
   await noOverflow('390: the alternatives', '.k-sheet')
+  await altLayout('390: the alternatives')
   const pick = names[0]
   await alts.first().click(); await settle(1200)
   const plan = await get('hf_plan')
@@ -446,10 +560,19 @@ await seed()
     const cs = getComputedStyle(li); return cs.boxShadow === 'none' && /rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor)
   })))
   await contrast('390: the session swap, a pick made', '.k-sheet', { scroller: '.k-sheet-body' })
+  await grabberContrast('390: the session swap')
+  await altLayout('390: the session swap')
   await shot('390-session-swap')
   await noOverflow('390: the session swap', '.k-sheet')
   await page.setViewportSize({ width: 320, height: 568 }); await settle(600)
   await noOverflow('320: the session swap', '.k-sheet')
+  await altLayout('320: the session swap')
+  // the strip of what comes next fades at its far edge: the one cut there reads as «more»
+  const strip = await page.locator('[data-testid="swap-upcoming"] ol').evaluate((ol) => {
+    const cs = getComputedStyle(ol)
+    return { mask: cs.maskImage || cs.webkitMaskImage, more: ol.scrollWidth > ol.clientWidth + 1 }
+  })
+  ok('320: «بعده بالجلسة» fades out at its far edge where more is cut off', strip.more && /linear-gradient/.test(strip.mask), JSON.stringify(strip))
   await shot('320-session-swap')
   await page.setViewportSize({ width: 390, height: 844 }); await settle(400)
   const once = cnames[0]

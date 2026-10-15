@@ -8,7 +8,8 @@
 // the range his own, repsOwn — and «رجّعها على الإعدادات» gives it
 // back), rest; and last, quietly, «شيله من الخطة» (red text — «تراجع»
 // brings it back). «بدّله» turns the sheet to the alternatives as picture
-// cards (AltGroups), with a back arrow in its title row; a tap on one
+// cards (AltGroups), titled «بدّل التمرين» with a back arrow in its title
+// row, the exercise's name and what a swap keeps under it; a tap on one
 // swaps. A card's own «بدّله» opens the sheet on that page.
 //
 // Every change is written into his plan at once, the way the builder saves
@@ -101,7 +102,10 @@ export default function ExerciseSheet({
 
   const original = row.swap?.from || null
   const swapping = mode === 'swap'
-  const title = swapping ? `بدّل ${ar}` : ar
+  // The alternatives' title is the session swap's («بدّل التمرين»), short
+  // enough for one line beside ‹ and × on any phone; which exercise is the
+  // first line under it.
+  const title = swapping ? 'بدّل التمرين' : ar
   // What a swap keeps: the new machine takes this one's numbers.
   const keeps = timed
     ? <><Num>{row.reps.top}</Num> دقيقة</>
@@ -182,7 +186,10 @@ export default function ExerciseSheet({
           </>
         ) : (
           <>
-            <p className="xs-keeps" data-testid="xs-keeps">يبقى نفس نظامه: {keeps}</p>
+            <p className="xs-keeps" data-testid="xs-keeps">
+              <span className="xs-keeps-name" dir={en ? undefined : 'ltr'}>{ar}</span>
+              <span>يبقى نفس نظامه: {keeps}</span>
+            </p>
             <AltGroups alts={alts} original={original} muscle={row.muscle} mapping={mapping} lastFor={lastFor}
               onPick={(name) => { haptic('set'); onSwap(name) }} />
           </>

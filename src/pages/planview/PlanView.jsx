@@ -9,11 +9,12 @@
 // chunk carries the page, its styles and the body figure's paths.
 //
 //   the top     «خطتي», the plan's name, ×
-//   the days    one tab per day of the cycle, the word the Home stage uses
-//               («دفع», «سحب A»), today's / the next one marked under it;
-//               up to four share the width as one row, more scroll; an
-//               ink bar under the one shown. The days swipe sideways
-//               (scroll snap), the tab follows
+//   the days    one pill per day of the cycle — the builder's day pills,
+//               the one shown filled white — with the word the Home stage
+//               uses («دفع», «سحب A») and, only on today's / the next
+//               one, that mark under it; a row that scrolls when the days
+//               outgrow it. The days swipe sideways (scroll snap), the
+//               tab follows
 //   a day       a short header — the muscles (the tab already names the
 //               day), how many exercises and sets and the minutes, and
 //               the muscles lit on a small grey body — then one card per
@@ -235,7 +236,7 @@ export default function PlanView({
         <IconButton icon={X} label="إغلاق" onClick={close} data-testid="plan-view-close" />
       </header>
 
-      <div className="pv-tabs" role="tablist" aria-label="أيام الخطة" ref={tabs} data-fit={n <= 4 ? '1' : undefined}>
+      <div className="pv-tabs" role="tablist" aria-label="أيام الخطة" ref={tabs}>
         {days.map((d, i) => {
           const eff = effectiveDay(plan, i, opts)
           const { word, variant } = dayWord(eff)
