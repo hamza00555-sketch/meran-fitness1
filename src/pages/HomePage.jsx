@@ -3,7 +3,7 @@ import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
 import StreakNumber, { useFlameIgnition } from '../components/streak/StreakNumber.jsx'
 import { IconButton, ListGroup, ListRow, Gauge, Num } from '../components/kit/index.jsx'
-import { GearSix, ChartBar, CalendarBlank, Moon, Plus } from '../components/kit/icons.js'
+import { GearSix, ChartBar, CalendarBlank, Moon, Plus, ListChecks } from '../components/kit/icons.js'
 import { MUSCLE_GROUPS } from '../constants.js'
 import { DAY_STATUS } from '../recovery.js'
 import { countAr, todayStreak, fmtDayAr, streakView } from '../streak.js'
@@ -44,14 +44,20 @@ function PlanProgress({ plan, planIndex, onOpen }) {
   return (
     <ListGroup header="تقدم البرنامج" className="hm-group">
       <ListRow
-        leading={CalendarBlank}
-        title={<span className="hm-plan-name">{plan.planName}</span>}
-        subtitle={isCompleted
-          ? <>خلصت الخطة · <Num>{totalSessions}</Num> جلسة</>
-          : <>الأسبوع <Num>{currentWeek}</Num> من <Num>{durationWeeks}</Num> · أنجزت <Num>{doneSessions}</Num> من <Num>{totalSessions}</Num> جلسة</>}
+        leading={onOpen ? ListChecks : CalendarBlank}
+        title={onOpen ? 'خطتي' : <span className="hm-plan-name">{plan.planName}</span>}
+        subtitle={<>
+          {onOpen && <span className="hm-plan-name hm-plan-sub">{plan.planName}</span>}
+          <span className={onOpen ? 'hm-plan-sub' : undefined}>
+            {isCompleted
+              ? <>خلصت الخطة · <Num>{totalSessions}</Num> جلسة</>
+              : <>الأسبوع <Num>{currentWeek}</Num> من <Num>{durationWeeks}</Num> · {onOpen ? null : 'أنجزت '}<Num>{doneSessions}</Num> من <Num>{totalSessions}</Num> جلسة</>}
+          </span>
+        </>}
         trailing={<Num className="hm-pct">{pct}%</Num>}
         chevron={!!onOpen}
         onClick={onOpen}
+        className={onOpen ? 'hm-plan-row' : undefined}
       >
         <Gauge value={doneSessions} max={totalSessions} tone="ink" label="تقدم البرنامج" className="hm-gauge" />
       </ListRow>

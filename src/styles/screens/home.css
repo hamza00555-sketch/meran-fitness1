@@ -203,6 +203,10 @@
 .hm .hm-group { margin-bottom: var(--space-6); }
 .hm .hm-group .k-row-main { gap: 2px; }
 .hm-plan-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* «خطتي» over the plan's name and where it stands: the row that opens it */
+.hm-plan-row .k-row-title { font-weight: 800; }
+.hm-plan-sub { display: block; }
+.hm-plan-sub.hm-plan-name { color: var(--ink-2); }
 .hm .hm-gauge { margin-top: 8px; }
 .hm-pct { font-weight: 700; color: var(--ink); }
 .hm-rest-num { color: var(--rest); font-weight: 700; }

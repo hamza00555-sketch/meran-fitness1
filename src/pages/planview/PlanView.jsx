@@ -169,7 +169,12 @@ export default function PlanView({
     if (okd !== false && d != null) bump(d, j)
     return okd !== false
   }
-  const sheetRow = sheet ? days[sheet.d]?.rows?.[sheet.j] : null
+  // The row the sheet is about. On its way out it keeps showing that one,
+  // not the exercise that slid into its place (after «شيله»).
+  const liveRow = sheet ? days[sheet.d]?.rows?.[sheet.j] : null
+  const lastRow = useRef(null)
+  if (sheet?.open && liveRow) lastRow.current = liveRow
+  const sheetRow = sheet?.open ? liveRow : lastRow.current
 
   const doSwap = (name) => {
     if (!sheet || !sheetRow) return

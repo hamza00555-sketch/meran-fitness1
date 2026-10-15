@@ -1627,7 +1627,8 @@ export default function App() {
             sessions={sessions}
             exerciseMapping={exerciseMapping}
             repTarget={repTarget}
-            status={recovery.status === DAY_STATUS.COMPLETED ? 'completed' : recovery.status === DAY_STATUS.RECOVERY ? 'recovery' : 'training'}
+            status={recovery.status === DAY_STATUS.COMPLETED ? 'completed'
+              : recovery.status === DAY_STATUS.RECOVERY || recovery.status === DAY_STATUS.REST_TAKEN ? 'recovery' : 'training'}
             active={active}
             onCommit={editPlan}
             onClearSub={clearSub}

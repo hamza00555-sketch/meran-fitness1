@@ -91,8 +91,7 @@ export default function PlanCard({ row, index, mapping = {}, sessions = [], flas
   }, [flash, row.name])
 
   return (
-    <button type="button" ref={ref} className="pv-card" onClick={onOpen} data-testid="plan-card" data-name={row.name}
-      aria-label={`${ar}، ${row.sets} ${setsUnit(row.sets)}`}>
+    <button type="button" ref={ref} className="pv-card" onClick={onOpen} data-testid="plan-card" data-name={row.name}>
       <span className="pv-art" aria-hidden="true">
         <SessionMedia key={row.name} name={row.name} mapping={mapping} muscle={row.muscle} className="pv-art-img" />
         <span className="pv-n"><Num>{index + 1}</Num></span>
