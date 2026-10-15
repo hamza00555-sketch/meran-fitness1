@@ -77,7 +77,9 @@
      rest blue on purpose: a ticket is a day off, a deload is training.
      Not changed by the deload theme, so it means the same either way. */
   --deload:       #5CC9EE;
-  --danger:       #F25555;   /* destructive text inside menus and confirms only */
+  --danger:       #FF7A7A;   /* destructive text inside menus and confirms only:
+                                7.1:1 on surface-1, 6.4 on surface-2, 5.5 on surface-3
+                                (#F25555 was 4.1 on surface-3, under AA) */
   --danger-fill:  #DC2626;
 
   /* ── Type ── */

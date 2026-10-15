@@ -5,6 +5,7 @@ import StreakNumber, { useFlameIgnition } from '../components/streak/StreakNumbe
 import { IconButton, ListGroup, ListRow, Gauge, Num } from '../components/kit/index.jsx'
 import { GearSix, ChartBar, CalendarBlank, Moon, Plus, ListChecks } from '../components/kit/icons.js'
 import { MUSCLE_GROUPS } from '../constants.js'
+import { planTitle } from '../plan/title.js'
 import { DAY_STATUS } from '../recovery.js'
 import { countAr, todayStreak, fmtDayAr, streakView } from '../streak.js'
 import { todayKey } from '../day.js'
@@ -45,9 +46,9 @@ function PlanProgress({ plan, planIndex, onOpen }) {
     <ListGroup header="تقدم البرنامج" className="hm-group">
       <ListRow
         leading={onOpen ? ListChecks : CalendarBlank}
-        title={onOpen ? 'خطتي' : <span className="hm-plan-name">{plan.planName}</span>}
+        title={onOpen ? 'خطتي' : <span className="hm-plan-name">{planTitle(plan.planName)}</span>}
         subtitle={<>
-          {onOpen && <span className="hm-plan-name hm-plan-sub">{plan.planName}</span>}
+          {onOpen && <span className="hm-plan-name hm-plan-sub">{planTitle(plan.planName)}</span>}
           <span className={onOpen ? 'hm-plan-sub' : undefined}>
             {isCompleted
               ? <>خلصت الخطة · <Num>{totalSessions}</Num> جلسة</>

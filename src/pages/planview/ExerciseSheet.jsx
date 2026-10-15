@@ -1,11 +1,15 @@
 // ── One exercise of «خطتي»: what he can change ───────────────
 //
 // The card's sheet (the kit's Sheet: grabber, pull down to close). Its
-// first page: the machine and its names, three actions — «بدّله», «شوف
-// الطريقة», «شيله» — and the numbers as steppers: sets, reps (stepping
-// them makes the range his own, repsOwn — and «رجّعها على الإعدادات»
-// gives it back), rest. «بدّله» turns the sheet to the alternatives as
-// picture cards (AltGroups); a tap on one swaps.
+// first page, all on the sheet's one surface: the machine big on its
+// fading light, the English name under the title's Arabic, the muscle
+// and the tool; two actions — «بدّله», «شوف الطريقة»; the numbers as
+// open stepper rows split by hairlines: sets, reps (stepping them makes
+// the range his own, repsOwn — and «رجّعها على الإعدادات» gives it
+// back), rest; and last, quietly, «شيله من الخطة» (red text — «تراجع»
+// brings it back). «بدّله» turns the sheet to the alternatives as picture
+// cards (AltGroups), with a back arrow in its title row; a tap on one
+// swaps. A card's own «بدّله» opens the sheet on that page.
 //
 // Every change is written into his plan at once, the way the builder saves
 // an edit of his own plan (App's commitPlan): free, the day he reached
@@ -13,21 +17,19 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Sheet, Num } from '../../components/kit/index.jsx'
-import { ArrowsLeftRight, YoutubeLogo, Trash, Plus, Minus, CaretRight } from '../../components/kit/icons.js'
+import { ArrowsLeftRight, YoutubeLogo, Trash, Plus, Minus } from '../../components/kit/icons.js'
 import SessionMedia from '../../components/player/SessionMedia.jsx'
 import AltGroups from '../../components/plan/AltCards.jsx'
 import { exerciseNames } from '../../components/home/HomeBits.jsx'
-import { setsUnit } from '../../components/home/dayParts.js'
 import { findVideoUrl } from '../../components/DayPreviewSheet.jsx'
-import { equipLabel, arabicName } from '../../exerciseMedia.js'
-import { MUSCLE_GROUPS } from '../../constants.js'
+import { arabicName } from '../../exerciseMedia.js'
 import { repTargetOf } from '../../progression.js'
 import { haptic } from '../../haptics.js'
 import { animate, reducedMotion } from '../../motion.js'
 import {
-  rankAlternatives, stepList, REP_STEPS, SEC_STEPS, REST_STEPS, MIN_SETS, MAX_SETS,
+  rankAlternatives, stepList, extraWords, REP_STEPS, SEC_STEPS, REST_STEPS, MIN_SETS, MAX_SETS,
 } from '../../plan/view.js'
-import { Rolling, restParts, rangeText, rangeUnit } from './PlanCard.jsx'
+import { Rolling, restParts, rangeText, rangeUnit, kindLine } from './PlanCard.jsx'
 
 const videoFor = (name) => findVideoUrl(name)
   || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} proper form`)}`
@@ -56,10 +58,10 @@ function Stepper({ label, sub, value, unit, onDec, onInc, decOff, incOff, testid
 }
 
 export default function ExerciseSheet({
-  open, row, dayNames = [], mapping = {}, lastFor = () => null, repTarget,
+  open, row, startMode = 'main', dayNames = [], mapping = {}, lastFor = () => null, repTarget,
   canRemove = true, onSwap, onSets, onReps, onRepsReset, onRest, onRemove, onClose,
 }) {
-  const [mode, setMode] = useState('main')
+  const [mode, setMode] = useState(startMode === 'swap' ? 'swap' : 'main')
   const body = useRef(null)
   // A page turn: the alternatives come in from the side the finger goes
   // (RTL: forward is to the left), the first page comes back from the other.
@@ -86,8 +88,7 @@ export default function ExerciseSheet({
 
   if (!row) return null
   const { ar, en } = exerciseNames(row.name, mapping)
-  const group = MUSCLE_GROUPS[row.muscle]?.label || ''
-  const equip = equipLabel(row.name, mapping)
+  const kind = kindLine(row.name, row.muscle, mapping)
   const timed = row.unit === 'min'
   const settings = repTargetOf(repTarget)
   const rest = restParts(row.rest)
@@ -99,12 +100,18 @@ export default function ExerciseSheet({
   const same = (a, b) => a[0] === b[0] && a[1] === b[1]
 
   const original = row.swap?.from || null
-  const title = mode === 'swap' ? `بدّل ${ar}` : ar
+  const swapping = mode === 'swap'
+  const title = swapping ? `بدّل ${ar}` : ar
+  // What a swap keeps: the new machine takes this one's numbers.
+  const keeps = timed
+    ? <><Num>{row.reps.top}</Num> دقيقة</>
+    : <><Num>{row.sets}</Num> × <Num>{rangeText(row.reps)}</Num> · راحة <Num>{rest.v}</Num> {rest.u}</>
 
   return (
-    <Sheet open={open} onClose={onClose} title={<span data-testid="xs-title">{title}</span>} tall={mode === 'swap'}>
+    <Sheet open={open} onClose={onClose} title={<span data-testid="xs-title">{title}</span>} tall={swapping}
+      onBack={swapping ? () => setMode('main') : undefined}>
       <div ref={body} className="xs" data-mode={mode} data-testid="exercise-sheet">
-        {mode === 'main' ? (
+        {!swapping ? (
           <>
             <div className="xs-head">
               <span className="xs-art" aria-hidden="true">
@@ -112,13 +119,19 @@ export default function ExerciseSheet({
               </span>
               <span className="xs-names">
                 {en && <bdi className="xs-en" dir="ltr">{en}</bdi>}
-                <span className="xs-tags">{[group, equip].filter(Boolean).join(' · ')}</span>
+                {kind && <span className="xs-tags">{kind}</span>}
                 {row.swap && (
                   <span className="xs-from">
                     <ArrowsLeftRight size={14} weight="bold" aria-hidden="true" />
                     بدل {arabicName(row.swap.from, mapping) || row.swap.from}
                   </span>
                 )}
+                {row.extra ? (
+                  <span className="xs-from">
+                    {row.extra > 0 ? <Plus size={14} weight="bold" aria-hidden="true" /> : <Minus size={14} weight="bold" aria-hidden="true" />}
+                    {extraWords(row.extra)}
+                  </span>
+                ) : null}
               </span>
             </div>
 
@@ -130,14 +143,10 @@ export default function ExerciseSheet({
                 onClick={() => window.open(videoFor(row.name), '_blank', 'noopener,noreferrer')}>
                 <YoutubeLogo size={22} weight="fill" aria-hidden="true" />شوف الطريقة
               </button>
-              <button type="button" className="xs-act is-danger" data-testid="xs-remove" onClick={onRemove} disabled={!canRemove}>
-                <Trash size={22} weight="bold" aria-hidden="true" />شيله
-              </button>
             </div>
-            {!canRemove && <p className="xs-note">آخر تمرين باليوم ما ينشال — اليوم ما يصير فاضي.</p>}
 
             <div className="xs-steps">
-              <Stepper testid="xs-sets" label="المجموعات" value={row.sets} unit={setsUnit(row.sets)}
+              <Stepper testid="xs-sets" label="المجموعات" value={row.sets}
                 decOff={row.sets <= MIN_SETS} incOff={row.sets >= MAX_SETS}
                 onDec={step(() => onSets(row.sets - 1))} onInc={step(() => onSets(row.sets + 1))} />
               {timed ? (
@@ -162,13 +171,18 @@ export default function ExerciseSheet({
                 onDec={step(() => onRest(stepList(REST_STEPS, row.rest, -1)))}
                 onInc={step(() => onRest(stepList(REST_STEPS, row.rest, 1)))} />
             </div>
-            <p className="xs-foot">كل تعديل ينحفظ بخطتك على طول، وما يلمس الستريك. الجلسة الجاية تمشي عليه.</p>
+
+            <div className="xs-end">
+              <button type="button" className="xs-remove" data-testid="xs-remove" onClick={onRemove} disabled={!canRemove}>
+                <Trash size={20} weight="bold" aria-hidden="true" />شيله من الخطة
+              </button>
+              {!canRemove && <p className="xs-note">آخر تمرين باليوم ما ينشال — اليوم ما يصير فاضي.</p>}
+              <p className="xs-foot">كل تعديل ينحفظ بخطتك على طول، وما يلمس الستريك. الجلسة الجاية تمشي عليه.</p>
+            </div>
           </>
         ) : (
           <>
-            <button type="button" className="xs-back" onClick={() => setMode('main')}>
-              <CaretRight size={18} weight="bold" aria-hidden="true" />رجوع
-            </button>
+            <p className="xs-keeps" data-testid="xs-keeps">يبقى نفس نظامه: {keeps}</p>
             <AltGroups alts={alts} original={original} muscle={row.muscle} mapping={mapping} lastFor={lastFor}
               onPick={(name) => { haptic('set'); onSwap(name) }} />
           </>

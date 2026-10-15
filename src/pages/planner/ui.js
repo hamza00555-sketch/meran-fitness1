@@ -23,6 +23,7 @@ import {
   AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fitPins, fromHfPlan, gapWords, hasMove, fem, isShort, mkItem, muchFix, n0, setsShown, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan,
 } from '../../plan/builder.js'
 import { BODY, REGKEY } from './body.js'
+import { planTitle } from '../../plan/title.js'
 import { MUSCLE_GROUPS, GYM_TYPES } from '../../constants.js'
 import { urlFor, remoteUrlFor } from '../../assets/registry.js'
 import { play, unlock } from '../../sound.js'
@@ -167,10 +168,10 @@ const fresh = () => ({
 })
 const S = Object.assign(fresh(), { cur: 'start' })
 /* The plan saved before the last change (hf_plan_prev): «رجّع خطتك القديمة». */
-let PREV = ctx.planPrev && ctx.planPrev.plan ? { name: ctx.planPrev.plan.planName || 'خطتك القديمة', when: ctx.planPrev.savedAt === TODAY ? 'اليوم' : ctx.planPrev.savedAt, undo: !!ctx.planPrev.undo } : null
+let PREV = ctx.planPrev && ctx.planPrev.plan ? { name: planTitle(ctx.planPrev.plan.planName) || 'خطتك القديمة', when: ctx.planPrev.savedAt === TODAY ? 'اليوم' : ctx.planPrev.savedAt, undo: !!ctx.planPrev.undo } : null
 /* His plan in force, read as the builder's picks («عدّل خطتك الحالية»). */
 const CURRENT = ctx.plan && Array.isArray(ctx.plan.weeklySchedule) && ctx.plan.weeklySchedule.length
-  ? { name: ctx.plan.planName || 'خطتك', hf: ctx.plan, ...fromHfPlan(ctx.plan, { days: SETTINGS.days }) }
+  ? { name: planTitle(ctx.plan.planName) || 'خطتك', hf: ctx.plan, ...fromHfPlan(ctx.plan, { days: SETTINGS.days }) }
   : null
 const splitId = () => S.split || splitOpts(S.days)[0]
 const cycleOf = () => splitId() === 'free' ? (S.cycle || SPL[splitOpts(S.days)[0]].cycle).slice() : SPL[splitId()].cycle.slice()
@@ -1856,7 +1857,7 @@ on(HOST, 'click', (e) => {
       const bad = validatePlan(hf)
       if (bad) { closeSheet(true); return toast(bad.error === 'day' ? 'فيه يوم فاضي بالخطة. أضف له تمرين' : 'ما قدرنا نحفظ الخطة') }
       const stamps = !FIRST && (!edit || daysChange)
-      if (!FIRST) PREV = { name: ctx.plan.planName || 'خطتك القديمة', when: 'اليوم', undo: stamps }
+      if (!FIRST) PREV = { name: planTitle(ctx.plan.planName) || 'خطتك القديمة', when: 'اليوم', undo: stamps }
       ctx.onActivate && ctx.onActivate(hf, { edit, days: daysChange ? S.days : null, breakStreak: breaksFor(edit, daysChange), first: FIRST })
       if (stamps) COOLDOWN = 30
       closeSheet(true); buzz(12); snd('pr', { gain: 0.5 })

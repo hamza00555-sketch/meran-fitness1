@@ -1070,7 +1070,7 @@ export const XP_RATES = {
 export const BUILT_IN_PLANS = [
   {
     planId:       'machine_beginner_3day',
-    planName:     'خطة المبتدأ — ماشينات فقط',
+    planName:     'خطة المبتدئ — ماشينات فقط',
     description:  'برنامج 3 أيام أسبوعياً للمبتدئين باستخدام الماشينات فقط — آمن وفعال لبناء القاعدة العضلية بدون خوف من الإصابة.',
     durationWeeks: 6,
     daysPerWeek:  '3',

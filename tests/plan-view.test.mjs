@@ -9,7 +9,8 @@ import * as V from '../src/plan/view.js'
 import * as B from '../src/plan/builder.js'
 import { BUILT_IN_PLANS, EXERCISE_ALTERNATIVES, MUSCLE_GROUPS } from '../src/constants.js'
 import { validatePlan } from '../src/plan/validate.js'
-import { mediaSlotFor } from '../src/exerciseMedia.js'
+import { mediaSlotFor, arabicName } from '../src/exerciseMedia.js'
+import { planTitle } from '../src/plan/title.js'
 import { applyNext } from '../src/reportStory.js'
 
 const machine = BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')
@@ -243,4 +244,26 @@ test('«طبّقها على خطتي» notes the sets a row had before it added 
   assert.ok(curl.sets > 3)
   assert.equal(curl.was.sets, 3)
   assert.equal(machine.weeklySchedule[LEGS].exercises[2].was, undefined, 'never in place')
+})
+
+test('the machines plan is «خطة المبتدئ», and a plan stored with the old «المبتدأ» prints right without being rewritten', () => {
+  assert.equal(machine.planName, 'خطة المبتدئ — ماشينات فقط')
+  const stored = { ...clone(machine), planName: 'خطة المبتدأ — ماشينات فقط' }   // as on his phone
+  assert.equal(planTitle(stored.planName), 'خطة المبتدئ — ماشينات فقط')
+  assert.equal(stored.planName, 'خطة المبتدأ — ماشينات فقط', 'his stored plan is left as it is')
+  // anything else passes through untouched
+  assert.equal(planTitle('خطتي'), 'خطتي')
+  assert.equal(planTitle(undefined), '')
+})
+
+test('every alternative a swap can offer has an Arabic name to show', () => {
+  const names = new Set()
+  for (const p of BUILT_IN_PLANS) for (const d of p.weeklySchedule || []) for (const e of d.exercises || []) names.add(e.name)
+  for (const g of Object.values(MUSCLE_GROUPS)) for (const e of g.exercises || []) names.add(e.name)
+  const missing = []
+  for (const n of names) {
+    const a = V.rankAlternatives(n, {})
+    for (const x of [...a.muscle, ...a.tool]) if (!arabicName(x)) missing.push(x)
+  }
+  assert.deepEqual([...new Set(missing)], [])
 })

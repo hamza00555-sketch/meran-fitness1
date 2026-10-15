@@ -216,7 +216,8 @@ button.k-chip { cursor: pointer; min-height: 36px; }
 .k-sheet-tall { height: 92dvh; max-height: 92dvh; }
 /* The grabber and the title row are the sheet's handle: a drag there is
    always the sheet's, never a scroll. */
-.k-sheet-grab { width: 36px; height: 5px; border-radius: var(--r-pill); background: var(--surface-3); margin: 8px auto 0; flex: none; touch-action: none; }
+/* ink-4: the decoration grey, so the handle shows on the sheet (2.6:1) */
+.k-sheet-grab { width: 36px; height: 5px; border-radius: var(--r-pill); background: var(--ink-4); margin: 8px auto 0; flex: none; touch-action: none; }
 .k-sheet-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px 0 var(--gutter); touch-action: none; }
 .k-sheet[data-dragging] { cursor: grabbing; user-select: none; -webkit-user-select: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -224,6 +225,10 @@ button.k-chip { cursor: pointer; min-height: 36px; }
   .k-sheet, .k-sheet.k-leaving, .k-scrim, .k-scrim.k-leaving { animation: none; }
 }
 .k-sheet-h h2 { margin: 0; font-size: var(--t-title); font-weight: 700; padding-inline-start: 8px; }
+/* a second page: the back arrow at the start, the title after it */
+.k-sheet-h-back { justify-content: flex-start; }
+.k-sheet-h-back h2 { flex: 1; min-width: 0; padding-inline-start: 0; }
+.k-sheet-back { margin-inline-start: -4px; }
 .k-sheet-body { overflow-y: auto; padding: 8px var(--gutter) var(--space-4); overscroll-behavior: contain; }
 .k-sheet-foot { padding: 8px var(--gutter) var(--space-4); border-top: 1px solid var(--hairline); }
 .k-confirm-msg { margin: 0; font-size: var(--t-body); color: var(--ink-2); line-height: 1.7; }

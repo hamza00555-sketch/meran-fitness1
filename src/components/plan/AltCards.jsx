@@ -2,8 +2,9 @@
 //
 // حمزة: «أنا ما أقدر أشوف إيش التمرين الجاي ولا حتى أعرف إيش هو هذا اللي
 // رايح له». So a swap never cycles blind again: every choice is a card
-// with the machine's picture on the stage light, its Arabic name with the
-// English under it, the tool, and the weight he last used on it.
+// with the machine's picture on its light, its Arabic name with the
+// English directly under it, and one quiet line: the tool and the weight
+// he last used on it.
 //
 // Two groups (src/plan/view.js rankAlternatives): the same muscle first,
 // then the same movement with another tool. When the exercise was already

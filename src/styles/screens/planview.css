@@ -1,9 +1,16 @@
 /* ══ «خطتي» (src/pages/planview) ═══════════════════════════════════
-   Floodlight: near-black ground, the machine on the stage light, the
-   numbers in Archivo at display weight, hairlines not boxes inside a
-   card. No colour but state: the best weight in gold (its job), the
-   danger red only on «شيله». The one green fill stays off this page —
-   nothing here is the session's primary action. */
+   Floodlight, calm: the near-black ground, one surface per exercise and
+   nothing boxed inside it — the machine stands on a light that fades out
+   before the card's edge, the numbers sit under a hairline. Text he reads
+   is ink or ink-2 at 13px/600 or more (ink-3 only for footnotes), so
+   nothing is faint under gym light (tests/plan-view.e2e.mjs measures every
+   line against the pixels behind it). No colour at all: no gold (the best
+   is ink), the body figure neutral, the danger red only on «شيله من
+   الخطة». The one green fill stays off this page — nothing here is the
+   session's primary action. */
+
+/* The machines' light and rim (--art-light, --art-rim) are in swap.css,
+   shared with the alternatives and the session's swap. */
 
 .pv {
   position: fixed; inset: 0; z-index: var(--z-cover);
@@ -15,53 +22,58 @@
 .pv > * { width: 100%; max-width: 560px; margin-inline: auto; }
 @media (prefers-reduced-motion: reduce) { .pv { animation: k-fade-in var(--dur-fast) linear; } }
 
-/* ── the top: «خطتي», the plan, × ── */
+/* ── the top: «خطتي», the plan, × ── the title on the same edge as the
+   tabs and the cards (the gutter), × at the far side */
 .pv-top {
   flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-  padding: 10px 8px 6px var(--gutter);
+  padding-block: 12px 4px; padding-inline: var(--gutter) 8px;
 }
-.pv-title { min-width: 0; display: grid; gap: 0; padding-top: 2px; }
-.pv-title h1 { margin: 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.4; }
+.pv-title { min-width: 0; display: grid; gap: 4px; }
+.pv-title h1 { margin: 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; }
 .pv-title p {
-  margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-3);
+  margin: 0; font-size: var(--t-body); font-weight: 600; line-height: 1.45; color: var(--ink-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-@media (max-height: 700px) {
-  .pv-top { padding-top: 4px; }
-  .pv-title h1 { font-size: 24px; }
-  .pv-tabs { padding-bottom: 10px; }
-  .pv-tab { padding-block: 7px 6px; }
-}
 
-/* ── the days ── */
+/* ── the days: a row of words on one hairline, an ink bar under the one
+   shown. Up to four share the width; more scroll sideways. ── */
 .pv-tabs {
-  flex: none; display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain;
-  padding: 6px var(--gutter) 12px; scrollbar-width: none; scroll-padding-inline: var(--gutter);
+  flex: none; display: flex; overflow-x: auto; overscroll-behavior-x: contain;
+  margin-top: 12px; padding: 0 var(--gutter); scrollbar-width: none; scroll-padding-inline: var(--gutter);
+  box-shadow: inset 0 -1px 0 var(--hairline);
 }
 .pv-tabs::-webkit-scrollbar { display: none; }
 .pv-tab {
-  flex: none; min-width: 88px; display: grid; justify-items: center; gap: 2px;
-  padding: 9px 16px 8px; border: 0; border-radius: 14px; cursor: pointer;
-  background: var(--surface-1); color: var(--ink); font: inherit;
-  box-shadow: inset 0 0 0 1px var(--edge);
+  position: relative; flex: none; min-width: 76px; min-height: 52px;
+  display: grid; justify-items: center; align-content: start; gap: 0;
+  padding: 6px 14px 12px; border: 0; border-radius: 12px 12px 0 0; cursor: pointer;
+  background: none; color: var(--ink-2); font: inherit;
   -webkit-tap-highlight-color: transparent;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-press) var(--ease-out);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-press);
 }
-.pv-tab:active { transform: scale(0.96); }
-.pv-tab-word { font-size: var(--t-headline); font-weight: 800; line-height: 1.3; white-space: nowrap; }
-.pv-tab-v { font-size: var(--t-label); font-weight: 700; margin-inline-start: 4px; opacity: 0.7; }
-.pv-tab-sub { font-size: var(--t-caption); font-weight: 600; line-height: 1.4; color: var(--ink-3); white-space: nowrap; }
-.pv-tab[data-mark="today"] .pv-tab-sub, .pv-tab[data-mark="live"] .pv-tab-sub { color: var(--ink); font-weight: 800; }
-.pv-tab[aria-selected="true"] { background: var(--ink); color: var(--ground); box-shadow: none; }
-.pv-tab[aria-selected="true"] .pv-tab-sub { color: var(--surface-3); }
+.pv-tabs[data-fit] .pv-tab { flex: 1 1 0; min-width: 0; padding-inline: 8px; }
+.pv-tab:active { background: var(--surface-1); }
+.pv-tab::after {
+  content: ""; position: absolute; bottom: 0; inset-inline: 12px; height: 3px;
+  border-radius: 3px 3px 0 0; background: var(--ink);
+  transform: scaleX(0.3); opacity: 0;
+  transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+.pv-tab[aria-selected="true"] { color: var(--ink); }
+.pv-tab[aria-selected="true"]::after { transform: none; opacity: 1; }
+.pv-tab-word { font-size: var(--t-headline); font-weight: 700; line-height: 1.4; white-space: nowrap; }
+.pv-tab[aria-selected="true"] .pv-tab-word { font-weight: 800; }
+.pv-tab-v { font-size: var(--t-label); font-weight: 700; margin-inline-start: 4px; }
+.pv-tab-sub { font-size: var(--t-label); font-weight: 600; line-height: 1.35; color: var(--ink-2); white-space: nowrap; }
+.pv-tab[data-mark="today"] .pv-tab-sub, .pv-tab[data-mark="live"] .pv-tab-sub { color: var(--ink); font-weight: 700; }
 
 .pv-live {
-  flex: none; display: flex; align-items: flex-start; gap: 8px; margin: 0 auto 10px;
+  flex: none; display: flex; align-items: flex-start; gap: 8px; margin: 12px auto 0;
   width: calc(100% - 2 * var(--gutter)); max-width: calc(560px - 2 * var(--gutter));
   padding: 10px 12px; border-radius: 12px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
   font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
 }
-.pv-live svg { flex: none; margin-top: 2px; color: var(--ink-3); }
+.pv-live svg { flex: none; margin-top: 2px; color: var(--ink-2); }
 
 /* ── the pages: one per day, side by side, each scrolling on its own ── */
 .pv-pages {
@@ -75,109 +87,129 @@
   padding: 0 var(--gutter) calc(var(--safe-bottom) + 32px);
 }
 
-/* ── a day's header: the word on the stage light, the body lit ── */
+/* ── a day's header: what it works, how long, the body ── */
 .pv-day {
-  position: relative; isolation: isolate;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px;
-  margin: 0 calc(-1 * var(--gutter)) var(--space-4); padding: var(--space-5) var(--gutter) var(--space-5);
-  background: radial-gradient(64% 92% at 18% 52%, var(--stage-light), var(--ground) 74%);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px;
+  padding-block: 16px;
 }
-.pv-day-text { min-width: 0; display: grid; gap: 2px; }
-.pv-mark {
-  display: inline-flex; align-items: center; gap: 4px; justify-self: start;
-  font-size: var(--t-label); font-weight: 700; line-height: 1.4; color: var(--ink-3);
+.pv-day-text { min-width: 0; display: grid; gap: 4px; }
+.pv-day-title { margin: 0; font-size: var(--t-title); font-weight: 800; line-height: 1.3; text-wrap: balance; }
+.pv-day-title.is-latin { font-stretch: 87.5%; }
+.pv-meta {
+  margin: 0; display: flex; flex-wrap: wrap; align-items: center;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2);
 }
-.pv-mark[data-mark="today"], .pv-mark[data-mark="live"] { color: var(--ink); }
-.pv-word { margin: 0; font-size: clamp(44px, 13vw, 56px); font-weight: 800; line-height: 1.1; white-space: nowrap; }
-.pv-word.is-latin { font-size: clamp(30px, 9vw, 40px); white-space: normal; }
-.pv-word-v { font-size: var(--t-title); font-weight: 700; color: var(--ink-3); margin-inline-start: 8px; }
-.pv-muscles { margin: 4px 0 0; font-size: clamp(16px, 4.8vw, 19px); font-weight: 700; line-height: 1.45; color: var(--ink-2); text-wrap: balance; }
-.pv-meta { margin: 6px 0 0; font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-2); }
+.pv-meta > span { white-space: nowrap; }
+.pv-meta > span + span::before { content: "·"; margin-inline: 6px; color: var(--ink-3); }
+.pv-meta .k-num { color: var(--ink); font-weight: 700; }
 
-.pv-body { width: clamp(104px, 31vw, 148px); height: auto; aspect-ratio: 1448 / 1284; display: block; }
-.pv-b-out { fill: #101316; }
-.pv-b-base { fill: #262B31; }
-.pv-b-hair { fill: #0E1012; }
-.pv-b-lit { fill: url(#pvLit); }
-.pv-b-lit[data-s="some"] { opacity: 0.38; }
+/* The body: grey (an ink-4 outline, 3.4:1 on the ground; surface-3
+   plates), the day's muscles in ink (12.8:1 on a plate), the half-worked
+   ones in ink-3 (4.6:1). */
+.pv-body { height: clamp(76px, 22vw, 92px); width: auto; aspect-ratio: 1448 / 1284; display: block; }
+.pv-b-out { fill: var(--ink-4); }
+.pv-b-base, .pv-b-hair { fill: var(--surface-3); }
+.pv-b-lit { fill: var(--ink); }
+.pv-b-lit[data-s="some"] { fill: var(--ink-3); }
 
 /* ── the cards ── */
 .pv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .pv-list > li { display: grid; gap: 12px; }
 .pv-card {
-  --pv-art: clamp(100px, 30vw, 136px);
-  position: relative; width: 100%; min-width: 0;
+  --pv-art: clamp(88px, 27vw, 112px);
+  position: relative; min-width: 0;
   display: grid; grid-template-columns: var(--pv-art) minmax(0, 1fr);
   grid-template-areas: "art head" "stats stats" "foot foot";
-  column-gap: 14px; row-gap: 12px; align-items: center;
-  padding: 12px; border: 0; border-radius: 20px; text-align: start; cursor: pointer;
-  background: var(--surface-1); color: var(--ink); font: inherit;
+  column-gap: 16px; row-gap: 12px; align-items: center;
+  padding: 16px; border-radius: var(--r-md);
+  background: var(--surface-1); color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--edge);
-  -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-out);
 }
-.pv-card:active { transform: scale(0.985); }
-.pv-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.pv-card:has(.pv-open:active) { transform: scale(0.985); }
+
+/* the card's one target: the name's button, stretched over the card */
+.pv-open {
+  display: block; width: 100%; margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  color: inherit; font: inherit; text-align: inherit; -webkit-tap-highlight-color: transparent;
+}
+.pv-open::after { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: var(--r-md); }
+.pv-open:focus-visible { outline: none; }
+.pv-open:focus-visible::after { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .pv-art {
-  grid-area: art; position: relative; width: var(--pv-art); aspect-ratio: 1; overflow: hidden;
-  display: grid; place-items: center; border-radius: 14px;
-  background: radial-gradient(72% 72% at 50% 46%, var(--stage-light), rgba(20,23,27,0) 84%);
+  grid-area: art; position: relative; isolation: isolate;
+  width: var(--pv-art); aspect-ratio: 1; display: grid; place-items: center;
 }
-.pv-art-img { width: 96%; height: 96%; object-fit: contain; }
-.pv-art svg.pv-art-img { width: 40%; height: 40%; color: var(--ink-3); }
-.pv-n {
-  position: absolute; top: 6px; inset-inline-start: 6px;
-  min-width: 24px; height: 24px; padding-inline: 6px; border-radius: var(--r-pill);
-  display: grid; place-items: center;
-  background: var(--glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: inset 0 0 0 1px var(--glass-edge);
-  font-size: var(--t-caption); font-weight: 800; color: var(--ink);
+.pv-art::before {
+  content: ""; position: absolute; inset: -6%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, var(--art-light), rgba(58,66,76,0));
 }
+/* The pack's stills are 1024×688 with the machine inside the centred
+   square: cover crops exactly the empty sides, so the machine fills the
+   box. The muscle art (the fallback) is drawn to be seen whole. */
+.pv-art-img { width: 100%; height: 100%; object-fit: cover; filter: var(--art-rim); }
+.pv-art-img[data-art="muscle"] { width: 92%; height: 92%; object-fit: contain; filter: none; }
+.pv-art svg.pv-art-img { width: 40%; height: 40%; color: var(--ink-2); filter: none; }
 
-.pv-head { grid-area: head; min-width: 0; display: grid; gap: 4px; align-self: center; }
-.pv-ar { font-size: clamp(18px, 5.1vw, 21px); font-weight: 800; line-height: 1.32; overflow-wrap: anywhere; }
+.pv-head { grid-area: head; min-width: 0; display: grid; align-content: center; justify-items: start; }
+.pv-head > * { max-width: 100%; }
+.pv-ar { display: block; font-size: var(--t-title); font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }
+.pv-ar[dir="ltr"] { text-align: right; font-stretch: 87.5%; }
+/* <bdi dir="ltr">: «start» would be the left; right is the Arabic's edge */
 .pv-en {
-  display: block; font-size: var(--t-label); font-weight: 500; line-height: 1.4; color: var(--ink-3);
-  text-align: start; overflow-wrap: anywhere;
+  display: block; width: 100%; margin-top: 2px;
+  font-size: var(--t-body); font-weight: 600; font-stretch: 87.5%; line-height: 1.4; color: var(--ink-2);
+  text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pv-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 2px; font-size: var(--t-caption); font-weight: 700; line-height: 1.4; color: var(--ink-2); }
-.pv-tags > span { padding: 2px 9px; border-radius: var(--r-pill); background: var(--surface-3); }
+.pv-kind { margin-top: 6px; font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-2); }
+.pv-note {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+  font-size: var(--t-label); font-weight: 700; line-height: 1.45; color: var(--ink);
+  animation: pv-note-in var(--spring-bouncy-ms) var(--spring-bouncy) both;
+}
+.pv-note + .pv-note { margin-top: 2px; }
+.pv-note svg { flex: none; color: var(--ink-2); }
+@keyframes pv-note-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
 
+/* the numbers: open, under a hairline that runs the card's width */
 .pv-stats {
-  grid-area: stats; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-radius: 14px; background: var(--ground); box-shadow: inset 0 0 0 1px var(--edge);
+  grid-area: stats; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 0 12px;
+  margin-inline: -16px; padding: 12px 16px 0; border-top: 1px solid var(--hairline);
 }
-.pv-stat { position: relative; min-width: 0; display: grid; justify-items: center; gap: 2px; padding: 10px 4px 9px; }
-.pv-stat + .pv-stat::before {
-  content: ''; position: absolute; inset-block: 12px; inset-inline-start: 0; width: 1px; background: var(--hairline);
+.pv-stat { min-width: 0; display: grid; justify-items: start; gap: 0; }
+.pv-stat b {
+  display: inline-flex; align-items: baseline; gap: 3px;
+  font-size: 24px; font-weight: 800; line-height: 1.2; color: var(--ink); white-space: nowrap;
 }
-.pv-stat b { display: inline-flex; align-items: baseline; gap: 3px; font-size: clamp(21px, 6.2vw, 25px); font-weight: 800; line-height: 1.15; color: var(--ink); white-space: nowrap; }
+.pv-stat[data-stat="rest"] b { color: var(--ink-2); font-weight: 700; }
 .pv-stat-u { font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
-.pv-stat small { font-size: var(--t-caption); font-weight: 600; line-height: 1.35; color: var(--ink-3); }
+.pv-stat small { font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-2); white-space: nowrap; }
+.pv-stat[data-own] small { color: var(--ink); font-weight: 700; }
 
-.pv-foot { grid-area: foot; min-width: 0; display: grid; gap: 10px; }
-.pv-hist { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2); }
-.pv-hist-part { white-space: normal; }
-.pv-hist-new { color: var(--ink-3); }
-.pv-best .k-num { color: var(--raise); }
-.pv-badges { display: flex; flex-wrap: wrap; gap: 6px; }
-.pv-badge {
-  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
-  padding: 5px 10px; border-radius: var(--r-pill);
-  background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--hairline);
-  font-size: var(--t-caption); font-weight: 700; line-height: 1.4; color: var(--ink);
-  animation: pv-badge-in var(--spring-bouncy-ms) var(--spring-bouncy) both;
+.pv-foot { grid-area: foot; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pv-hist {
+  flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 0 12px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2);
 }
-.pv-badge svg { flex: none; color: var(--ink-2); }
-@keyframes pv-badge-in { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: none; } }
+.pv-hist .k-num { color: var(--ink); font-weight: 700; }
+.pv-swap {
+  position: relative; z-index: 2; flex: none;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px;
+  border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--surface-3); color: var(--ink); font: inherit; font-size: var(--t-label); font-weight: 700;
+  -webkit-tap-highlight-color: transparent; transition: transform var(--dur-press) var(--ease-out);
+}
+.pv-swap::before { content: ""; position: absolute; inset: -4px -2px; }
+.pv-swap:active { transform: scale(0.95); }
+.pv-swap svg { color: var(--ink-2); }
 
 /* «تراجع» in a card's place */
 .pv-undo {
   position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  min-height: 56px; padding: 4px 4px 4px 16px; padding-inline-start: 16px;
-  border-radius: 16px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--edge);
+  min-height: 60px; padding: 8px; padding-inline-start: 16px;
+  border-radius: var(--r-md); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--edge);
   font-size: var(--t-body); font-weight: 700;
 }
 .pv-undo-text { min-width: 0; overflow-wrap: anywhere; }
@@ -188,72 +220,97 @@
 @keyframes pv-undo-run { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 .pv-end { display: grid; gap: 8px; margin-top: var(--space-6); }
-.pv-end p { margin: 0; font-size: var(--t-caption); font-weight: 500; line-height: 1.6; color: var(--ink-3); text-align: center; }
+.pv-end p { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pv-tab, .pv-card { transition: none; }
-  .pv-tab:active, .pv-card:active { transform: none; }
-  .pv-badge { animation: none; }
+  .pv-tab, .pv-tab::after, .pv-card, .pv-swap { transition: none; }
+  .pv-card:has(.pv-open:active), .pv-swap:active { transform: none; }
+  .pv-note { animation: none; }
   .pv-undo-clock { animation: none; display: none; }
 }
 
-/* ══ A card's sheet (ExerciseSheet.jsx) ═════════════════════════ */
-.xs { display: grid; gap: var(--space-5); padding-bottom: var(--space-2); }
-.xs-head { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 14px; }
+/* ══ A card's sheet (ExerciseSheet.jsx) ═════════════════════════
+   One surface (the sheet's): the machine big on its light, the names, two
+   actions, the steppers as open rows between hairlines, «شيله» last. */
+.xs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding-bottom: var(--space-2); }
+.xs-head { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; }
 .xs-art {
-  width: 112px; aspect-ratio: 1; overflow: hidden; display: grid; place-items: center; border-radius: 16px;
-  background: radial-gradient(72% 72% at 50% 46%, var(--stage-light), var(--surface-2) 82%);
+  position: relative; isolation: isolate;
+  width: clamp(112px, 35vw, 136px); aspect-ratio: 1; display: grid; place-items: center;
 }
-.xs-art-img { width: 96%; height: 96%; object-fit: contain; }
-.xs-art svg.xs-art-img { width: 40%; height: 40%; color: var(--ink-3); }
-.xs-names { min-width: 0; display: grid; gap: 6px; }
-.xs-en { display: block; font-size: var(--t-body); font-weight: 600; line-height: 1.4; color: var(--ink-2); text-align: start; overflow-wrap: anywhere; }
-.xs-tags { font-size: var(--t-label); font-weight: 600; color: var(--ink-3); line-height: 1.5; }
+.xs-art::before {
+  content: ""; position: absolute; inset: -6%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, var(--art-light), rgba(58,66,76,0));
+}
+.xs-art-img { width: 100%; height: 100%; object-fit: cover; filter: var(--art-rim); }
+.xs-art-img[data-art="muscle"] { width: 92%; height: 92%; object-fit: contain; filter: none; }
+.xs-art svg.xs-art-img { width: 40%; height: 40%; color: var(--ink-2); filter: none; }
+.xs-names { min-width: 0; display: grid; gap: 6px; justify-items: start; }
+.xs-names > * { max-width: 100%; }
+.xs-en {
+  display: block; width: 100%; font-size: var(--t-body); font-weight: 600; font-stretch: 87.5%; line-height: 1.4;
+  color: var(--ink-2); text-align: right; overflow-wrap: anywhere;
+}
+.xs-tags { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; }
 .xs-from {
-  justify-self: start; display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 10px; border-radius: var(--r-pill); background: var(--surface-3);
-  font-size: var(--t-caption); font-weight: 700; color: var(--ink);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--t-label); font-weight: 700; line-height: 1.45; color: var(--ink);
 }
+.xs-from svg { flex: none; color: var(--ink-2); }
 
-.xs-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.xs-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .xs-act {
-  min-width: 0; min-height: 76px; display: grid; justify-items: center; align-content: center; gap: 6px;
-  padding: 10px 4px; border: 0; border-radius: 16px; cursor: pointer;
-  background: var(--surface-3); color: var(--ink); font: inherit; font-size: var(--t-label); font-weight: 800; line-height: 1.3;
+  min-width: 0; min-height: 56px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px 10px; border: 0; border-radius: var(--r-md); cursor: pointer;
+  background: var(--surface-3); color: var(--ink); font: inherit; font-size: var(--t-body); font-weight: 700; line-height: 1.3;
   -webkit-tap-highlight-color: transparent; transition: transform var(--dur-press) var(--ease-out);
 }
-.xs-act:active { transform: scale(0.95); }
-.xs-act.is-danger { color: var(--danger); }
-.xs-act:disabled { opacity: 0.38; cursor: default; transform: none; }
+.xs-act svg { flex: none; }
+.xs-act:active { transform: scale(0.97); }
 
-.xs-steps { display: grid; border-radius: 16px; background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge); }
-.xs-step { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 68px; padding: 8px 10px 8px 14px; padding-inline-start: 14px; }
+.xs-steps { display: grid; border-block: 1px solid var(--hairline); }
+.xs-step { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 68px; padding-block: 10px; }
 .xs-steps > * + * { border-top: 1px solid var(--hairline); }
-.xs-step-l { min-width: 0; display: grid; gap: 1px; }
+.xs-step-l { min-width: 0; display: grid; gap: 2px; }
 .xs-step-t { font-size: var(--t-headline); font-weight: 700; line-height: 1.35; }
-.xs-step-l small { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 1.4; }
+.xs-step-l small { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.4; }
 .xs-step-c { flex: none; display: flex; align-items: center; gap: 4px; }
 .xs-step-b {
-  width: 44px; height: 44px; border: 0; border-radius: var(--r-pill); display: grid; place-items: center;
+  position: relative; width: 44px; height: 44px; border: 0; border-radius: var(--r-pill); display: grid; place-items: center;
   background: var(--surface-3); color: var(--ink); cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-out);
 }
 .xs-step-b:active { transform: scale(0.9); }
 .xs-step-b:disabled { opacity: 0.3; cursor: default; transform: none; }
 .xs-step-v { min-width: 72px; display: grid; justify-items: center; gap: 0; }
-.xs-step-v b { font-size: 22px; font-weight: 800; line-height: 1.2; white-space: nowrap; }
-.xs-step-v small { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); line-height: 1.3; }
+.xs-step-v b { font-size: 22px; font-weight: 800; line-height: 1.25; white-space: nowrap; }
+.xs-step-v small { font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.35; }
 .xs-link {
-  display: block; width: 100%; min-height: 48px; padding: 10px 14px; border: 0; background: none; cursor: pointer;
+  display: block; width: 100%; min-height: 48px; padding: 10px 0; border: 0; background: none; cursor: pointer;
   color: var(--ink-2); font: inherit; font-size: var(--t-label); font-weight: 700; text-align: start;
   text-decoration: underline; text-decoration-color: var(--ink-4); text-underline-offset: 4px;
 }
-.xs-note, .xs-foot { margin: 0; font-size: var(--t-caption); font-weight: 500; line-height: 1.6; color: var(--ink-3); }
-.xs-note { margin-top: calc(-1 * var(--space-3)); }
-.xs-back {
-  justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 2px;
-  border: 0; background: none; color: var(--ink-2); font: inherit; font-size: var(--t-body); font-weight: 700; cursor: pointer;
+/* a narrow phone: the controls give the label room; the discs keep a 44pt target */
+@media (max-width: 360px) {
+  .xs-step-v { min-width: 56px; }
+  .xs-step-b { width: 40px; height: 40px; }
+  .xs-step-b::after { content: ""; position: absolute; inset: -2px; }
+  .xs-step-c { gap: 2px; }
 }
+
+.xs-end { display: grid; gap: var(--space-3); }
+.xs-remove {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px;
+  padding: 0 12px; border: 0; border-radius: var(--r-md); cursor: pointer; background: none;
+  color: var(--danger); font: inherit; font-size: var(--t-body); font-weight: 700;
+  -webkit-tap-highlight-color: transparent; transition: background var(--dur-press);
+}
+.xs-remove:active { background: var(--surface-3); }
+.xs-remove:disabled { opacity: 0.38; cursor: default; background: none; }
+.xs-note { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-2); text-align: center; }
+.xs-foot { margin: 0; font-size: var(--t-label); font-weight: 600; line-height: 1.6; color: var(--ink-3); text-align: center; }
+.xs-keeps { margin: -8px 0 0; font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); }
+.xs-keeps .k-num { color: var(--ink); font-weight: 700; }
 
 @media (prefers-reduced-motion: reduce) {
   .xs-act, .xs-step-b { transition: none; }

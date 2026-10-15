@@ -6,6 +6,11 @@
 // loads only when the view opens. A muscle the day works directly lights
 // fully, one it works half (a press for the triceps) lights faintly — the
 // builder's own count (catalogue credits), the back as one muscle.
+//
+// Neutral, not green (the one green on a screen is its primary action,
+// and nothing on «خطتي» is): a grey body with light seams, the day's
+// muscles in white, the half-worked ones in light grey — the colours are
+// in planview.css (.pv-b-*), each at 3:1 or more against what it sits on.
 
 import { memo, useMemo } from 'react'
 import { BODY, REGKEY } from '../planner/body.js'
@@ -41,13 +46,6 @@ function BodyFigure({ exercises = [], className = '' }) {
   return (
     <svg className={`pv-body ${className}`} viewBox="0 86 1448 1284" preserveAspectRatio="xMidYMid meet"
       aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id="pvLit" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#A6E05A" />
-          <stop offset=".55" stopColor="#6CC417" />
-          <stop offset="1" stopColor="#4C9410" />
-        </linearGradient>
-      </defs>
       {['front', 'back'].map(side => (
         <g key={side} transform={`translate(${side === 'front' ? 724 : -724} 0)`}>
           <path d={BODY[side].outline} className="pv-b-out" />

@@ -8,6 +8,7 @@ import DeloadSection from '../components/DeloadSection.jsx'
 import DesignSwitch from '../components/DesignSwitch.jsx'
 import { usePackState } from '../assets/pack.js'
 import { APP_VERSION } from '../constants.js'
+import { planTitle } from '../plan/title.js'
 import { todayKey } from '../day.js'
 import { DEFAULT_REP_TARGET, repTargetOf } from '../progression.js'
 import { deloadState } from '../deload.js'
@@ -127,7 +128,7 @@ export default function SettingsPage({
 
       <ListGroup header="التدريب">
         <ListRow leading={CalendarBlank} title={TITLES.plan} chevron onClick={() => open('plan')}
-          subtitle={<Ar>{[plan?.planName, daysLabel].filter(Boolean).join(' · ')}</Ar>} />
+          subtitle={<Ar>{[planTitle(plan?.planName), daysLabel].filter(Boolean).join(' · ')}</Ar>} />
         <ListRow leading={Repeat} title={TITLES.reps} chevron onClick={() => open('reps')}
           trailing={<Num>{`${reps.base}–${reps.top}`}</Num>} />
         <ListRow leading={Drop} title={TITLES.deload} chevron onClick={() => open('deload')}

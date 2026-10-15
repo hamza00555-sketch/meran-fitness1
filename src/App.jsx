@@ -88,6 +88,7 @@ import {
 } from './monthReport.js'
 import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine, REPORT_APPLIED_KEY, appliedOn, withApplied } from './reportStory.js'
 import { validatePlan } from './plan/validate.js'
+import { planTitle } from './plan/title.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly
@@ -1135,7 +1136,7 @@ export default function App() {
       streakResetAt: breakStreak ? today : prev.streakResetAt,
     }))
     pushAlert(breakStreak ? '⚠️' : '📋',
-      breakStreak ? `${newPlan.planName} — بدأ ستريك جديد` : `تم تفعيل: ${newPlan.planName}`)
+      breakStreak ? `${planTitle(newPlan.planName)} — بدأ ستريك جديد` : `تم تفعيل: ${planTitle(newPlan.planName)}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushAlert, plan, planIndex])
 
@@ -1216,8 +1217,8 @@ export default function App() {
     if (quiet) return
     const breaks = breakStreak && stamps
     pushAlert(breaks ? '⚠️' : '📋',
-      breaks ? `${newPlan.planName} — بدأ ستريك جديد`
-        : edit ? 'انحفظ تعديل خطتك' : `تم تفعيل: ${newPlan.planName}`)
+      breaks ? `${planTitle(newPlan.planName)} — بدأ ستريك جديد`
+        : edit ? 'انحفظ تعديل خطتك' : `تم تفعيل: ${planTitle(newPlan.planName)}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan, planIndex, pushAlert])
 
@@ -1241,7 +1242,7 @@ export default function App() {
     } else {
       setRecoveryCfg(p => ({ ...p, lastSettingsChangeAt: today, streakResetAt: breakStreak ? today : p.streakResetAt }))
     }
-    pushAlert('↩️', `رجعت خطتك: ${prev.plan.planName}`)
+    pushAlert('↩️', `رجعت خطتك: ${planTitle(prev.plan.planName)}`)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planPrev, plan, planIndex, pushAlert])
 

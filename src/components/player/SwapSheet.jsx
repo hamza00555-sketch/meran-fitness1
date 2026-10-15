@@ -2,11 +2,13 @@
 //
 // حمزة: «لما أنا أسوي استبدال وسط التمرين يزعجني جداً أنا ما أقدر أشوف إيش
 // التمرين الجاي ولا حتى أعرف إيش هو هذا اللي رايح له». The swap used to
-// cycle to the next name in a list, blind, and remember it for good. Now:
+// cycle to the next name in a list, blind, and remember it for good. Now,
+// all on the sheet's one surface (no card inside it):
 //
 //   the exercise he is on, with its picture and its place in the session
-//   right under it, the rest of the session as a strip of pictures, the
-//     next exercise first («التالي»)
+//   the rest of the session as one short strip — a small picture and the
+//     name each, the next one first («التالي») — context, not a choice,
+//     so nothing in it looks tappable or picked
 //   the alternatives as picture cards (AltGroups — the same muscle first,
 //     then the same movement with another tool; the plan's own exercise
 //     first, «الأصلي», when this one is already a swap)
@@ -71,7 +73,7 @@ export default function SwapSheet({
             <small>
               الحين{position ? <> · التمرين <Num>{position.at}</Num> من <Num>{position.of}</Num></> : null}
             </small>
-            <b>{ar || <bdi dir="ltr">{ex.name}</bdi>}</b>
+            <b dir={ar ? undefined : 'ltr'}>{ar || ex.name}</b>
             {ar && <bdi className="sw-en" dir="ltr">{ex.name}</bdi>}
           </span>
         </div>

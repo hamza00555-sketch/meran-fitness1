@@ -10,6 +10,7 @@ import {
 } from '../../components/kit/index.jsx'
 import { Copy, Flame, Trash, Check, PencilSimple, Sparkle, ListChecks } from '../../components/kit/icons.js'
 import { validatePlan } from '../../plan/validate.js'
+import { planTitle } from '../../plan/title.js'
 import { ClipboardText, FileArrowUp, TextAlignRight } from '@phosphor-icons/react'
 import { CheckList, CheckRow, TextField, Notice, Ar, freqTitle, freqDesc, cycleAr } from './parts.jsx'
 import { TRAINING_FREQUENCIES, patternFor } from '../../recovery.js'
@@ -106,7 +107,7 @@ export default function PlanSection({
     const bad = validatePlan(data)
     if (bad) return fail(bad.error === 'day' ? 'emptyDay' : bad.error === 'muscle' ? 'muscle' : 'notPlan'), false
     setNotice(null)
-    requestChange('plan', data.planName || 'خطة مستوردة', opts => onImportPlan?.(data, opts))
+    requestChange('plan', planTitle(data.planName) || 'خطة مستوردة',opts => onImportPlan?.(data, opts))
     return true
   }
 
@@ -154,7 +155,7 @@ export default function PlanSection({
   // sheets never hold the page at once.
   const activate = (p) => {
     setDetail(null)
-    setTimeout(() => requestChange('plan', p.planName, opts => onImportPlan?.({ ...p, startDate: todayKey() }, opts)), 260)
+    setTimeout(() => requestChange('plan', planTitle(p.planName),opts => onImportPlan?.({ ...p, startDate: todayKey() }, opts)), 260)
   }
 
   const days = recoveryCfg.daysPerWeek
@@ -212,7 +213,7 @@ export default function PlanSection({
       {/* ── The plan in force ── */}
       {plan && (
         <ListGroup header="خطتك الحين">
-          <ListRow title={<span dir="auto">{plan.planName}</span>}
+          <ListRow title={<span dir="auto">{planTitle(plan.planName)}</span>}
             subtitle={<Ar>{[
               plan.durationWeeks && weeksAr(plan.durationWeeks),
               plan.weeklySchedule?.length && `${plan.weeklySchedule.length} أيام في الأسبوع`,
@@ -238,7 +239,7 @@ export default function PlanSection({
           const isActive = plan?.planId === p.planId
           return (
             <ListRow key={p.planId} chevron onClick={() => setDetail(p)}
-              title={<span dir="auto">{p.planName}</span>}
+              title={<span dir="auto">{planTitle(p.planName)}</span>}
               subtitle={<Ar>{planMeta(p).join(' · ')}</Ar>}
               trailing={isActive ? <span className="st-active"><Check size={16} weight="bold" aria-hidden="true" /> مفعّل</span> : null} />
           )
@@ -271,7 +272,7 @@ export default function PlanSection({
 
       {/* ── Preview of a ready-made programme ── */}
       <Sheet open={!!detail} onClose={() => setDetail(null)} tall
-        title={detail ? <span dir="auto">{detail.planName}</span> : ''}
+        title={detail ? <span dir="auto">{planTitle(detail.planName)}</span> : ''}
         footer={detail && (plan?.planId === detail.planId
           ? <Button variant="secondary" size="lg" full disabled>مفعّل حالياً</Button>
           : <Button variant="primary" size="lg" full onClick={() => activate(detail)}>فعّل البرنامج</Button>)}>

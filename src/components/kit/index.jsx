@@ -239,7 +239,11 @@ export function EmptyState({ icon: Icon, title, children, action }) {
  * can be pulled down to close (useSheetDrag); a real exit on the way out.
  * Reduced motion: it fades in and out.
  */
-export function Sheet({ open, onClose, title, children, footer, tall, labelledBy, pullFromBody = true }) {
+/**
+ * A bottom sheet. `onBack` (optional) puts a back arrow at the start of
+ * the title row, for a sheet with a second page (the × still closes it).
+ */
+export function Sheet({ open, onClose, onBack, title, children, footer, tall, labelledBy, pullFromBody = true }) {
   const [mounted, setMounted] = useState(open)
   const [leaving, setLeaving] = useState(false)
   const [opener] = useState(() => (typeof document !== 'undefined' ? document.activeElement : null))
@@ -295,7 +299,8 @@ export function Sheet({ open, onClose, title, children, footer, tall, labelledBy
         onClick={e => e.stopPropagation()}>
         <span className="k-sheet-grab" aria-hidden="true" />
         {title && (
-          <div className="k-sheet-h">
+          <div className={cx('k-sheet-h', onBack && 'k-sheet-h-back')}>
+            {onBack && <IconButton icon={CaretRight} label="رجوع" onClick={onBack} className="k-sheet-back" data-testid="sheet-back" />}
             <h2 id={titleId}>{title}</h2>
             <IconButton icon={X} label="إغلاق" onClick={() => close.current?.()} />
           </div>

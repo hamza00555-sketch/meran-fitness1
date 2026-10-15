@@ -226,9 +226,26 @@ export function animSlotFor(name, mapping = {}) {
   return `exa_${row.slug}`
 }
 
+// The alternatives (EXERCISE_ALTERNATIVES) name a few movements the
+// catalogue has no picture for, so no row above. Their Arabic names, so a
+// swap's card never shows an English title alone in an Arabic grid.
+const AR_ONLY = {
+  'Seated Dumbbell Curl':       'مرجحة دمبل جالس',
+  'Hammer Strength Row':        'تجديف جهاز هامر',
+  'Cable Preacher Curl':        'مرجحة بريتشر كيبل',
+  'EZ Bar Preacher Curl':       'مرجحة بريتشر بار زد',
+  'EZ Bar Curl':                'مرجحة بار زد',
+  'Overhead Triceps Extension': 'ترايسبس علوي',
+  'Squat Jump':                 'سكوات بالقفز',
+  'Broad Jump':                 'وثب طويل',
+  'Explosive Push-Up':          'ضغط أرضي انفجاري',
+  'Dumbbell Jump Squat':        'سكوات قفز بالدمبل',
+  'Dumbbell Push Press':        'دفع دمبل فوق الرأس',
+}
+
 /** Arabic display name, or null when there is none to show. */
 export function arabicName(name, mapping = {}) {
-  return rowFor(name, mapping)?.ar ?? null
+  return rowFor(name, mapping)?.ar ?? AR_ONLY[name] ?? null
 }
 
 /** Equipment chip label (Arabic), or null. */

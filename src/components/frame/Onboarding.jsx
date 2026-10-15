@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Button, Num } from '../kit/index.jsx'
 import { Check } from '../kit/icons.js'
 import { BUILT_IN_PLANS } from '../../constants.js'
+import { planTitle } from '../../plan/title.js'
 import '../../styles/onboarding.css'
 
 // ── First run: three questions, then the app ──────────────────
@@ -76,7 +77,7 @@ export default function Onboarding({ initialName = '', onDone }) {
               <button key={p.planId} type="button" role="radio" aria-checked={planId === p.planId}
                 className={`ob-opt${planId === p.planId ? ' on' : ''}`} onClick={() => setPlanId(p.planId)}>
                 <span className="ob-opt-text">
-                  <b>{p.planName}</b>
+                  <b>{planTitle(p.planName)}</b>
                   <small><Num>{p.weeklySchedule.length}</Num> أيام بالدورة · <Num>{p.durationWeeks || 6}</Num> أسابيع</small>
                 </span>
                 {planId === p.planId && <Check size={20} weight="bold" aria-hidden="true" />}

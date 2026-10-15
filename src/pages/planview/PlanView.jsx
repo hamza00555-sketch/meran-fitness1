@@ -10,12 +10,15 @@
 //
 //   the top     «خطتي», the plan's name, ×
 //   the days    one tab per day of the cycle, the word the Home stage uses
-//               («دفع», «سحب A»), today's / the next one marked; the
-//               days swipe sideways (scroll snap), the tab follows
-//   a day       its header — the word at display size, the muscles, how
-//               many exercises and the minutes, the muscles lit on the
-//               body — then one card per exercise (PlanCard), then «عدّل
-//               الخطة كاملة» (the builder, on this day)
+//               («دفع», «سحب A»), today's / the next one marked under it;
+//               up to four share the width as one row, more scroll; an
+//               ink bar under the one shown. The days swipe sideways
+//               (scroll snap), the tab follows
+//   a day       a short header — the muscles (the tab already names the
+//               day), how many exercises and sets and the minutes, and
+//               the muscles lit on a small grey body — then one card per
+//               exercise (PlanCard), then «عدّل الخطة كاملة» (the
+//               builder, on this day)
 //
 // What it shows is the effective plan (src/plan/view.js): his remembered
 // swaps applied, his reps rule, the rest the player will count. What he
@@ -29,15 +32,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, IconButton, Num } from '../../components/kit/index.jsx'
-import { X, PencilSimple, ArrowCounterClockwise, Check, Info } from '../../components/kit/icons.js'
-import { dayWord, musclesLine, estimateMinutes } from '../../components/home/dayParts.js'
-import { countAr, unitAr } from '../../streak.js'
+import { X, PencilSimple, ArrowCounterClockwise, Info } from '../../components/kit/icons.js'
+import { dayWord, musclesLine, estimateMinutes, setsUnit } from '../../components/home/dayParts.js'
+import { planTitle } from '../../plan/title.js'
+import { unitAr } from '../../streak.js'
 import { getExerciseStats, durationShort } from '../../utils.js'
 import { lockScroll } from '../../scrollLock.js'
 import { animate, reducedMotion, rise } from '../../motion.js'
 import { haptic } from '../../haptics.js'
 import { todayKey, dayKey } from '../../day.js'
 import { arabicName } from '../../exerciseMedia.js'
+import { withNums } from '../../components/home/HomeBits.jsx'
 import {
   effectivePlan, effectiveDay, dayMarks, swapRow, setRowSets, setRowReps, clearRowReps, setRowRest,
   removeRow, insertRow,
@@ -141,8 +146,8 @@ export default function PlanView({
     if (!page) return
     if (reducedMotion()) { animate(page, [{ opacity: 0 }, { opacity: 1 }], { d: 200, e: 'linear' }); return }
     const head = page.querySelector('.pv-day')
-    animate(head?.querySelector('.pv-word'), [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], { d: 320, delay: 60 })
-    animate(head?.querySelector('.pv-body'), [{ opacity: 0, transform: 'scale(.94)' }, { opacity: 1, transform: 'none' }], { spring: 'smooth', delay: 120 })
+    animate(head?.querySelector('.pv-day-text'), [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { d: 280, delay: 40 })
+    animate(head?.querySelector('.pv-body'), [{ opacity: 0, transform: 'scale(.94)' }, { opacity: 1, transform: 'none' }], { spring: 'smooth', delay: 100 })
     ;[...page.querySelectorAll('.pv-list > li')].slice(0, 6).forEach((li, k) => animate(li, rise(16), { spring: 'smooth', delay: 140 + k * 55 }))
   }, [cur])
   const pick = (i) => { haptic('swipe'); setCur(i); goTo(i) }
@@ -157,11 +162,12 @@ export default function PlanView({
   }, [sessions, exerciseMapping])
 
   // ── A card's sheet, and what it changes ──
-  const [sheet, setSheet] = useState(null)          // { d, j, k }
+  const [sheet, setSheet] = useState(null)          // { d, j, k, mode }
   const sheetN = useRef(0)
   const [flash, setFlash] = useState({})            // 'd:j' → token
   const bump = (d, j) => setFlash(f => ({ ...f, [`${d}:${j}`]: (f[`${d}:${j}`] || 0) + 1 }))
-  const openSheet = (d, j) => { sheetN.current += 1; setSheet({ d, j, k: sheetN.current, open: true }) }
+  // «بدّله» on a card opens the sheet straight on the alternatives.
+  const openSheet = (d, j, mode = 'main') => { sheetN.current += 1; setSheet({ d, j, k: sheetN.current, open: true, mode }) }
   const closeSheet = () => setSheet(s => (s ? { ...s, open: false } : s))
   const commit = (next, d, j) => {
     if (!next) return false
@@ -224,12 +230,12 @@ export default function PlanView({
       <header className="pv-top">
         <div className="pv-title">
           <h1>خطتي</h1>
-          <p dir="auto">{plan.planName}</p>
+          <p dir="auto">{planTitle(plan.planName)}</p>
         </div>
         <IconButton icon={X} label="إغلاق" onClick={close} data-testid="plan-view-close" />
       </header>
 
-      <div className="pv-tabs" role="tablist" aria-label="أيام الخطة" ref={tabs}>
+      <div className="pv-tabs" role="tablist" aria-label="أيام الخطة" ref={tabs} data-fit={n <= 4 ? '1' : undefined}>
         {days.map((d, i) => {
           const eff = effectiveDay(plan, i, opts)
           const { word, variant } = dayWord(eff)
@@ -238,7 +244,7 @@ export default function PlanView({
             <button key={i} type="button" role="tab" className="pv-tab" data-day={i} data-mark={mark || undefined}
               aria-selected={i === cur} onClick={() => pick(i)}>
               <span className="pv-tab-word">{word || `يوم ${i + 1}`}{variant && <Num className="pv-tab-v">{variant}</Num>}</span>
-              <span className="pv-tab-sub">{mark ? MARK[mark] : countAr(d.rows.length, 'workout')}</span>
+              {mark && <span className="pv-tab-sub">{MARK[mark]}</span>}
             </button>
           )
         })}
@@ -255,25 +261,22 @@ export default function PlanView({
         {days.map((d, i) => {
           const eff = effectiveDay(plan, i, opts)
           const { word, variant, latin } = dayWord(eff)
+          const name = word ? `${word}${variant ? ` ${variant}` : ''}` : `يوم ${i + 1}`
           const muscles = musclesLine(eff, word)
           const mins = estimateMinutes(eff)
-          const mark = marks[i]
-          const names = d.rows.map(r => r.name)
+          const sets = d.rows.reduce((s, r) => s + (Number(r.sets) || 0), 0)
           return (
-            <section key={i} className="pv-page" data-page={i} role="tabpanel" aria-label={word}>
+            <section key={i} className="pv-page" data-page={i} role="tabpanel" aria-label={name}>
               <header className="pv-day">
                 <div className="pv-day-text">
-                  <span className="pv-mark" data-mark={mark || undefined}>
-                    {mark === 'done' && <Check size={14} weight="bold" aria-hidden="true" />}
-                    {mark ? MARK[mark] : <>يوم <Num>{i + 1}</Num> من <Num>{n}</Num></>}
-                  </span>
-                  <h2 className={`pv-word${latin ? ' is-latin' : ''}`}>
-                    {word || `يوم ${i + 1}`}{variant && <Num className="pv-word-v">{variant}</Num>}
-                  </h2>
-                  {muscles && <p className="pv-muscles">{muscles}</p>}
+                  {/* The tab above names the day; the header says what it works.
+                      A day whose only muscle is its own name says the name. */}
+                  <h2 className={`pv-day-title${!muscles && latin ? ' is-latin' : ''}`}>{muscles || name}</h2>
                   <p className="pv-meta">
-                    <Num>{d.rows.length}</Num> {unitAr(d.rows.length, 'workout')}
-                    {mins > 0 && <> · ≈<Num>{durationShort(mins)}</Num></>}
+                    <span><Num>{d.rows.length}</Num> {unitAr(d.rows.length, 'workout')}</span>
+                    {sets > 0 && <span><Num>{sets}</Num> {setsUnit(sets)}</span>}
+                    {/* «≈45 د»: the digits isolated, the unit after them in the Arabic order */}
+                    {mins > 0 && <span>≈{withNums(durationShort(mins))}</span>}
                   </p>
                 </div>
                 <BodyFigure exercises={eff.exercises} />
@@ -283,8 +286,8 @@ export default function PlanView({
                 {d.rows.map((row, j) => (
                   <li key={j}>
                     {undo && undo.d === i && undo.j === j && <UndoRow name={undo.name} mapping={exerciseMapping} onUndo={doUndo} />}
-                    <PlanCard row={row} index={j} mapping={exerciseMapping} sessions={sessions}
-                      flash={flash[`${i}:${j}`] || 0} onOpen={() => openSheet(i, j)} />
+                    <PlanCard row={row} mapping={exerciseMapping} sessions={sessions}
+                      flash={flash[`${i}:${j}`] || 0} onOpen={() => openSheet(i, j)} onSwap={() => openSheet(i, j, 'swap')} />
                   </li>
                 ))}
                 {undo && undo.d === i && undo.j >= d.rows.length && (
@@ -306,6 +309,7 @@ export default function PlanView({
         <ExerciseSheet
           key={sheet.k}
           open={sheet.open}
+          startMode={sheet.mode}
           row={sheetRow}
           dayNames={days[sheet.d].rows.map(r => r.name)}
           mapping={exerciseMapping}
@@ -333,7 +337,7 @@ function UndoRow({ name, mapping, onUndo }) {
   return (
     <div ref={ref} className="pv-undo" role="status" data-testid="plan-undo">
       <span className="pv-undo-text">شلنا {arabicName(name, mapping) || name}</span>
-      <Button variant="plain" size="md" icon={ArrowCounterClockwise} onClick={onUndo}>تراجع</Button>
+      <Button variant="secondary" size="md" icon={ArrowCounterClockwise} onClick={onUndo}>تراجع</Button>
       <i className="pv-undo-clock" style={{ animationDuration: `${UNDO_MS}ms` }} aria-hidden="true" />
     </div>
   )
