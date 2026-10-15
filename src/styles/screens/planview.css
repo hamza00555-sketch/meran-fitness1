@@ -178,6 +178,7 @@
 .pv-note {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
   font-size: var(--t-label); font-weight: 700; line-height: 1.45; color: var(--ink);
+  text-wrap: balance;
   animation: pv-note-in var(--spring-bouncy-ms) var(--spring-bouncy) both;
 }
 .pv-note + .pv-note { margin-top: 2px; }
@@ -273,6 +274,7 @@
 .xs-from {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--t-label); font-weight: 700; line-height: 1.45; color: var(--ink);
+  text-wrap: balance;   /* «بدل تفتيح / جهاز (بك دك)», not «(بك / دك)» */
 }
 .xs-from svg { flex: none; color: var(--ink-2); }
 
