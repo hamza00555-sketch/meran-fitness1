@@ -33,6 +33,7 @@ import {
   rankAlternatives, stepList, extraWords, REP_STEPS, SEC_STEPS, REST_STEPS, MIN_SETS, MAX_SETS,
 } from '../../plan/view.js'
 import { Rolling, restParts, rangeText, rangeUnit, kindLine } from './PlanCard.jsx'
+import { openYouTube } from '../../youtube.js'
 
 const videoFor = (name) => findVideoUrl(name)
   || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} proper form`)}`
@@ -150,7 +151,7 @@ export default function ExerciseSheet({
                 <ArrowsLeftRight size={22} weight="bold" aria-hidden="true" />بدّله
               </button>
               <button type="button" className="xs-act" data-testid="xs-watch"
-                onClick={() => window.open(videoFor(row.name), '_blank', 'noopener,noreferrer')}>
+                onClick={() => openYouTube(videoFor(row.name))}>
                 <YoutubeLogo size={22} weight="fill" aria-hidden="true" />شوف الطريقة
               </button>
             </div>

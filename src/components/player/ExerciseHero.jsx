@@ -10,6 +10,7 @@ import SwapSheet from './SwapSheet.jsx'
 import { arabicName } from '../../exerciseMedia.js'
 import { MUSCLE_GROUPS } from '../../constants.js'
 import { resolveExerciseName } from '../../utils.js'
+import { openYouTube } from '../../youtube.js'
 
 // ── The exercise, presented like a broadcast name strap ───────
 //
@@ -46,7 +47,7 @@ import { resolveExerciseName } from '../../utils.js'
 // Every name here goes through the user's alias mapping, so a machine he
 // renamed (or a custom alias) still finds its Arabic name and its art.
 
-const openVideo = (url) => { if (url) window.open(url, '_blank', 'noopener,noreferrer') }
+const openVideo = (url) => openYouTube(url)
 
 /**
  * A control that sits on the swipeable head: a tap activates it, a drag

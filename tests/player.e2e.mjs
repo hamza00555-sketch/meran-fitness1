@@ -592,6 +592,19 @@ async function dragHead(page, dx = 40) {
   await page.evaluate(() => {
     window.__opened = []
     window.open = (...a) => { window.__opened.push(a); return null }
+    // On the iPhone the app link goes out as a link click (src/youtube.js):
+    // record it and play the YouTube app opening (the page goes hidden),
+    // so the web fallback stays quiet, as on the phone.
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest?.('a[href^="youtube:"]')
+      if (!a) return
+      e.preventDefault()
+      window.__opened.push([a.href])
+      if (window.__noApp) return   // the YouTube app isn't installed: the page stays in front
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      setTimeout(() => { delete document.visibilityState; document.dispatchEvent(new Event('visibilitychange')) }, 30)
+    }, true)
   })
   const openedCount = () => page.evaluate(() => window.__opened.length)
   const nameEn = () => page.locator('.s-name-en').first().textContent()
@@ -628,9 +641,12 @@ async function dragHead(page, dx = 40) {
   await pill.click()
   await page.waitForTimeout(200)
   let opened = await page.evaluate(() => window.__opened)
-  ok('video: a tap opens YouTube in a new tab, without an opener',
-    opened.length === 1 && /youtube\.com/.test(opened[0][0]) && opened[0][1] === '_blank' && /noopener/.test(opened[0][2] || ''),
+  ok('video: on the iPhone a tap opens the YouTube app directly — no in-app browser page',
+    opened.length === 1 && /^youtube:\/\/www\.youtube\.com\/results\?search_query=/.test(opened[0][0]),
     JSON.stringify(opened))
+  await page.waitForTimeout(1700)
+  ok('video: and once the app opened, no web page follows', (await page.evaluate(() => window.__opened.length)) === 1,
+    JSON.stringify(await page.evaluate(() => window.__opened)))
   ok('video: and the session stays on screen', await page.getByTestId('session').count() === 1)
 
   // A swipe that starts on the pill is the head's swipe, and opens nothing
@@ -705,6 +721,16 @@ async function dragHead(page, dx = 40) {
   await page.waitForTimeout(200)
   opened = await page.evaluate(() => window.__opened)
   ok('video/row: a tap opens YouTube too', opened.length === 5 && /youtube\.com/.test(opened[4][0]), JSON.stringify(opened))
+  // No YouTube app on the phone: the page is still in front 1.5s later, so
+  // the web page opens after all, in a new tab without an opener.
+  await page.evaluate(() => { window.__noApp = true })
+  await disc.click()
+  await page.waitForTimeout(1800)
+  opened = await page.evaluate(() => window.__opened)
+  ok('video: without the YouTube app, the web page opens as before',
+    opened.length === 7 && /^youtube:/.test(opened[5][0]) && /^https:\/\/www\.youtube\.com\//.test(opened[6][0])
+      && opened[6][1] === '_blank' && /noopener/.test(opened[6][2] || ''), JSON.stringify(opened.slice(5)))
+  await page.evaluate(() => { window.__noApp = false })
 
   // Peek: the stage reopened from the thumbnail. The pill keeps its exact
   // place; «أخفِ الصورة» takes the opposite corner, far from it.

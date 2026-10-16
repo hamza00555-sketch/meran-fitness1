@@ -10,6 +10,7 @@ import { MUSCLE_GROUPS, DEFAULT_EXERCISE_MAPPING } from '../constants.js'
 import { EXERCISE_MEDIA, arabicName, equipLabel, mediaSlotFor, animSlotFor } from '../exerciseMedia.js'
 import { ls, resolveExerciseName } from '../utils.js'
 import '../styles/screens/library.css'
+import { onVideoClick } from '../youtube.js'
 
 // ── The exercise, explained ───────────────────────────────────
 //
@@ -146,7 +147,7 @@ export default function ExerciseInfoModal({ exercise, onClose, sessions, mapping
           )}
         </section>
 
-        <a className="xi-yt" href={videoUrl} target="_blank" rel="noopener noreferrer">
+        <a className="xi-yt" href={videoUrl} target="_blank" rel="noopener noreferrer" onClick={onVideoClick(videoUrl)}>
           <YoutubeLogo size={20} weight="regular" aria-hidden="true" />
           <span>فيديوهات شرح على يوتيوب</span>
           <ArrowSquareOut size={16} weight="bold" mirrored className="xi-yt-out" aria-hidden="true" />

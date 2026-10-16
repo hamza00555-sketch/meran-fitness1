@@ -22,6 +22,7 @@ import { deloadWeight } from '../deload.js'
 import { ExerciseThumb, exerciseNames } from './home/HomeBits.jsx'
 import { dayWord, musclesLine, estimateMinutes, setsUnit } from './home/dayParts.js'
 import { unitAr } from '../streak.js'
+import { onVideoClick } from '../youtube.js'
 
 export function findVideoUrl(name) {
   for (const group of Object.values(MUSCLE_GROUPS)) {
@@ -87,7 +88,7 @@ function PreviewRow({ ex, sessions, exerciseMapping, exerciseSubs, onCycleSub, r
           </button>
         )}
         {videoUrl && (
-          <a className="dp-video" href={videoUrl} target="_blank" rel="noopener noreferrer"
+          <a className="dp-video" href={videoUrl} target="_blank" rel="noopener noreferrer" onClick={onVideoClick(videoUrl)}
             aria-label={`فيديو طريقة ${ar}`} title="فيديو الطريقة">
             <Play size={18} weight="fill" aria-hidden="true" />
           </a>
