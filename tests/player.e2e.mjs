@@ -730,6 +730,14 @@ async function dragHead(page, dx = 40) {
   ok('video: without the YouTube app, the web page opens as before',
     opened.length === 7 && /^youtube:/.test(opened[5][0]) && /^https:\/\/www\.youtube\.com\//.test(opened[6][0])
       && opened[6][1] === '_blank' && /noopener/.test(opened[6][2] || ''), JSON.stringify(opened.slice(5)))
+  // The app opened and only blurred the page (no visibility change): the
+  // web page must not follow — it was the white sheet waiting on his return.
+  await disc.click()
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+  await page.waitForTimeout(1800)
+  opened = await page.evaluate(() => window.__opened)
+  ok('video: once the page loses focus to YouTube, no web page follows', opened.length === 8 && /^youtube:/.test(opened[7][0]),
+    JSON.stringify(opened.slice(7)))
   await page.evaluate(() => { window.__noApp = false })
 
   // Peek: the stage reopened from the thumbnail. The pill keeps its exact
