@@ -79,6 +79,34 @@ test('the service worker waits; the app lets the new version in', () => {
   assert.match(upd, /register\('\/sw\.js'/)
 })
 
+test('the card and the loading state keep to sys- class names (global CSS: .pg is the achievements page, .pl a report cell)', () => {
+  const css = readFileSync(new URL('../src/styles/screens/system.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(css, /(^|\})\s*\.(pg|pl|wn)[\s{.:-]/m)
+  const guard = readFileSync(new URL('../src/components/system/PageGuard.jsx', import.meta.url), 'utf8')
+  for (const m of guard.matchAll(/className="([^"]+)"/g)) {
+    for (const c of m[1].split(/\s+/)) assert.ok(/^(sys-|k-)/.test(c), `PageGuard class ${c}`)
+  }
+})
+
+test('nothing outside «خطتي» and the builder wears their root classes (their CSS is global once loaded)', async () => {
+  const { readdirSync, statSync } = await import('node:fs')
+  const path = await import('node:path')
+  const root = new URL('../src/', import.meta.url).pathname
+  const walk = (d) => readdirSync(d).flatMap(n => { const p = path.join(d, n); return statSync(p).isDirectory() ? walk(p) : [p] })
+  const bad = []
+  for (const f of walk(root).filter(p => /\.jsx$/.test(p))) {
+    const rel = path.relative(root, f)
+    const s = readFileSync(f, 'utf8')
+    for (const m of s.matchAll(/className=(?:"([^"]+)"|\{`([^`]+)`\})/g)) {
+      for (const tok of (m[1] || m[2]).replace(/\$\{[^}]*\}/g, ' ').split(/\s+/)) {
+        if (/^pv(-|$)/.test(tok) && !/^pages[\\/]planview[\\/]/.test(rel)) bad.push(`${rel}: ${tok}`)
+        if (tok === 'pb' && !/^pages[\\/]planner[\\/]/.test(rel)) bad.push(`${rel}: ${tok}`)
+      }
+    }
+  }
+  assert.deepEqual(bad, [], 'a .pv/.pb outside its page turns into «خطتي»/the builder once their stylesheet is in (التقدم went fixed over the tab bar)')
+})
+
 test('App opens its lazy pages through lazyPage and a Guard', () => {
   const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8')
   assert.doesNotMatch(app, /fallback=\{null\}/)

@@ -63,9 +63,9 @@ export default function WhatsNewModal({ entries = [], onClose }) {
     if (!el || played.current) return
     played.current = true
     if (reducedMotion()) { animate(el, [{ opacity: 0 }, { opacity: 1 }], { d: 200, e: 'linear' }); return }
-    animate(el.querySelector('.wn-mark'), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { spring: 'bouncy', delay: 120 })
-    animate(el.querySelector('.wn-mark-light'), [{ opacity: 0 }, { opacity: 1 }], { d: 600, delay: 80 })
-    const lines = [...el.querySelectorAll('.wn-eyebrow, .wn-title, .wn-meta, .wn-ver-h, .wn-item')].slice(0, 10)
+    animate(el.querySelector('.sys-wn-mark'), [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'none' }], { spring: 'bouncy', delay: 120 })
+    animate(el.querySelector('.sys-wn-mark-light'), [{ opacity: 0 }, { opacity: 1 }], { d: 600, delay: 80 })
+    const lines = [...el.querySelectorAll('.sys-wn-eyebrow, .sys-wn-title, .sys-wn-meta, .sys-wn-ver-h, .sys-wn-item')].slice(0, 10)
     lines.forEach((n, k) => animate(n, rise(12), { spring: 'smooth', delay: 180 + k * 45 }))
   }, [])
 
@@ -81,41 +81,41 @@ export default function WhatsNewModal({ entries = [], onClose }) {
       labelledBy={titleId}
       footer={<Button variant="primary" size="lg" full onClick={close} data-testid="whats-new-ok">تمام</Button>}
     >
-      <div className="wn" data-testid="whats-new" ref={enter}>
-        <header className="wn-hero">
-          <span className="wn-mark-wrap" aria-hidden="true">
-            <span className="wn-mark-light" />
-            <img className="wn-mark" src="/assets/meran-app-icon-transparent-180.png" alt="" width="76" height="76" decoding="async" />
+      <div className="sys-wn" data-testid="whats-new" ref={enter}>
+        <header className="sys-wn-hero">
+          <span className="sys-wn-mark-wrap" aria-hidden="true">
+            <span className="sys-wn-mark-light" />
+            <img className="sys-wn-mark" src="/assets/meran-app-icon-transparent-180.png" alt="" width="76" height="76" decoding="async" />
           </span>
-          <p className="wn-eyebrow">جديد في مران</p>
-          <h2 id={titleId} className="wn-title">
+          <p className="sys-wn-eyebrow">جديد في مران</p>
+          <h2 id={titleId} className="sys-wn-title">
             {one ? <>الإصدار <Num>{latest.version}</Num></> : 'وش تغيّر من آخر مرة'}
           </h2>
-          <p className="wn-meta">
+          <p className="sys-wn-meta">
             {one ? withNums(fmtDayAr(latest.date, { weekday: false })) : withNums(updatesWord(entries.length))}
           </p>
         </header>
 
         {entries.map(entry => (
-          <section key={entry.version} className="wn-ver" data-version={entry.version}
+          <section key={entry.version} className="sys-wn-ver" data-version={entry.version}
             aria-label={one ? undefined : `الإصدار ${entry.version}`}>
             {!one && (
-              <h3 className="wn-ver-h">
+              <h3 className="sys-wn-ver-h">
                 <span>الإصدار <Num>{entry.version}</Num></span>
-                <span className="wn-date">{withNums(fmtDayAr(entry.date, { weekday: false }))}</span>
+                <span className="sys-wn-date">{withNums(fmtDayAr(entry.date, { weekday: false }))}</span>
               </h3>
             )}
-            <ul className="wn-list">
+            <ul className="sys-wn-list">
               {entry.items.map(({ icon, tone, title, line }) => {
                 const Icon = ICONS[icon] || Sparkle
                 return (
-                  <li key={title} className="wn-item">
-                    <span className={`wn-glyph${tone ? ` is-${tone}` : ''}`} aria-hidden="true">
+                  <li key={title} className="sys-wn-item">
+                    <span className={`sys-wn-glyph${tone ? ` is-${tone}` : ''}`} aria-hidden="true">
                       <Icon size={22} weight={tone ? 'fill' : 'bold'} />
                     </span>
-                    <div className="wn-item-text">
-                      <p className="wn-item-t">{title}</p>
-                      <p className="wn-item-l">{withNums(line)}</p>
+                    <div className="sys-wn-item-text">
+                      <p className="sys-wn-item-t">{title}</p>
+                      <p className="sys-wn-item-l">{withNums(line)}</p>
                     </div>
                   </li>
                 )

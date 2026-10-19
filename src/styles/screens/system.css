@@ -192,83 +192,83 @@
    then a block per version: its number and date on a hairline, and its
    items, each an icon in a round well, a title and one line. Colour only
    where it already means the thing: the streak's orange, the raise gold. */
-.wn { padding-bottom: var(--space-2); }
-.wn-hero { display: grid; justify-items: center; text-align: center; padding: var(--space-2) 0 var(--space-5); }
-.wn-mark-wrap { position: relative; display: grid; place-items: center; width: 132px; height: 112px; margin-bottom: var(--space-1); }
+.sys-wn { padding-bottom: var(--space-2); }
+.sys-wn-hero { display: grid; justify-items: center; text-align: center; padding: var(--space-2) 0 var(--space-5); }
+.sys-wn-mark-wrap { position: relative; display: grid; place-items: center; width: 132px; height: 112px; margin-bottom: var(--space-1); }
 /* closest-side: the light is gone before any edge, so it has no box */
-.wn-mark-light { position: absolute; inset: -8px -24px; background: radial-gradient(closest-side, var(--stage-light), transparent); pointer-events: none; }
-.wn-mark { position: relative; width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
-.wn-eyebrow { margin: 0; font-size: var(--t-label); font-weight: 700; color: var(--ink-3); }
-.wn-title { margin: 2px 0 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; color: var(--ink); text-wrap: balance; }
-.wn-meta { margin: var(--space-1) 0 0; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); }
+.sys-wn-mark-light { position: absolute; inset: -8px -24px; background: radial-gradient(closest-side, var(--stage-light), transparent); pointer-events: none; }
+.sys-wn-mark { position: relative; width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
+.sys-wn-eyebrow { margin: 0; font-size: var(--t-label); font-weight: 700; color: var(--ink-3); }
+.sys-wn-title { margin: 2px 0 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; color: var(--ink); text-wrap: balance; }
+.sys-wn-meta { margin: var(--space-1) 0 0; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); }
 /* A short phone (SE): a smaller lit moment, so the first items show under it. */
 @media (max-height: 700px) {
-  .wn-hero { padding-bottom: var(--space-4); }
-  .wn-mark-wrap { width: 104px; height: 80px; }
-  .wn-mark { width: 56px; height: 56px; border-radius: 14px; }
-  .wn-title { font-size: var(--t-title); }
+  .sys-wn-hero { padding-bottom: var(--space-4); }
+  .sys-wn-mark-wrap { width: 104px; height: 80px; }
+  .sys-wn-mark { width: 56px; height: 56px; border-radius: 14px; }
+  .sys-wn-title { font-size: var(--t-title); }
 }
 
-.wn-ver + .wn-ver { margin-top: var(--space-2); }
-.wn-ver-h {
+.sys-wn-ver + .sys-wn-ver { margin-top: var(--space-2); }
+.sys-wn-ver-h {
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3);
   margin: 0; padding: var(--space-3) 0 var(--space-1);
   border-top: 1px solid var(--hairline);
   font-size: var(--t-label); font-weight: 700; color: var(--ink-2);
 }
-.wn-date { font-weight: 600; color: var(--ink-3); white-space: nowrap; }
-.wn-list { list-style: none; margin: 0; padding: 0; }
-.wn-item {
+.sys-wn-date { font-weight: 600; color: var(--ink-3); white-space: nowrap; }
+.sys-wn-list { list-style: none; margin: 0; padding: 0; }
+.sys-wn-item {
   display: grid; grid-template-columns: 40px 1fr; column-gap: var(--space-3); align-items: start;
   padding: var(--space-3) 0;
 }
-.wn-glyph {
+.sys-wn-glyph {
   display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-pill);
   background: var(--surface-3); color: var(--ink);
 }
-.wn-glyph.is-streak { color: var(--streak); }
-.wn-glyph.is-raise  { color: var(--raise); }
-.wn-glyph.is-rest   { color: var(--rest); }
-.wn-item-text { min-width: 0; padding-top: 1px; }
-.wn-item-t { margin: 0; font-size: var(--t-headline); font-weight: 700; line-height: 1.4; color: var(--ink); text-wrap: balance; }
-.wn-item-l { margin: 2px 0 0; font-size: var(--t-body); font-weight: 500; line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
+.sys-wn-glyph.is-streak { color: var(--streak); }
+.sys-wn-glyph.is-raise  { color: var(--raise); }
+.sys-wn-glyph.is-rest   { color: var(--rest); }
+.sys-wn-item-text { min-width: 0; padding-top: 1px; }
+.sys-wn-item-t { margin: 0; font-size: var(--t-headline); font-weight: 700; line-height: 1.4; color: var(--ink); text-wrap: balance; }
+.sys-wn-item-l { margin: 2px 0 0; font-size: var(--t-body); font-weight: 500; line-height: 1.6; color: var(--ink-2); text-wrap: pretty; }
 
 /* ══ A page that did not open (components/system/PageGuard.jsx) ══ */
-.pg { display: grid; justify-items: center; text-align: center; gap: var(--space-1); padding: var(--space-3) 0 var(--space-2); }
-.pg-mark {
+.sys-fail { display: grid; justify-items: center; text-align: center; gap: var(--space-1); padding: var(--space-3) 0 var(--space-2); }
+.sys-fail-mark {
   display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: var(--space-2);
   border-radius: var(--r-pill); background: radial-gradient(closest-side, var(--stage-light), var(--surface-3));
   color: var(--ink);
 }
-.pg-title { margin: 0; font-size: var(--t-title); font-weight: 800; line-height: 1.3; color: var(--ink); text-wrap: balance; }
-.pg-line { margin: 0; max-width: 32ch; font-size: var(--t-body); line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
-.pg-actions { display: grid; gap: var(--space-2); }
+.sys-fail-title { margin: 0; font-size: var(--t-title); font-weight: 800; line-height: 1.3; color: var(--ink); text-wrap: balance; }
+.sys-fail-line { margin: 0; max-width: 32ch; font-size: var(--t-body); line-height: 1.65; color: var(--ink-2); text-wrap: pretty; }
+.sys-fail-actions { display: grid; gap: var(--space-2); }
 
 /* Loading, once it has taken longer than a blink (300 ms) */
-.pl {
+.sys-load {
   position: fixed; inset: 0; z-index: var(--z-cover);
   display: grid; place-items: center; padding: var(--space-5);
   background: var(--scrim);
   animation: k-fade-in var(--dur-base) var(--ease-out);
 }
-.pl-card {
+.sys-load-card {
   display: flex; align-items: center; gap: var(--space-3);
   min-height: 64px; padding: var(--space-2) var(--space-2) var(--space-2) var(--space-5);
   background: var(--surface-2); border-radius: var(--r-md);
   box-shadow: 0 12px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-.pl-ring {
+.sys-load-ring {
   flex: none; width: 22px; height: 22px; border-radius: var(--r-pill);
   border: 2.5px solid var(--surface-3); border-top-color: var(--ink);
-  animation: pl-spin 0.8s linear infinite;
+  animation: sys-load-spin 0.8s linear infinite;
 }
-@keyframes pl-spin { to { transform: rotate(360deg); } }
-.pl-text { font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
-.pl-x { color: var(--ink-2); }
+@keyframes sys-load-spin { to { transform: rotate(360deg); } }
+.sys-load-text { font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
+.sys-load-x { color: var(--ink-2); }
 @media (prefers-reduced-motion: reduce) {
-  .pl { animation: none; }
-  .pl-ring { animation: pl-breathe 1.6s var(--ease-io) infinite alternate; }
-  @keyframes pl-breathe { from { opacity: 1; } to { opacity: 0.35; } }
+  .sys-load { animation: none; }
+  .sys-load-ring { animation: sys-load-breathe 1.6s var(--ease-io) infinite alternate; }
+  @keyframes sys-load-breathe { from { opacity: 1; } to { opacity: 0.35; } }
 }
 
 /* ══ The app stopped (main.jsx → AppGuard): the last resort ═════ */

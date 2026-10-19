@@ -21,7 +21,9 @@ export default function ProgressPage({ achievements = {}, photos = {}, numbers, 
   const numberProps = numbers || { sessions: achievements.sessions || [] }
 
   return (
-    <div className="pv">
+    // (.prog, not .pv: «خطتي»'s stylesheet — loaded once it has opened, or
+    // prefetched — makes .pv a fixed full-screen page over the tab bar.)
+    <div className="prog">
       <Segmented
         label="التقدم"
         value={view}
@@ -33,7 +35,7 @@ export default function ProgressPage({ achievements = {}, photos = {}, numbers, 
         ]}
         className="f-progress-seg"
       />
-      <div className="pv-view" key={view}>
+      <div className="prog-view" key={view}>
         {view === 'numbers' && <StatsPage {...numberProps} />}
         {view === 'achievements' && <AchievementsPage {...achievements} />}
         {view === 'photos' && <PhotosPage {...photos} embedded />}

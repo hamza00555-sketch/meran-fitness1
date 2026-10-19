@@ -29,7 +29,10 @@
 //      page keeps its files, «خطتي» opens — and goes in when the app is
 //      put away with nothing open (not while «خطتي» is open);
 //   6. «خطتي» is fetched at idle after Home, so opening it needs nothing
-//      from the network.
+//      from the network;
+//   7. التقدم after «خطتي»: its root was .pv too, which «خطتي»'s global
+//      stylesheet makes a fixed full-screen page — after «خطتي» had opened
+//      once, التقدم covered the tab bar and never scrolled (stuck).
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync, readdirSync, mkdtempSync, rmSync } from 'node:fs'
@@ -372,6 +375,42 @@ export default function PlanViewThatBreaks(props) {
   const s = await screenState(page)
   ok('prefetch: then «خطتي» opens at once, with the network to it cut', s.view && !s.loading && !s.fail, JSON.stringify(s))
   ok('prefetch: no uncaught page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
+  await ctx.close()
+}
+
+// ══ 7. التقدم after «خطتي» ══
+// «خطتي»'s stylesheet is global once loaded, and it makes .pv a fixed
+// full-screen page; التقدم's root was also .pv. So after «خطتي» had opened
+// once, التقدم covered the whole screen and the tab bar, and did not
+// scroll: stuck until the app was killed. Now prefetched, the stylesheet is
+// there from the start — التقدم must be unaffected.
+{
+  const { ctx, page, errors } = await open()
+  await page.goto(APP, { waitUntil: 'domcontentloaded' })
+  await tapPlan(page)
+  await page.locator('[data-testid="plan-view"]').waitFor({ timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(900)
+  await page.locator('[data-testid="plan-view-close"]').click()
+  await page.waitForTimeout(800)
+  await page.locator('nav.f-tabs > button').nth(2).click()
+  await page.waitForTimeout(800)
+  const s = await page.evaluate(() => {
+    const nav = document.querySelector('nav.f-tabs'), r = nav.getBoundingClientRect()
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    const seg = document.querySelector('.f-progress-seg')
+    const root = seg?.parentElement
+    return {
+      tabBarOnTop: !!top && nav.contains(top),
+      position: root ? getComputedStyle(root).position : null,
+      scrolls: document.documentElement.scrollHeight > innerHeight,
+    }
+  })
+  ok('after «خطتي»: التقدم stays a page (not fixed over everything)', s.position === 'static', JSON.stringify(s))
+  ok('after «خطتي»: the tab bar is still on top and التقدم scrolls', s.tabBarOnTop && s.scrolls, JSON.stringify(s))
+  await page.locator('nav.f-tabs > button').first().click()
+  await page.waitForTimeout(500)
+  ok('after «خطتي»: back to Home from التقدم', await page.locator('[data-testid="streak-number"]').count() === 1)
+  ok('after «خطتي»: no uncaught page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
   await ctx.close()
 }
 

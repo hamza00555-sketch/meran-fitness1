@@ -95,16 +95,16 @@ function FailCard({ label, chunk, onRetry, onClose }) {
   return (
     <Sheet open={open} onClose={close} labelledBy={titleId}
       footer={(
-        <div className="pg-actions">
+        <div className="sys-fail-actions">
           <Button variant="primary" size="lg" full onClick={onRetry} data-testid="page-retry">جرّب مرة ثانية</Button>
           <Button variant="secondary" size="lg" full onClick={close} data-testid="page-fail-close">رجوع</Button>
         </div>
       )}>
-      <div className="pg" data-testid="page-fail" role="alert">
-        <span className="pg-mark" aria-hidden="true"><ArrowsClockwise size={30} weight="bold" /></span>
-        <h2 id={titleId} className="pg-title">ما قدرنا نفتح {label}</h2>
-        <p className="pg-line">{chunk ? 'يمكن التطبيق تحدّث أو النت ضعيف.' : 'صار خلل بسيط وما كمّلت.'}</p>
-        <p className="pg-line">بياناتك كلها محفوظة.</p>
+      <div className="sys-fail" data-testid="page-fail" role="alert">
+        <span className="sys-fail-mark" aria-hidden="true"><ArrowsClockwise size={30} weight="bold" /></span>
+        <h2 id={titleId} className="sys-fail-title">ما قدرنا نفتح {label}</h2>
+        <p className="sys-fail-line">{chunk ? 'يمكن التطبيق تحدّث أو النت ضعيف.' : 'صار خلل بسيط وما كمّلت.'}</p>
+        <p className="sys-fail-line">بياناتك كلها محفوظة.</p>
       </div>
     </Sheet>
   )
@@ -120,11 +120,11 @@ export function PageLoading({ label, onClose, delay = 300 }) {
   useEffect(() => (shown ? lockScroll() : undefined), [shown])
   if (!shown) return null
   return createPortal(
-    <div className="pl" data-testid="page-loading">
-      <div className="pl-card" role="status" aria-live="polite">
-        <span className="pl-ring" aria-hidden="true" />
-        <span className="pl-text">نفتح {label}…</span>
-        {onClose && <IconButton icon={X} label="إغلاق" onClick={onClose} className="pl-x" />}
+    <div className="sys-load" data-testid="page-loading">
+      <div className="sys-load-card" role="status" aria-live="polite">
+        <span className="sys-load-ring" aria-hidden="true" />
+        <span className="sys-load-text">نفتح {label}…</span>
+        {onClose && <IconButton icon={X} label="إغلاق" onClick={onClose} className="sys-load-x" />}
       </div>
     </div>,
     document.body,
