@@ -4,9 +4,10 @@
    tokens only. No gold on the achievements view; gold appears once in
    the numbers view, on the best weights. */
 
-/* The view switch: a 44pt target. */
-.pv .k-seg-opt { min-height: 38px; }
-.pv-view { animation: k-fade-in var(--dur-fast) var(--ease-out); }
+/* The view switch: a 44pt target. (The root is .prog: .pv is «خطتي»'s
+   full-screen page, and its stylesheet is global once loaded.) */
+.prog .k-seg-opt { min-height: 38px; }
+.prog-view { animation: k-fade-in var(--dur-fast) var(--ease-out); }
 
 /* ── The rank stage ── */
 .pg { display: grid; gap: 0; padding-bottom: var(--space-4); }

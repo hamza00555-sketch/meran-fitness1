@@ -84,6 +84,9 @@ export const PER_USER_KEYS = [
   // «خلّهم بالتناوب» offers he answered «لا» to (src/plan/rotate.js
   // OFFERS_OFF_KEY). New in the redesign; the old design never reads it.
   'meran_rotate_off',
+  // The last version whose «جديد في مران» he saw (src/whatsNew.js), kept
+  // apart from hf_seen_version, which the old design reads as '2.2'.
+  'meran_seen_version',
 ]
 
 export const deleteUserData = (id) => {

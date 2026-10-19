@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, lazy, Suspense } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import {
   ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, keepDone, normalizeSession, setCounts,
@@ -9,7 +9,7 @@ import {
   NAV_TABS, ACHIEVEMENTS,
   DAILY_CHALLENGE_POOL, WEEKLY_CHALLENGE_POOL, BOSS_CHALLENGES,
   NOTIFICATION_MESSAGES, WORKOUT_TIME_HOURS,
-  DEFAULT_EXERCISE_MAPPING, APP_VERSION, EXERCISE_ALTERNATIVES,
+  DEFAULT_EXERCISE_MAPPING, EXERCISE_ALTERNATIVES,
 } from './constants.js'
 import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon } from './components/Icons.jsx'
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayDiff } from './recovery.js'
@@ -43,12 +43,20 @@ function PageMain({ vt, children, ...rest }) {
 
 // Pages
 import HomePage        from './pages/HomePage.jsx'
-// The plan builder is a page of its own, loaded only when it opens (it
-// brings the body figure's paths with it).
-const PlannerPage = lazy(() => import('./pages/planner/PlannerPage.jsx'))
-// «خطتي» — his plan as he runs it, as cards (src/pages/planview): its
-// own chunk too (the page, its styles, the body figure).
-const PlanView = lazy(() => import('./pages/planview/PlanView.jsx'))
+// The plan builder is a page of its own, in its own chunk (it brings the
+// body figure's paths with it); «خطتي» — his plan as he runs it, as cards
+// (src/pages/planview) — too. Both are fetched at a quiet moment after
+// Home shows, so they open at once; and a chunk that fails to arrive
+// reloads once into the current version, or shows «جرّب مرة ثانية» —
+// never a black screen (src/lazyPage.js, components/system/PageGuard.jsx).
+const PlannerPage = lazyPage(() => import('./pages/planner/PlannerPage.jsx'), {
+  name: 'planner', intent: (p) => ({ door: p.door, day: p.day }),
+})
+const PlanView = lazyPage(() => import('./pages/planview/PlanView.jsx'), {
+  name: 'planview', intent: (p) => ({ from: p.from }),
+})
+// What a reload for a missing chunk said to open again (once, at load).
+const REOPEN = takeReopen()
 import WorkoutPage     from './pages/WorkoutPage.jsx'
 import HistoryPage     from './pages/HistoryPage.jsx'
 import AchievementsPage from './pages/AchievementsPage.jsx'
@@ -93,6 +101,10 @@ import { planTitle } from './plan/title.js'
 import { dropsOf, withDropped, DROPPED_KEY } from './plan/view.js'
 import { resolveDay } from './plan/rotate.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
+import { lazyPage, takeReopen } from './lazyPage.js'
+import { Guard } from './components/system/PageGuard.jsx'
+import { setUpdateBusy } from './appUpdate.js'
+import { whatsNewAtLaunch, markWhatsNewSeen, SEEN_KEY, CLASSIC_SEEN_KEY } from './whatsNew.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly
 // merged machine/cable/dumbbell/barbell variants, polluting saved
@@ -302,14 +314,20 @@ export default function App() {
   const [alertQueue, setAlertQueue] = useState([])
   const [restKey,    setRestKey]    = useState(0)
   const [photos,     setPhotos]     = useState(() => ls.get('hf_photos', []))
-  // A fresh install has nothing to be told is new: no changelog on the
-  // first run (critique F45). It is marked seen silently instead.
+  // «جديد في مران» (src/whatsNew.js): every entry of WHATS_NEW since the
+  // version he last saw, or null. A fresh install has nothing to be told
+  // is new: no changelog on the first run (critique F45), it is marked seen
+  // silently instead. Pending until Home is free (see the effect by the
+  // render below); whatsNewOpen is the sheet actually up.
   const firstRun = !ls.get('hf_onboarded', false) && !(ls.get('hf_sessions', []) || []).length && !ls.get('hf_plan', null)
-  const [showWhatsNew, setShowWhatsNew] = useState(() => {
-    if (ls.get('hf_seen_version') === APP_VERSION) return false
-    if (firstRun) { ls.set('hf_seen_version', APP_VERSION); return false }
-    return true
+  const [whatsNew, setWhatsNew] = useState(() => {
+    const { entries, markSeen } = whatsNewAtLaunch({
+      seenOwn: ls.get(SEEN_KEY, null), seenShared: ls.get(CLASSIC_SEEN_KEY, null), firstRun,
+    })
+    if (markSeen) markWhatsNewSeen(ls)
+    return entries.length ? entries : null
   })
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
   const [onboarding, setOnboarding] = useState(firstRun)
   // Set by the boot reconciliation below, never by a stored flag alone.
   const [packOffer,  setPackOffer]  = useState(false)
@@ -400,10 +418,11 @@ export default function App() {
     return () => { alive = false }
   }, [])
 
-  // ── WhatsNew dismiss ─────────────────────────────────────────
+  // ── «جديد في مران»: «تمام» ───────────────────────────────────
   const dismissWhatsNew = useCallback(() => {
-    ls.set('hf_seen_version', APP_VERSION)
-    setShowWhatsNew(false)
+    markWhatsNewSeen(ls)
+    setWhatsNewOpen(false)
+    setWhatsNew(null)
   }, [])
 
   // ── Alert helper ──────────────────────────────────────────────
@@ -869,8 +888,14 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState(null)
 
   const [showStreak, setShowStreak] = useState(false)
-  // «خطتي» open: { from } (see openPlanView below), else null.
-  const [planView, setPlanView] = useState(null)
+  // «خطتي» open: { from } (see openPlanView below), else null. Open at load
+  // when a reload for its missing chunk said so (src/lazyPage.js).
+  const [planView, setPlanView] = useState(() => (REOPEN?.page === 'planview' ? { from: REOPEN.from || 'home' } : null))
+  // The plan builder (src/pages/planner): the door it opened from, or null
+  // (see openPlanner below); and the day «خطتك» opens on, when «خطتي»
+  // opened the builder on one.
+  const [planner, setPlanner] = useState(() => (REOPEN?.page === 'planner' ? REOPEN.door || 'settings' : null))
+  const [plannerDay, setPlannerDay] = useState(() => (REOPEN?.page === 'planner' && Number.isInteger(REOPEN.day) ? REOPEN.day : null))
 
   // The best streak, kept as a high-water mark. The engine can only
   // replay the last 400 days, and a record must outlive that window. A
@@ -1005,7 +1030,7 @@ export default function App() {
   // already holds are written down as known, silently — the flame on
   // Home already shows them.
   const homeCovered = !!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
-    || showDeloadEnd || showWhatsNew || packOffer || !!planView
+    || showDeloadEnd || whatsNewOpen || packOffer || !!planView || !!planner
   const restHeld = restDaysView(recovery).held
   const restHeldKey = restHeld.map(h => h.earnedOn).join(',')
   const [restEarned, setRestEarned] = useState(null)
@@ -1166,11 +1191,8 @@ export default function App() {
   // ── The plan builder (src/pages/planner) ────────────────────
   // A page of its own over any screen, with five doors: Settings › الخطة,
   // Home › تقدّم البرنامج, Home › ⋯ › عدّل الخطة, Home with no plan, and
-  // the first run's «أبني خطتي بنفسي». `planner` is the door it opened
-  // from, or null.
-  const [planner, setPlanner] = useState(null)
-  // The day «خطتك» opens on, when «خطتي» opened the builder on one.
-  const [plannerDay, setPlannerDay] = useState(null)
+  // the first run's «أبني خطتي بنفسي». `planner` (its state is declared
+  // with planView above) is the door it opened from, or null.
   const openPlanner = useCallback((door, day = null) => { setPlannerDay(Number.isInteger(day) ? day : null); setPlanner(door) }, [])
   // The plan before the last one the builder put in, for «رجّع خطتك
   // القديمة» (حمزة: «إيه، احفظها»). A key of the new design's own.
@@ -1374,6 +1396,45 @@ export default function App() {
   }, [pushAlert])
   const { level } = xpProgress(xp)
 
+  // ── «جديد في مران», when Home is his again ────────────────────
+  // Last in the queue: the summary and its medals, the level-up screen,
+  // «كسبت يوم راحة» (shown, or due — its own pause is shorter), the deload's
+  // end, the art offer, «خطتي», the builder, any sheet. Then a pause, so
+  // the streak number lands on Home first, and the sheet comes up.
+  let restDue = false
+  try {
+    const stored = ls.get(REST_ANNOUNCED_KEY, null)
+    restDue = Array.isArray(stored) && toAnnounce(restHeld, stored).length > 0
+  } catch { restDue = false }
+  const whatsNewWaits = !!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
+    || showDeloadEnd || packOffer || !!planView || !!planner || !!restEarned || restDue
+    || showStreak || askSkip || !!posterUrl
+  useEffect(() => {
+    if (!whatsNew || whatsNewOpen || whatsNewWaits) return undefined
+    const t = setTimeout(() => setWhatsNewOpen(true), reducedMotion() ? 500 : 1800)
+    return () => clearTimeout(t)
+  }, [whatsNew, whatsNewOpen, whatsNewWaits])
+
+  // ── «خطتي» and the builder, fetched while nothing is happening ──
+  // After Home first shows, at idle: then they open at once, and no
+  // longer need the network — or a file of this version that a deploy may
+  // have taken off the server — when he taps them.
+  useEffect(() => {
+    let cancel = () => {}
+    const t = setTimeout(() => {
+      cancel = whenIdle(() => {
+        PlanView.preload().finally(() => { cancel = whenIdle(() => { PlannerPage.preload() }) })
+      })
+    }, 1200)
+    return () => { clearTimeout(t); cancel() }
+  }, [])
+
+  // ── A new version waits for a quiet moment (src/appUpdate.js) ──
+  // Busy while anything is open that a reload would throw away.
+  const updateBusy = !!active || homeCovered || !!page || showStreak || askSkip || !!restEarned
+    || !!posterUrl
+  useEffect(() => { setUpdateBusy(updateBusy) }, [updateBusy])
+
   return (
     <div style={{
       minHeight: '100dvh',
@@ -1401,7 +1462,7 @@ export default function App() {
             onOpenStreak={() => setShowStreak(true)}
             onOpenSettings={() => { setSettingsSection(null); pushPage('settings') }}
             hold={!!summary || showLevelUp || (!!active && sessionOpen) || showReport || onboarding
-              || showDeloadEnd || showWhatsNew || packOffer || !!planView}
+              || showDeloadEnd || whatsNewOpen || packOffer || !!planView}
             active={active}
             plan={plan}
             planIndex={planIndex}
@@ -1554,7 +1615,12 @@ export default function App() {
       {/* ── The running session ──
           Full screen while you train: no tabs to wander into mid-set. ⌄
           docks it as the live bar above the tabs. */}
+      {/* Every page and overlay below sits in a Guard (components/system/
+          PageGuard.jsx): one that throws leaves a card with «جرّب مرة
+          ثانية», never a black screen. A session's own closes to the live
+          bar, so the workout is never lost with it. */}
       {active && sessionOpen && (
+        <Guard label="الجلسة" onClose={() => setSessionOpen(false)}>
         <div className="f-cover" role="dialog" aria-modal="true" aria-label="الجلسة" data-testid="session-cover">
           <WorkoutPage
             active={active}
@@ -1598,6 +1664,7 @@ export default function App() {
             onDeleteSession={deleteSession}
           />
         </div>
+        </Guard>
       )}
 
       {/* ── Live bar + tabs ── */}
@@ -1612,12 +1679,23 @@ export default function App() {
       {showRest && !(sessionOpen && active) && (
         <RestTimer key={restKey} onClose={() => setShowRest(false)} />
       )}
-      {showLevelUp && !summary && <LevelUpScreen level={levelUpNum} from={levelUpFrom} onDismiss={() => { setShowLevelUp(false); setLevelUpFrom(null) }} />}
-      {summary && <SessionSummary summary={summary} xp={xp} onDone={closeSummary} />}
+      {showLevelUp && !summary && (
+        <Guard label="المستوى الجديد" onClose={() => { setShowLevelUp(false); setLevelUpFrom(null) }}>
+          <LevelUpScreen level={levelUpNum} from={levelUpFrom} onDismiss={() => { setShowLevelUp(false); setLevelUpFrom(null) }} />
+        </Guard>
+      )}
+      {summary && (
+        <Guard label="ملخص الجلسة" onClose={closeSummary}>
+          <SessionSummary summary={summary} xp={xp} onDone={closeSummary} />
+        </Guard>
+      )}
       {restEarned && !summary && !showLevelUp && (
-        <RestDayEarned days={restEarned.days} count={restEarned.count} onClose={() => setRestEarned(null)} />
+        <Guard label="يوم الراحة" onClose={() => setRestEarned(null)}>
+          <RestDayEarned days={restEarned.days} count={restEarned.count} onClose={() => setRestEarned(null)} />
+        </Guard>
       )}
       {onboarding && (
+        <Guard label="البداية" onClose={() => setOnboarding(false)}>
         <Onboarding
           initialName={profile?.name && profile.name !== DEFAULT_PROFILE.name ? profile.name : ''}
           onDone={({ name, daysPerWeek, plan: chosen, build }) => {
@@ -1634,9 +1712,11 @@ export default function App() {
             if (build) setPlanner('onb')
           }}
         />
+        </Guard>
       )}
       {planner && (
-        <Suspense fallback={null}>
+        <Guard label="باني الخطة" lazy={PlannerPage} onClose={() => setPlanner(null)}
+          reopen={{ page: 'planner', door: planner, day: plannerDay }}>
           <PlannerPage
             door={planner}
             day={plannerDay}
@@ -1659,10 +1739,11 @@ export default function App() {
             }}
             onClose={() => setPlanner(null)}
           />
-        </Suspense>
+        </Guard>
       )}
       {planView && plan?.weeklySchedule?.length > 0 && (
-        <Suspense fallback={null}>
+        <Guard label="خطتي" lazy={PlanView} onClose={() => setPlanView(null)}
+          reopen={{ page: 'planview', from: planView.from }}>
           <PlanView
             from={planView.from}
             plan={plan}
@@ -1680,7 +1761,7 @@ export default function App() {
             onOpenBuilder={(day) => openPlanner('view', day)}
             onClose={() => setPlanView(null)}
           />
-        </Suspense>
+        </Guard>
       )}
       <SystemAlert alerts={alertQueue} onRemove={removeAlert} />
 
@@ -1698,27 +1779,40 @@ export default function App() {
       {askSkip && (() => {
         const copy = skipCopy(streakView({ recovery, config: recoveryCfg, active, deload, today: streakToday }))
         return (
-          <SkipSheet
-            copy={copy}
-            onConfirm={() => { setAskSkip(false); skipPlanDay(copy.toast) }}
-            onClose={() => setAskSkip(false)}
-          />
+          <Guard label="التخطي" onClose={() => setAskSkip(false)}>
+            <SkipSheet
+              copy={copy}
+              onConfirm={() => { setAskSkip(false); skipPlanDay(copy.toast) }}
+              onClose={() => setAskSkip(false)}
+            />
+          </Guard>
         )
       })()}
-      {showDeloadEnd && (
-        <DeloadEndScreen
-          entry={lastDeload}
-          heaviest={heaviestLift}
-          onDismiss={() => setRecoveryCfg(prev => ({
-            ...prev,
-            deloadEndSeenAt: lastDeload.until || lastDeload.plannedUntil,
-          }))}
-        />
+      {showDeloadEnd && (() => {
+        const seen = () => setRecoveryCfg(prev => ({
+          ...prev,
+          deloadEndSeenAt: lastDeload.until || lastDeload.plannedUntil,
+        }))
+        return (
+          <Guard label="نهاية الديلود" onClose={seen}>
+            <DeloadEndScreen entry={lastDeload} heaviest={heaviestLift} onDismiss={seen} />
+          </Guard>
+        )
+      })()}
+      {/* «جديد في مران» opens itself once Home is free (whatsNewWaits above). */}
+      {whatsNewOpen && whatsNew && (
+        <Guard label="جديد في مران" onClose={dismissWhatsNew}>
+          <WhatsNewModal entries={whatsNew} onClose={dismissWhatsNew} />
+        </Guard>
       )}
-      {showWhatsNew && !(active && sessionOpen) && <WhatsNewModal version={APP_VERSION} onClose={dismissWhatsNew} />}
-      {/* Queued behind the version notice so the two never stack. */}
-      {packOffer && !showWhatsNew && !onboarding && !(active && sessionOpen) && <AssetPackPrompt onClose={() => setPackOffer(false)} />}
+      {/* «جديد في مران» waits for the art offer; the offer never opens over it. */}
+      {packOffer && !whatsNewOpen && !onboarding && !(active && sessionOpen) && (
+        <Guard label="صور مران" onClose={() => setPackOffer(false)}>
+          <AssetPackPrompt onClose={() => setPackOffer(false)} />
+        </Guard>
+      )}
       {showReport && shownReport && (
+        <Guard label="التقرير" onClose={() => { setShowReport(false); setReportPick(null) }}>
         <MonthReport
           report={shownReport}
           mapping={exerciseMapping}
@@ -1739,12 +1833,15 @@ export default function App() {
           appliedBefore={!!appliedOn(ls.get(REPORT_APPLIED_KEY, {}), shownReport.month)}
           onSetGoal={setMonthGoal}
         />
+        </Guard>
       )}
       {posterUrl && (
-        <SavePosterSheet
-          url={posterUrl}
-          onClose={() => { URL.revokeObjectURL(posterUrl); setPosterUrl(null) }}
-        />
+        <Guard label="الصورة" onClose={() => { URL.revokeObjectURL(posterUrl); setPosterUrl(null) }}>
+          <SavePosterSheet
+            url={posterUrl}
+            onClose={() => { URL.revokeObjectURL(posterUrl); setPosterUrl(null) }}
+          />
+        </Guard>
       )}
     </div>
   )

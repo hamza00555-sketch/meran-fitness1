@@ -15,7 +15,7 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { writeFileSync, mkdirSync } from 'node:fs'
-import { ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
+import { ACHIEVEMENTS, BUILT_IN_PLANS, APP_VERSION } from '../src/constants.js'
 import { deloadWeight } from '../src/deload.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
@@ -62,6 +62,8 @@ async function open(iso, { deload = null, reduced = false, sessions = SESSIONS, 
     reducedMotion: reduced ? 'reduce' : 'no-preference',
   })
   const page = await ctx.newPage()
+  // «جديد في مران» already seen (its own suite: whats-new.e2e)
+  await page.addInitScript((v) => localStorage.setItem('meran_seen_version', JSON.stringify(v)), APP_VERSION)
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
   await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
@@ -349,6 +351,8 @@ async function openDeloadSettings(page) {
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
   })
   const page = await ctx.newPage()
+  // «جديد في مران» already seen (its own suite: whats-new.e2e)
+  await page.addInitScript((v) => localStorage.setItem('meran_seen_version', JSON.stringify(v)), APP_VERSION)
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
 
@@ -428,6 +432,8 @@ async function openDeloadSettings(page) {
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
   })
   const page = await ctx.newPage()
+  // «جديد في مران» already seen (its own suite: whats-new.e2e)
+  await page.addInitScript((v) => localStorage.setItem('meran_seen_version', JSON.stringify(v)), APP_VERSION)
   const errors = []
   page.on('pageerror', e => errors.push(String(e)))
   await page.route(u => u.pathname.startsWith('/pack/'), r => r.abort())

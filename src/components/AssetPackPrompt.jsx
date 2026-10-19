@@ -1,7 +1,7 @@
 // ── The offer to download the art pack ────────────────────────
-// Shown once per device, after the version notice is dismissed —
-// which is the one guaranteed first interaction, and a user gesture
-// is the right thing to hang a multi-megabyte download off.
+// Shown once per device, never over «جديد في مران» (which waits for it,
+// App.jsx); «نزّلها الحين» is a tap, and a user gesture is the right
+// thing to hang a multi-megabyte download off.
 //
 // Its condition is the reconciliation against IndexedDB, never a
 // per-user flag: the pack belongs to the device, so a second profile
