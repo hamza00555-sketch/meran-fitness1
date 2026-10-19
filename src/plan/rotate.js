@@ -123,6 +123,21 @@ export function rotationTurns(plan, sessions, opts = {}) {
   })
 }
 
+/**
+ * The turn while a session of that day runs: the one it is on now (he may
+ * have chosen the other one for this time), and the one after it. The
+ * saved sessions' turn as it is when the session has none of them.
+ */
+export function liveTurn(turn, active, opts = {}) {
+  if (!turn || !active) return turn
+  const n = turn.members.length
+  for (const ex of active.exercises || []) {
+    const i = memberIndex(turn.members, ex, opts)
+    if (i >= 0) return { ...turn, due: i, next: (i + 1) % n, live: true }
+  }
+  return turn
+}
+
 /** The members' indexes in turn order: the one due first, then the one after it, … */
 export function turnOrder(turn) {
   const n = turn?.members?.length || 0

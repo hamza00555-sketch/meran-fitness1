@@ -3,6 +3,9 @@
 // English under it, sets, the last and best weight, swap cycling
 // (machine taken) and the form video — then start or skip.
 //
+// A row that takes turns («بالتناوب», src/plan/rotate.js) comes resolved
+// to the one due today, and says which comes the next time.
+//
 // Under a deload a row says the weight today asks for (the last weight
 // made lighter, as the player loads it) beside the last one, and never
 // the gold «raise» arrow. On a rest day the caller passes no skip and a
@@ -14,7 +17,7 @@
 // footer so it never scrolls away.
 
 import { Sheet, Button, Num, Weight } from './kit/index.jsx'
-import { ArrowsLeftRight, Play, ArrowUp, SkipForward, Drop } from './kit/icons.js'
+import { ArrowsLeftRight, Play, ArrowUp, SkipForward, Drop, Repeat } from './kit/icons.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
 import { substitutedName, nextSubIndex, getExerciseStats, durationShort } from '../utils.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, effectiveRepTarget } from '../progression.js'
@@ -23,6 +26,7 @@ import { ExerciseThumb, exerciseNames } from './home/HomeBits.jsx'
 import { dayWord, musclesLine, estimateMinutes, setsUnit } from './home/dayParts.js'
 import { unitAr } from '../streak.js'
 import { onVideoClick } from '../youtube.js'
+import { nextMember } from '../plan/rotate.js'
 
 export function findVideoUrl(name) {
   for (const group of Object.values(MUSCLE_GROUPS)) {
@@ -45,6 +49,8 @@ function PreviewRow({ ex, sessions, exerciseMapping, exerciseSubs, onCycleSub, r
   const { ar, en } = exerciseNames(shownName, exerciseMapping)
   const sets = Number(ex.sets) || 3
   const from = swapped ? exerciseNames(ex.name, exerciseMapping).ar : ''
+  // «بالتناوب»: the day comes resolved (the one due today); the next turn's said under it
+  const after = Array.isArray(ex.rotate) && ex.rotate.length > 1 ? nextMember(ex.rotate, ex, { mapping: exerciseMapping }) : null
 
   return (
     <li className="dp-row">
@@ -73,6 +79,11 @@ function PreviewRow({ ex, sessions, exerciseMapping, exerciseSubs, onCycleSub, r
           )}
         </span>
         {swapped && <span className="dp-from">بدل {from}</span>}
+        {after && (
+          <span className="dp-rot" data-testid="day-rotate">
+            <Repeat size={14} weight="bold" aria-hidden="true" />بالتناوب · المرة الجاية: {exerciseNames(after, exerciseMapping).ar}
+          </span>
+        )}
       </div>
       <div className="dp-actions">
         {alts.length > 0 && (
