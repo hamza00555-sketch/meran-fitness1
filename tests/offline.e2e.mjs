@@ -26,6 +26,7 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { offlineOrigin } from './offline-origin.mjs'
+import { APP_VERSION } from '../src/constants.js'
 
 const origin = await offlineOrigin(process.env.APP || 'http://localhost:4173/')
 const APP = origin.url
@@ -39,6 +40,7 @@ const SEED = {
   })),
   hf_recovery: { daysPerWeek: 3, overrides: [], restDays: [], patternHistory: [], streakResetAt: null, autoSpendFrom: '2026-07-01', deload: null, deloadHistory: [], deloadSuggestDismissedAt: null },
   hf_xp: 4200, hf_profile: { name: 'حمزة' }, hf_onboarded: true, hf_pack_prompted: true, hf_seen_version: '2.2', hf_weights_reset_v2: true,
+  meran_seen_version: APP_VERSION,
 }
 
 const browser = await chromium.launch()

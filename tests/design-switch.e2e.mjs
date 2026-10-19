@@ -10,6 +10,7 @@
 // the old design's pages with the new app.
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
+import { APP_VERSION } from '../src/constants.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const results = []
@@ -23,6 +24,8 @@ const SEED = {
   hf_sessions: july(1, 3, 5, 7, 9),
   hf_recovery: { daysPerWeek: 3, overrides: [], restDays: [], patternHistory: [], streakResetAt: null, autoSpendFrom: '2026-07-01', deload: null, deloadHistory: [], deloadSuggestDismissedAt: null },
   hf_xp: 4200, hf_profile: { name: 'حمزة' }, hf_onboarded: true, hf_pack_prompted: true, hf_seen_version: '2.2', hf_weights_reset_v2: true,
+  // the new design's «جديد في مران» seen too (hf_seen_version stays the old design's 2.2)
+  meran_seen_version: APP_VERSION,
 }
 
 const browser = await chromium.launch()

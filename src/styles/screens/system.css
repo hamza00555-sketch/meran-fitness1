@@ -201,6 +201,13 @@
 .wn-eyebrow { margin: 0; font-size: var(--t-label); font-weight: 700; color: var(--ink-3); }
 .wn-title { margin: 2px 0 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; color: var(--ink); text-wrap: balance; }
 .wn-meta { margin: var(--space-1) 0 0; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); }
+/* A short phone (SE): a smaller lit moment, so the first items show under it. */
+@media (max-height: 700px) {
+  .wn-hero { padding-bottom: var(--space-4); }
+  .wn-mark-wrap { width: 104px; height: 80px; }
+  .wn-mark { width: 56px; height: 56px; border-radius: 14px; }
+  .wn-title { font-size: var(--t-title); }
+}
 
 .wn-ver + .wn-ver { margin-top: var(--space-2); }
 .wn-ver-h {
