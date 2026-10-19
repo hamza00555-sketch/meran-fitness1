@@ -23,7 +23,8 @@
 //
 // Edits here return a new hf_plan (never a reshaped one): only name,
 // muscle, sets, repsMin/repsMax, restSeconds and the optional repsOwn,
-// unit, equip, part and was are touched, so both designs keep reading it.
+// unit, equip, part, was and rotate («بالتناوب», src/plan/rotate.js) are
+// touched, so both designs keep reading it.
 // They are put in through App's commitPlan, the way the builder saves an
 // edit of his own plan: free for the streak, the day he reached kept.
 
