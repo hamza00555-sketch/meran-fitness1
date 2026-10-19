@@ -2054,7 +2054,8 @@ const RAISE_SESSIONS = [
   ok('session: with the session minimised, History still scrolls', (await page.evaluate(() => window.scrollY)) > y0 + 100)
   await page.locator('nav.f-tabs > button').nth(2).click()
   await page.waitForTimeout(400)
-  ok('session: and the other tabs still open', await page.locator('.pv').count() === 1)
+  // (التقدم's root: .prog — .pv is «خطتي»)
+  ok('session: and the other tabs still open', await page.locator('.prog').count() === 1)
   ok('session: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
