@@ -20,7 +20,7 @@
 // phone (fades only), and the page holds the app's scroll lock while open.
 
 import {
-  AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fitPins, fromHfPlan, gapWords, hasMove, fem, isShort, mkItem, muchFix, n0, setsShown, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan,
+  AREAS, CARD, CARDS, EQ, EQ_ORDER, EVIDENCE, EX, EXI, FREE_TYPES, GOALS, GROUP, KIND, LONG, SCHEME, SPL, TYPE, allowed, alternatives, areaStates, buildFromPicks, cardState, cardStates, coverage, dayLabels, dayMinutes, dayMuscles, daysFromRecovery, fill, findGaps, findTips, findWarns, fitPins, fromHfPlan, gapWords, hasMove, fem, isShort, mkItem, muchFix, n0, setsShown, setsWord, sortDay, splitFreq, splitOpts, spwFor, spwFromPattern, stats, targets, toHfPlan, validatePlan, entryForName,
 } from '../../plan/builder.js'
 import { BODY, REGKEY } from './body.js'
 import { planTitle } from '../../plan/title.js'
@@ -1345,6 +1345,15 @@ function editHTML(it) {
     <div class="pr-meta2">الجلسة تمشي على هذي الأرقام</div>`}
     <div class="pr-btns"><button data-act="swap">${ic('swap', 16)} بدّله</button><button data-act="rm">${ic('x', 16)} شيله</button></div></div>`
 }
+/* «بالتناوب» (src/plan/rotate.js): a row that takes turns with others says
+   so under its name; the builder keeps the list (builder.js rotateFor) —
+   «خطتي» is where the turns are edited. */
+function rotateLine(it) {
+  const rest = Array.isArray(it.rotate) && it.rotate.length > 1 ? it.rotate.slice(1) : null
+  if (!rest) return ''
+  const arOf = (n) => { const x = entryForName(n); return (x && !x.foreign && x.ar) || n }
+  return `<div class="pr-why pr-rot" data-testid="builder-rotate">${inl(ic('loop', 12))} بالتناوب مع ${rest.map(n => esc(arOf(n))).join(' و')}</div>`
+}
 function rowHTML(it) {
   const e = EXI[it.id], open = S.open === it.uid
   return `<li class="prow ${it.by} ${open ? 'open' : ''}" data-uid="${it.uid}" data-act="row">
@@ -1354,6 +1363,7 @@ function rowHTML(it) {
       <div class="pr-top"><b class="pr-ar">${e.ar}</b><span class="pr-sets">${setsBlock(it)}</span></div>
       ${it.by === 'app' ? `<div class="pr-badge"><span class="badge">${ic('spark', 11)} أضافه التطبيق</span></div>${it.why ? `<div class="pr-why">${it.why}</div>` : ''}` : ''}
       ${it.bumpWhy ? `<div class="pr-why">${it.bumpWhy}</div>` : ''}
+      ${rotateLine(it)}
       <button class="sr" data-act="row" aria-expanded="${open}">${open ? 'سكّر' : 'عدّل'} ${e.ar}</button>
     </div>
     ${open ? editHTML(it) : ''}</li>`

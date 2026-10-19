@@ -23,7 +23,8 @@
 //
 // Edits here return a new hf_plan (never a reshaped one): only name,
 // muscle, sets, repsMin/repsMax, restSeconds and the optional repsOwn,
-// unit, equip, part and was are touched, so both designs keep reading it.
+// unit, equip, part, was and rotate («بالتناوب», src/plan/rotate.js) are
+// touched, so both designs keep reading it.
 // They are put in through App's commitPlan, the way the builder saves an
 // edit of his own plan: free for the streak, the day he reached kept.
 
@@ -79,6 +80,29 @@ export function muscleOf(name, fallback = null) {
 
 const isTimedUnit = (u) => u === 'sec' || u === 'min'
 
+/**
+ * «بالتناوب»: the exercises a row takes turns between, in order — its
+ * optional `rotate` (src/plan/rotate.js). The old design never reads it:
+ * it shows and runs the row's own `name`, the first of them. The row's
+ * name is always one of them (put first when the list lacks it); names
+ * deduplicated, blanks dropped. Null for a row that doesn't rotate: no
+ * list, or fewer than two names in it.
+ */
+export function rotationOf(row) {
+  const list = Array.isArray(row?.rotate) ? row.rotate : null
+  if (!list) return null
+  const out = []
+  const seen = new Set()
+  const add = (n) => {
+    const t = typeof n === 'string' ? n.trim() : ''
+    if (t && !seen.has(lc(t))) { seen.add(lc(t)); out.push(t) }
+  }
+  const own = String(row?.name || '').trim()
+  if (own && !list.some(n => typeof n === 'string' && lc(n) === lc(own))) add(own)
+  list.forEach(add)
+  return out.length >= 2 ? out : null
+}
+
 // ── What a row runs on ───────────────────────────────────────
 
 /** The built-in template's row at this place, when the plan is one he
@@ -109,14 +133,22 @@ function extraSets(plan, d, ex) {
  *   own       the reps are his own (repsOwn) — they beat Settings
  *   reps      { base, top } — his own range, else Settings
  *   rest      seconds; restSet false when the plan has none (the player's 90)
+ *   rotate    «بالتناوب»: the names it takes turns between, as the session
+ *             runs them (a remembered swap applied), the row's own first;
+ *             null for a row that doesn't rotate. Which one is due comes
+ *             from his sessions (src/plan/rotate.js rotationTurn)
  */
 export function effectiveRow(plan, d, j, { subs = {}, repTarget = DEFAULT_REP_TARGET } = {}) {
   const ex = plan?.weeklySchedule?.[d]?.exercises?.[j]
   if (!ex) return null
   const name = substitutedName(ex.name, subs || {}, EXERCISE_ALTERNATIVES)
   const subbed = name !== ex.name
-  const wasName = ex.was?.name && lc(ex.was.name) !== lc(ex.name) ? ex.was.name : null
+  const members = rotationOf(ex)
   // The first thing the plan had in this place: what he swapped away from.
+  // One that still takes its turns in the row (a rotation reordered, so
+  // another name leads it) was not swapped away.
+  const was = ex.was?.name && lc(ex.was.name) !== lc(ex.name) ? ex.was.name : null
+  const wasName = was && !(members || []).some(m => lc(m) === lc(was)) ? was : null
   const from = wasName || (subbed ? ex.name : null)
   const swap = from && lc(from) !== lc(name) ? { from, how: subbed ? 'sub' : 'plan' } : null
   const reps = effectiveRepTarget(ex, repTarget)
@@ -134,6 +166,7 @@ export function effectiveRow(plan, d, j, { subs = {}, repTarget = DEFAULT_REP_TA
     own: ex.repsOwn === true && !isTimedUnit(ex.unit),
     swap,
     extra: extraSets(plan, d, ex),
+    rotate: members ? members.map(m => substitutedName(m, subs || {}, EXERCISE_ALTERNATIVES)) : null,
   }
 }
 
@@ -274,8 +307,9 @@ export function rankAlternatives(name, { muscle = null, exclude = [], tried = nu
 
 const rowOf = (plan, d, j) => plan?.weeklySchedule?.[d]?.exercises?.[j] || null
 
-/** A copy of the plan with one row replaced by `fn(row)`; null when there is no such row. */
-function withRow(plan, d, j, fn) {
+/** A copy of the plan with one row replaced by `fn(row)` (a copy to
+ *  change); null when there is no such row. */
+export function withRow(plan, d, j, fn) {
   const row = rowOf(plan, d, j)
   if (!row) return null
   return {
@@ -300,7 +334,7 @@ function noteWas(row, field, before, after, same = (a, b) => a === b) {
 }
 
 /** The tool and the part of the leg, as the builder writes them, for a new name. */
-function retag(row, name) {
+export function retag(row, name) {
   const e = entryForName(name)
   const app = e && !e.foreign ? EQ[e.eq]?.app : null
   if (app) row.equip = app; else delete row.equip
@@ -324,12 +358,20 @@ function retag(row, name) {
   return row
 }
 
-/** The row at [d, j] becomes `name`. Notes what it was (once). */
+/** The row at [d, j] becomes `name`. Notes what it was (once). A row
+ *  that takes turns («بالتناوب») has the new name in the old one's place
+ *  in its list (src/plan/rotate.js). */
 export function swapRow(plan, d, j, name) {
   const to = String(name || '').trim()
   if (!to) return null
   return withRow(plan, d, j, (row) => {
     if (lc(row.name) === lc(to)) return row
+    const members = rotationOf(row)
+    if (members) {
+      const list = []
+      for (const m of members.map(m => (lc(m) === lc(row.name) ? to : m))) if (!list.some(x => lc(x) === lc(m))) list.push(m)
+      if (list.length >= 2) row.rotate = list; else delete row.rotate
+    }
     const before = { name: row.name, muscle: row.muscle }
     const was = { ...(row.was || {}) }
     const back = was.name && lc(was.name) === lc(to)
@@ -406,7 +448,9 @@ export function insertRow(plan, d, j, row) {
 /**
  * The row of day `d` a session exercise came from: the plan's own name for
  * it (the session keeps it as originalName when it was swapped), else its
- * name, else the row a remembered swap turns into it. -1 when none.
+ * name, else the row a remembered swap turns into it, else the row that
+ * takes turns with it («بالتناوب»: the session ran another of the row's
+ * names). -1 when none.
  */
 export function findPlanRow(plan, d, { name, originalName = null, subs = {} } = {}) {
   const rows = plan?.weeklySchedule?.[d]?.exercises || []
@@ -415,7 +459,15 @@ export function findPlanRow(plan, d, { name, originalName = null, subs = {} } = 
     const j = rows.findIndex(x => lc(x.name) === lc(want))
     if (j >= 0) return j
   }
-  return rows.findIndex(x => lc(substitutedName(x.name, subs || {}, EXERCISE_ALTERNATIVES)) === lc(name))
+  const k = rows.findIndex(x => lc(substitutedName(x.name, subs || {}, EXERCISE_ALTERNATIVES)) === lc(name))
+  if (k >= 0) return k
+  for (const want of [originalName, name]) {
+    if (!want) continue
+    const j = rows.findIndex(x => (rotationOf(x) || []).some(m => lc(m) === lc(want)
+      || lc(substitutedName(m, subs || {}, EXERCISE_ALTERNATIVES)) === lc(want)))
+    if (j >= 0) return j
+  }
+  return -1
 }
 
 /** The day index (0…n−1) a session runs on, or null for a free session. */
@@ -506,7 +558,7 @@ export function sessionPlanDay(plan, s) {
 export const dayId = (plan, d) => `${plan?.planId || 'plan'}|${norm(plan?.weeklySchedule?.[d]?.name) || d}`
 
 /** The keys a name is known by: his mapping's, and the catalogue's id. */
-function keysOf(name, mapping) {
+export function keysOf(name, mapping) {
   const n = String(name || '').trim()
   if (!n) return []
   const e = entryForName(n)
@@ -514,12 +566,14 @@ function keysOf(name, mapping) {
 }
 
 /** Every name day `d` stands for: its rows, what a row was before he
- *  swapped it (`was`), and what his remembered swaps run instead. */
+ *  swapped it (`was`), what his remembered swaps run instead, and every
+ *  name a row takes turns between («بالتناوب»: the one not due today is
+ *  still the plan's). */
 function dayNames(plan, d, subs = {}) {
   const out = []
   ;(plan?.weeklySchedule?.[d]?.exercises || []).forEach((ex, j) => {
     const r = effectiveRow(plan, d, j, { subs })
-    out.push(ex.name, ex.was?.name, r?.name)
+    out.push(ex.name, ex.was?.name, r?.name, ...(rotationOf(ex) || []), ...(r?.rotate || []))
   })
   return out.filter(Boolean)
 }

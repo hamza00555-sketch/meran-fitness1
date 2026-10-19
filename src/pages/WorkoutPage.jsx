@@ -10,7 +10,8 @@ import RoutinesModal from '../components/RoutinesModal.jsx'
 import { buildExercise, blankSet, getExerciseStats, suggestedWeightFor, markSetDone, resolveExerciseName, substitutedName } from '../utils.js'
 import { deloadWeight } from '../deload.js'
 import { MUSCLE_GROUPS, EXERCISE_ALTERNATIVES } from '../constants.js'
-import { rankAlternatives, findPlanRow, sessionDay, swapRow, muscleOf, addRow, setRowSets, MAX_SETS } from '../plan/view.js'
+import { rankAlternatives, findPlanRow, sessionDay, swapRow, muscleOf, addRow, setRowSets, MAX_SETS, rotationOf } from '../plan/view.js'
+import { swapMember } from '../plan/rotate.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget } from '../progression.js'
 import { toWesternDigits } from '../day.js'
 import '../styles/screens/session.css'
@@ -239,7 +240,16 @@ export default function WorkoutPage({
     const origin = ex.originalName || ex.name
     if (always) {
       const at = planRowOf(ex)
-      if (at) {
+      const members = at ? rotationOf(plan.weeklySchedule[at.d].exercises[at.j]) : null
+      if (members) {
+        // a row that takes turns («بالتناوب»): the name he is on gives its
+        // place in them (to one of the turns already: nothing to write)
+        const from = members.find(m => m.toLowerCase() === origin.toLowerCase())
+          || members.find(m => m.toLowerCase() === ex.name.toLowerCase())
+        const next = from ? swapMember(plan, at.d, at.j, from, name) : null
+        if (next) onEditPlan?.(next)
+        if (next && exerciseSubs[name]) onClearSub?.(name)
+      } else if (at) {
         if (at.name.toLowerCase() === name.toLowerCase()) {
           // back to the plan's own: a remembered swap of it goes
           if (exerciseSubs[at.name]) onClearSub?.(at.name)
@@ -260,6 +270,29 @@ export default function WorkoutPage({
     }))
   }
 
+  // «بالتناوب» (RotateBar): the other one of a row that takes turns, for
+  // this time — «بدّلها لـ … هالمرة», before the first set. Nothing is
+  // written to his plan: whatever he does is what counts for the turns
+  // (src/plan/rotate.js reads it from the saved session). It is the row's
+  // own turn, not a swap («بدل …» says nothing); the row's reps and rest
+  // stay — one system for the names that share it.
+  const handleRotate = (exId, name) => {
+    const ex = exercises.find(e => e.id === exId)
+    const members = Array.isArray(ex?.rotate) ? ex.rotate : null
+    if (!ex || !name || !members?.some(m => m.toLowerCase() === name.toLowerCase()) || ex.sets.some(s => s.done)) return
+    const shown = substitutedName(name, exerciseSubs, EXERCISE_ALTERNATIVES)
+    if (shown === ex.name) return
+    const reps = engine.progression(shown, planRepTarget(ex)).suggestedReps
+    updateEx(exId, e => ({
+      ...e,
+      name: shown,
+      muscle: muscleOf(shown, e.muscle) || e.muscle,
+      // a remembered swap of that name still runs (and says what it replaced)
+      originalName: shown !== name ? name : undefined,
+      sets: e.sets.map(() => blankSet(getLastW(shown), reps)),
+    }))
+  }
+
   // «إضافة تمرين». In a plan day's session the sheet asks as the swap
   // does: «بس هالمرة» adds it to this session; «دايماً بخطتي» to today's
   // day of his plan as well (addRow: his sets, the reps on Settings, the
@@ -271,8 +304,9 @@ export default function WorkoutPage({
   const addAlways = onEditPlan && today != null ? {
     can: (name) => {
       const k = resolveExerciseName(name, exerciseMapping)
-      return !!k && !dayRows.some(x => resolveExerciseName(x.name, exerciseMapping) === k
-        || resolveExerciseName(substitutedName(x.name, exerciseSubs, EXERCISE_ALTERNATIVES), exerciseMapping) === k)
+      // (a row that takes turns has every one of its names: «بالتناوب»)
+      return !!k && !dayRows.some(x => [x.name, substitutedName(x.name, exerciseSubs, EXERCISE_ALTERNATIVES), ...(rotationOf(x) || [])]
+        .some(n => resolveExerciseName(n, exerciseMapping) === k))
     },
     note: `«بس هالمرة» لهالجلسة بس. «دايماً» ينضاف ليوم ${word === 'تمرين' ? 'تمرينك' : word} بخطتك وما يلمس الستريك.`,
   } : null
@@ -391,6 +425,7 @@ export default function WorkoutPage({
           onRemoveEx={handleRemoveEx}
           onMoveSet={handleMoveSet}
           onSwapTo={handleSwapTo}
+          onRotate={handleRotate}
           onOpenPlan={onOpenPlanView}
           onAddExercise={() => setShowAdd(true)}
           onRequestFinish={() => setAskFinish(true)}

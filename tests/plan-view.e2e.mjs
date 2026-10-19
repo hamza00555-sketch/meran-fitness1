@@ -118,7 +118,7 @@ async function seed(extra = {}) {
   await page.evaluate(([s, extra]) => {
     // (meran_rest_announced: each seed is a first run for «كسبت يوم راحة»,
     // which says nothing of rest days he already had — no sheet over Home)
-    for (const k of ['hf_active', 'hf_rest_timer', 'hf_plan_prev', 'meran_plan_dismissed', 'meran_plan_dropped', 'meran_rest_announced']) localStorage.removeItem(k)
+    for (const k of ['hf_active', 'hf_rest_timer', 'hf_plan_prev', 'meran_plan_dismissed', 'meran_plan_dropped', 'meran_rest_announced', 'meran_rotate_off']) localStorage.removeItem(k)
     for (const [k, v] of Object.entries({ ...s, ...extra })) localStorage.setItem(k, JSON.stringify(v))
   }, [SEED, extra])
   await page.reload(); await settle(1300)
@@ -339,6 +339,23 @@ async function noOrphans(label, sel) {
     return { text: p.textContent.slice(0, 24), lines: w.length, shortest: w.length > 1 ? Math.round(Math.min(...w) / Math.max(...w) * 100) : 100 }
   }), sel)
   ok(`${label} — no word left alone on a line (${r.map(x => `${x.lines} lines, shortest ${x.shortest}%`).join('; ')})`, r.length > 0 && r.every(x => x.shortest >= 50), JSON.stringify(r))
+}
+/* A control's sign — its icon — against what it sits on: 3:1 (WCAG 1.4.11). */
+async function controlContrast(label, sels) {
+  const r = await page.evaluate((sels) => {
+    const clear = (c) => /rgba\(.*,\s*0\)|transparent/.test(c)
+    const bgOf = (el) => { for (let a = el; a; a = a.parentElement) { const c = getComputedStyle(a).backgroundColor; if (!clear(c)) return c } return 'rgb(3, 4, 4)' }
+    const out = []
+    for (const s of sels) for (const el of document.querySelectorAll(s)) if (el.getBoundingClientRect().width) out.push([s, getComputedStyle(el).color, bgOf(el.parentElement)])
+    return out
+  }, sels)
+  const bad = [], said = new Set()
+  for (const [s, c, bg] of r) {
+    const x = ratioOf(rgbOf(c), rgbOf(bg))
+    said.add(`${s.split(' ').slice(-2).join(' ')} ${x.toFixed(2)}`)
+    if (!(x >= 3)) bad.push(`${s}: ${c} on ${bg} ${x.toFixed(2)}:1`)
+  }
+  ok(`${label} — the controls' signs stand out at 3:1 or more: ${[...said].join(', ')}`, r.length > 0 && bad.length === 0, bad.join(' | '))
 }
 /* The card sheet's steppers: the discs of every row in one column, the number inside its slot. */
 async function stepperColumn(label) {
@@ -1029,6 +1046,216 @@ await seed()
   ok('rebuilt today (the same day name): the old plan\'s leg rows are not offered', await page.locator(`${LEGS} [data-testid="extra-card"]`).count() === 0
     && await page.locator('[data-testid="extra-card"]').count() === 0, JSON.stringify(await extraNames()))
   await closeView()
+}
+
+// ── 7. «بالتناوب»: the hip machines take turns on his leg day ──
+// حمزة: «نسوي ميزة تسمح انه تمرينين او اكثر يتبادلوا في الايام. يعني اليوم
+// رجول بسوي هيب ابدكشن اجي يوم ثاني للرجول يعمل هيب اددكشن». His leg day
+// with both hip machines as rows (as «ثبّت كلهم» pins them): each card
+// offers «خلّهم بالتناوب»; one tap makes them one row that takes turns
+// (src/plan/rotate.js) — one card of the two, the one due from his
+// sessions marked — whose sheet edits the turns (↑, one more, ×, «فكّ
+// التناوب»); any card's sheet starts them («بالتناوب مع…»); the old
+// design reads the plan. Measured like the rest: text AA (the card AAA),
+// the controls' signs 3:1, nothing sideways at 320, 390 and 430.
+{
+  const AB = 'Machine Hip Abduction', AD = 'Machine Hip Adduction'
+  const LEGS = '.pv-page[data-page="2"]'
+  const hips = JSON.parse(JSON.stringify(machine))
+  hips.weeklySchedule[2].exercises.push(
+    { name: AB, muscle: 'Legs', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90, by: 'user' },
+    { name: AD, muscle: 'Legs', sets: 4, repsMin: 12, repsMax: 15, restSeconds: 90, by: 'user' },
+  )
+  // his last leg day had the abduction machine; the one before, the adduction one
+  const legRot = (daysAgo, idx, name, w) => sess(daysAgo, idx, [['Hack Squat', 'Legs', 100, 10], [name, 'Legs', w, 12]])
+  const HIPS = [...SESSIONS.filter(s => s.planDayIndex % 3 !== 2), legRot(3, 5, AB, 30), legRot(9, 2, AD, 25)]
+  const legsPlan = async () => (await get('hf_plan')).weeklySchedule[2].exercises
+  const toLegs = async () => { await page.locator('.pv-tab[data-day="2"]').click(); await settle(1100) }
+  const plain = (name) => page.locator(`${LEGS} [data-testid="plan-card"]:not([data-rotate])[data-name="${name}"]`)
+  const rcard = () => page.locator(`${LEGS} [data-testid="plan-card"][data-rotate="1"]`)
+  const offers = () => page.locator(`${LEGS} [data-testid="rotate-offer"]`)
+  const flat = async (loc) => (await loc.innerText().catch(() => '')).replace(/\s+/g, ' ')
+  const title = () => page.locator('.k-sheet [data-testid="xs-title"]').innerText()
+  const boxy = (root) => page.locator(root).first().evaluate((c) => [...c.querySelectorAll('*')]
+    .filter(el => !el.closest('button.pv-swap') && (() => { const cs = getComputedStyle(el); return !/rgba\(.*,\s*0\)|transparent/.test(cs.backgroundColor) || (cs.boxShadow !== 'none' && !el.matches('img')) || cs.borderTopWidth !== '0px' && !el.matches('.pv-stats') })())
+    .map(el => String(el.className?.baseVal ?? el.className)))
+
+  // the offer, and «لا»
+  await seed({ hf_plan: hips, hf_sessions: HIPS })
+  await openFromHome(); await toLegs()
+  ok('his leg day with both hip machines: each of their cards offers «خلّهم بالتناوب», naming the other; no other card does',
+    await offers().count() === 2 && /خلّهم بالتناوب/.test(await flat(plain(AB).locator('.pv-offer'))) && /مرة هذا ومرة ضم ورك جهاز/.test(await flat(plain(AB).locator('.pv-offer')))
+    && /مرة هذا ومرة فتح ورك جهاز/.test(await flat(plain(AD).locator('.pv-offer'))), await flat(plain(AB).locator('.pv-offer')))
+  await plain(AB).scrollIntoViewIfNeeded(); await settle(400)
+  await contrast('390: «خلّهم بالتناوب» on the card', `${LEGS} .pv-offer`, { aaa: true })
+  await controlContrast('390: «خلّهم بالتناوب» and its ×', [`${LEGS} .pv-offer-go svg`, `${LEGS} .pv-offer-x svg`])
+  await shot('390-rotate-offer')
+  await page.setViewportSize({ width: 320, height: 568 }); await settle(600)
+  await plain(AB).locator('.pv-offer').scrollIntoViewIfNeeded(); await settle(400)
+  await noOverflow('320: «خلّهم بالتناوب»')
+  await shot('320-rotate-offer')
+  await page.setViewportSize({ width: 390, height: 844 }); await settle(500)
+  await plain(AB).locator('[data-testid="rotate-offer-off"]').click(); await settle(700)
+  ok('×: both offers go, remembered for the pair on this day (meran_rotate_off, a key of the new design\'s own), his plan untouched',
+    await offers().count() === 0 && JSON.stringify(await get('meran_rotate_off')) === JSON.stringify(['machine_beginner_3day|legs — أرجل|machine hip abduction+machine hip adduction'])
+    && (await legsPlan()).length === 8 && !(await legsPlan()).some(x => x.rotate), JSON.stringify(await get('meran_rotate_off')))
+  await closeView()
+  await page.reload(); await settle(1300)
+  await openFromHome(); await toLegs()
+  ok('×: opened again, still no offer', await offers().count() === 0 && await plain(AB).count() === 1)
+  await closeView()
+
+  // one tap: one row that takes turns
+  await seed({ hf_plan: hips, hf_sessions: HIPS })
+  await openFromHome(); await toLegs()
+  await plain(AD).scrollIntoViewIfNeeded(); await settle(400)
+  await plain(AD).locator('[data-testid="rotate-offer"]').click(); await settle(1400)
+  const legs1 = await legsPlan()
+  const row1 = legs1.at(-1)
+  ok('«خلّهم بالتناوب»: one row taking turns between the two — the abduction machine first (in its place), the larger sets (4) noted against its 3',
+    legs1.length === 7 && row1.name === AB && JSON.stringify(row1.rotate) === JSON.stringify([AB, AD]) && row1.sets === 4 && row1.was?.sets === 3 && row1.muscle === 'Legs', JSON.stringify(row1))
+  ok('«خلّهم بالتناوب»: free — the day he reached and the streak\'s rule untouched', await get('hf_plan_index') === 7 && !(await get('hf_recovery'))?.lastSettingsChangeAt)
+  ok('one card for the two, «بالتناوب» on its first line', await rcard().count() === 1 && await plain(AB).count() === 0 && await plain(AD).count() === 0
+    && /^بالتناوب · واحد كل مرة/.test(await flat(rcard().locator('.pv-rtag'))))
+  const order = await rcard().locator('.pv-rm').evaluateAll(els => els.map(e => [e.dataset.name, e.dataset.turn, e.querySelector('[data-testid="rotate-mark"]')?.textContent || '']))
+  ok('the card: the one due first — the adduction machine (abduction was his last leg day), «الجاي» (today is the pull day) — then the abduction machine, «بعده»',
+    JSON.stringify(order) === JSON.stringify([[AD, 'due', 'الجاي'], [AB, 'next', 'بعده']]), JSON.stringify(order))
+  const rtext = await flat(rcard())
+  ok('the card: both names, Arabic and English; the numbers they share (4 × 12–15, راحة 90); last time on the one due',
+    /ضم ورك جهاز/.test(rtext) && /Machine Hip Adduction/.test(rtext) && /فتح ورك جهاز/.test(rtext) && /Machine Hip Abduction/.test(rtext)
+    && /\b4\b/.test(rtext) && /12–15/.test(rtext) && /\b90\b/.test(rtext) && /آخر مرة 27\.5 كجم × 12/.test(rtext), rtext)
+  const rimgs = await rcard().locator('img').evaluateAll(els => els.map(i => i.src))
+  ok('the card: each machine\'s own picture, from the installed pack', rimgs.length === 2 && rimgs.every(s => s.startsWith('blob:')), rimgs.join(' '))
+  ok('the card: nothing offered any more, nothing said swapped', await offers().count() === 0 && await rcard().locator('.pv-note').count() === 0)
+  const rb = await boxy(`${LEGS} .pv-rcard`)
+  ok('the card holds no box inside it (one surface, a hairline over the numbers)', rb.length === 0, rb.join(', '))
+  const edge = await rcard().evaluate(c => [...c.querySelectorAll('.pv-rm-names')].map(n => Math.round(n.getBoundingClientRect().right)))
+  ok('the card: the names stand on one edge, beside their pictures', edge.length === 2 && Math.abs(edge[0] - edge[1]) <= 1, JSON.stringify(edge))
+  await noAccent('390: «خطتي» with a card that takes turns')
+  await rcard().scrollIntoViewIfNeeded(); await settle(400)
+  await contrast('390: the card that takes turns', `${LEGS} .pv-rcard`, { aaa: true })
+  await controlContrast('390: the card\'s «التناوب»', [`${LEGS} .pv-rcard .pv-swap svg`, `${LEGS} .pv-rcard .pv-rtag svg`])
+  await noOverflow('390: the card that takes turns')
+  await shot('390-rotate-card')
+
+  // its sheet
+  await rcard().locator('.pv-open').click(); await settle(900)
+  const xm = await page.locator('.k-sheet .xs-rm').evaluateAll(els => els.map(e => e.dataset.name))
+  ok('its sheet opens on its names, the one due first; «عدّل التناوب» and «شوف الطريقة», no «بدّله»',
+    await page.locator('[data-testid="exercise-sheet"][data-rotate="1"]').count() === 1 && JSON.stringify(xm) === JSON.stringify([AD, AB])
+    && /عدّل التناوب/.test(await flat(page.locator('[data-testid="xs-rotate"]'))) && await page.locator('[data-testid="xs-watch"]').count() === 1
+    && await page.locator('[data-testid="xs-swap"]').count() === 0, JSON.stringify(xm))
+  ok('its sheet: «شيلهم من الخطة» takes the row as one', /شيلهم من الخطة/.test(await flat(page.locator('[data-testid="xs-remove"]'))))
+  await contrast('390: the sheet of a card that takes turns', '.k-sheet', { scroller: '.k-sheet-body' })
+  await contrast('390: its names and actions', '.k-sheet-h, .xs-rhead, .xs-actions', { aaa: true })
+  await grabberContrast('390: the sheet of a card that takes turns')
+  await noOverflow('390: the sheet of a card that takes turns', '.k-sheet')
+  await stepperColumn('390: the sheet of a card that takes turns')
+  await shot('390-rotate-sheet')
+  await page.locator('[data-testid="xs-rotate"]').click(); await settle(900)
+  const xr = await page.locator('.k-sheet .xr-m').evaluateAll(els => els.map(e => [e.dataset.name, e.dataset.turn || '', e.querySelector('.xr-mark')?.textContent || '']))
+  ok('«عدّل التناوب»: its page, the names in their order — the word over the one due and the next', await title() === 'عدّل التناوب'
+    && JSON.stringify(xr) === JSON.stringify([[AB, 'next', 'بعده'], [AD, 'due', 'الجاي']]), JSON.stringify(xr))
+  ok('«عدّل التناوب»: ↑ on the second, × on each, «فكّ التناوب»', await page.locator('[data-testid="rotate-up"]').count() === 1
+    && await page.locator('[data-testid="rotate-remove"]').count() === 2 && await page.locator('[data-testid="rotate-split"]').count() === 1)
+  const groups = await page.locator('.k-sheet .ac-group').evaluateAll(els => els.map(e => e.dataset.group))
+  const dayCards = await page.locator('.k-sheet .ac-group[data-group="day"] [data-testid="alt-card"]').evaluateAll(els => els.map(e => [e.dataset.name, e.querySelector('.ac-tag')?.textContent]))
+  const legNames = (await legsPlan()).map(x => x.name)
+  ok('«عدّل التناوب»: the day\'s own exercises for the same part first («بيومك» over each), then the same muscle',
+    groups[0] === 'day' && groups.includes('muscle') && dayCards.length > 0 && dayCards.every(([n, t]) => legNames.includes(n) && t === 'بيومك'), JSON.stringify({ groups, dayCards }))
+  await contrast('390: «عدّل التناوب»', '.k-sheet', { scroller: '.k-sheet-body' })
+  await controlContrast('390: «عدّل التناوب»\'s ↑ and ×, «فكّ التناوب»', ['.k-sheet .xr-b svg', '.k-sheet .xr-split svg'])
+  await altLayout('390: «عدّل التناوب»')
+  await noOverflow('390: «عدّل التناوب»', '.k-sheet')
+  await shot('390-rotate-editor')
+  // ↑: the adduction machine leads
+  await page.locator('[data-testid="rotate-up"]').click(); await settle(900)
+  const r2 = (await legsPlan()).at(-1)
+  ok('↑: the adduction machine leads — the row named for it, the list in that order', r2.name === AD && JSON.stringify(r2.rotate) === JSON.stringify([AD, AB]), JSON.stringify(r2))
+  ok('↑: the card says nothing was swapped (both still take their turns)', await rcard().locator('.pv-note').count() === 0)
+  // one more, from the alternatives
+  const more = (await page.locator('.k-sheet .ac-group[data-group="muscle"] [data-testid="alt-card"]').evaluateAll(els => els.map(e => e.dataset.name)))[0]
+  await page.locator(`.k-sheet .ac-group[data-group="muscle"] [data-testid="alt-card"][data-name="${more}"]`).click(); await settle(1000)
+  const r3 = (await legsPlan()).at(-1)
+  ok(`one more (${more}): three take turns, the page lists three`, JSON.stringify(r3.rotate) === JSON.stringify([AD, AB, more])
+    && await page.locator('.k-sheet .xr-m').count() === 3 && await rcard().locator('.pv-rm').count() === 3, JSON.stringify(r3.rotate))
+  await page.locator(`.k-sheet .xr-m[data-name="${more}"] [data-testid="rotate-remove"]`).click(); await settle(1000)
+  ok('×: out of the turns, the two again', JSON.stringify((await legsPlan()).at(-1).rotate) === JSON.stringify([AD, AB]) && await page.locator('.k-sheet .xr-m').count() === 2)
+  // «فكّ التناوب»
+  await page.locator('[data-testid="rotate-split"]').click(); await settle(1400)
+  const split = await legsPlan()
+  ok('«فكّ التناوب»: each a row of its own again, on the row\'s numbers', split.length === 8 && split[6].name === AD && !split[6].rotate
+    && split[7].name === AB && split[7].sets === 4 && split[7].restSeconds === 90 && split[7].muscle === 'Legs', JSON.stringify(split.slice(6)))
+  ok('«فكّ التناوب»: two cards again, the sheet closed', await rcard().count() === 0 && await plain(AD).count() === 1 && await plain(AB).count() === 1
+    && await page.locator('.k-sheet').count() === 0)
+
+  // from a card's own sheet: «بالتناوب مع…», the other hip machine first
+  await plain(AB).locator('.pv-open').click(); await settle(900)
+  await page.locator('[data-testid="xs-rotate"]').click(); await settle(900)
+  const first = await page.locator('.k-sheet .ac-group[data-group="day"] [data-testid="alt-card"]').first().evaluate(c => [c.dataset.name, c.querySelector('.ac-tag')?.textContent])
+  ok('«بالتناوب مع…»: its page — the day\'s pair first, «بيومك» over it', await title() === 'بالتناوب مع…' && JSON.stringify(first) === JSON.stringify([AD, 'بيومك']), JSON.stringify(first))
+  await contrast('390: «بالتناوب مع…»', '.k-sheet', { scroller: '.k-sheet-body' })
+  await shot('390-rotate-create')
+  await page.locator(`.k-sheet .ac-group[data-group="day"] [data-testid="alt-card"][data-name="${AD}"]`).click(); await settle(1200)
+  const made = await legsPlan()
+  ok('a tap: one row of the two (the abduction machine\'s, in the adduction one\'s place above it), the page now on its names',
+    made.length === 7 && made[6].name === AB && JSON.stringify(made[6].rotate) === JSON.stringify([AB, AD]) && await title() === 'عدّل التناوب'
+    && await page.locator('.k-sheet .xr-m').count() === 2 && await rcard().count() === 1, JSON.stringify(made.slice(6)))
+  await page.locator('.k-sheet [aria-label="إغلاق"]').click(); await settle(700)
+
+  for (const w of [320, 430]) {
+    await page.setViewportSize({ width: w, height: w === 320 ? 568 : 932 }); await settle(700)
+    await rcard().scrollIntoViewIfNeeded(); await settle(400)
+    await noOverflow(`${w}: the card that takes turns`)
+    const ens = await rcard().evaluate(c => [...c.querySelectorAll('.pv-rm-en, .pv-rm-ar')].map(el => ({ t: el.textContent, whole: el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1 })))
+    ok(`${w}: every name on the card whole`, ens.length === 4 && ens.every(x => x.whole), JSON.stringify(ens))
+    await contrast(`${w}: the card that takes turns`, `${LEGS} .pv-rcard`)
+    if (w === 320) await shot('320-rotate-card')
+    await rcard().locator('.pv-open').click(); await settle(900)
+    await noOverflow(`${w}: the sheet of a card that takes turns`, '.k-sheet')
+    await contrast(`${w}: the sheet of a card that takes turns`, '.k-sheet', { scroller: '.k-sheet-body' })
+    if (w === 320) await shot('320-rotate-sheet')
+    await page.locator('[data-testid="xs-rotate"]').click(); await settle(900)
+    await noOverflow(`${w}: «عدّل التناوب»`, '.k-sheet')
+    await altLayout(`${w}: «عدّل التناوب»`)
+    await contrast(`${w}: «عدّل التناوب»`, '.k-sheet', { scroller: '.k-sheet-body' })
+    if (w === 320) { await page.locator('.k-sheet-body').evaluate(el => el.scrollTo(0, 0)); await settle(300); await shot('320-rotate-editor') }
+    await page.locator('.k-sheet [aria-label="إغلاق"]').click(); await settle(700)
+  }
+  await page.setViewportSize({ width: 390, height: 844 }); await settle(500)
+
+  // the builder («عدّل الخطة كاملة»): its row says it, and a save keeps the turns
+  await page.locator(`${LEGS} [data-testid="plan-view-builder"]`).click(); await settle(1300)
+  const brow = page.locator('#plist .prow').filter({ has: page.locator('[data-testid="builder-rotate"]') })
+  ok('the builder: the row says «بالتناوب مع ضم ورك جهاز»', await brow.count() === 1
+    && /بالتناوب مع ضم ورك جهاز/.test(await flat(brow.locator('[data-testid="builder-rotate"]'))), await flat(brow))
+  await page.locator('[data-act="plan-start"]').click(); await settle(700)
+  await page.locator('[data-act="activate"]').click(); await settle(1300)
+  const kept = (await legsPlan()).find(x => x.rotate)
+  ok('the builder: saved, the row still takes its turns — the abduction machine first, then the adduction one', kept?.name === AB
+    && JSON.stringify(kept.rotate) === JSON.stringify([AB, AD]) && (await legsPlan()).length === 7, JSON.stringify((await legsPlan()).map(x => [x.name, x.rotate])))
+  await page.keyboard.press('Escape'); await settle(900)
+  ok('the builder: back on «خطتي», the card of the two still there', await view().count() === 1 && await rcard().count() === 1)
+  await closeView()
+
+  // the old design reads the plan with the row that takes turns: by its first name
+  {
+    const cp = await ctx.newPage()
+    const cerr = []
+    cp.on('pageerror', e => cerr.push(String(e)))
+    await cp.addInitScript(() => localStorage.setItem('meran_design', 'classic'))
+    await cp.goto(new URL('/classic/', APP).href); await cp.waitForTimeout(1200)
+    await cp.evaluate(() => localStorage.setItem('hf_plan_index', '2'))
+    await cp.reload(); await cp.waitForTimeout(2200)
+    await cp.evaluate(() => [...document.querySelectorAll('button')].find(b => /عرض التمارين|تمارين الغد/.test(b.textContent))?.click())
+    await cp.waitForTimeout(900)
+    const ctext = await cp.locator('body').innerText()
+    ok('classic: its leg day shows the row that takes turns by its first name (the abduction machine), as one exercise',
+      ctext.includes(AB) && !ctext.includes(AD) && ctext.includes('Hack Squat'), ctext.slice(0, 400))
+    ok('classic (بالتناوب): no NaN, no page errors', !ctext.includes('NaN') && cerr.length === 0, cerr.join(' | '))
+    await cp.evaluate(() => localStorage.setItem('meran_design', 'new'))
+    await cp.close()
+  }
 }
 
 ok('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '))

@@ -249,6 +249,12 @@
 .dp-deload { color: var(--ink); }
 .dp-best .k-num { color: var(--raise); }
 .dp-from { font-size: var(--t-caption); font-weight: 600; color: var(--ink-3); }
+/* «بالتناوب · المرة الجاية: …» — a fact about his plan, read like the meta */
+.dp-rot {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 2px;
+  font-size: var(--t-label); font-weight: 700; line-height: 1.5; color: var(--ink-2); text-wrap: balance;
+}
+.dp-rot svg { flex: none; }
 .dp-actions { flex: none; display: flex; align-items: center; gap: 4px; }
 .dp-swap {
   min-width: 44px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--r-pill);

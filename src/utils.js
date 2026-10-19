@@ -81,6 +81,9 @@ export const PER_USER_KEYS = [
   // round again before its pool is spent. New in the redesign; the old
   // design keeps its own hf_greeting_bags / hf_last_greeting.
   'meran_greetings',
+  // «خلّهم بالتناوب» offers he answered «لا» to (src/plan/rotate.js
+  // OFFERS_OFF_KEY). New in the redesign; the old design never reads it.
+  'meran_rotate_off',
 ]
 
 export const deleteUserData = (id) => {

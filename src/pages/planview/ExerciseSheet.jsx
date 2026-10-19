@@ -14,13 +14,19 @@
 // row, the exercise's name and what a swap keeps under it; a tap on one
 // swaps. A card's own «بدّله» opens the sheet on that page.
 //
+// «بالتناوب مع…» (a wide action under the two) turns it to a third page
+// (RotateEditor): this exercise and another take turns on the day
+// (src/plan/rotate.js). A row that already takes turns opens on its names
+// instead of the one machine — in turn order, the word over the one due —
+// with «عدّل التناوب» for that page; its «شوف الطريقة» is the one due.
+//
 // Every change is written into his plan at once, the way the builder saves
 // an edit of his own plan (App's commitPlan): free, the day he reached
 // kept. The card behind shows it as it lands.
 
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Sheet, Num } from '../../components/kit/index.jsx'
-import { ArrowsLeftRight, YoutubeLogo, Trash, Plus, Minus } from '../../components/kit/icons.js'
+import { ArrowsLeftRight, YoutubeLogo, Trash, Plus, Minus, Repeat } from '../../components/kit/icons.js'
 import SessionMedia from '../../components/player/SessionMedia.jsx'
 import AltGroups from '../../components/plan/AltCards.jsx'
 import { exerciseNames } from '../../components/home/HomeBits.jsx'
@@ -34,6 +40,8 @@ import {
 } from '../../plan/view.js'
 import { Rolling, restParts, rangeText, rangeUnit, kindLine } from './PlanCard.jsx'
 import { openYouTube } from '../../youtube.js'
+import RotateEditor from './RotateEditor.jsx'
+import { RotateMembers } from './RotateCard.jsx'
 
 const videoFor = (name) => findVideoUrl(name)
   || `https://www.youtube.com/results?search_query=${encodeURIComponent(`${name} proper form`)}`
@@ -64,8 +72,9 @@ function Stepper({ label, sub, value, unit, onDec, onInc, decOff, incOff, testid
 export default function ExerciseSheet({
   open, row, startMode = 'main', dayNames = [], mapping = {}, lastFor = () => null, repTarget,
   canRemove = true, onSwap, onSets, onReps, onRepsReset, onRest, onRemove, onClose,
+  turn = null, mark, dayRows = [], pairName = null, onRotateAdd, onRotateRemove, onRotateMove, onRotateSplit,
 }) {
-  const [mode, setMode] = useState(startMode === 'swap' ? 'swap' : 'main')
+  const [mode, setMode] = useState(['swap', 'rotate'].includes(startMode) ? startMode : 'main')
   const body = useRef(null)
   // A page turn: the alternatives come in from the side the finger goes
   // (RTL: forward is to the left), the first page comes back from the other.
@@ -76,7 +85,7 @@ export default function ExerciseSheet({
     if (!el) return
     el.closest('.k-sheet-body')?.scrollTo?.({ top: 0 })
     if (reducedMotion()) { animate(el, [{ opacity: 0 }, { opacity: 1 }], { d: 160, e: 'linear' }); return }
-    const dx = mode === 'swap' ? -36 : 36
+    const dx = mode !== 'main' ? -36 : 36
     animate(el, [{ opacity: 0, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'none' }], { spring: 'smooth' })
   }, [mode])
 
@@ -105,12 +114,16 @@ export default function ExerciseSheet({
 
   const original = row.swap?.from || null
   const swapping = mode === 'swap'
+  const rotatePage = mode === 'rotate'
+  const rotating = !!turn
+  // The one due, of a row that takes turns: its video.
+  const due = rotating ? (row.rotate?.[turn.due] || turn.members[turn.due]) : row.name
   // The titles say what the page does — «عدّل التمرين», and on the
   // alternatives the session swap's «بدّل التمرين» — short enough for one
   // line beside ‹ and × on any phone; which exercise is the first thing
   // under it, its names together in one block (never the Arabic up in the
   // title and the English left alone beside the picture).
-  const title = swapping ? 'بدّل التمرين' : 'عدّل التمرين'
+  const title = swapping ? 'بدّل التمرين' : rotatePage ? (rotating ? 'عدّل التناوب' : 'بالتناوب مع…') : 'عدّل التمرين'
   const latinOnly = !/[؀-ۿ]/.test(ar)
   // What a swap keeps: the new machine takes this one's numbers.
   const keeps = timed
@@ -118,11 +131,25 @@ export default function ExerciseSheet({
     : <><Num>{row.sets}</Num> × <Num>{rangeText(row.reps)}</Num> · راحة <Num>{rest.v}</Num> {rest.u}</>
 
   return (
-    <Sheet open={open} onClose={onClose} title={<span data-testid="xs-title">{title}</span>} tall={swapping}
-      onBack={swapping ? () => setMode('main') : undefined}>
-      <div ref={body} className="xs" data-mode={mode} data-testid="exercise-sheet">
-        {!swapping ? (
+    <Sheet open={open} onClose={onClose} title={<span data-testid="xs-title">{title}</span>} tall={swapping || rotatePage}
+      onBack={swapping || rotatePage ? () => setMode('main') : undefined}>
+      <div ref={body} className="xs" data-mode={mode} data-testid="exercise-sheet" data-rotate={rotating ? '1' : undefined}>
+        {rotatePage ? (
+          <RotateEditor row={row} turn={turn} mark={mark} dayRows={dayRows} pairName={pairName}
+            mapping={mapping} lastFor={lastFor}
+            onAdd={onRotateAdd}
+            onRemove={(m) => { onRotateRemove?.(m); if ((turn?.members?.length || 0) <= 2) setMode('main') }}
+            onMove={onRotateMove}
+            onSplit={onRotateSplit} />
+        ) : !swapping ? (
           <>
+            {rotating ? (
+              <div className="xs-rhead">
+                <span className="xs-rtag"><Repeat size={18} weight="bold" aria-hidden="true" /><b>بالتناوب</b> · واحد كل مرة</span>
+                <RotateMembers names={row.rotate || turn.members} turn={turn} mark={mark} mapping={mapping} muscle={row.muscle}
+                  className="xs-rmembers" item="xs-rm" />
+              </div>
+            ) : (
             <div className="xs-head">
               <span className="xs-art" aria-hidden="true">
                 <SessionMedia name={row.name} mapping={mapping} muscle={row.muscle} className="xs-art-img" />
@@ -145,15 +172,27 @@ export default function ExerciseSheet({
                 ) : null}
               </div>
             </div>
+            )}
 
             <div className="xs-actions">
-              <button type="button" className="xs-act" data-testid="xs-swap" onClick={() => setMode('swap')}>
-                <ArrowsLeftRight size={22} weight="bold" aria-hidden="true" />بدّله
-              </button>
+              {rotating ? (
+                <button type="button" className="xs-act" data-testid="xs-rotate" onClick={() => setMode('rotate')}>
+                  <Repeat size={22} weight="bold" aria-hidden="true" />عدّل التناوب
+                </button>
+              ) : (
+                <button type="button" className="xs-act" data-testid="xs-swap" onClick={() => setMode('swap')}>
+                  <ArrowsLeftRight size={22} weight="bold" aria-hidden="true" />بدّله
+                </button>
+              )}
               <button type="button" className="xs-act" data-testid="xs-watch"
-                onClick={() => openYouTube(videoFor(row.name))}>
+                onClick={() => openYouTube(videoFor(due))}>
                 <YoutubeLogo size={22} weight="fill" aria-hidden="true" />شوف الطريقة
               </button>
+              {!rotating && (
+                <button type="button" className="xs-act xs-act-wide" data-testid="xs-rotate" onClick={() => setMode('rotate')}>
+                  <Repeat size={22} weight="bold" aria-hidden="true" />بالتناوب مع…
+                </button>
+              )}
             </div>
 
             <div className="xs-steps">
@@ -185,7 +224,7 @@ export default function ExerciseSheet({
 
             <div className="xs-end">
               <button type="button" className="xs-remove" data-testid="xs-remove" onClick={onRemove} disabled={!canRemove}>
-                <Trash size={20} weight="bold" aria-hidden="true" />شيله من الخطة
+                <Trash size={20} weight="bold" aria-hidden="true" />{rotating ? 'شيلهم من الخطة' : 'شيله من الخطة'}
               </button>
               {!canRemove && <p className="xs-note">آخر تمرين باليوم ما ينشال — اليوم ما يصير فاضي.</p>}
               <p className="xs-foot">كل تعديل ينحفظ بخطتك على طول، وما يلمس الستريك. الجلسة الجاية تمشي عليه.</p>

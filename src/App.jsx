@@ -91,6 +91,7 @@ import { REPORT_SEEN_KEY, storySeen, withStorySeen, applyNext, appliedLine, REPO
 import { validatePlan } from './plan/validate.js'
 import { planTitle } from './plan/title.js'
 import { dropsOf, withDropped, DROPPED_KEY } from './plan/view.js'
+import { resolveDay } from './plan/rotate.js'
 import { initPack, wasPrompted, syncPack } from './assets/pack.js'
 
 // One-time weights reset (v2): the old exercise mapping wrongly
@@ -536,7 +537,15 @@ export default function App() {
     sessionXPRef.current = 0
     const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey())
     const lighten = deloadStamp ? (w => deloadWeight(w, deloadStamp.pct)) : undefined
-    const planExercises = applySubsToDay(planDay.exercises, exerciseSubs, EXERCISE_ALTERNATIVES)
+    // «بالتناوب» (src/plan/rotate.js): a row that takes turns starts on
+    // the one due — read from his sessions of this plan day — and carries
+    // its list (rotate, an optional field the old design ignores), so the
+    // player can say «المرة الجاية» and offer the other one for this time.
+    const n = plan?.weeklySchedule?.length || 0
+    const at = n ? plan.weeklySchedule.indexOf(planDay) : -1
+    const dayIdx = at >= 0 ? at : (n ? ((planIndex % n) + n) % n : 0)
+    const day = n ? resolveDay(plan, dayIdx, sessions, { mapping: exerciseMapping }, planDay) : planDay
+    const planExercises = applySubsToDay(day.exercises, exerciseSubs, EXERCISE_ALTERNATIVES)
     const exercises = planExercises.map(ex => {
       const prevWeight = suggestedWeightFor(ex.name, {
         sessions, mapping: exerciseMapping, transform: lighten,
@@ -559,6 +568,7 @@ export default function App() {
         ...(planT ? { target: ownTarget(planT) } : null),
         ...(rest > 0 ? { rest: Math.round(rest) } : null),
         ...(ex.unit === 'sec' || ex.unit === 'min' ? { unit: ex.unit } : null),
+        ...(Array.isArray(ex.rotate) && ex.rotate.length > 1 ? { rotate: ex.rotate } : null),
       }
     })
     const session = {

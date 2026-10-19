@@ -24,6 +24,14 @@
 //               header counts them), then «عدّل الخطة كاملة» (the
 //               builder, on this day)
 //
+// «بالتناوب» (src/plan/rotate.js): a row that takes turns is one card of
+// its names (RotateCard) — the one due marked, read from his sessions (and
+// from the session running, on its day). Its sheet edits the turns
+// (RotateEditor: add, ↑, ×, «فكّ التناوب»); any card's sheet starts them
+// («بالتناوب مع…»); two cards of a natural pair on one day (the hip
+// machines) offer «خلّهم بالتناوب», one tap that makes them one row, or
+// × that waves it off for good (OFFERS_OFF_KEY, a key of the new design's).
+//
 // What it shows is the effective plan (src/plan/view.js): his remembered
 // swaps applied, his reps rule, the rest the player will count. What he
 // changes from a card's sheet goes straight into his plan through
@@ -37,6 +45,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 import { Button, IconButton, Num } from '../../components/kit/index.jsx'
 import { X, PencilSimple, ArrowCounterClockwise, Info, PushPin, ClockCounterClockwise } from '../../components/kit/icons.js'
+import { exerciseNames } from '../../components/home/HomeBits.jsx'
 import { dayWord, musclesLine, estimateMinutes, setsUnit } from '../../components/home/dayParts.js'
 import { planTitle } from '../../plan/title.js'
 import { unitAr } from '../../streak.js'
@@ -49,9 +58,14 @@ import { arabicName } from '../../exerciseMedia.js'
 import { withNums } from '../../components/home/HomeBits.jsx'
 import {
   effectivePlan, effectiveDay, dayMarks, swapRow, setRowSets, setRowReps, clearRowReps, setRowRest,
-  removeRow, insertRow, fromSessions, addRow, addRows, withDismissed, DISMISS_KEY,
+  removeRow, insertRow, fromSessions, addRow, addRows, withDismissed, DISMISS_KEY, sessionDay,
 } from '../../plan/view.js'
+import {
+  rotationTurns, liveTurn, rotationOffers, offerId, mergeRows, addToRotation, removeFromRotation, moveInRotation,
+  splitRotation, OFFERS_OFF_KEY,
+} from '../../plan/rotate.js'
 import PlanCard from './PlanCard.jsx'
+import RotateCard from './RotateCard.jsx'
 import ExtraCard from './ExtraCard.jsx'
 import ExerciseSheet from './ExerciseSheet.jsx'
 import BodyFigure from './BodyFigure.jsx'
@@ -171,6 +185,20 @@ export default function PlanView({
     }
   }, [sessions, exerciseMapping])
 
+  // ── «بالتناوب»: whose turn, and the pairs offered ──
+  const liveDay = active ? sessionDay(plan, active) : null
+  const turns = useMemo(() => {
+    const t = rotationTurns(plan, sessions, { mapping: exerciseMapping })
+    if (liveDay == null || !t[liveDay]) return t
+    return t.map((day, d) => (d !== liveDay ? day : day.map(x => liveTurn(x, active, { mapping: exerciseMapping }))))
+  }, [plan, sessions, exerciseMapping, liveDay, active])
+  const [offersOff, setOffersOff] = useState(() => {
+    const v = ls.get(OFFERS_OFF_KEY, [])
+    return Array.isArray(v) ? v : []
+  })
+  const offers = useMemo(() => days.map((_, d) => rotationOffers(plan, d, { mapping: exerciseMapping, off: offersOff })),
+    [plan, days, exerciseMapping, offersOff])
+
   // ── A card's sheet, and what it changes ──
   const [sheet, setSheet] = useState(null)          // { d, j, k, mode }
   const sheetN = useRef(0)
@@ -208,6 +236,52 @@ export default function PlanView({
     closeSheet()
   }
 
+  // «بالتناوب»: the turns of the sheet's row. One picked from the day's
+  // own exercises joins it and its row goes, so the row may move up: the
+  // sheet follows it.
+  const rotAdd = (name) => {
+    if (!sheet) return
+    const { d, j } = sheet
+    const out = addToRotation(plan, d, j, name)
+    if (!out) return
+    // a row that starts taking turns, or takes another row in, comes in as
+    // a card of its names (the layout effect below); one more name on a
+    // card of names: the card settles (its flash)
+    const merged = out.plan.weeklySchedule[d].exercises.length !== plan.weeklySchedule[d].exercises.length
+    const fresh = merged || !days[d]?.rows?.[j]?.rotate
+    if (fresh) moves.current = { d, merge: true, tops: rowTops(d), at: out.at }
+    if (commit(out.plan, fresh ? null : d, out.at) && out.at !== j) setSheet(x => (x ? { ...x, j: out.at } : x))
+  }
+  const rotRemove = (name) => sheet && commit(removeFromRotation(plan, sheet.d, sheet.j, name), sheet.d, sheet.j)
+  const rotMove = (name) => sheet && commit(moveInRotation(plan, sheet.d, sheet.j, name, -1), sheet.d, sheet.j)
+  const rotSplit = () => {
+    if (!sheet) return
+    const { d, j } = sheet
+    const out = splitRotation(plan, d, j)
+    if (!out) return
+    closeSheet()
+    moves.current = { d, split: true, tops: rowTops(d), at: j, count: out.count }
+    if (!commit(out.plan)) moves.current = null
+  }
+  // «خلّهم بالتناوب» on a card: the two become one, in the earlier one's place
+  const merge = (d, j, k) => {
+    const out = mergeRows(plan, d, Math.min(j, k), Math.max(j, k))
+    if (!out) return
+    haptic('set')
+    moves.current = { d, merge: true, tops: rowTops(d), at: out.at }
+    if (!commit(out.plan)) moves.current = null
+  }
+  const offerOff = (d, j, k) => {
+    const rows = plan.weeklySchedule[d].exercises
+    const id = offerId(plan, d, rows[j].name, rows[k].name)
+    haptic('swipe')
+    setOffersOff(prev => {
+      const next = prev.includes(id) ? prev : [...prev, id]
+      ls.set(OFFERS_OFF_KEY, next)
+      return next
+    })
+  }
+
   // Out, with «تراجع» in its place for six seconds.
   const [undo, setUndo] = useState(null)            // { d, j, row, name, t }
   const undoTimer = useRef(0)
@@ -221,7 +295,8 @@ export default function PlanView({
     if (!commit(out.plan)) return
     haptic('set')
     clearTimeout(undoTimer.current)
-    const name = sheetRow?.name || out.row.name
+    const names = sheetRow?.rotate || [sheetRow?.name || out.row.name]
+    const name = names.map(n => exerciseNames(n, exerciseMapping).ar).join(' و')
     setUndo({ d, j, row: out.row, name, t: Date.now() })
     undoTimer.current = setTimeout(() => setUndo(null), UNDO_MS)
   }
@@ -270,6 +345,14 @@ export default function PlanView({
       .map(el => [el, el.getBoundingClientRect().top]))
     return { d, from, tops }
   }
+  // Where every card of the day and everything under the list stood, for
+  // a merge or a split: what moves slides to its new place.
+  const rowTops = (d) => {
+    const page = pageEl(d)
+    if (!page) return new Map()
+    return new Map([...page.querySelectorAll('.pv-list:not(.pv-xlist) > li, .pv-extra-head, [data-testid="extra-card"], .pv-end')]
+      .map(el => [el, el.getBoundingClientRect().top]))
+  }
   const pin = (d, items) => {
     if (!items?.length) return
     const next = items.length > 1 ? addRows(plan, d, items, { repTarget }) : addRow(plan, d, items[0], { repTarget })
@@ -298,6 +381,24 @@ export default function PlanView({
     const page = pageEl(m.d)
     if (!page) return
     const quiet = reducedMotion()
+    if (m.merge || m.split) {
+      // the card that now takes turns (or the rows it split into): its
+      // names come in one by one; what stood under it slides to its place
+      const li = page.querySelectorAll('.pv-list:not(.pv-xlist) > li')
+      const cards = [...li].slice(m.at, m.at + 1 + (m.count || 0)).map(x => x.querySelector('[data-testid="plan-card"]')).filter(Boolean)
+      if (quiet) { cards.forEach(c => animate(c, [{ opacity: 0.6 }, { opacity: 1 }], { d: 200, e: 'linear' })); return }
+      for (const c of cards) {
+        animate(c, [{ transform: 'scale(0.97)' }, { transform: 'none' }], { spring: 'bouncy' })
+        animate(c, [{ boxShadow: 'inset 0 0 0 2px var(--ink-2)' }, { boxShadow: 'inset 0 0 0 1px var(--edge)' }], { d: 900, fill: 'none' })
+        ;[...c.querySelectorAll('.pv-rm')].forEach((x, i) => animate(x, rise(12), { spring: 'smooth', delay: 80 + i * 90 }))
+      }
+      for (const [el, top] of m.tops) {
+        if (!el.isConnected || cards.some(c => el.contains(c))) continue
+        const dy = top - el.getBoundingClientRect().top
+        if (Math.abs(dy) > 1) animate(el, [{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { spring: 'smooth' })
+      }
+      return
+    }
     let k = 0
     for (const [nm, r] of m.from) {
       const el = byName(page, '.pv-list [data-testid="plan-card"]', nm)
@@ -400,13 +501,27 @@ export default function PlanView({
               </header>
 
               <ol className="pv-list">
-                {d.rows.map((row, j) => (
-                  <li key={j}>
-                    {undo && undo.d === i && undo.j === j && <UndoRow name={undo.name} mapping={exerciseMapping} onUndo={doUndo} />}
-                    <PlanCard row={row} mapping={exerciseMapping} sessions={sessions}
-                      flash={flash[`${i}:${j}`] || 0} onOpen={() => openSheet(i, j)} onSwap={() => openSheet(i, j, 'swap')} />
-                  </li>
-                ))}
+                {d.rows.map((row, j) => {
+                  const turn = turns[i]?.[j]
+                  const pair = offers[i]?.[j] ?? -1
+                  return (
+                    <li key={j}>
+                      {undo && undo.d === i && undo.j === j && <UndoRow name={undo.name} mapping={exerciseMapping} onUndo={doUndo} />}
+                      {turn && row.rotate ? (
+                        <RotateCard row={row} turn={turn} mark={marks[i]} mapping={exerciseMapping} sessions={sessions}
+                          flash={flash[`${i}:${j}`] || 0} onOpen={() => openSheet(i, j)} onEdit={() => openSheet(i, j, 'rotate')} />
+                      ) : (
+                        <PlanCard row={row} mapping={exerciseMapping} sessions={sessions}
+                          flash={flash[`${i}:${j}`] || 0} onOpen={() => openSheet(i, j)} onSwap={() => openSheet(i, j, 'swap')}
+                          offer={pair >= 0 && d.rows[pair] ? {
+                            name: d.rows[pair].name,
+                            onMerge: () => merge(i, j, pair),
+                            onDismiss: () => offerOff(i, j, pair),
+                          } : null} />
+                      )}
+                    </li>
+                  )
+                })}
                 {undo && undo.d === i && undo.j >= d.rows.length && (
                   <li><UndoRow name={undo.name} mapping={exerciseMapping} onUndo={doUndo} /></li>
                 )}
@@ -452,7 +567,7 @@ export default function PlanView({
           open={sheet.open}
           startMode={sheet.mode}
           row={sheetRow}
-          dayNames={days[sheet.d].rows.map(r => r.name)}
+          dayNames={days[sheet.d].rows.flatMap(r => [r.name, ...(r.rotate || [])])}
           mapping={exerciseMapping}
           lastFor={lastFor}
           repTarget={repTarget}
@@ -464,6 +579,14 @@ export default function PlanView({
           onRest={(s) => commit(setRowRest(plan, sheet.d, sheet.j, s), sheet.d, sheet.j)}
           onRemove={doRemove}
           onClose={closeSheet}
+          turn={sheetRow.rotate ? (turns[sheet.d]?.[sheet.j] || null) : null}
+          mark={marks[sheet.d]}
+          dayRows={days[sheet.d].rows}
+          pairName={(() => { const k = offers[sheet.d]?.[sheet.j] ?? -1; return k >= 0 ? days[sheet.d].rows[k]?.planName : null })()}
+          onRotateAdd={rotAdd}
+          onRotateRemove={rotRemove}
+          onRotateMove={rotMove}
+          onRotateSplit={rotSplit}
         />
       )}
     </div>,

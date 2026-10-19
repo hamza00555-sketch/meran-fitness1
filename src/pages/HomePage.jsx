@@ -1,4 +1,5 @@
 import '../styles/screens/home.css'
+import { useMemo } from 'react'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
 import StreakNumber, { useFlameIgnition } from '../components/streak/StreakNumber.jsx'
@@ -13,6 +14,7 @@ import { DEFAULT_REP_TARGET } from '../progression.js'
 import { withNums } from '../components/home/HomeBits.jsx'
 import { reportRowLine } from '../monthReport.js'
 import { setsUnit } from '../components/home/dayParts.js'
+import { resolveDay } from '../plan/rotate.js'
 
 // ── Home — «تحت الأضواء» ──────────────────────────────────────
 //
@@ -143,9 +145,13 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
     .sort((a, b) => b[1] - a[1])
 
   const schedule = plan?.weeklySchedule
-  const currentPlanDay = schedule?.length
-    ? schedule[(planIndex ?? 0) % schedule.length]
-    : null
+  // Today's day as the session will start it: a row that takes turns
+  // («بالتناوب», src/plan/rotate.js) on the one due today.
+  const currentPlanDay = useMemo(() => {
+    if (!schedule?.length) return null
+    const d = (planIndex ?? 0) % schedule.length
+    return resolveDay(plan, d, sessions, { mapping: exerciseMapping })
+  }, [plan, schedule, planIndex, sessions, exerciseMapping])
   const planDayNum = schedule?.length ? ((planIndex ?? 0) % schedule.length) + 1 : 1
   const planTotal  = schedule?.length ?? 1
 

@@ -10,6 +10,7 @@ import InlineRest from './InlineRest.jsx'
 import PRMoment from './PRMoment.jsx'
 import SessionMedia from './SessionMedia.jsx'
 import SetAsk from './SetAsk.jsx'
+import RotateBar from './RotateBar.jsx'
 import { primeAudio } from './sessionAudio.js'
 import { play } from '../../sound.js'
 import { haptic } from '../../haptics.js'
@@ -178,7 +179,7 @@ export default function WorkoutPlayer({
   getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapOptions,
   onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwapTo,
   onAddExercise, onRequestFinish, onDiscard, onCloseRest, onOpenPlan,
-  setAsk = null, onSetAskAlways, onSetAskClose,
+  setAsk = null, onSetAskAlways, onSetAskClose, onRotate,
 }) {
   const [index, setIndex] = useState(() => Math.max(0, firstUnfinished(exercises)))
   const [editingSet, setEditingSet] = useState(null)   // { exId, si }
@@ -273,6 +274,22 @@ export default function WorkoutPlayer({
     ;['.s-name-ar', '.s-name-en', '.s-meta'].forEach((sel, k) => animate(sc.querySelector(sel), rise(10), { d: 260, delay: 120 + 60 * k }))
     animate(sc.querySelector('[data-testid="live-block"]'), rise(16), { d: 300, delay: 300 })
   }, [ex?.id])
+
+  // Another machine in the same place — «بدّلها لـ … هالمرة» (the other
+  // one of a rotation), or a swap — comes in where the old one stood: the
+  // picture slides in a little behind, the names and the line under them
+  // rise. Reduced motion: a quick fade.
+  const shownEx = useRef({ id: ex?.id, name: ex?.name })
+  useLayoutEffect(() => {
+    const was = shownEx.current
+    shownEx.current = { id: ex?.id, name: ex?.name }
+    if (!ex || was.id !== ex.id || was.name === ex.name) return
+    const sc = scrollRef.current
+    if (!sc) return
+    if (reducedMotion()) { animate(sc.querySelector('.s-stage, .s-exrow'), fadeIn, { d: 160, e: 'linear' }); return }
+    animate(sc.querySelector('.s-stage-media, .s-thumb'), [{ opacity: 0, transform: 'translateX(-36px) scale(.94)' }, { opacity: 1, transform: 'none' }], { spring: 'smooth' })
+    ;['.s-name-ar', '.s-name-en', '.s-meta', '.s-rot'].forEach((sel, k) => animate(sc.querySelector(sel), rise(8), { d: 240, delay: 60 + 50 * k }))
+  }, [ex?.id, ex?.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The swipe carries the whole middle with the finger; past either end
   // of the session it resists (0.35×). Let go short of the line and it
@@ -722,6 +739,9 @@ export default function WorkoutPlayer({
           onSwipe={swipeTo}
           onDrag={drag}
         />
+
+        <RotateBar ex={ex} mapping={mapping} canSwitch={!hasDone && !!onRotate}
+          onSwitch={(name) => { haptic('swipe'); onRotate?.(ex.id, name) }} />
 
         {ex.sets.length > 0 ? (
           <SetHistory

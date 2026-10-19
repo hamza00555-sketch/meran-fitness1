@@ -247,6 +247,88 @@
   .pv-swap-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
+/* ── «بالتناوب» (RotateCard.jsx): a row that takes turns, one card of its
+   names. The plan card's surface and language, nothing boxed inside: the
+   first line says what it is, then the names in turn order, each a
+   picture on its light — the one due larger (72px) with its word over it
+   in ink («اليوم», «الجاي»), the one after it smaller (52px) with its word
+   in ink-2 («المرة الجاية», «بعده») — then, under the hairline, the
+   numbers they all run on. ── */
+.pv-rcard {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "tag" "members" "stats" "foot";
+}
+.pv-rtag {
+  grid-area: tag; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-bottom: -2px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-2);
+}
+.pv-rtag svg { flex: none; color: var(--ink-2); }
+.pv-rtag .pv-open { display: inline; width: auto; }
+.pv-rtag b { font-size: var(--t-body); font-weight: 800; color: var(--ink); }
+.pv-rmembers { grid-area: members; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+/* one column for the pictures (the due one's width), so every name starts
+   on the same edge; the others' pictures stand smaller in its middle */
+.pv-rm {
+  --rm-art: 52px;
+  min-width: 0; display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; column-gap: 14px;
+}
+.pv-rm[data-turn="due"] { --rm-art: 72px; }
+.pv-rm-art {
+  position: relative; isolation: isolate; justify-self: center; width: var(--rm-art); aspect-ratio: 1; display: grid; place-items: center;
+}
+.pv-rm-art::before {
+  content: ""; position: absolute; inset: -6%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, var(--art-light), rgba(58,66,76,0));
+}
+.pv-rm-img { width: 100%; height: 100%; object-fit: cover; filter: var(--art-rim); }
+.pv-rm-img[data-art="muscle"] { width: 92%; height: 92%; object-fit: contain; filter: none; }
+.pv-rm-art svg.pv-rm-img { width: 44%; height: 44%; color: var(--ink-2); filter: none; }
+.pv-rm-names { min-width: 0; display: grid; justify-items: start; }
+.pv-rm-names > * { max-width: 100%; }
+.pv-rm-mark { font-size: var(--t-label); font-weight: 800; line-height: 1.4; color: var(--ink); }
+.pv-rm[data-turn="next"] .pv-rm-mark { font-weight: 700; color: var(--ink-2); }
+.pv-rm-ar { font-size: var(--t-headline); font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; text-wrap: balance; }
+.pv-rm[data-turn="due"] .pv-rm-ar { font-size: 19px; }
+.pv-rm-ar[dir="ltr"] { width: 100%; text-align: right; font-stretch: 87.5%; }
+/* <bdi dir="ltr">: right is the Arabic's edge; whole, in two lines at most */
+.pv-rm-en {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; width: 100%;
+  font-size: var(--t-label); font-weight: 600; font-stretch: 87.5%; line-height: 1.4; color: var(--ink-2);
+  text-align: right; text-wrap: balance; overflow-wrap: anywhere;
+}
+
+/* «خلّهم بالتناوب» (PlanCard.jsx): the last line of a card whose pair is
+   on the same day, under a hairline across it. Words on the card's
+   surface — no fill, no ring — in ink; × waves it off. Both over the
+   card's own target. */
+.pv-offer {
+  grid-column: 1 / -1; position: relative; z-index: 2; min-width: 0;
+  display: flex; align-items: center; gap: 4px;
+  margin-inline: -16px; margin-bottom: -6px; padding-block: 8px 0; padding-inline: 16px 6px; border-top: 1px solid var(--hairline);
+}
+.pv-offer-go {
+  flex: 1; min-width: 0; min-height: 52px; display: flex; align-items: center; gap: 12px;
+  padding: 4px 0; border: 0; border-radius: 12px; background: none; cursor: pointer;
+  color: var(--ink); font: inherit; text-align: start; -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.pv-offer-go svg { flex: none; color: var(--ink); }
+.pv-offer-go:active { transform: scale(0.98); }
+.pv-offer-t { min-width: 0; display: grid; gap: 0; }
+.pv-offer-t b { font-size: var(--t-body); font-weight: 800; line-height: 1.35; }
+.pv-offer-t small { font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-2); text-wrap: balance; }
+.pv-offer-x {
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center;
+  border: 0; border-radius: var(--r-pill); background: none; color: var(--ink-2); cursor: pointer;
+  -webkit-tap-highlight-color: transparent; transition: background var(--dur-press);
+}
+.pv-offer-x:active { background: var(--surface-3); }
+.pv-offer-go:focus-visible, .pv-offer-x:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .pv-offer-go, .pv-offer-x { transition: none; }
+  .pv-offer-go:active { transform: none; }
+}
+
 /* «تراجع» in a card's place */
 .pv-undo {
   position: relative; overflow: hidden;
@@ -454,4 +536,99 @@
 @media (prefers-reduced-motion: reduce) {
   .xs-act, .xs-step-b { transition: none; }
   .xs-act:active, .xs-step-b:active { transform: none; }
+}
+
+/* ── «بالتناوب» in the card sheet ──
+   «بالتناوب مع…» under the two actions, as wide as both. A row that
+   takes turns opens on its names (the card's, larger: the one due
+   88–104px, the next 64px) instead of the one machine. */
+.xs-act-wide { grid-column: 1 / -1; }
+@media (max-width: 360px) { .xs-act-wide { flex-direction: row; min-height: 52px; gap: 8px; } }
+.xs-rhead { display: grid; gap: 12px; }
+.xs-rtag {
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.45; color: var(--ink-2);
+}
+.xs-rtag svg { flex: none; }
+.xs-rtag b { font-size: var(--t-body); font-weight: 800; color: var(--ink); }
+.xs-rmembers { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.xs-rm {
+  --rm-art: 64px;
+  min-width: 0; display: grid; grid-template-columns: clamp(88px, 27vw, 104px) minmax(0, 1fr); align-items: center; column-gap: 16px;
+}
+.xs-rm[data-turn="due"] { --rm-art: clamp(88px, 27vw, 104px); }
+.xs-rm-art { position: relative; isolation: isolate; justify-self: center; width: var(--rm-art); aspect-ratio: 1; display: grid; place-items: center; }
+.xs-rm-art::before {
+  content: ""; position: absolute; inset: -6%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, var(--art-light), rgba(58,66,76,0));
+}
+.xs-rm-img { width: 100%; height: 100%; object-fit: cover; filter: var(--art-rim); }
+.xs-rm-img[data-art="muscle"] { width: 92%; height: 92%; object-fit: contain; filter: none; }
+.xs-rm-art svg.xs-rm-img { width: 44%; height: 44%; color: var(--ink-2); filter: none; }
+.xs-rm-names { min-width: 0; display: grid; justify-items: start; }
+.xs-rm-names > * { max-width: 100%; }
+.xs-rm-mark { font-size: var(--t-label); font-weight: 800; line-height: 1.4; color: var(--ink); }
+.xs-rm[data-turn="next"] .xs-rm-mark { font-weight: 700; color: var(--ink-2); }
+.xs-rm-ar { font-size: var(--t-headline); font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; text-wrap: balance; }
+.xs-rm[data-turn="due"] .xs-rm-ar { font-size: var(--t-title); }
+.xs-rm-ar[dir="ltr"] { width: 100%; text-align: right; font-stretch: 87.5%; }
+.xs-rm-en {
+  display: block; width: 100%; margin-top: 2px; font-size: var(--t-label); font-weight: 600; font-stretch: 87.5%; line-height: 1.4;
+  color: var(--ink-2); text-align: right; overflow-wrap: anywhere;
+}
+
+/* «بالتناوب مع…» / «عدّل التناوب» (RotateEditor.jsx): what it does, the
+   names as open rows between hairlines (↑ and × on discs, as the
+   steppers'), the choices as picture cards, «فكّ التناوب» last. */
+.xr { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding-bottom: var(--space-4); }
+.xr .xs-keeps > span { text-wrap: balance; }
+.xr-list { list-style: none; margin: 0; padding: 0; display: grid; border-block: 1px solid var(--hairline); }
+.xr-m { min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 76px; padding-block: 10px; }
+.xr-m + .xr-m { border-top: 1px solid var(--hairline); }
+.xr-art { position: relative; isolation: isolate; flex: none; width: 56px; height: 56px; display: grid; place-items: center; }
+.xr-art::before {
+  content: ""; position: absolute; inset: -6%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, var(--art-light), rgba(58,66,76,0));
+}
+.xr-img { width: 100%; height: 100%; object-fit: cover; filter: var(--art-rim); }
+.xr-img[data-art="muscle"] { width: 92%; height: 92%; object-fit: contain; filter: none; }
+.xr-art svg.xr-img { width: 44%; height: 44%; color: var(--ink-2); filter: none; }
+.xr-names { flex: 1; min-width: 0; display: grid; justify-items: start; }
+.xr-names > * { max-width: 100%; }
+.xr-mark { font-size: var(--t-label); font-weight: 800; line-height: 1.4; color: var(--ink); }
+.xr-m[data-turn="next"] .xr-mark { font-weight: 700; color: var(--ink-2); }
+.xr-ar { font-size: 16px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; text-wrap: balance; }
+.xr-ar[dir="ltr"] { width: 100%; text-align: right; font-stretch: 87.5%; }
+.xr-en {
+  display: block; width: 100%; font-size: var(--t-label); font-weight: 600; font-stretch: 87.5%; line-height: 1.4; color: var(--ink-2);
+  text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.xr-ctl { flex: none; display: flex; align-items: center; gap: 4px; }
+.xr-b {
+  width: 44px; height: 44px; border: 0; border-radius: var(--r-pill); display: grid; place-items: center;
+  background: var(--surface-3); color: var(--ink); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.xr-b:active { transform: scale(0.9); }
+.xr-b:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.xr-h { margin: 0 0 calc(-1 * var(--space-2)); font-size: var(--t-headline); font-weight: 800; line-height: 1.35; }
+.xr-end { display: grid; gap: var(--space-3); }
+.xr-split {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 52px;
+  padding: 0 12px; border: 0; border-radius: var(--r-md); cursor: pointer;
+  background: var(--surface-3); color: var(--ink); font: inherit; font-size: var(--t-body); font-weight: 700;
+  -webkit-tap-highlight-color: transparent; transition: transform var(--dur-press) var(--ease-out);
+}
+.xr-split svg { flex: none; }
+.xr-split:active { transform: scale(0.98); }
+@media (max-width: 360px) {
+  .xr-m { gap: 10px; }
+  .xr-art { width: 48px; height: 48px; }
+  .xr-b { width: 40px; height: 40px; position: relative; }
+  .xr-b::after { content: ""; position: absolute; inset: -2px; }
+  .xr-ctl { gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xr-b, .xr-split { transition: none; }
+  .xr-b:active, .xr-split:active { transform: none; }
 }

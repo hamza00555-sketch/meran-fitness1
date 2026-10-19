@@ -12,13 +12,16 @@
 // player draws «أعلى وزن») and «بدّله».
 //
 // The whole card opens the exercise's sheet (ExerciseSheet); «بدّله» opens
-// it straight on the alternatives. When the sheet changes it, the card
+// it straight on the alternatives. On a day that has both of a natural
+// pair (the hip abduction and adduction machines), a last line under a
+// hairline offers «خلّهم بالتناوب» — the two become one row that takes
+// turns (src/plan/rotate.js) — and × waves it off for good. When the sheet changes it, the card
 // shows it: a swap brings the new machine in (the picture a little behind,
 // then the names), a number rolls to its new value, a new note pops in.
 
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Num } from '../../components/kit/index.jsx'
-import { ArrowsLeftRight, Plus, Minus } from '../../components/kit/icons.js'
+import { ArrowsLeftRight, Plus, Minus, Repeat, X } from '../../components/kit/icons.js'
 import SessionMedia from '../../components/player/SessionMedia.jsx'
 import SetPhrase from '../../components/player/SetPhrase.jsx'
 import RollNumber from '../../components/RollNumber.jsx'
@@ -69,7 +72,7 @@ export function topSet(sets) {
   return best?.set || null
 }
 
-export default function PlanCard({ row, mapping = {}, sessions = [], flash = 0, onOpen, onSwap }) {
+export default function PlanCard({ row, mapping = {}, sessions = [], flash = 0, offer = null, onOpen, onSwap }) {
   const ref = useRef(null)
   const { ar, en } = exerciseNames(row.name, mapping)
   const kind = kindLine(row.name, row.muscle, mapping)
@@ -158,6 +161,28 @@ export default function PlanCard({ row, mapping = {}, sessions = [], flash = 0, 
           <ArrowsLeftRight size={16} weight="bold" aria-hidden="true" /><span className="pv-swap-t">بدّله</span>
         </button>
       </span>
+
+      {offer && <Offer offer={offer} ar={ar} mapping={mapping} />}
     </div>
+  )
+}
+
+/** «خلّهم بالتناوب»: this one and its pair become one row that takes turns. */
+function Offer({ offer, ar, mapping }) {
+  const other = exerciseNames(offer.name, mapping).ar
+  return (
+    <span className="pv-offer">
+      <button type="button" className="pv-offer-go" data-testid="rotate-offer" onClick={offer.onMerge}>
+        <Repeat size={20} weight="bold" aria-hidden="true" />
+        <span className="pv-offer-t">
+          <b>خلّهم بالتناوب</b>
+          <small>مرة هذا ومرة {other}</small>
+        </span>
+      </button>
+      <button type="button" className="pv-offer-x" data-testid="rotate-offer-off"
+        aria-label={`لا، خلّ ${ar} و${other} الاثنين`} onClick={offer.onDismiss}>
+        <X size={18} weight="bold" aria-hidden="true" />
+      </button>
+    </span>
   )
 }

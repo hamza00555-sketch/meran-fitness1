@@ -225,6 +225,38 @@ html[data-handoff="prev"]::view-transition-old(s-ex) { animation: s-ex-out-prev 
 .s-watch-row { flex: none; }
 .s-watch-row .s-glass { box-shadow: inset 0 0 0 1px var(--glass-edge), inset 0 1px 0 var(--edge); }   /* no art under it to lift off */
 
+/* ── «بالتناوب» (RotateBar.jsx): under the head, on the page — no card.
+   The line says it (the word in ink, the rest ink-2); before the first
+   set, «بدّلها لـ … هالمرة» is a pill on surface-3, ink — a choice, never
+   the green, which stays the dock's. It wraps under the line on a narrow
+   phone, its words balanced. ── */
+.s-rot {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  margin: -6px 0 16px;
+}
+.s-exrow + .s-rot { margin-top: -4px; }
+.s-rot-line {
+  flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: center; gap: 8px;
+  font-size: var(--t-label); font-weight: 600; line-height: 1.5; color: var(--ink-2); text-wrap: balance;
+}
+.s-rot-line svg { flex: none; color: var(--ink-2); }
+.s-rot-line b { color: var(--ink); font-weight: 800; }
+.s-rot-switch {
+  flex: none; max-width: 100%; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 8px 16px; border: 0; border-radius: var(--r-pill); cursor: pointer;
+  background: var(--surface-3); color: var(--ink);
+  font-family: var(--font); font-size: var(--t-label); font-weight: 700; line-height: 1.35; text-align: start; text-wrap: balance;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.s-rot-switch svg { flex: none; color: var(--ink-2); }
+.s-rot-switch:active { transform: scale(0.96); }
+.s-rot-switch:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .s-rot-switch { transition: none; }
+  .s-rot-switch:active { transform: none; }
+}
+
 /* ── The sets, one self-labelled row each (no header row) ──
      2   75 كجم × 12 عدّة                 ○
          آخر مرة 72.5 كجم × 9 عدّات
