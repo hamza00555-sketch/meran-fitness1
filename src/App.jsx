@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { flushSync } from 'react-dom'
 import {
-  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, pickGreeting, keepDone, normalizeSession, setCounts,
+  ls, calcStreak, buildExercise, getExerciseStats, resolveExerciseName, suggestedWeightFor, fmtDate, keepDone, normalizeSession, setCounts,
   levelFromXP, xpProgress, getTodayChallenges,
   scheduleNotificationsForToday, applySubsToDay, getHistoricalMax, sessionVolume, restoreMonthGoals, restorePlan,
 } from './utils.js'
@@ -15,6 +15,7 @@ import { PersonIcon, TrophyIcon, FlagIcon, DumbbellIcon, HomeIcon, SettingsIcon 
 import { computeRecovery, DEFAULT_RECOVERY, DAY_STATUS, changeCooldownLeft, dayDiff } from './recovery.js'
 import { streakView, todayStreak, skipCopy, finishToast, spendToast, countAr } from './streak.js'
 import { planReminders } from './notify.js'
+import { greetingToday, LEVEL_NEAR_XP } from './greetings.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget, ownTarget } from './progression.js'
 import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
@@ -911,21 +912,23 @@ export default function App() {
     })
   }, [reminderKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The greeting knows what day it is. Re-drawn when the day turns or
-  // the day's state changes, not on every render — otherwise the line
-  // would flicker to a new one each time a set is logged.
-  const yesterdayKey = useMemo(() => dayKey(new Date(Date.now() - 86400000)), [today])
-  const greeting = useMemo(() => pickGreeting({
+  // The line under the date (src/greetings.js): the most specific thing
+  // true about today, a line not shown lately, the same line all day.
+  // Worked out again when the day or its state changes (or the app comes
+  // back to the front), never per render; the memory in storage keeps it
+  // stable either way.
+  const greetHour = new Date().getHours()
+  const greetBand = greetHour >= 5 && greetHour < 9 ? 'early' : (greetHour >= 23 || greetHour < 3) ? 'late' : ''
+  const xpNow = xpProgress(xp)
+  const levelNear = xp > 0 && xpNow.neededXP - xpNow.currentXP <= LEVEL_NEAR_XP
+  const greeting = useMemo(() => greetingToday({
     name: profile?.name,
-    isRecoveryDay: recovery.status === DAY_STATUS.RECOVERY,
-    isRestTaken: recovery.status === DAY_STATUS.REST_TAKEN,
-    trainedToday: recovery.status === DAY_STATUS.COMPLETED,
-    deload: !!deload?.active,
-    streak,
-    daysSinceLast: Number.isFinite(recovery.daysSinceLastWorkout) ? recovery.daysSinceLastWorkout : null,
-    creditSpentYesterday: (recovery.restTakenHistory || []).includes(yesterdayKey),
+    sessions, plan, planIndex, subs: exerciseSubs, mapping: exerciseMapping, repTarget,
+    recovery, config: recoveryCfg, deload, xp, active,
+    today: streakToday, now: new Date(),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [today, profile?.name, recovery.status, deload?.active, streak, recovery.daysSinceLastWorkout])
+  }), [today, dayTick, streakToday, greetBand, profile?.name, recovery.status, streak, sessions, deload?.active,
+       plan, planIndex, exerciseSubs, exerciseMapping, repTarget, levelNear, xpNow.level, active?.id])
 
   // A stretch whose last day passed while the app was shut is still
   // stored. File it once, here, rather than leaving every reader to
