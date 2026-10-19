@@ -242,7 +242,8 @@ test('a new rank is a new rank however many levels the session jumped', async ()
 test('Home\'s flame waits while anything covers Home', () => {
   const app = src('src/App.jsx')
   const hold = app.match(/hold=\{([^}]+)\}/)?.[1] || ''
-  for (const k of ['summary', 'showLevelUp', 'sessionOpen', 'showReport', 'onboarding', 'showDeloadEnd', 'showWhatsNew', 'packOffer']) {
+  // (whatsNewOpen: «جديد في مران» actually up — while it only waits, Home is Home)
+  for (const k of ['summary', 'showLevelUp', 'sessionOpen', 'showReport', 'onboarding', 'showDeloadEnd', 'whatsNewOpen', 'packOffer']) {
     assert.ok(hold.includes(k), `hold misses ${k}`)
   }
 })

@@ -78,6 +78,9 @@ export const PER_USER_KEYS = [
   // (src/plan/view.js DISMISS_KEY), and when a name left a plan day
   // (DROPPED_KEY). New in the redesign; the old design never reads them.
   'meran_plan_dismissed', 'meran_plan_dropped',
+  // The last version whose «جديد في مران» he saw (src/whatsNew.js), kept
+  // apart from hf_seen_version, which the old design reads as '2.2'.
+  'meran_seen_version',
 ]
 
 export const deleteUserData = (id) => {

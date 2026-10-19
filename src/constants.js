@@ -1,8 +1,70 @@
 import { dayKey, todayKey } from './day.js'
 import { setCounts, setVolume } from './sets.js'
 
-// ── App version — bump this string after each update to trigger WhatsNew ──
-export const APP_VERSION = '2.2'
+// ── App version and «جديد في مران» ────────────────────────────
+//
+// THE RULE, for every release Hamza will notice (a feature, a fix he can
+// feel): bump APP_VERSION and put a new entry on top of WHATS_NEW with the
+// same version, today's date and two to five items. Each item: a Phosphor
+// icon by name (one of WN_ICONS in src/whatsNew.js), a short title and
+// ONE plain line in Saudi Arabic — what he will see, not how it was built.
+// No emoji, no «تذاكر» (they are «أيام الراحة الاختيارية» now).
+// tests/whats-new.test.mjs fails if APP_VERSION and the top entry differ.
+//
+// After an update the app shows, once, every entry newer than the last
+// version he saw (src/whatsNew.js), when nothing else is on Home — never
+// on a fresh install. It stopped appearing through the redesign because
+// APP_VERSION sat at 2.2 from July: nothing was ever newer than 2.2.
+//
+// tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
+// means that thing in the app, nothing else.
+export const APP_VERSION = '3.4'
+
+export const WHATS_NEW = [
+  {
+    version: '3.4', date: '2026-10-19',
+    items: [
+      { icon: 'ShieldCheck', title: '«خطتي» ما عاد تعلّق', line: 'لو صار خلل تطلع لك رسالة و«جرّب مرة ثانية» بدل الشاشة السودا، وبياناتك محفوظة.' },
+      { icon: 'ArrowsClockwise', title: 'التحديث ما يقاطعك', line: 'النسخة الجديدة تنتظر لين تطلع من التطبيق، ما تنزل عليك وسط التمرين.' },
+      { icon: 'Sparkle', title: 'رجع «جديد في مران»', line: 'كل تحديث يقولك وش الجديد فيه، مرة وحدة بس.' },
+    ],
+  },
+  {
+    version: '3.3', date: '2026-10-16',
+    items: [
+      { icon: 'ListChecks', title: '«خطتي» صارت كروت', line: 'خطتك كاملة بصور الأجهزة، وتبدّل أي تمرين من بدائل بالصور.' },
+      { icon: 'ClockCounterClockwise', title: '«تسويها بالجلسة»', line: 'اللي تضيفه كل مرة يطلع تحت يومه، وتثبّته بخطتك بضغطة.' },
+      { icon: 'Target', title: 'العدّات على اختيارك', line: 'إعداد التكرارات يمشي على كل تمرين، إلا اللي حددت عدّاته بنفسك.' },
+      { icon: 'Trophy', tone: 'raise', title: 'كأس لكل وزن جديد', line: 'كل مجموعة بوزن أعلى من أفضل وزن لك تاخذ الكأس والاحتفال.' },
+      { icon: 'YoutubeLogo', title: '«شوف الطريقة» على يوتيوب مباشرة', line: 'الفيديو يفتح في تطبيق يوتيوب على طول.' },
+    ],
+  },
+  {
+    version: '3.2', date: '2026-10-13',
+    items: [
+      { icon: 'Flame', tone: 'streak', title: 'أيام الراحة على الشعلة', line: 'الشعلة تمتلي لما يكون عندك يوم راحة اختياري، ويجيك إعلان كل ما كسبت واحد.' },
+      { icon: 'ChartBar', title: 'تقرير الشهر صار قصة', line: 'شهرك ينعرض لك قصة، وبعدها كروت تشاركها.' },
+      { icon: 'Barbell', title: 'باني الخطة', line: 'ابنِ خطتك بنفسك يوم يوم، أو خذ خطة علوي/سفلي الجاهزة.' },
+    ],
+  },
+  {
+    version: '3.1', date: '2026-10-12',
+    items: [
+      { icon: 'Lightning', tone: 'raise', title: 'حركة واحتفالات', line: 'الأرقام تتحرك، وكل رقم قياسي له لحظته.' },
+      { icon: 'Medal', title: 'ميداليات ثلاثية الأبعاد', line: 'ميداليتك تطلع في ملخص الجلسة وتلفّها بإصبعك.' },
+      { icon: 'Image', title: 'صور وفيديوهات أدق', line: 'فيديوهات الحركات انصلحت وانضافت لخطة PPL، وصور تمارين كثيرة انعدلت.' },
+      { icon: 'WifiSlash', title: 'يشتغل بدون نت', line: 'التطبيق يفتح في النادي حتى لو ما فيه شبكة.' },
+    ],
+  },
+  {
+    version: '3.0', date: '2026-10-09',
+    items: [
+      { icon: 'Palette', title: 'شكل جديد بالكامل', line: 'أرقام كبيرة تنقرأ من على البنش. تبي القديم؟ طفّ «التصميم الجديد» من الإعدادات.' },
+      { icon: 'Flame', tone: 'streak', title: 'الستريك رقم واحد', line: 'اضغط الرقم وتشوف «ليش؟»: وش انحسب ووش باقي.' },
+      { icon: 'Notepad', title: 'ملخص بعد كل جلسة', line: 'المدة والمجموعات وأوزانك الجديدة مرة وحدة، بعد ما تخلّص.' },
+    ],
+  },
+]
 
 // ── Greetings (45 Arabic motivational phrases — use {name} as placeholder) ──
 // ── Greetings ─────────────────────────────────────────────────

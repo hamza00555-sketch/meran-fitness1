@@ -80,7 +80,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // A new version waits while a page of the old one is open, and the
+      // app lets it in at a quiet moment (src/appUpdate.js, which also
+      // registers the worker — hence no injected registerSW.js). Taking
+      // over at once (autoUpdate's skipWaiting) deleted the old version's
+      // chunks from under the running page: «خطتي» then failed to load
+      // and the app went black.
+      registerType: 'prompt',
+      injectRegister: false,
       // No includeAssets: globPatterns above already takes what public/
       // should precache, and includeAssets would add it all a second
       // time — past globIgnores, heavy PNGs included (12.7 MB). The
@@ -103,7 +110,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        skipWaiting: true,
+        // No skipWaiting: the generated sw.js waits for a SKIP_WAITING
+        // message instead. clientsClaim: a first install still controls
+        // the page it was installed from, so the app works offline at once.
+        skipWaiting: false,
         clientsClaim: true,
         cacheId: 'meran-v1',
         ...PRECACHE,
