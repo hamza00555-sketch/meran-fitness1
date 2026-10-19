@@ -78,6 +78,9 @@ export const PER_USER_KEYS = [
   // (src/plan/view.js DISMISS_KEY), and when a name left a plan day
   // (DROPPED_KEY). New in the redesign; the old design never reads them.
   'meran_plan_dismissed', 'meran_plan_dropped',
+  // «خلّهم بالتناوب» offers he answered «لا» to (src/plan/rotate.js
+  // OFFERS_OFF_KEY). New in the redesign; the old design never reads it.
+  'meran_rotate_off',
 ]
 
 export const deleteUserData = (id) => {

@@ -200,6 +200,7 @@ function buildFromPicks(cfg) {
     if (p.orig) it.orig = p.orig
     if (p.was) it.was = p.was
     if (p.why) it.why = p.why
+    if (p.rotate) it.rotate = p.rotate
     if (orphan || !allowed(types[di], EXI[p.id].area)) it.orphan = true
     plan.days[di].items.push(it)
   }
@@ -726,6 +727,8 @@ export function fromHfPlan(hf, { days = 4 } = {}) {
     if (ex.unit === 'sec') p.unit = 'sec'
     if (ex.repsOwn === true) p.own = true
     if (ex.by === 'app') { p.by = 'app'; if (ex.why) p.why = ex.why }
+    const rot = rotateFor(Array.isArray(ex.rotate) ? [ex.name, ...ex.rotate] : null, ex.name)
+    if (rot) p.rotate = rot
     picks.push(p)
   }))
   const b = hf?.builder || {}
@@ -759,7 +762,7 @@ export function fitPins(picks, cycle) {
 }
 
 /* hf_plan — the shape both designs read. Only optional fields are new
-   (source, split, builder, and per exercise equip/part/by/why/unit/repsOwn/was); the
+   (source, split, builder, and per exercise equip/part/by/why/unit/repsOwn/was/rotate); the
    old design ignores them. */
 const PART = { quads: 'quads', hams: 'hamstrings', glutes: 'glutes', calves: 'calves' }
 const lcName = (s) => String(s || '').trim().toLowerCase()
@@ -778,6 +781,25 @@ function wasFor(x, it) {
   if ('name' in was && lcName(was.name) === lcName(x.name)) { delete was.name; delete was.muscle }
   if ('sets' in was && Number(was.sets) === Number(x.sets)) delete was.sets
   if (Object.keys(was).length) x.was = was; else delete x.was
+}
+/* «بالتناوب» (src/plan/rotate.js): the names a row takes turns between, its
+   own name first. Kept through the builder — on the pick and the item —
+   and written back against the row's name as it is now: a swap made here
+   takes the place of the name it swapped (the first), or, to another of
+   the names, leads them. Null under two names. */
+function rotateFor(list, name) {
+  if (!Array.isArray(list) || !String(name || '').trim()) return null
+  const own = String(name).trim()
+  const out = []
+  for (const n of list) {
+    const t = typeof n === 'string' ? n.trim() : ''
+    if (t && !out.some(x => lcName(x) === lcName(t))) out.push(t)
+  }
+  if (!out.length) return null
+  const i = out.findIndex(x => lcName(x) === lcName(own))
+  if (i < 0) out[0] = own
+  else if (i > 0) { out.splice(i, 1); out.unshift(own) }
+  return out.length >= 2 ? out : null
 }
 /**
  * The plan the builder made, as hf_plan.
@@ -814,6 +836,8 @@ export function toHfPlan(plan, cfg, { today, base = null } = {}) {
           // his own reps (stepped in the builder) beat Settings; any other range — the
           // builder's defaults, a template's, an import's — does not (progression.js)
           if (it.own) x.repsOwn = true; else delete x.repsOwn
+          const rot = rotateFor(it.rotate || (it.orig && it.orig.rotate), x.name)
+          if (rot) x.rotate = rot; else delete x.rotate
           wasFor(x, it)
           return x
         }),
