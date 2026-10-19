@@ -57,9 +57,11 @@ export function AltCard({ name, mapping = {}, muscle = null, last = null, tag = 
  * The groups, each a two-column grid of cards.
  *   alts      { muscle: [names], tool: [names] }
  *   original  the exercise it replaced, offered first as «الأصلي» (or null)
+ *   lead      a group before the others, or null: { id, title, names, tag }
+ *             («بالتناوب مع…»: the day's own exercises, «بيومك» over each)
  *   lastFor   name → the last weight on it, or null
  */
-export default function AltGroups({ alts, original = null, muscle = null, mapping = {}, lastFor = () => null, selected = null, onPick }) {
+export default function AltGroups({ alts, original = null, lead = null, muscle = null, mapping = {}, lastFor = () => null, selected = null, onPick }) {
   const card = (n, tag = null) => (
     <AltCard key={n} name={n} mapping={mapping} muscle={muscle} last={lastFor(n)} tag={tag}
       selected={selected === n} onPick={onPick} />
@@ -77,13 +79,19 @@ export default function AltGroups({ alts, original = null, muscle = null, mappin
           <div className="ac-grid">{card(original, 'الأصلي')}</div>
         </section>
       )}
+      {lead?.names?.length > 0 && (
+        <section className="ac-group" data-group={lead.id || 'lead'}>
+          <h3 className="ac-h">{lead.title}</h3>
+          <div className="ac-grid">{lead.names.map(n => card(n, lead.tag || null))}</div>
+        </section>
+      )}
       {groups.map(g => (
         <section key={g.id} className="ac-group" data-group={g.id}>
           <h3 className="ac-h">{g.title}</h3>
           <div className="ac-grid">{g.names.map(n => card(n))}</div>
         </section>
       ))}
-      {!original && !groups.length && <p className="ac-none">ما لقينا له بديل.</p>}
+      {!original && !lead?.names?.length && !groups.length && <p className="ac-none">ما لقينا له بديل.</p>}
     </div>
   )
 }
