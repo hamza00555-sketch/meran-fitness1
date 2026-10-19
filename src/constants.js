@@ -18,18 +18,23 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.4'
+export const APP_VERSION = '3.5'
 
 export const WHATS_NEW = [
+  {
+    version: '3.5', date: '2026-10-19',
+    items: [
+      { icon: 'Repeat', title: 'تمارين بالتناوب', line: 'خلّ تمرينين يتبادلون: يوم أرجل فتح ورك، واللي بعده ضمّه. وتختار الثاني بضغطة قبل أول مجموعة.' },
+      { icon: 'Sparkle', title: 'عبارات تقول شي عن يومك', line: 'سطر التحية صار عن تمرين اليوم وراحتك ووزنك، وما يتكرر.' },
+      { icon: 'Bell', title: 'رجع «جديد في مران»', line: 'كل تحديث يقولك وش الجديد فيه، مرة وحدة بس.' },
+    ],
+  },
   {
     version: '3.4', date: '2026-10-19',
     items: [
       { icon: 'ShieldCheck', title: '«خطتي» ما عاد تعلّق', line: 'لو صار خلل تطلع لك رسالة و«جرّب مرة ثانية» بدل الشاشة السودا، وبياناتك محفوظة.' },
       { icon: 'ChartBar', title: 'التقدم ما يعلق بعد «خطتي»', line: 'صفحة التقدم كانت تغطي الشاشة وما تنزل بعد ما تفتح «خطتي». انحلّت.' },
       { icon: 'ArrowsClockwise', title: 'التحديث ما يقاطعك', line: 'النسخة الجديدة تنتظر لين تطلع من التطبيق، ما تنزل عليك وسط التمرين.' },
-      { icon: 'Repeat', title: 'تمارين بالتناوب', line: 'خلّ تمرينين يتبادلون: يوم أرجل فتح ورك، واللي بعده ضمّه. وتختار الثاني بضغطة قبل أول مجموعة.' },
-      { icon: 'Sparkle', title: 'عبارات تقول شي عن يومك', line: 'سطر التحية صار عن تمرين اليوم وراحتك ووزنك، وما يتكرر.' },
-      { icon: 'Bell', title: 'رجع «جديد في مران»', line: 'كل تحديث يقولك وش الجديد فيه، مرة وحدة بس.' },
     ],
   },
   {

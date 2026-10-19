@@ -75,7 +75,7 @@ test('versions compare as numbers', () => {
 test('back after several releases: every entry since, newest first', () => {
   const all = entriesSince('2.2')
   assert.deepEqual(all.map(e => e.version), WHATS_NEW.map(e => e.version))
-  assert.deepEqual(entriesSince('3.2').map(e => e.version), ['3.4', '3.3'])
+  assert.deepEqual(entriesSince('3.2').map(e => e.version), ['3.5', '3.4', '3.3'])
   assert.deepEqual(entriesSince(APP_VERSION), [])
   // an entry written ahead of a release is not shown before it
   const ahead = [{ version: '9.0', date: '2030-01-01', items: [] }, ...WHATS_NEW]
@@ -85,7 +85,7 @@ test('back after several releases: every entry since, newest first', () => {
 test('at launch: his own key first, the shared one as the start, nothing on a fresh install', () => {
   assert.deepEqual(whatsNewAtLaunch({ firstRun: true, seenShared: null }), { entries: [], markSeen: true })
   assert.equal(whatsNewAtLaunch({ seenShared: '2.2' }).entries.length, WHATS_NEW.length, 'Hamza, at 2.2 since July')
-  assert.deepEqual(whatsNewAtLaunch({ seenOwn: '3.3', seenShared: '2.2' }).entries.map(e => e.version), ['3.4'])
+  assert.deepEqual(whatsNewAtLaunch({ seenOwn: '3.3', seenShared: '2.2' }).entries.map(e => e.version), ['3.5', '3.4'])
   assert.deepEqual(whatsNewAtLaunch({ seenOwn: APP_VERSION, seenShared: '2.2' }).entries, [])
 })
 

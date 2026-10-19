@@ -13,7 +13,7 @@
 //      390 or 320; «تمام» stores the version (meran_seen_version) and
 //      leaves hf_seen_version at the old design's 2.2; a reload shows
 //      nothing; the old design at /classic/ shows no notice of its own;
-//   2. back after two releases: only those two; after one: «الإصدار 3.4»;
+//   2. back after two releases: only those two; after one: «الإصدار 3.5»;
 //   3. never on a fresh install (the setup questions come, the version is
 //      marked seen silently);
 //   4. never over the session, nor over its summary: it waits for «تم»;
@@ -143,19 +143,19 @@ for (const [w, h] of [[390, 844], [320, 568]]) {
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await sheet(page).waitFor({ timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(600)
-  ok('at 3.2: only the two releases since', JSON.stringify(await versionsShown(page)) === JSON.stringify(['3.4', '3.3']), (await versionsShown(page)).join(','))
+  ok('at 3.2: only the releases since', JSON.stringify(await versionsShown(page)) === JSON.stringify(['3.5', '3.4', '3.3']), (await versionsShown(page)).join(','))
   await tapOk(page)
-  ok('at 3.2: «تمام» stores 3.4', await stored(page, 'meran_seen_version') === APP_VERSION)
+  ok('at 3.2: «تمام» stores the latest', await stored(page, 'meran_seen_version') === APP_VERSION)
   ok('at 3.2: no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
   await ctx.close()
 }
 {
-  const { ctx, page } = await open({ seed: { ...BASE, hf_seen_version: '2.2', meran_seen_version: '3.3' } })
+  const { ctx, page } = await open({ seed: { ...BASE, hf_seen_version: '2.2', meran_seen_version: '3.4' } })
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await sheet(page).waitFor({ timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(600)
   const text = (await shown(page)) ? await sheet(page).innerText() : ''
-  ok('at 3.3: one release — «الإصدار 3.4» and its date', /الإصدار\s*3\.4/.test(text) && /19 أكتوبر/.test(text) && !/وش تغيّر/.test(text), text.slice(0, 80))
+  ok('at 3.4: one release — «الإصدار 3.5» and its date', /الإصدار\s*3\.5/.test(text) && /19 أكتوبر/.test(text) && !/وش تغيّر/.test(text), text.slice(0, 80))
   await ctx.close()
 }
 {
