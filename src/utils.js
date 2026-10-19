@@ -1,5 +1,4 @@
-import { RANKS, COMMITMENT_LEVELS, GREETINGS } from './constants.js'
-import { STREAK_MILESTONES } from './streak.js'
+import { RANKS, COMMITMENT_LEVELS } from './constants.js'
 import { dayKey, todayKey, calendarKey, dayStart, toWesternDigits } from './day.js'
 import { validatePlan } from './plan/validate.js'
 
@@ -78,6 +77,10 @@ export const PER_USER_KEYS = [
   // (src/plan/view.js DISMISS_KEY), and when a name left a plan day
   // (DROPPED_KEY). New in the redesign; the old design never reads them.
   'meran_plan_dismissed', 'meran_plan_dropped',
+  // What Home's greeting said lately (src/greetings.js), so no line comes
+  // round again before its pool is spent. New in the redesign; the old
+  // design keeps its own hf_greeting_bags / hf_last_greeting.
+  'meran_greetings',
 ]
 
 export const deleteUserData = (id) => {
@@ -717,83 +720,6 @@ export const buildCalendarData = (sessions, weeks = 14) => {
   return days
 }
 
-// ── The line under the logo ───────────────────────────────────
-//
-// Picks the greeting pool that fits the day, then the next line from
-// that pool's shuffle bag.
-//
-// The order is the order of registers: a deload week sets the whole
-// app's tone («lighter, not weaker») and nothing may contradict it; a
-// comeback after days away is about the person; a rest chosen today and
-// a credit spent yesterday are the most specific facts about this
-// morning; then a scheduled rest day, a day already trained, a round-
-// number streak, a running streak, and the training-day voice last.
-//
-// A shuffle bag, not a random draw. The first version only refused to
-// repeat the line shown last, so a three-line pool cycled through the
-// same lines constantly and a one-line pool said the same thing every
-// time. Each pool now deals its whole deck, in a random order, before
-// any line comes round again — and the reshuffle never starts with the
-// line that ended the previous deck.
-//
-// `random`, `last` and `bags` are parameters so the choice can be
-// tested; the app passes nothing and gets Math.random and storage.
-// The milestone ladder lives with the rest of the streak's words.
-export { STREAK_MILESTONES }
-
-export function greetingPoolFor({
-  isRecoveryDay = false, isRestTaken = false, trainedToday = false,
-  deload = false, streak = 0, daysSinceLast = null, creditSpentYesterday = false,
-} = {}) {
-  if (deload)                                       return 'deload'
-  if (daysSinceLast != null && daysSinceLast >= 5)  return 'comeback'
-  if (isRestTaken)                                  return 'restTaken'
-  if (creditSpentYesterday)                         return 'creditSpent'
-  if (isRecoveryDay)                                return 'rest'
-  if (trainedToday)                                 return 'done'
-  if (STREAK_MILESTONES.has(streak) || (streak > 365 && streak % 100 === 0)) return 'milestone'
-  if (streak >= 7)                                  return 'streak'
-  return 'general'
-}
-
-const shuffled = (n, random) => {
-  const a = [...Array(n).keys()]
-  for (let i = n - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
-export function pickGreeting({
-  name = 'البطل',
-  pools = GREETINGS,
-  random = Math.random,
-  remember = true,
-  last = remember ? ls.get('hf_last_greeting', null) : null,
-  bags = remember ? ls.get('hf_greeting_bags', {}) : {},
-  ...day
-} = {}) {
-  let key = greetingPoolFor(day)
-  if (!pools[key] || !pools[key].length) key = 'general'
-  const list = pools[key]
-
-  // The bag holds the indices not yet dealt. Indices outside the pool
-  // (a pool that shrank since the bag was stored) are dropped.
-  let bag = (Array.isArray(bags[key]) ? bags[key] : []).filter(i => Number.isInteger(i) && i < list.length)
-  if (!bag.length) {
-    bag = shuffled(list.length, random)
-    // Never open a fresh deck with the line that just closed the last.
-    if (list.length > 1 && list[bag[0]] === last) bag.push(bag.shift())
-  }
-  const idx = bag.shift()
-  const line = list[idx]
-
-  if (remember) {
-    ls.set('hf_greeting_bags', { ...bags, [key]: bag })
-    ls.set('hf_last_greeting', line)
-  }
-  return line
-    .replaceAll('{name}', name || 'البطل')
-    .replaceAll('{streak}', toWesternDigits(String(day.streak ?? 0)))
-}
+// ── The line under the date ───────────────────────────────────
+// Moved to src/greetings.js (greetingToday): it reads the day's facts
+// and remembers what it said under its own key, meran_greetings.
