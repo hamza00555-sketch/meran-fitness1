@@ -3210,6 +3210,152 @@ const timeline = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// ══ «بالتناوب»: the hip machines take turns on his leg day ══════
+// حمزة: «اليوم رجول بسوي هيب ابدكشن اجي يوم ثاني للرجول يعمل هيب اددكشن.
+// والميزة تسمح لي بالاختيار». His leg day ends with one row that takes
+// turns between the abduction and adduction machines (src/plan/rotate.js:
+// which is due comes from his sessions of the day, never from storage).
+// The first leg day starts on the abduction machine; done and saved, the
+// next leg day starts on the adduction one — and before his first set he
+// can do the other one this time, which is what then counts.
+{
+  const SHOTS = process.env.SHOTS || OUT
+  mkdirSync(SHOTS, { recursive: true })
+  const AB = 'Machine Hip Abduction', AD = 'Machine Hip Adduction'
+  const machine = JSON.parse(JSON.stringify(BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')))
+  machine.weeklySchedule[2].exercises.push({ name: AB, muscle: 'Legs', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90, by: 'user', rotate: [AB, AD] })
+  const opened = await open({ active: null, sessions: [], viewport: { width: 390, height: 844 }, xp: 2400,
+    extra: { hf_plan: machine, hf_plan_index: 2, hf_rep_target: { id: 'volume', base: 12, top: 15 }, hf_recovery: { daysPerWeek: 3 } } })
+  const { ctx, errors } = opened
+  let page = opened.page
+  const start = async () => {
+    await page.locator('nav.f-tabs > button').first().click().catch(() => {}); await page.waitForTimeout(500)
+    await page.getByRole('button', { name: /^(ابدأ التمرين|جلسة زيادة)$/ }).first().click()
+    await page.locator('[data-testid="session"]').waitFor({ timeout: 6000 }).catch(() => {})
+    await page.waitForTimeout(900)
+  }
+  const toRotating = async () => {
+    await page.locator('.s-qrow').filter({ hasText: /ورك جهاز/ }).first().click(); await page.waitForTimeout(900)
+  }
+  const doSets = async (n) => {
+    for (let i = 0; i < n; i++) {
+      await completeBtn(page).click(); await page.waitForTimeout(500)
+      await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 2000 }).catch(() => {}); await page.waitForTimeout(400)
+    }
+  }
+  const finish = async () => {
+    await page.getByRole('button', { name: /^إنهاء$/ }).click(); await page.waitForTimeout(500)
+    await page.locator('.k-sheet').last().getByRole('button', { name: 'احفظ وأنهِ' }).click()
+    await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+    await page.waitForTimeout(1200)
+  }
+  /** The next leg day: the plan's counter at `idx`, the app opened again —
+   *  in a fresh tab of the same phone (open()'s seed would put the first
+   *  day's data back on a reload of this one). */
+  const nextLegDay = async (idx) => {
+    await page.evaluate((i) => localStorage.setItem('hf_plan_index', JSON.stringify(i)), idx)
+    const next = await ctx.newPage()
+    next.on('pageerror', e => errors.push(String(e)))
+    await page.close()
+    page = next
+    await page.goto(APP, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1500)
+  }
+  const plan = () => page.evaluate(() => JSON.parse(localStorage.getItem('hf_plan')))
+
+  await page.locator('nav.f-tabs > button').first().click(); await page.waitForTimeout(600)
+  await page.locator('.hm-more').click().catch(() => {}); await page.waitForTimeout(800)
+  const dp = (await page.locator('[data-testid="day-rotate"]').innerText().catch(() => '')).replace(/\s+/g, ' ')
+  ok('rotate: Home\'s day sheet shows the one due — the abduction machine — and «بالتناوب · المرة الجاية: ضم ورك جهاز»',
+    /بالتناوب · المرة الجاية: ضم ورك جهاز/.test(dp) && /فتح ورك جهاز/.test(await page.locator('.k-sheet .dp-list').innerText().catch(() => '')), dp)
+  await page.keyboard.press('Escape'); await page.waitForTimeout(500)
+
+  // ── the first leg day: the abduction machine
+  await start()
+  const a0 = await activeStored(page)
+  const r0 = a0.exercises.at(-1)
+  ok('rotate: the first leg day starts on the abduction machine, its turns on the session\'s exercise',
+    r0.name === AB && JSON.stringify(r0.rotate) === JSON.stringify([AB, AD]) && !r0.originalName, JSON.stringify(r0))
+  await toRotating()
+  const bar = () => page.locator('[data-testid="rotate-bar"]')
+  const barText = (await bar().innerText().catch(() => '')).replace(/\s+/g, ' ')
+  ok('rotate: the session says «بالتناوب · المرة الجاية: ضم ورك جهاز» under the exercise', /بالتناوب · المرة الجاية: ضم ورك جهاز/.test(barText), barText)
+  ok('rotate: before the first set, one tap offers the other one — «بدّلها لـ ضم ورك جهاز هالمرة»',
+    /بدّلها لـ ضم ورك جهاز هالمرة/.test((await page.locator('[data-testid="rotate-switch"]').innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  const looks = await page.evaluate(() => {
+    const b = document.querySelector('[data-testid="rotate-switch"]'), cs = getComputedStyle(b)
+    return { bg: cs.backgroundColor, color: cs.color, h: b.getBoundingClientRect().height }
+  })
+  ok('rotate: the choice is a quiet pill, never the green (the green stays the dock\'s), a 44pt target', looks.bg !== ACCENT && looks.color !== ACCENT && looks.h >= 44, JSON.stringify(looks))
+  await page.screenshot({ path: `${SHOTS}/390-session-rotate.png` })
+  await page.setViewportSize({ width: 320, height: 568 }); await page.waitForTimeout(500)
+  const over = await page.evaluate(() => [...document.querySelectorAll('[data-testid="rotate-bar"], [data-testid="rotate-bar"] *')]
+    .filter(el => { const r = el.getBoundingClientRect(); return r.width && (r.right > innerWidth + 1 || r.left < -1) }).map(el => el.className))
+  ok('rotate: at 320 the line and the choice keep inside the screen', over.length === 0, over.join(' | '))
+  ok('rotate: at 320 «تمّت المجموعة» is still on screen', await completeBtn(page).evaluate(el => el.getBoundingClientRect().bottom <= innerHeight))
+  await page.screenshot({ path: `${SHOTS}/320-session-rotate.png` })
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(400)
+  await doSets(3)
+  ok('rotate: a set done — the choice goes (sets are never moved to the other machine), the line stays',
+    await page.locator('[data-testid="rotate-switch"]').count() === 0 && await bar().count() === 1)
+  await finish()
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('hf_sessions')))
+  ok('rotate: the session is saved with the abduction machine done', saved?.[0]?.exercises?.some(e => e.name === AB && e.sets.length === 3), JSON.stringify(saved?.[0]?.exercises?.map(e => e.name)))
+  ok('rotate: nothing about the turns was written to his plan', JSON.stringify((await plan()).weeklySchedule[2].exercises.at(-1).rotate) === JSON.stringify([AB, AD]))
+
+  // ── the next leg day: the adduction machine
+  await nextLegDay(5)
+  await start()
+  const a1 = await activeStored(page)
+  ok('rotate: the next leg day starts on the adduction machine', a1.exercises.at(-1).name === AD && a1.planDayIndex === 5, JSON.stringify(a1.exercises.map(e => e.name)))
+  await toRotating()
+  ok('rotate: and says the abduction one is next', /المرة الجاية: فتح ورك جهاز/.test((await bar().innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  // the choice: the other one, this time
+  await page.locator('[data-testid="rotate-switch"]').click(); await page.waitForTimeout(900)
+  const a2 = await activeStored(page)
+  const x2 = a2.exercises.at(-1)
+  ok('rotate: «بدّلها لـ فتح ورك جهاز هالمرة» — the session runs on the abduction machine, no «بدل» (its own turn), the sets fresh',
+    x2.name === AB && !x2.originalName && x2.sets.length === 3 && x2.sets.every(s => !s.done) && JSON.stringify(x2.rotate) === JSON.stringify([AB, AD]), JSON.stringify(x2))
+  ok('rotate: the head shows it, and the line now says the adduction one is next', /فتح ورك جهاز/.test(await page.getByTestId('exercise-name').innerText())
+    && /المرة الجاية: ضم ورك جهاز/.test((await bar().innerText().catch(() => '')).replace(/\s+/g, ' ')))
+  ok('rotate: his plan untouched by the choice', JSON.stringify((await plan()).weeklySchedule[2].exercises.at(-1)) === JSON.stringify(machine.weeklySchedule[2].exercises.at(-1)))
+  await page.screenshot({ path: `${SHOTS}/390-session-rotate-chosen.png` })
+  await doSets(1)
+  await finish()
+  // what he did counts: the abduction machine again, so the adduction one is still due
+  await nextLegDay(8)
+  await start()
+  ok('rotate: what he did is what counts — after the abduction machine (chosen), the adduction one is due again',
+    (await activeStored(page)).exercises.at(-1).name === AD, JSON.stringify((await activeStored(page)).exercises.map(e => e.name)))
+  ok('rotate: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+{
+  // «تسويها بالجلسة»: the one not due is his plan's — never offered as «مو بخطتك»
+  const AB = 'Machine Hip Abduction', AD = 'Machine Hip Adduction'
+  const machine = JSON.parse(JSON.stringify(BUILT_IN_PLANS.find(p => p.planId === 'machine_beginner_3day')))
+  machine.weeklySchedule[2].exercises.push({ name: AB, muscle: 'Legs', sets: 3, repsMin: 12, repsMax: 15, restSeconds: 90, rotate: [AB, AD] })
+  const DAY = 86400000
+  const leg = (daysAgo, idx, name) => ({
+    id: Date.now() - daysAgo * DAY, date: new Date(Date.now() - daysAgo * DAY).toISOString(), duration: 50, planDayIndex: idx, planDayName: machine.weeklySchedule[2].name,
+    exercises: [['Hack Squat', 100], [name, 30]].map(([n, w], i) => ({ id: `r${daysAgo}${i}`, name: n, muscle: 'Legs', sets: [{ weight: String(w), reps: '12', done: true }, { weight: String(w), reps: '12', done: true }] })),
+  })
+  const sessions = [leg(2, 11, AD), leg(5, 8, AB), leg(8, 5, AD), leg(11, 2, AB)]
+  const { ctx, page, errors } = await open({ active: null, sessions, viewport: { width: 390, height: 844 },
+    extra: { hf_plan: machine, hf_plan_index: 12, hf_rep_target: { id: 'volume', base: 12, top: 15 }, hf_recovery: { daysPerWeek: 3 } } })
+  await page.locator('nav.f-tabs > button').first().click(); await page.waitForTimeout(600)
+  const row = page.locator('.k-row').filter({ hasText: 'خطتي' }).first()
+  await row.scrollIntoViewIfNeeded(); await row.click()
+  await page.locator('[data-testid="plan-view"]').waitFor({ timeout: 8000 }).catch(() => {}); await page.waitForTimeout(1100)
+  await page.locator('.pv-tab[data-day="2"]').click(); await page.waitForTimeout(1000)
+  const legs = '.pv-page[data-page="2"]'
+  ok('rotate: the leg day\'s card takes turns — the abduction machine due (adduction was last)',
+    await page.locator(`${legs} [data-testid="plan-card"][data-rotate="1"] .pv-rm[data-turn="due"]`).getAttribute('data-name') === AB)
+  ok('rotate: «تسويها بالجلسة» offers neither hip machine — both are his plan\'s', await page.locator(`${legs} [data-testid="extra-card"]`).count() === 0
+    && await page.locator(`${legs} [data-testid="plan-extra-note"]`).count() === 0)
+  ok('rotate (تسويها بالجلسة): no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT}\n`)

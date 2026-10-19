@@ -581,6 +581,7 @@
    names as open rows between hairlines (↑ and × on discs, as the
    steppers'), the choices as picture cards, «فكّ التناوب» last. */
 .xr { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); padding-bottom: var(--space-4); }
+.xr .xs-keeps > span { text-wrap: balance; }
 .xr-list { list-style: none; margin: 0; padding: 0; display: grid; border-block: 1px solid var(--hairline); }
 .xr-m { min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 76px; padding-block: 10px; }
 .xr-m + .xr-m { border-top: 1px solid var(--hairline); }
