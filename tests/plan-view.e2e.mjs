@@ -1223,6 +1223,19 @@ await seed()
     await page.locator('.k-sheet [aria-label="إغلاق"]').click(); await settle(700)
   }
   await page.setViewportSize({ width: 390, height: 844 }); await settle(500)
+
+  // the builder («عدّل الخطة كاملة»): its row says it, and a save keeps the turns
+  await page.locator(`${LEGS} [data-testid="plan-view-builder"]`).click(); await settle(1300)
+  const brow = page.locator('#plist .prow').filter({ has: page.locator('[data-testid="builder-rotate"]') })
+  ok('the builder: the row says «بالتناوب مع ضم ورك جهاز»', await brow.count() === 1
+    && /بالتناوب مع ضم ورك جهاز/.test(await flat(brow.locator('[data-testid="builder-rotate"]'))), await flat(brow))
+  await page.locator('[data-act="plan-start"]').click(); await settle(700)
+  await page.locator('[data-act="activate"]').click(); await settle(1300)
+  const kept = (await legsPlan()).find(x => x.rotate)
+  ok('the builder: saved, the row still takes its turns — the abduction machine first, then the adduction one', kept?.name === AB
+    && JSON.stringify(kept.rotate) === JSON.stringify([AB, AD]) && (await legsPlan()).length === 7, JSON.stringify((await legsPlan()).map(x => [x.name, x.rotate])))
+  await page.keyboard.press('Escape'); await settle(900)
+  ok('the builder: back on «خطتي», the card of the two still there', await view().count() === 1 && await rcard().count() === 1)
   await closeView()
 
   // the old design reads the plan with the row that takes turns: by its first name
