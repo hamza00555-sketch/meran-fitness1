@@ -352,11 +352,11 @@ export const SCREENS = [
     id: 'page-home-full', group: 'pages', fixture: 'veteran', shot: 'full',
     label: 'الرئيسية — العمود كاملاً', labelEn: 'Home — full column',
     reach: [{ tab: 'home' }],
-    // Not «دورة التعافي» — that card ships inside a collapsed <details>,
-    // and innerText does not see through one.
-    expect: { text: /تقدم البرنامج/, accent: '#5EC32A' },
+    // «خطتي»: the row under the button (the plan's progress card, the rest
+    // cycle and the month's muscles left Home).
+    expect: { text: /خطتي/, accent: '#5EC32A' },
     covers: ['src/pages/HomePage.jsx', 'src/components/ui.jsx', 'src/components/Icons.jsx'],
-    state: 'الصفحة كلها: البطل، الجيمفكيشن، تقدم البرنامج، التعافي مطوياً',
+    state: 'الصفحة كلها: اليوم، أول التمارين، الزر، ثم «خطتي» (وتقرير الشهر في وقته)',
   },
   {
     id: 'page-workout', group: 'pages', fixture: 'veteran', shot: 'fold',
