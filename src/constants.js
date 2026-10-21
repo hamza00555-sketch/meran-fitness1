@@ -18,9 +18,16 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.6'
+export const APP_VERSION = '3.7'
 
 export const WHATS_NEW = [
+  {
+    version: '3.7', date: '2026-10-21',
+    items: [
+      { icon: 'Flame', tone: 'streak', title: 'يوم راحة كل 3 أيام', line: 'من اليوم تكسب يوم راحة اختياري كل 3 أيام محسوبة بدل 5.' },
+      { icon: 'Moon', tone: 'rest', title: 'الحد 5 أيام', line: 'تجمع لين 5 أيام راحة، ولما توصلها تكسب من جديد بعد ما تستخدم واحد.' },
+    ],
+  },
   {
     version: '3.6', date: '2026-10-21',
     items: [

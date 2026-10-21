@@ -10,7 +10,10 @@
 //   · a deload does not protect the streak (recovery.js never reads it)
 //   · «تخطي اليوم» only moves the plan; the day still wants a workout
 //   · credits are spent automatically at 03:00, never by a tap
-//   · the balance has no real ceiling (see usableCredits)
+//   · one comes every 3 counted days and he holds at most 5 — from 21 Oct
+//     2026; before it every 5 with no real ceiling (recovery.js
+//     restRulesOn). Nothing here names either number: they come from the
+//     engine for the day (creditTarget, creditCap), see restDays.js
 //
 // Pure functions of (recovery, config, active, now). No storage, no
 // React, so every line can be pinned in node tests.
@@ -416,6 +419,13 @@ const cellKind = (r, today) => {
 /** One line for a tapped calendar day. */
 export function dayLine(r, today) {
   if (!r) return ''
+  const line = dayLineOf(r, today)
+  // 21 Oct 2026, when the cap of 5 came in over a bigger balance: said on
+  // the day itself, the one place the trim is told
+  return r.trimmed ? `${line} · انشال ${r.trimmed === 1 ? 'يوم راحة' : countAr(r.trimmed, 'restday')} بالحد` : line
+}
+
+function dayLineOf(r, today) {
   const d = fmtDayAr(r.date)
   const k = cellKind(r, today)
   const trainedOnRest = r.completed && r.scheduled === 'rest'

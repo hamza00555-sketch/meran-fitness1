@@ -11,6 +11,7 @@
 
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { APP_VERSION } from '../src/constants.js'
+import { hamzaHistory } from './hamza-history.mjs'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const results = []
@@ -94,6 +95,38 @@ await page.goto(new URL('/classic/', APP).href); await settle()
 ok('direct /classic/ with the new design chosen: back to /', new URL(page.url()).pathname === '/', page.url())
 
 ok('no page errors', errors.length === 0, errors.join('; '))
+
+// 7. After 21 Oct 2026 the new design counts one rest day every 3 counted
+//    days, at most 5; the old design keeps its own engine (every 5, no
+//    ceiling). Same data: the old design still loads it without an error
+//    and shows the same streak; only the rest-day balance may differ.
+for (const [iso, through, held] of [['2026-10-21T10:00:00+03:00', '2026-10-20', '1'], ['2026-10-31T10:00:00+03:00', '2026-10-30', '5']]) {
+  const { sessions, recovery } = hamzaHistory(through)
+  const c = await browser.newContext({ ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar', serviceWorkers: 'block' })
+  await c.route(u => u.pathname.startsWith('/pack/'), r => r.abort())
+  await c.addInitScript((seed) => {
+    if (sessionStorage.getItem('seeded')) return
+    sessionStorage.setItem('seeded', '1')
+    for (const [k, v] of Object.entries(seed)) localStorage.setItem(k, JSON.stringify(v))
+  }, { ...SEED, hf_sessions: sessions, hf_recovery: recovery, meran_rest_announced: [] })
+  const p = await c.newPage()
+  const errs = []
+  p.on('pageerror', e => errs.push(String(e)))
+  await p.clock.install({ time: new Date(iso) })
+  const day = iso.slice(0, 10)
+  await p.goto(APP); await p.waitForLoadState('networkidle').catch(() => {}); await p.waitForTimeout(800)
+  const n = (await p.locator('[data-testid="streak-number"]').innerText()).replace(/\D/g, '')
+  const rest = await p.locator('[data-testid="streak-number"]').getAttribute('data-rest-days')
+  ok(`${day}, new rules: the new design holds ${held}`, rest === held, String(rest))
+  await p.evaluate(() => localStorage.setItem('meran_design', 'classic'))
+  await p.goto(new URL('/classic/', APP).href); await p.waitForLoadState('networkidle').catch(() => {}); await p.waitForTimeout(1200)
+  const pill = await p.evaluate(() => (document.querySelector('header')?.innerText || '').match(/🔥\s*(\d+)/)?.[1] || null)
+  ok(`${day}, old design: loads the same data`, new URL(p.url()).pathname === '/classic/' && pill != null, p.url())
+  ok(`${day}, old design: the same streak (${n})`, pill === n, `${pill} vs ${n}`)
+  ok(`${day}, old design: no page errors`, errs.length === 0, errs.join('; '))
+  await c.close()
+}
+
 await browser.close()
 
 let failed = 0

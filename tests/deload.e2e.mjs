@@ -18,6 +18,7 @@ import { writeFileSync, mkdirSync } from 'node:fs'
 import { ACHIEVEMENTS, BUILT_IN_PLANS, APP_VERSION } from '../src/constants.js'
 import { deloadWeight } from '../src/deload.js'
 import { makeContrast } from './contrast.mjs'
+import { hamzaHistory } from './hamza-history.mjs'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
@@ -1223,6 +1224,146 @@ for (const device of ['iPhone 13', 'iPhone SE']) {
   await page.waitForTimeout(2600)
   ok('earned: once — opening again does not announce it again', await page.locator('[data-testid="rest-earned"]').count() === 0)
   ok('rest days, earned: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ From 21 Oct 2026: one every 3 counted days, at most 5 ═════════
+// حمزة: «ابا نظام الراحة الاختيارية يكون اسهل بس يلتزم بالحد الاقصى».
+// The July blocks above are history under the old rule (every 5) and
+// still read that way. From 21 October the sheet reads the rule of the
+// day from the engine: «N من 5», three slots, and at 5 one short line
+// instead of them; the announcement says 3 counted days. Shots at 390:
+// rest-sheet-0/2/5.png, rest-block-0/2/5.png, rest-earned-3.png.
+
+/** Sessions on the given days of November 2026. */
+const novSessions = (...days) => days.map((n, i) => ({
+  id: Date.UTC(2026, 10, n) + i,
+  date: new Date(2026, 10, n, 18).toISOString(),
+  duration: 45,
+  exercises: [{ id: 'n' + i, muscle: 'Chest', name: 'Bench Press', sets: [{ weight: '80', reps: '12', done: true }] }],
+}))
+const NOV_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-11-01' }
+
+/** «ليش N؟» opened from Home: the rest block's parts, the words, the height. */
+async function openRestSheet(page) {
+  await page.locator('[data-testid="streak-number"]').click()
+  await page.waitForTimeout(700)
+  return page.evaluate(() => {
+    const block = document.querySelector('[data-testid="rest-days"]')
+    const s = document.querySelector('.k-sheet')
+    const c = s.cloneNode(true)
+    c.querySelectorAll('.ss-grid').forEach(n => n.remove())
+    c.style.cssText = 'position:absolute;left:-9999px'
+    document.body.appendChild(c)
+    const text = c.innerText
+    c.remove()
+    const b = s.querySelector('.k-sheet-body')
+    const items = (id) => [...document.querySelectorAll(`[data-testid="${id}"]`)].map(e => e.innerText.trim())
+    return {
+      title: block?.querySelector('.ss-rd-h')?.innerText.replace(/\s+/g, ' ').trim() || '',
+      next: document.querySelector('[data-testid="rest-days-next"]')?.innerText.replace(/\s+/g, ' ').trim() || '',
+      slots: block?.querySelectorAll('.ss-seg i').length ?? -1,
+      on: block?.querySelectorAll('.ss-seg i.on').length ?? -1,
+      held: items('rest-day-held'), used: items('rest-day-used'),
+      stake: document.querySelector('[data-testid="streak-stake"]')?.innerText.trim() || '',
+      mark: document.querySelector('[data-testid="streak-today-mark"]')?.innerText.trim() || '',
+      text, scroll: b.scrollHeight / b.clientHeight,
+      sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    }
+  })
+}
+const wordsOf = (text) => text.split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).length
+
+for (const [label, iso, days, expect] of [
+  // 1–10 Nov counted, earned the 3rd, 6th and 9th; the 11th (a workout
+  // day) used the oldest; the 12th still owed
+  ['2', '2026-11-12T10:00:00+03:00', [1, 3, 5, 7, 9], {
+    rest: '2', title: 'أيام الراحة الاختيارية: 2 من 5', next: 'الجاي بعد يومين محسوبة', slots: 3, on: 1,
+    held: ['كسبته 9 نوفمبر', 'كسبته 6 نوفمبر'], used: ['استخدمته 11 نوفمبر'], stake: '',
+  }],
+  // the 11th, 12th and 13th all used one: none left, a miss today costs the streak
+  ['0', '2026-11-14T10:00:00+03:00', [1, 3, 5, 7, 9], {
+    rest: '0', title: 'أيام الراحة الاختيارية: 0 من 5', next: 'الجاي بعد يومين محسوبة', slots: 3, on: 1,
+    held: [], used: ['استخدمته 13 نوفمبر', 'استخدمته 12 نوفمبر', 'استخدمته 11 نوفمبر'], stake: 'لو فاتك يرجع صفر',
+  }],
+  // 1–20 Nov, every workout done: 20 counted, 5 held since the 15th — the cap
+  ['5', '2026-11-20T09:00:00+03:00', [1, 3, 5, 7, 9, 11, 13, 15, 17, 19], {
+    rest: '5', title: 'أيام الراحة الاختيارية: 5 من 5', next: 'وصلت الحد — تكسب بعد ما تستخدم واحد', slots: 0, on: 0,
+    held: ['كسبته 15 نوفمبر', 'كسبته 12 نوفمبر', 'كسبته 9 نوفمبر'], used: [], stake: '',
+  }],
+]) {
+  const { ctx, page, errors } = await open(iso, { sessions: novSessions(...days), recovery: NOV_RECOVERY })
+  await page.waitForTimeout(400)
+  const st = await streakOnHome(page)
+  const lit = expect.rest !== '0'
+  ok(`rules from 21 Oct, ${label} held: Home's flame ${lit ? 'filled, with its glow' : 'an outline'}`,
+    st.rest === expect.rest && (lit ? st.filled && st.glow && !st.hollow : st.hollow && !st.filled && !st.glow), JSON.stringify(st))
+  ok(`rules from 21 Oct, ${label} held: Home says only the number`, st.board === 0 && /^\d+ (يوم|أيام)$/.test(
+    await page.evaluate(() => document.querySelector('[data-testid="streak-number"]').innerText.replace(/\s+/g, ' ').trim())))
+  ok(`rules from 21 Oct, ${label} held: nothing announced on a first run`, await page.locator('[data-testid="rest-earned"]').count() === 0)
+  await page.screenshot({ path: `${SHOTS}/flame-v2-${label}.png`, clip: { x: 0, y: 0, width: 390, height: 240 } })
+  const sh = await openRestSheet(page)
+  ok(`sheet ${label}: «${expect.title}»`, sh.title === expect.title, sh.title)
+  ok(`sheet ${label}: «${expect.next}»`, sh.next === expect.next, sh.next)
+  ok(`sheet ${label}: ${expect.slots} slots, ${expect.on} filled`, sh.slots === expect.slots && sh.on === expect.on, JSON.stringify([sh.slots, sh.on]))
+  ok(`sheet ${label}: the ones held, by the day earned`, JSON.stringify(sh.held) === JSON.stringify(expect.held), JSON.stringify(sh.held))
+  ok(`sheet ${label}: the ones used, by the day`, JSON.stringify(sh.used) === JSON.stringify(expect.used), JSON.stringify(sh.used))
+  ok(`sheet ${label}: «لو فاتك يرجع صفر» only with none held`, sh.stake === expect.stake, sh.stake)
+  ok(`sheet ${label}: no «تذاكر», no rules spelled out`, !/تذكر|تذاكر|كيف ينحسب|ما ينتهي|ينصرف واحد لحاله|هي نفسها|كل 3|كل ٣/.test(sh.text), sh.text)
+  ok(`sheet ${label}: under 60 words besides the calendar (${wordsOf(sh.text)})`, wordsOf(sh.text) < 60, sh.text)
+  ok(`sheet ${label}: one screen and a short scroll (${sh.scroll.toFixed(2)} screens)`, sh.scroll <= 1.5, String(sh.scroll))
+  ok(`sheet ${label}: nothing sticks out sideways`, !sh.sideways)
+  await page.screenshot({ path: `${SHOTS}/rest-sheet-${label}.png` })
+  await page.locator('[data-testid="rest-days"]').screenshot({ path: `${SHOTS}/rest-block-${label}.png` })
+  ok(`rules from 21 Oct, ${label} held: no page errors`, errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // 6 November, a scheduled rest day: the sixth counted day, so a rest
+  // day is earned this morning — three counted days after the one on the
+  // 3rd, which he had seen.
+  const { ctx, page, errors } = await open('2026-11-06T09:00:00+03:00', {
+    sessions: novSessions(1, 3, 5), recovery: NOV_RECOVERY,
+    extra: { meran_rest_announced: ['2026-11-03'] },
+  })
+  const shown = await page.waitForSelector('[data-testid="rest-earned"]', { timeout: 5000 }).then(() => true, () => false)
+  ok('earned, from 21 Oct: «كسبت يوم راحة» comes on its own', shown)
+  await page.waitForTimeout(1500)
+  const txt = shown ? (await page.locator('[data-testid="rest-earned"]').innerText()).replace(/\s+/g, ' ') : ''
+  ok('earned, from 21 Oct: «3 أيام محسوبة جديدة — وصل ستريكك 6»', /3 أيام محسوبة جديدة — وصل ستريكك 6/.test(txt), txt)
+  ok('earned, from 21 Oct: and how many he holds now', /صار عندك يومين راحة اختيارية/.test(txt), txt)
+  const n = await page.evaluate(() => document.querySelector('[data-testid="rest-earned"] .re-n')?.innerText.trim())
+  ok('earned, from 21 Oct: the count landed on 2', n === '2', String(n))
+  await page.screenshot({ path: `${SHOTS}/rest-earned-3.png` })
+  ok('earned, from 21 Oct: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+{
+  // حمزة on 21 October: 48 on the 20th with none held and 3 of 5, then
+  // trained on the 20th (4 of 5). The new rules take over in the morning:
+  // 4 of 5 is past 3, so one is earned and one day carries.
+  const { sessions, recovery } = hamzaHistory('2026-10-20')
+  const { ctx, page, errors } = await open('2026-10-21T10:00:00+03:00', {
+    sessions, recovery, extra: { meran_rest_announced: ['2026-10-16'] },
+  })
+  const shown = await page.waitForSelector('[data-testid="rest-earned"]', { timeout: 5000 }).then(() => true, () => false)
+  await page.waitForTimeout(1500)
+  const txt = shown ? (await page.locator('[data-testid="rest-earned"]').innerText()).replace(/\s+/g, ' ') : ''
+  ok('switch day (حمزة): the rest day the carry-over earned is announced', shown && /كسبت يوم راحة/.test(txt) && /وصل ستريكك 49/.test(txt), txt)
+  if (shown) { await page.getByTestId('rest-earned-ok').click(); await page.waitForTimeout(600) }
+  const st = await streakOnHome(page)
+  ok('switch day (حمزة): 49, the flame filled', st.number === '49' && st.rest === '1' && st.filled, JSON.stringify(st))
+  const sh = await openRestSheet(page)
+  ok('switch day (حمزة): «1 من 5», one of three, «الجاي بعد يومين محسوبة»',
+    sh.title === 'أيام الراحة الاختيارية: 1 من 5' && sh.slots === 3 && sh.on === 1 && sh.next === 'الجاي بعد يومين محسوبة', JSON.stringify(sh))
+  ok('switch day (حمزة): earned today, then the last two used', JSON.stringify([...sh.held, ...sh.used]) === JSON.stringify(['كسبته اليوم', 'استخدمته 19 أكتوبر', 'استخدمته 12 أكتوبر']), JSON.stringify([sh.held, sh.used]))
+  const sum = await page.locator('[data-testid="streak-sum"]').innerText()
+  ok('switch day (حمزة): the number\'s sum is his', /^من 24 أغسطس · 33 تمرين \+ 16 راحة مجدولة$/.test(sum.trim()), sum)
+  ok(`switch day (حمزة): under 60 words (${wordsOf(sh.text)}), one and a half screens at most`, wordsOf(sh.text) < 60 && sh.scroll <= 1.5, `${wordsOf(sh.text)} ${sh.scroll}`)
+  await page.screenshot({ path: `${SHOTS}/rest-sheet-hamza-21oct.png` })
+  ok('switch day (حمزة): no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 

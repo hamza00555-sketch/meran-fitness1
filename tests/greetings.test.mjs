@@ -454,8 +454,15 @@ test('a normal month (PPL, two on one off): no line twice in 30 days, the streak
 test('his month — a paid rest, a missed day, two new weights — still true and never repeated', () => {
   let tapped = null, missed = null
   const { entries } = simulate({
-    restTap: (day, i, r) => { if (!tapped && i >= 5 && r.usableCredits === 1) { tapped = day; return true } return false },
-    miss: (day, i, r) => { if (!missed && tapped && day > tapped && r.usableCredits === 0) { missed = day; return true } return false },
+    restTap: (day, i, r) => { if (!tapped && i >= 5 && r.usableCredits >= 1) { tapped = day; return true } return false },
+    // After the tap he stays away: the rest days he still holds cover the
+    // first workout days (from 21 Oct one comes every 3 counted days, so
+    // he holds more than one), and the first with none left is the miss.
+    miss: (day, i, r) => {
+      if (missed || !tapped || day <= tapped) return false
+      if (r.usableCredits === 0) missed = day
+      return true
+    },
     spendInHistory: (r) => (r.usableCredits || 0) >= 1,
     topOn: { 'Bench Press': 1, 'Barbell Squat': 4 },
   })
