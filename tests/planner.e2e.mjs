@@ -125,10 +125,10 @@ const card = (page, ar) => page.locator('#mview .xcard').filter({ hasText: ar })
   ok('settings › «عدّل الخطة»: opens on «خطتك» by days', await screenOn(page, 'plan').count() === 1)
   await page.keyboard.press('Escape'); await settle(page)
   ok('Escape closes it', await planner(page).count() === 0)
-  // door 2: Home › تقدّم البرنامج → «خطتي» › «عدّل الخطة كاملة»
+  // door 2: Home › «خطتي» (its row) → «خطتي» › «عدّل الخطة كاملة»
   await page.locator('.f-tabs button').first().click(); await settle(page)
   await page.locator('.k-row').filter({ hasText: 'خطة المبتدئ' }).first().click(); await settle(page, 900)
-  ok('door 2 (تقدّم البرنامج): opens «خطتي», his plan as cards', await page.locator('[data-testid="plan-view"]').count() === 1)
+  ok('door 2 (Home\'s «خطتي» row): opens «خطتي», his plan as cards', await page.locator('[data-testid="plan-view"]').count() === 1)
   await page.locator('.pv-page[data-page="1"] [data-testid="plan-view-builder"]').click(); await settle(page, 1100)
   ok('door 2: «عدّل الخطة كاملة» opens the builder on «خطتك»', await screenOn(page, 'plan').count() === 1)
   ok('door 2: on the day he was looking at (today\'s: index 7 of 3 → سحب)', (await page.locator('.dtab[aria-selected="true"]').innerText()).includes('سحب'))

@@ -215,7 +215,7 @@ export default function TodayHero({
   // place a deload is said on Home — how far in and how much lighter.
   const eyebrow = active ? (
     <p className="hm-eyebrow"><i className="hm-live-dot" aria-hidden="true" />جلسة شغّالة</p>
-  ) : planned && onDeload ? (
+  ) : onDeload && !resting && !done ? (
     <p className="hm-eyebrow hm-deload" data-testid="deload-mark">
       <Art id="deload_badge" size={14} fallback={<Drop size={14} weight="fill" aria-hidden="true" />} />
       <span>ديلود</span>

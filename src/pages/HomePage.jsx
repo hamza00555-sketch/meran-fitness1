@@ -155,7 +155,7 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
 
         {/* ── The doors: rows on the ground ── */}
         {doors && (
-          <nav className="hm-doors" aria-label="خطتك وتقريرك">
+          <div className="hm-doors" role="group" aria-label="خطتك وتقريرك">
             {plan && !active && <PlanRow plan={plan} planIndex={planIndex ?? 0} onOpen={openPlan} />}
             {/* Door 4 to the plan builder: no plan yet. A quiet row, not green. */}
             {!plan && onOpenPlanner && (
@@ -178,7 +178,7 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
                 onClick={onShowMonthReport}
               />
             )}
-          </nav>
+          </div>
         )}
       </div>
     </div>
