@@ -23,6 +23,8 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
 import { APP_VERSION, ACHIEVEMENTS, BUILT_IN_PLANS, WHATS_NEW } from '../src/constants.js'
+// every release newer than 3.2, newest first (the list grows with each release)
+const SINCE_32 = WHATS_NEW.map(e => e.version).filter(v => v.localeCompare('3.2', undefined, { numeric: true }) > 0)
 
 const APP = process.env.APP || 'http://127.0.0.1:5211/'
 const SHOTS = process.env.SHOTS || null
@@ -143,19 +145,22 @@ for (const [w, h] of [[390, 844], [320, 568]]) {
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await sheet(page).waitFor({ timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(600)
-  ok('at 3.2: only the releases since', JSON.stringify(await versionsShown(page)) === JSON.stringify(['3.5', '3.4', '3.3']), (await versionsShown(page)).join(','))
+  ok('at 3.2: only the releases since', JSON.stringify(await versionsShown(page)) === JSON.stringify(SINCE_32), (await versionsShown(page)).join(','))
   await tapOk(page)
   ok('at 3.2: «تمام» stores the latest', await stored(page, 'meran_seen_version') === APP_VERSION)
   ok('at 3.2: no page errors', errors.length === 0, errors.slice(0, 2).join(' | '))
   await ctx.close()
 }
 {
-  const { ctx, page } = await open({ seed: { ...BASE, hf_seen_version: '2.2', meran_seen_version: '3.4' } })
+  const { ctx, page } = await open({ seed: { ...BASE, hf_seen_version: '2.2', meran_seen_version: WHATS_NEW[1].version } })
   await page.goto(APP, { waitUntil: 'domcontentloaded' })
   await sheet(page).waitFor({ timeout: 8000 }).catch(() => {})
   await page.waitForTimeout(600)
   const text = (await shown(page)) ? await sheet(page).innerText() : ''
-  ok('at 3.4: one release — «الإصدار 3.5» and its date', /الإصدار\s*3\.5/.test(text) && /19 أكتوبر/.test(text) && !/وش تغيّر/.test(text), text.slice(0, 80))
+  // one release behind: only the newest entry, with its number and date
+  const top = WHATS_NEW[0], day = Number(top.date.slice(8, 10))
+  ok(`one release behind — «الإصدار ${top.version}» and its date`, new RegExp(`الإصدار\\s*${top.version.replace('.', '\\.')}`).test(text)
+    && new RegExp(`${day} أكتوبر`).test(text) && !/وش تغيّر/.test(text), text.slice(0, 80))
   await ctx.close()
 }
 {

@@ -66,38 +66,33 @@ export function restDaysAr(n) {
   return `${countAr(k, 'restday')} ${plural ? 'اختيارية' : 'اختياري'}`
 }
 
-const when = (iso, today) => (iso === today ? 'اليوم' : fmtDayAr(iso))
+const when = (iso, today) => (iso === today ? 'اليوم' : fmtDayAr(iso, { weekday: false }))
 
 /**
- * The words for the block at the top of «ليش N؟».
+ * The words for the block at the top of «ليش N؟», short:
  *   title   «أيام الراحة الاختيارية: 2»
- *   lead    what that means for a missed workout day
- *   held    one line per rest day held, oldest first
- *   keep    how long they last (they don't run out)
  *   next    when the next one comes
+ *   held    one line per rest day held, the day it was earned
  *   used    the last few that covered a day, newest first
+ *   rows    what the sheet lists: the held ones (at most 3, newest) and
+ *           the last used ones after them, 3 lines in all, newest first
  */
 export function restDaysCopy(rv, today) {
   const n = rv?.count || 0
+  const held = (rv?.held || []).map(h => ({ kind: 'held', date: h.earnedOn, text: `كسبته ${when(h.earnedOn, today)}` }))
+  const used = (rv?.used || []).slice(0, 3).map(u => ({ kind: 'used', date: u.usedOn, text: `استخدمته ${when(u.usedOn, today)}` }))
+  const shownHeld = held.slice(-3)
+  const rows = [...shownHeld, ...used.slice(0, 3 - shownHeld.length)]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.kind === 'used' ? -1 : 1))
   return {
     count: n,
     title: `أيام الراحة الاختيارية: ${n}`,
-    lead: n > 0
-      ? `عندك ${restDaysAr(n)}. لو فاتك يوم تمرين ينصرف واحد لحاله الساعة 3 الفجر، والستريك يوقف وما ينكسر.`
-      : 'ما عندك ولا يوم راحة اختياري الحين — لو فاتك يوم تمرين يرجع الستريك صفر.',
-    held: (rv?.held || []).map(h => ({
-      date: h.earnedOn,
-      text: `كسبته ${when(h.earnedOn, today)} لما وصل ستريكك ${h.streak}`,
-    })),
-    keep: n > 0 ? (n === 1 ? 'ما ينتهي — يبقى لك لين يفوتك يوم تمرين.' : 'ما تنتهي — تبقى لك لين يفوتك يوم تمرين.') : '',
     next: rv?.toNext === 1 ? 'الجاي بعد يوم واحد محسوب' : `الجاي بعد ${countAr(rv?.toNext ?? REST_CREDIT_EVERY, 'day')} محسوبة`,
-    every: `كل ${rv?.every ?? REST_CREDIT_EVERY} أيام محسوبة تعطيك يوم راحة اختياري (هي نفسها «التذاكر»).`,
-    used: (rv?.used || []).slice(0, 3).map(u => ({
-      date: u.usedOn,
-      text: u.earnedOn
-        ? `استخدمته ${when(u.usedOn, today)} — كان من ${fmtDayAr(u.earnedOn, { weekday: false })}`
-        : `استخدمته ${when(u.usedOn, today)}`,
-    })),
+    progress: (rv?.every ?? REST_CREDIT_EVERY) - (rv?.toNext ?? REST_CREDIT_EVERY),
+    every: rv?.every ?? REST_CREDIT_EVERY,
+    held,
+    used,
+    rows,
   }
 }
 

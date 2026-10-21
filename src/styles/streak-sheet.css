@@ -1,68 +1,86 @@
-/* «ليش 60؟» — the streak explained (components/streak/StreakSheet.jsx) */
-.ss { display: grid; gap: 10px; padding-bottom: var(--space-4); }
-.ss-hero { display: flex; align-items: center; gap: 10px; }
+/* «ليش 60؟» — the streak explained (components/streak/StreakSheet.jsx)
+   «ما قل ودل», in «خطتي»'s language: the sheet is the one surface, the
+   parts sit on it under hairlines, nothing boxed inside. Text he reads is
+   ink or ink-2 at 13px/600 or more; ink-3 only for the calendar's key.
+   Orange only for the streak, rest blue only for rest days. */
+.ss { display: grid; gap: var(--space-4); padding-bottom: var(--space-4); }
+.ss > section + section { padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
+
+/* ── the number, its sum, today ── */
+.ss-top { display: grid; gap: 6px; }
+.ss-hero { display: flex; align-items: center; gap: 10px; min-height: 60px; }
 .ss-flame { color: var(--streak); display: grid; }
 .ss-big { font-size: var(--t-display); font-weight: 800; line-height: 1; color: var(--streak); font-stretch: 85%; }
 .ss-big.zero { color: var(--ink-3); }
 .ss-unit { font-size: var(--t-headline); font-weight: 600; color: var(--ink-2); align-self: flex-end; margin-bottom: 6px; }
-.ss-lead { margin: 0; font-size: var(--t-headline); font-weight: 600; color: var(--ink); line-height: 1.5; }
-.ss-sub { margin: 0; font-size: var(--t-label); color: var(--ink-3); line-height: 1.65; }
-.ss-note { margin: 0; font-size: var(--t-label); color: var(--rest); line-height: 1.6; }
-.ss-eq { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); padding: 10px 12px; background: var(--surface-1); border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--edge); }
-.ss-eq b { font-size: var(--t-title); font-weight: 800; }
-.ss-eq .o { color: var(--streak); }
-.ss-eq .b { color: var(--rest); }
-.ss-op { color: var(--ink-3); }
-.ss-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; background: var(--streak); }
-.ss-rest { color: var(--rest); display: inline-grid; }
-.ss-miss { color: var(--ink-3); display: inline-grid; }
-.ss-idle { color: var(--ink-4); display: inline-grid; }
-.ss-sec { display: grid; gap: 8px; padding-top: var(--space-4); border-top: 1px solid var(--hairline); }
-.ss-sec h3 { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
-.ss-today { margin: 0; font-size: var(--t-headline); font-weight: 700; color: var(--ink); line-height: 1.45; }
-.ss-month { display: grid; gap: 6px; }
-.ss-month-label { font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
-.ss-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.ss-wd { text-align: center; font-size: var(--t-caption); color: var(--ink-3); font-weight: 600; }
-.ss-cell {
-  display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 44px;
-  border: 0; border-radius: var(--r-sm); background: var(--surface-1); color: var(--ink-2); cursor: pointer;
-  font-family: var(--font);
+/* «ليش مو 58؟» — a quiet question at the far end of the number's row */
+.ss-why {
+  margin-inline-start: auto; align-self: center; flex: none;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 0 12px;
+  border: 0; border-radius: var(--r-pill); background: var(--surface-3); color: var(--ink);
+  font: inherit; font-size: var(--t-label); font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.ss-cell:disabled { background: transparent; cursor: default; color: var(--ink-4); }
-.ss-cell.k-out { background: transparent; color: var(--ink-4); }
-.ss-cell.k-today-pending, .ss-cell.k-today-done, .ss-cell.k-today-rest { box-shadow: inset 0 0 0 1.6px var(--streak); }
-.ss-cell.picked { background: var(--surface-3); }
-.ss-cell-n { font-size: 11px; line-height: 1; }
-.ss-cell-g { min-height: 14px; display: grid; place-items: center; }
-.ss-picked { margin: 0; min-height: 1.6em; font-size: var(--t-label); color: var(--ink); line-height: 1.6; }
-.ss-key { margin: 0; font-size: var(--t-caption); color: var(--ink-3); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.ss-tix { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--t-headline); font-weight: 700; color: var(--rest); }
-.ss-rows { display: grid; }
-.ss-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: var(--t-body); }
-.ss-rows > div:last-child { border-bottom: 0; }
-.ss-rows span { color: var(--ink-2); }
-.ss-rows b { color: var(--ink); font-weight: 700; }
-.ss-rules { margin: 0; padding-inline-start: 18px; display: grid; gap: 6px; font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; }
-
-/* Today, counted or still needed — what Home's flame used to say. */
-.ss-mark { margin: 0; display: inline-flex; align-items: center; gap: 6px; justify-self: start;
-  padding: 6px 12px; border-radius: var(--r-pill); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge);
-  font-size: var(--t-label); font-weight: 700; color: var(--ink-2); }
-.ss-mark.done { color: var(--streak); box-shadow: inset 0 0 0 1px rgba(var(--streak-rgb), 0.35); }
+.ss-why svg { transition: transform var(--dur-base) var(--ease-out); }
+.ss-why[aria-expanded="true"] svg { transform: rotate(180deg); }
+.ss-sum { margin: 0; font-size: var(--t-body); font-weight: 600; color: var(--ink-2); line-height: 1.5; }
+.ss-sum b { color: var(--ink); font-weight: 800; }
+.ss-sum > span { white-space: nowrap; }
+.ss-why-a { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.6; }
+.ss-mark { margin: 6px 0 0; display: flex; align-items: flex-start; gap: 6px;
+  font-size: var(--t-body); font-weight: 700; color: var(--ink); line-height: 1.5; }
+.ss-mark svg { flex: none; margin-top: 3px; color: var(--ink-2); }
+.ss-mark.done svg { color: var(--streak); }
+.ss-stake { margin: 0; font-size: var(--t-label); font-weight: 700; color: var(--ink); line-height: 1.5; padding-inline-start: 22px; }
+.ss-note { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; padding-inline-start: 22px; }
 /* The flame glows while he holds a rest day, as on Home. */
 .ss-flame.glow svg, .ss-rd-flame.on svg { filter: drop-shadow(0 0 5px rgba(var(--streak-rgb), 0.55)) drop-shadow(0 0 12px rgba(var(--streak-rgb), 0.22)); }
 
-/* «أيام الراحة الاختيارية: N» */
-.ss-rd { display: grid; gap: 8px; padding: 14px; border-radius: var(--r-md); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--edge); }
+/* ── «أيام الراحة الاختيارية: N» ── */
+.ss-rd { display: grid; gap: 8px; }
 .ss-rd-h { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
 .ss-rd-h b { color: var(--rest); font-weight: 800; }
 .ss-rd-flame { color: var(--ink-3); display: inline-grid; }
 .ss-rd-flame.on { color: var(--streak); }
-.ss-rd-lead { margin: 0; font-size: var(--t-body); color: var(--ink-2); line-height: 1.6; }
-.ss-rd-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
-.ss-rd-list li { display: flex; align-items: flex-start; gap: 8px; font-size: var(--t-body); color: var(--ink); line-height: 1.55; }
-.ss-rd-list.used li { color: var(--ink-2); }
-.ss-rd-ic { color: var(--rest); display: inline-grid; padding-top: 4px; flex: none; }
-.ss-rd-list.used .ss-rd-ic { color: var(--ink-3); }
-.ss-rd-h4 { margin: 4px 0 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-3); }
+.ss-rd-next { display: flex; align-items: center; gap: 10px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; }
+/* one slot per counted day of the five: the filled ones rest blue, the
+   empty ones an outline in ink-3 — both 3:1 or more on the sheet */
+.ss-seg { display: inline-flex; gap: 3px; flex: none; }
+.ss-seg i { width: 14px; height: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.ss-seg i.on { background: var(--rest); box-shadow: none; }
+.ss-rd-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.ss-rd-list li { display: flex; align-items: center; gap: 8px; font-size: var(--t-body); font-weight: 600; color: var(--ink); line-height: 1.5; }
+.ss-rd-list li.used { color: var(--ink-2); }
+.ss-rd-ic { color: var(--rest); display: inline-grid; flex: none; }
+.ss-rd-list li.used .ss-rd-ic { color: var(--ink-3); }
+
+/* ── the days, a month at a time ── */
+.ss-cal { display: grid; gap: 8px; }
+.ss-month { display: grid; gap: 6px; }
+.ss-month-h { display: flex; align-items: center; justify-content: space-between; margin-block: -8px -2px; margin-inline: -10px; }
+.ss-month-h .k-iconbtn:disabled { opacity: 0.3; cursor: default; }
+.ss-month-label { font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
+.ss-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.ss-wd { text-align: center; font-size: var(--t-caption); color: var(--ink-2); font-weight: 600; }
+.ss-cell {
+  display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 44px;
+  border: 0; border-radius: var(--r-sm); background: var(--surface-1); color: var(--ink-2); cursor: pointer;
+  font-family: var(--font); -webkit-tap-highlight-color: transparent;
+}
+/* days outside the run and days to come: no tile, the date still readable */
+.ss-cell.k-out, .ss-cell:disabled { background: transparent; color: var(--ink-3); }
+.ss-cell:disabled { cursor: default; }
+.ss-cell.k-today-pending, .ss-cell.k-today-done, .ss-cell.k-today-rest { box-shadow: inset 0 0 0 1.6px var(--streak); }
+.ss-cell.picked { background: var(--surface-3); }
+.ss-cell-n { font-size: var(--t-caption); line-height: 1; }
+.ss-cell-g { min-height: 14px; display: grid; place-items: center; }
+.ss-dot { display: inline-block; width: 9px; height: 9px; border-radius: 999px; background: var(--streak); }
+.ss-rest { color: var(--rest); display: inline-grid; }
+.ss-miss { color: var(--ink-2); display: inline-grid; }
+.ss-idle { color: var(--ink-3); display: inline-grid; }
+.ss-picked { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink); line-height: 1.6; }
+.ss-picked:empty { margin-top: -8px; }
+.ss-key { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--t-caption); color: var(--ink-3); }
+.ss-key > span { display: inline-flex; align-items: center; gap: 5px; }
+.ss-best { margin: 0; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); }
+.ss-best b { color: var(--ink); font-weight: 800; }

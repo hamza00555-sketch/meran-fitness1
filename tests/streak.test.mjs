@@ -353,16 +353,58 @@ test('a plan reset ends the run as «settings», not as a miss', () => {
   assert.equal(r.lastBreak, null, 'a reset is not a break')
 })
 
-test('«ليش 10؟»: the sum, what did not count, and why it is not 13', () => {
+test('«ليش 10؟»: the sum, today, and why it is not 13 — each once, short', () => {
   const { explainerView } = streakModule
   const rec = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-13')
   const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-13T10:00:00') })
-  assert.deepEqual(e.equation, { trained: 5, plannedRest: 5, total: 10 })
-  assert.equal(e.equation.trained + e.equation.plannedRest, e.n, 'the parts always make the number')
-  assert.equal(e.notCounted, 'يومين غطّتها التذاكر — توقفه وما تزيده.')
-  assert.match(e.whyNot, /13 يوم: 10 محسوبة \+ 2 بتذاكر \+ اليوم/)
-  assert.equal(e.stage, 'شعلة')
-  assert.match(e.startLine, /^بدأ الأربعاء 1 يوليو/)
+  assert.deepEqual(e.sum, { from: '1 يوليو', trained: 5, plannedRest: 5, total: 10 })
+  assert.equal(e.sum.trained + e.sum.plannedRest, e.n, 'the parts always make the number')
+  // the two optional rest days (11th, 12th) and today are the gap
+  assert.deepEqual(e.whyNot, { days: 13, text: '13 يوم بالتقويم: 10 محسوبة + 2 راحة اختيارية + اليوم' })
+  assert.equal(e.day.mark.text, 'اليوم لسا يبي تمرين')
+  assert.equal(e.day.countdown, formatRemaining(new Date(2026, 6, 14, 3) - at('2026-07-13T10:00:00')))
+  // none left: a miss today costs the streak, said once
+  assert.equal(e.day.stake, 'لو فاتك يرجع صفر')
+  assert.equal(e.line, '')
+  const words = JSON.stringify([e.sum, e.line, e.whyNot, e.day])
+  assert.doesNotMatch(words, /تذكر|تذاكر/, 'optional rest days, never «تذاكر»')
+})
+
+test('«ليش مو N؟» always adds up to the calendar days', () => {
+  const { explainerView } = streakModule
+  const days = [1, 3, 5, 7, 9, 13, 15, 16, 17, 19, 21, 25, 27, 29]
+  let seen = 0
+  for (let d = 2; d <= 31; d++) {
+    const today = `2026-07-${String(d).padStart(2, '0')}`
+    for (const clock of [`${today}T10:00:00`, `${today}T21:00:00`]) {
+      const trainedToday = clock.endsWith('21:00:00')
+      const ss = july(...days.filter(n => n < d || (trainedToday && n === d)))
+      const e = explainerView({ recovery: computeRecovery(ss, CFG, today), config: CFG, now: at(clock) })
+      if (!e.whyNot) continue
+      seen++
+      const m = e.whyNot.text.match(/^(\d+) (?:يوم|أيام) بالتقويم: (\d+) محسوبة \+ (\d+) راحة اختيارية( \+ اليوم)?$/)
+      assert.ok(m, e.whyNot.text)
+      assert.equal(+m[1], e.whyNot.days)
+      assert.equal(+m[2] + +m[3] + (m[4] ? 1 : 0), e.whyNot.days, `${clock}: ${e.whyNot.text}`)
+      assert.equal(+m[2], e.n)
+    }
+  }
+  assert.ok(seen > 10, String(seen))
+})
+
+test('«ليش 10؟» with a rest day held: no stake, and no «ليش مو» for today alone', () => {
+  const { explainerView } = streakModule
+  // the 11th: owed, two held, nothing paid yet — 11 calendar days, 10 counted
+  const rec = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-11')
+  const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-11T10:00:00') })
+  assert.equal(e.n, 10)
+  assert.equal(e.day.stake, '', 'a miss uses a rest day; the streak is not at stake')
+  assert.equal(e.whyNot, null, 'today is already said by the line about today')
+  // a scheduled rest day: counted, said so
+  const r10 = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-10')
+  const e10 = explainerView({ recovery: r10, config: CFG, now: at('2026-07-10T10:00:00') })
+  assert.deepEqual(e10.day.mark, { done: true, text: 'اليوم راحة مجدولة وانحسب' })
+  assert.equal(e10.day.countdown, null)
 })
 
 test('«ليش 0؟» right after a break names the break', () => {
@@ -370,8 +412,19 @@ test('«ليش 0؟» right after a break names the break', () => {
   const rec = computeRecovery(july(1, 3), CFG, '2026-07-07')
   const e = explainerView({ recovery: rec, config: CFG, now: at('2026-07-07T10:00:00') })
   assert.equal(e.n, 0)
-  assert.match(e.startLine, /^انكسر ستريك 4 أيام — الأحد 5 يوليو كان يوم تمرين وما بقى تذاكر/)
+  assert.equal(e.sum, null)
+  assert.equal(e.line, 'انكسر ستريك 4 أيام في 5 يوليو')
+  assert.equal(e.day.stake, '', 'nothing left to lose')
   assert.equal(e.records.previous.length, 4)
+  assert.equal(e.bestLine, null, 'the line already named that run')
+  // a plan change ends a run too, and says so
+  const reset = computeRecovery(july(1, 3, 5, 7, 9), { ...CFG, streakResetAt: '2026-07-12' }, '2026-07-12')
+  const er = explainerView({ recovery: reset, config: { ...CFG, streakResetAt: '2026-07-12' }, now: at('2026-07-12T10:00:00') })
+  assert.equal(er.line, 'انتهى ستريك 10 أيام بتغيير الخطة')
+  assert.equal(er.day.mark.text, 'اليوم ما ينحسب — العدّ يبدأ بكرة')
+  // and with no history, the first session starts it
+  const e0 = explainerView({ recovery: computeRecovery([], CFG, '2026-07-01'), config: CFG, now: at('2026-07-01T10:00:00') })
+  assert.equal(e0.line, 'أول جلسة تحفظها تبدأ ستريكك')
 })
 
 test('the calendar marks every day from the ledger, and only real breaks', () => {
@@ -381,7 +434,12 @@ test('the calendar marks every day from the ledger, and only real breaks', () =>
   const cells = e.months.flatMap(g => g.cells).filter(Boolean)
   assert.equal(cells.filter(c => c.kind === 'missed').length, 1)
   const jul5 = rec.ledger.find(r => r.date === '2026-07-05')
-  assert.equal(dayLine(jul5, '2026-07-10'), 'الأحد 5 يوليو · يوم تمرين بدون تمرين ولا تذكرة · انكسر ستريك 4')
+  assert.equal(dayLine(jul5, '2026-07-10'), 'الأحد 5 يوليو · فاتك التمرين · انكسر ستريك 4')
+  const jul3 = rec.ledger.find(r => r.date === '2026-07-03')
+  assert.equal(dayLine(jul3, '2026-07-10'), 'الجمعة 3 يوليو · قبل هالستريك')
+  const paid = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-12')
+  assert.equal(dayLine(paid.ledger.find(r => r.date === '2026-07-11'), '2026-07-12'), 'السبت 11 يوليو · يوم راحة اختياري · وقف على 10')
+  assert.equal(dayLine(paid.ledger.find(r => r.date === '2026-07-09'), '2026-07-12'), 'الخميس 9 يوليو · تمرّنت · صار 9')
 })
 
 test('the stored best outlives the replay', () => {
