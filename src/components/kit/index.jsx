@@ -118,13 +118,13 @@ export function ListGroup({ header, footer, children, className }) {
  * a value node; chevron for rows that open something. 52pt minimum,
  * 56 with a subtitle, 64 with a thumbnail.
  */
-export function ListRow({ leading: Lead, title, subtitle, trailing, chevron, onClick, tone, className, children }) {
+export function ListRow({ leading: Lead, title, subtitle, trailing, chevron, onClick, tone, className, children, ...rest }) {
   const Tag = onClick ? 'button' : 'div'
   const lead = typeof Lead === 'function' || (Lead && Lead.$$typeof && Lead.render)
     ? <span className="k-row-icon"><Lead size={22} weight="regular" aria-hidden="true" /></span>
     : Lead
   return (
-    <Tag type={onClick ? 'button' : undefined} onClick={onClick}
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} {...rest}
       className={cx('k-row', onClick && 'k-row-tap', tone && `k-row-${tone}`, className)}>
       {lead}
       <span className="k-row-main">

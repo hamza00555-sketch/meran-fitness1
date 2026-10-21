@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Art, { useHasArt } from '../assets/Art.jsx'
+import Art from '../assets/Art.jsx'
 import DayPreviewSheet from './DayPreviewSheet.jsx'
 import { Button, IconButton, Num, Weight, Sheet, ListGroup, ListRow } from './kit/index.jsx'
 import { DotsThree, ArrowUp, CaretLeft, SkipForward, ListChecks, Drop, PencilSimple } from './kit/icons.js'
@@ -12,15 +12,17 @@ import { ExerciseThumb, exerciseNames, withNums } from './home/HomeBits.jsx'
 import { dayWord, musclesLine, mainMuscle, muscleArt, estimateMinutes } from './home/dayParts.js'
 import { animate, reducedMotion } from '../motion.js'
 
-// ── Today — the one lit moment on Home ────────────────────────
+// ── Today — what the day is, and one tap to start ─────────────
 //
-// Floodlight («تحت الأضواء»): a full-bleed stage, neutral light, the
-// day's main muscle standing at the end edge, and the day said as ONE
-// Arabic word at 56/800 — «دفع», «سحب», «أرجل» — with the muscles under
-// it and «6 تمارين · ≈45 د». Then the first three exercises as open
-// rows (picture, Arabic name, last weight, a gold ↑ only when the
-// progression engine says raise), «+N تمارين ‹» for the rest, and ONE
-// green button, «ابدأ التمرين».
+// حمزة: «الشاشة الرئيسية مكدسة والصورة كبيرة مرة بشكل غير احترافي». So
+// the day is a head, not a stage: a small badge of the day's main muscle
+// (64pt, the same family as the exercise pictures under it), the day as
+// one Arabic word — «دفع», «سحب», «أرجل» — and ONE meta line under it:
+// «صدر، أكتاف، ترايسبس · 6 تمارين · ≈45 د». ⋯ sits at the far end of the
+// word's line, never on the picture. Then the first three exercises as
+// open rows (picture, Arabic name, English under it, the weight, a gold ↑
+// only when the progression engine says raise), «+N تمارين ‹» for the
+// rest, and ONE green button, «ابدأ التمرين».
 //
 // The button is the last thing in the section, and it docks above the
 // tab bar while its place is still below the fold, so on an iPhone SE
@@ -30,25 +32,29 @@ import { animate, reducedMotion } from '../motion.js'
 // ⋯. Skipping still goes through onSkip → the skip sheet that states
 // the cost to the streak first.
 //
-// Other states keep their meaning: a running session (the stage names
-// it and offers a quiet «أكمل التمرين» — the live bar at the foot of
-// the screen is the main way back, so no second green button sits
-// under it), a rest day (the word «راحة» in the rest blue, no green
-// anywhere, a quiet «أبي أتمرّن» — the day sheet offers the same and
-// nothing else), today already done (this block goes quiet), and no
-// plan (a free session).
+// A deload is said once, where the day is: the line over the word turns
+// into the deload's mark — «ديلود · يوم 1 من 7 · أخف 40%» in the deload
+// blue, with its droplet. The rows show the weight the session will
+// actually load (the last weight made lighter by the deload's
+// percentage, as the player does) with no mark of their own, and never
+// the gold «raise» arrow: the week is meant to be light, and Home must
+// not say the opposite of the player. No iced picture over Home.
 //
-// Under a deload the rows show the weight the session will actually
-// load (the last weight made lighter by the deload's percentage, as the
-// player does) and never the gold «raise» arrow: the week is meant to
-// be light, and Home must not say the opposite of the player.
+// Other states keep their meaning: a running session (the head names it
+// and offers a quiet «أكمل التمرين» — the live bar at the foot of the
+// screen is the main way back, so no second green button sits under
+// it), a rest day (the word «راحة» in the rest blue, the moon in the
+// badge, no green anywhere, a quiet «أبي أتمرّن» — the day sheet offers
+// the same and nothing else), today already done (no badge, the block
+// goes quiet), and no plan (a free session).
 //
 // The way in (home.css, .hm-enter): the first time Home shows after the
-// app opens, the stage light comes up, the muscle rises into it, the day's
-// word wipes in, the exercises follow one by one and the button gets one
-// sheen. Once per app open — remembered in memory, not storage — never on
-// a tab switch. Reduced motion: one fade. Back from a workout (`calm`,
-// the moment the streak's flame lights) the quiet stage rises in.
+// app opens, the badge settles in, the day's word wipes in, the meta
+// line and the exercises follow one by one and the button gets one
+// sheen. Once per app open — remembered in memory, not storage — never
+// on a tab switch. Reduced motion: one fade (src/motion.js). Back from a
+// workout (`calm`, the moment the streak's flame lights) the quiet head
+// rises in.
 
 // The first Home of this app run gets the entrance.
 let firstHome = true
@@ -122,7 +128,6 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, d
           <span className="hm-row-w"
             title={onDeload ? `وزن الديلود — آخر مرة ${lastWeight} كجم` : undefined}>
             {raise && <ArrowUp size={14} weight="bold" className="hm-raise" aria-label="ارفع الوزن" />}
-            {onDeload && <Drop size={14} weight="fill" className="hm-deload-mark" aria-label="وزن الديلود" />}
             <Weight kg={today} />
           </span>
         )}
@@ -131,12 +136,23 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, d
   )
 }
 
+/** The day's badge: its picture in a 64pt tile, the exercise pictures'
+ *  family. `rest` lights the moon in the rest blue. */
+function DayBadge({ src, rest = false }) {
+  if (!src) return null
+  return (
+    <span className={`hm-badge${rest ? ' is-rest' : ''}`} aria-hidden="true" data-testid="day-badge">
+      <img src={src} alt="" />
+    </span>
+  )
+}
+
 export default function TodayHero({
-  active, currentPlanDay, planDayNum, planTotal,
+  active, currentPlanDay,
   isRecoveryDay, completedToday = false, streakKind = null, deload,
   sessions = [], exerciseMapping = {}, exerciseSubs = {}, onCycleSub,
   onStartPlanned, onStartEmpty, onSkip, onGoToWorkout, onOverrideRecovery,
-  repTarget = DEFAULT_REP_TARGET, calm = false, onEditPlan, onBuildPlan,
+  repTarget = DEFAULT_REP_TARGET, calm = false, onEditPlan,
 }) {
   const [enter, setEnter] = useState(firstHome)
   const section = useRef(null)
@@ -148,7 +164,7 @@ export default function TodayHero({
       return () => { try { a?.cancel() } catch {} }
     }
     // Off once it has played, so nothing later re-runs it.
-    const t = setTimeout(() => setEnter(false), 1700)
+    const t = setTimeout(() => setEnter(false), 1600)
     return () => clearTimeout(t)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [showSheet, setShowSheet] = useState(false)
@@ -171,10 +187,9 @@ export default function TodayHero({
   const done = completedToday && !active && !resting
   // A second plan change inside 30 days starts the streak again from
   // tomorrow, so on that day a saved session is saved, not counted. Why
-  // is the sheet's to explain («ليش N؟»); the stage just says saved.
+  // is the sheet's to explain («ليش N؟»); the head just says saved.
   const notCounting = streakKind === 'reset'
   const planned = !active && !resting && !done && !!currentPlanDay
-  const free = !active && !resting && !done && !currentPlanDay
 
   // Menu choices run after the menu has slid away, so its sheet hands
   // the page back (inert off, focus to ⋯) before the next one takes it.
@@ -182,122 +197,99 @@ export default function TodayHero({
 
   const start = () => currentPlanDay ? onStartPlanned(currentPlanDay) : onStartEmpty()
 
-  // ── What the stage says ──
+  // ── What the head says ──
   const dayOf = active || currentPlanDay
   const { word, variant, latin } = dayOf ? dayWord(dayOf) : { word: '', variant: '', latin: false }
   const muscles = dayOf ? musclesLine(dayOf, word) : ''
   const mins = currentPlanDay ? estimateMinutes(currentPlanDay) : 0
-  const muscle = dayOf ? mainMuscle(dayOf) : null
-  const art = muscleArt(muscle)
+  const art = muscleArt(dayOf ? mainMuscle(dayOf) : null)
 
-  // The art: the day's main muscle. Under a deload the pack's glacier
-  // hero takes the stage when it is installed; without it the muscle
-  // art is cooled to the deload's blue so no lime survives the mode.
-  const hasDeloadArt = useHasArt('deload_hero')
-  let stageArt = null
-  let artShown = false
-  if (resting) {
-    artShown = true
-    stageArt = <img className="k-stage-art hm-art-rest" src="/assets/hero_rest.webp" alt="" />
-  } else if ((planned || free || active) && onDeload) {
-    const cooled = art ? <img className="k-stage-art hm-art-cool" src={art} alt="" /> : null
-    stageArt = <Art id="deload_hero" className="k-stage-art hm-art-deload" alt="" fallback={cooled} />
-    artShown = hasDeloadArt || !!cooled
-  } else if ((planned || active) && art) {
-    stageArt = <img className="k-stage-art" src={art} alt="" />
-    artShown = true
-  }
+  // The badge: the day's main muscle (cooled to the deload's blue by
+  // home.css while one runs); the moon on a rest day; none when the day
+  // is done or there is no plan.
+  const badge = resting ? <DayBadge src="/assets/hero_rest.webp" rest />
+    : (planned || active) && art ? <DayBadge src={art} />
+      : null
 
-  // How far into the deload, said where the day is.
-  const deloadChip = onDeload && !resting && !done ? (
-    <span className="hm-chip-deload">
+  // The line over the word: «اليوم», a running session, or — the one
+  // place a deload is said on Home — how far in and how much lighter.
+  const eyebrow = active ? (
+    <p className="hm-eyebrow"><i className="hm-live-dot" aria-hidden="true" />جلسة شغّالة</p>
+  ) : planned && onDeload ? (
+    <p className="hm-eyebrow hm-deload" data-testid="deload-mark">
       <Art id="deload_badge" size={14} fallback={<Drop size={14} weight="fill" aria-hidden="true" />} />
-      <span>ديلود · اليوم <Num>{deload.day}</Num> من <Num>{deload.totalDays}</Num></span>
-    </span>
-  ) : null
+      <span>ديلود</span>
+      <span>يوم <Num>{deload.day}</Num> من <Num>{deload.totalDays}</Num></span>
+      <span>أخف <Num>{deload.pct}%</Num></span>
+    </p>
+  ) : (
+    <p className="hm-eyebrow">اليوم</p>
+  )
+
+  // The meta line: its facts as parts, the dots between them drawn by
+  // CSS so a narrow phone breaks between facts, never inside one.
+  const meta = active && ctx ? [
+    ctx.name,
+    <>المجموعة <Num>{ctx.setNo}</Num> من <Num>{ctx.setTotal}</Num></>,
+    <>أنجزت <Num>{ctx.done}</Num> من <Num>{ctx.total}</Num></>,
+  ] : resting ? [
+    'راحة مجدولة',
+    currentPlanDay ? <>بكرة: {dayWord(currentPlanDay).word || planDayTitle(currentPlanDay)}</> : null,
+  ] : planned ? [
+    muscles || null,
+    withNums(countAr(exCount, 'workout')),
+    mins > 0 ? <>≈<Num>{durationShort(mins)}</Num></> : null,
+  ] : null
 
   const shown = exercises.slice(0, 3)
   const more = exCount - shown.length
 
   return (
     <section ref={section} className={`hm-today${done ? ' is-done' : ''}${resting ? ' is-rest' : ''}${enter ? ' hm-enter' : ''}${calm ? ' hm-calm' : ''}`} aria-label="تمرين اليوم">
-      <div className={`k-stage hm-stage${done ? ' hm-stage-quiet' : ''}${resting ? ' hm-stage-rest' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
-        {stageArt}
+      <header className={`hm-head${badge ? '' : ' is-bare'}${done ? ' is-quiet' : ''}`}>
+        {badge}
+        {eyebrow}
+
+        {active ? (
+          <h2 className={`hm-word${latin ? ' is-latin' : ''}`}>
+            {word || 'تمرين حر'}{variant && <Num className="hm-word-variant">{variant}</Num>}
+          </h2>
+        ) : resting ? (
+          <h2 className="hm-word hm-word-rest">راحة</h2>
+        ) : done ? (
+          <h2 className="hm-title">{notCounting ? 'انحفظت جلسة اليوم' : 'تمرين اليوم خلص'}</h2>
+        ) : planned ? (
+          <h2 className={`hm-word${latin ? ' is-latin' : ''}`}>
+            {word || planDayTitle(currentPlanDay)}{variant && <Num className="hm-word-variant">{variant}</Num>}
+          </h2>
+        ) : (
+          <h2 className="hm-word">تمرين حر</h2>
+        )}
 
         {planned && (
           <IconButton icon={DotsThree} label="خيارات اليوم" weight="bold"
             className="hm-more-btn" onClick={openMenu} />
         )}
 
-        <div className="k-stage-body hm-stage-body">
-          <span className="hm-eyebrow">
-            {active
-              ? <><i className="hm-live-dot" aria-hidden="true" />جلسة شغّالة</>
-              : 'اليوم'}
-            {deloadChip}
-          </span>
+        {meta ? (
+          <p className="hm-meta"><span className="hm-meta-in">{meta.filter(Boolean).map((m, i) => <span key={i}>{m}</span>)}</span></p>
+        ) : done ? (
+          <p className="hm-meta hm-meta-line">شغل اليوم انحفظ — ارتاح وكُل زين.</p>
+        ) : (
+          <p className="hm-meta hm-meta-line">بلا خطة — جلسة حرة بالتمارين اللي تختارها.</p>
+        )}
+      </header>
 
-          {active ? (
-            <h2 className={`hm-word${latin ? ' is-latin' : ''}`}>
-              {word || 'تمرين حر'}{variant && <Num className="hm-word-variant">{variant}</Num>}
-            </h2>
-          ) : resting ? (
-            <h2 className="hm-word hm-word-rest">راحة</h2>
-          ) : done ? (
-            <h2 className="hm-title">{notCounting ? 'انحفظت جلسة اليوم' : 'تمرين اليوم خلص'}</h2>
-          ) : planned ? (
-            <h2 className={`hm-word${latin ? ' is-latin' : ''}`}>
-              {word || planDayTitle(currentPlanDay)}{variant && <Num className="hm-word-variant">{variant}</Num>}
-            </h2>
-          ) : (
-            <h2 className="hm-word">تمرين حر</h2>
-          )}
-
-          {/* The second line: the muscles on a training day, what the
-              day means on the others. */}
-          {active && ctx ? (
-            <p className="hm-line">{ctx.name}</p>
-          ) : resting ? (
-            <p className="hm-line hm-line-sm">راحة مجدولة — عضلاتك تبني وانت مرتاح</p>
-          ) : done ? (
-            <p className="hm-line hm-line-sm">شغل اليوم انحفظ — ارتاح وكُل زين.</p>
-          ) : planned ? (
-            muscles && <p className="hm-line">{muscles}</p>
-          ) : (
-            <p className="hm-line hm-line-sm">بلا خطة — جلسة حرة، أو ابنِ خطتك.</p>
-          )}
-          {/* Door 4 to the plan builder: a quiet link. The green stays on
-              «ابدأ التمرين». */}
-          {free && onBuildPlan && (
-            <button type="button" className="hm-build" onClick={onBuildPlan} data-testid="build-plan">
-              ابنِ خطتك <CaretLeft size={14} weight="bold" aria-hidden="true" />
-            </button>
-          )}
-
-          {active && ctx ? (
-            <p className="hm-meta">
-              المجموعة <Num>{ctx.setNo}</Num> من <Num>{ctx.setTotal}</Num> · أنجزت <Num>{ctx.done}</Num> من <Num>{ctx.total}</Num>
-            </p>
-          ) : resting && currentPlanDay ? (
-            <p className="hm-meta">بكرة: {dayWord(currentPlanDay).word || planDayTitle(currentPlanDay)} · {withNums(countAr(exCount, 'workout'))}</p>
-          ) : planned ? (
-            <p className="hm-meta">
-              {withNums(countAr(exCount, 'workout'))}
-              {mins > 0 && <> · ≈<Num>{durationShort(mins)}</Num></>}
-              {onDeload && <> · أخف بـ<Num>{deload.pct}%</Num></>}
-            </p>
-          ) : null}
-
-          {/* A running session: the live bar at the foot of the screen
-              is the way back; the stage offers it too, quietly, where
-              nothing floats over it. */}
-          {active && (
-            <Button variant="secondary" size="md" className="hm-resume" onClick={onGoToWorkout}>
-              أكمل التمرين
-            </Button>
-          )}
+      {/* A running session: the live bar at the foot of the screen is
+          the way back; the head offers it too, quietly, where nothing
+          floats over it. */}
+      {active && (
+        <div className="hm-quiet-actions is-start">
+          <Button variant="secondary" size="md" className="hm-resume" onClick={onGoToWorkout}>
+            أكمل التمرين
+          </Button>
         </div>
-      </div>
+      )}
 
       {/* ── The first three exercises, open rows on the ground ── */}
       {planned && shown.length > 0 && (
@@ -381,8 +373,8 @@ export default function TodayHero({
           deload={deload}
           {...(resting ? {
             // A rest day: no green, no skip (there is nothing owed to
-            // skip). Training anyway goes the stage's way — through the
-            // override — so the sheet and the stage never disagree.
+            // skip). Training anyway goes the head's way — through the
+            // override — so the sheet and the head never disagree.
             startLabel: 'أبي أتمرّن',
             startVariant: 'secondary',
             onStart: onOverrideRecovery
