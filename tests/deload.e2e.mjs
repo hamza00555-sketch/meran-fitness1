@@ -659,6 +659,15 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   ok('credit: no scoreboard and no cost line on Home', st.board === 0 && !/يرجع 10 إلى صفر|خلصت تذاكرك/.test(st.text), st.text.slice(0, 200))
   ok('credit: the old folded warning is gone',
     await page.locator('[data-testid="credit-warning"]').count() === 0)
+  // The cost is «ليش N؟»'s to say, once, under today.
+  await page.locator('[data-testid="streak-number"]').click()
+  await page.waitForTimeout(700)
+  const stake = page.locator('[data-testid="streak-stake"]')
+  ok('credit: the sheet says a miss today costs the streak', (await stake.count()) === 1 && (await stake.innerText()).trim() === 'لو فاتك يرجع صفر')
+  const rdText = await page.locator('[data-testid="rest-days"]').innerText()
+  ok('credit: and once — not again under the rest days', !/صفر/.test(rdText), rdText)
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(400)
 
   await page.screenshot({ path: `${OUT}/credit-warning.png`, fullPage: false })
   ok('credit: no page errors on the warning state', errors.length === 0, errors.join('; '))
@@ -995,17 +1004,53 @@ for (const device of ['iPhone 13', 'iPhone SE']) {
   const t = (await block.count()) ? await block.innerText() : ''
   ok('sheet: «أيام الراحة الاختيارية: 1» at the top', /أيام الراحة الاختيارية:\s*1/.test(t), t.slice(0, 120))
   const held = await page.locator('[data-testid="rest-day-held"]').allInnerTexts()
-  ok('sheet: the one held, with the day it was earned', held.length === 1 && /كسبته الجمعة 10 يوليو لما وصل ستريكك 10/.test(held[0]), JSON.stringify(held))
+  ok('sheet: the one held, with the day it was earned', held.length === 1 && /^كسبته 10 يوليو$/.test(held[0].trim()), JSON.stringify(held))
   const used = await page.locator('[data-testid="rest-day-used"]').allInnerTexts()
-  ok('sheet: the one used, with the day', used.length === 1 && /استخدمته السبت 11 يوليو/.test(used[0]), JSON.stringify(used))
-  ok('sheet: and that it does not run out', /ما ينتهي/.test(t), t)
+  ok('sheet: the one used, with the day', used.length === 1 && /^استخدمته 11 يوليو$/.test(used[0].trim()), JSON.stringify(used))
   const mark = await page.locator('[data-testid="streak-today-mark"]').innerText()
-  ok('sheet: says today is still needed (it left the flame)', /اليوم لسا يبي تمرين/.test(mark), mark)
+  ok('sheet: says today is still needed (it left the flame), with the time left', /^اليوم لسا يبي تمرين · باقي 17 س$/.test(mark.trim()), mark)
+  ok('sheet: one rest day held — no «لو فاتك يرجع صفر»', await page.locator('[data-testid="streak-stake"]').count() === 0)
+  const sum = await page.locator('[data-testid="streak-sum"]').innerText()
+  ok('sheet: the number as a sum, once', /^من 1 يوليو · 5 تمارين \+ 5 راحة مجدولة$/.test(sum.trim()), sum)
+  // «ما قل ودل» (حمزة): short lines, no engine explained, no «تذاكر»,
+  // and the whole sheet about one screen on this phone.
+  const sheet = await page.evaluate(() => {
+    const s = document.querySelector('.k-sheet')
+    const c = s.cloneNode(true)
+    c.querySelectorAll('.ss-grid').forEach(n => n.remove())
+    c.style.cssText = 'position:absolute;left:-9999px'
+    document.body.appendChild(c)
+    const text = c.innerText
+    c.remove()
+    const b = s.querySelector('.k-sheet-body')
+    return { text, scroll: b.scrollHeight / b.clientHeight }
+  })
+  const words = sheet.text.split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).length
+  ok('sheet: no «تذاكر», no rules, no paragraphs', !/تذكر|تذاكر|كيف ينحسب|ما ينتهي|ينصرف واحد لحاله|هي نفسها/.test(sheet.text), sheet.text)
+  ok(`sheet: under 60 words besides the calendar (${words})`, words < 60, sheet.text)
+  ok(`sheet: one screen and a short scroll (${sheet.scroll.toFixed(2)} screens)`, sheet.scroll <= 1.5, String(sheet.scroll))
+  // «ليش مو 12؟»: the calendar days, shut until he asks
+  const why = page.locator('.ss-why')
+  ok('sheet: «ليش مو 12؟» is there, shut', /ليش مو 12؟/.test(await why.innerText()) && await why.getAttribute('aria-expanded') === 'false'
+    && await page.locator('[data-testid="streak-why"]').count() === 0)
+  await why.click()
+  await page.waitForTimeout(200)
+  const whyText = (await page.locator('[data-testid="streak-why"]').count()) ? await page.locator('[data-testid="streak-why"]').innerText() : ''
+  ok('sheet: and opens one line that adds up', whyText.trim() === '12 يوم بالتقويم: 10 محسوبة + 1 راحة اختيارية + اليوم', whyText)
   const order = await page.evaluate(() => {
     const top = (sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? null
     return { mark: top('[data-testid="streak-today-mark"]'), rd: top('[data-testid="rest-days"]'), month: top('.ss-month') }
   })
-  ok('sheet: the rest days come before the calendar', order.rd != null && order.rd < order.month, JSON.stringify(order))
+  ok('sheet: today, then the rest days, then the calendar', order.mark != null && order.mark < order.rd && order.rd < order.month, JSON.stringify(order))
+  // the calendar shows this month; the one before is a tap away
+  const monthLabel = async () => (await page.locator('.ss-month-label').innerText()).trim()
+  ok('sheet: the calendar opens on this month', await monthLabel() === 'يوليو', await monthLabel())
+  const prevMonth = page.getByRole('button', { name: 'الشهر اللي قبله' })
+  ok('sheet: and the run started this month — no month before it', await prevMonth.isDisabled())
+  await page.locator('.ss-cell.k-credit').first().click()
+  await page.waitForTimeout(150)
+  const picked = await page.locator('.ss-picked').innerText()
+  ok('sheet: a tapped day says what it was', picked.trim() === 'السبت 11 يوليو · يوم راحة اختياري · وقف على 10', picked)
   await page.screenshot({ path: `${SHOTS}/sheet.png` })
   ok('rest days, sheet: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()

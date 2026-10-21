@@ -1,24 +1,24 @@
-import { useMemo, useState } from 'react'
-import { Sheet, Num, Gauge } from '../kit/index.jsx'
-import { explainerView, dayLine, todayMark } from '../../streak.js'
+import { useEffect, useMemo, useState } from 'react'
+import { Sheet, Num, IconButton } from '../kit/index.jsx'
+import { explainerView, dayLine, unitAr } from '../../streak.js'
 import { restDaysView, restDaysCopy } from '../../restDays.js'
 import { Flame, Moon, Ticket, Cross } from './StreakIcons.jsx'
-import { Check, Hourglass } from '../kit/icons.js'
+import { Check, Hourglass, CaretRight, CaretLeft, CaretDown } from '../kit/icons.js'
+import useMinute from './useMinute.js'
 import '../../styles/streak-sheet.css'
 
 // ── «ليش 60؟» ─────────────────────────────────────────────────
-// Tapping the streak anywhere opens this. It is the answer the owner
-// had to wait for an investigation to get when his 30 became a 6: the
-// number as a sum, where the run began and why, what did not count,
-// why it is not the calendar-day count, every day on a calendar, the
-// records and the rules — all read from the ledger that produced the
-// number.
+// Tapping the streak anywhere opens this: the number as a sum, today,
+// the optional rest days, and the days on a calendar — all read from the
+// ledger that produced the number (streak.js explainerView).
 //
-// At the top, under the number: whether today is counted or still
-// needed (Home's flame used to say it), and «أيام الراحة الاختيارية: N»
-// — every rest day he holds with the day he earned it, and the last ones
-// used (حمزة found one he never knew he had). The flame here means what
-// it means on Home: filled while he holds one.
+// حمزة: «ابا نقلل النص بحيث يكون ما قل ودل». Each fact once, in a short
+// line; no rules, no engine. At the top, under the number: whether today
+// is counted or still needed (Home's flame used to say it), and
+// «أيام الراحة الاختيارية: N» with the day each was earned and the last
+// ones used. The flame here means what it means on Home: filled while he
+// holds one. «ليش مو 58؟» opens one line, only when optional rest days
+// sit between the calendar days and the number.
 
 const WEEK = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'] // Sunday first
 
@@ -34,128 +34,113 @@ function Glyph({ kind }) {
 }
 
 export default function StreakSheet({ open, onClose, recovery, config, active, deload, today, storedBest }) {
+  // The countdown moves while the sheet is open; closed, nothing ticks.
+  const tick = useMinute()
+  const now = open ? tick : undefined
   const e = useMemo(
-    () => explainerView({ recovery, config, active, deload, today, storedBest }),
-    [recovery, config, active, deload, today, storedBest],
+    () => explainerView({ recovery, config, active, deload, now, today, storedBest }),
+    [recovery, config, active, deload, now, today, storedBest],
   )
-  const [picked, setPicked] = useState(null)
-  const pickedRow = picked ? (recovery?.ledger || []).find(r => r.date === picked) : null
-  const v = e.view
   const rd = useMemo(() => restDaysCopy(restDaysView(recovery), e.today), [recovery, e.today])
-  const mark = todayMark(v.kind)
+  const [picked, setPicked] = useState(null)
+  const [why, setWhy] = useState(false)
+  const last = e.months.length - 1
+  const [month, setMonth] = useState(last)
+  // Each opening starts from the top: this month, nothing picked, «ليش مو» shut.
+  useEffect(() => { if (open) { setPicked(null); setWhy(false); setMonth(last) } }, [open, last])
+  const pickedRow = picked ? (recovery?.ledger || []).find(r => r.date === picked) : null
+  const d = e.day
+  const g = e.months[Math.min(month, last)]
+  const lit = rd.count > 0
 
   return (
     <Sheet open={open} onClose={onClose} tall title={`ليش ${e.n}؟`}>
       <div className="ss">
-        <div className="ss-hero">
-          <span className={`ss-flame${rd.count > 0 ? ' glow' : ''}`}><Flame size={34} filled={rd.count > 0} /></span>
-          <b className={`ss-big${e.n === 0 ? ' zero' : ''}`}><Num>{e.n}</Num></b>
-          <span className="ss-unit">{e.unit}{e.stage && <> · {e.stage}</>}</span>
-        </div>
-        <p className={`ss-mark${mark.done ? ' done' : ''}`} data-testid="streak-today-mark">
-          {mark.done ? <Check size={16} weight="bold" aria-hidden="true" /> : <Hourglass size={16} weight="bold" aria-hidden="true" />}
-          {mark.text}
-        </p>
+        <section className="ss-top">
+          <div className="ss-hero">
+            <span className={`ss-flame${lit ? ' glow' : ''}`}><Flame size={34} filled={lit} /></span>
+            <b className={`ss-big${e.n === 0 ? ' zero' : ''}`}><Num>{e.n}</Num></b>
+            <span className="ss-unit">{e.unit}</span>
+            {e.whyNot && (
+              <button type="button" className="ss-why" aria-expanded={why} onClick={() => setWhy(w => !w)}>
+                {`ليش مو ${e.whyNot.days}؟`}<CaretDown size={12} weight="bold" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          {e.sum && (
+            <p className="ss-sum" data-testid="streak-sum">
+              {/* each part whole on its line: «راحة / مجدولة» never splits at 320 */}
+              <span>من {e.sum.from}</span> · <span><b><Num>{e.sum.trained}</Num></b> {unitAr(e.sum.trained, 'workout')}</span>
+              {e.sum.plannedRest > 0 && <> + <span><b><Num>{e.sum.plannedRest}</Num></b> راحة مجدولة</span></>}
+            </p>
+          )}
+          {e.whyNot && why && <p className="ss-why-a" data-testid="streak-why">{e.whyNot.text}</p>}
+          {e.line && <p className="ss-sum">{e.line}</p>}
+
+          <p className={`ss-mark${d.mark.done ? ' done' : ''}`} data-testid="streak-today-mark">
+            {d.mark.done ? <Check size={16} weight="bold" aria-hidden="true" /> : <Hourglass size={16} weight="bold" aria-hidden="true" />}
+            <span>{d.mark.text}{d.countdown && ` · باقي ${d.countdown}`}</span>
+          </p>
+          {d.stake && <p className="ss-stake" data-testid="streak-stake">{d.stake}</p>}
+          {d.deload && <p className="ss-note">ديلود: الحساب نفسه</p>}
+        </section>
 
         <section className="ss-rd" data-testid="rest-days" aria-labelledby="ss-rd-h">
           <h3 id="ss-rd-h" className="ss-rd-h">
-            <span className={`ss-rd-flame${rd.count > 0 ? ' on' : ''}`}><Flame size={20} filled={rd.count > 0} /></span>
+            <span className={`ss-rd-flame${lit ? ' on' : ''}`}><Flame size={18} filled={lit} /></span>
             أيام الراحة الاختيارية: <b><Num>{rd.count}</Num></b>
           </h3>
-          <p className="ss-rd-lead">{rd.lead}</p>
-          {rd.held.length > 0 && (
+          <div className="ss-rd-next">
+            <span className="ss-seg" role="progressbar" aria-label="التقدم ليوم الراحة الجاي"
+              aria-valuemin={0} aria-valuemax={rd.every} aria-valuenow={rd.progress}>
+              {Array.from({ length: rd.every }, (_, i) => <i key={i} className={i < rd.progress ? 'on' : ''} />)}
+            </span>
+            <span>{rd.next}</span>
+          </div>
+          {rd.rows.length > 0 && (
             <ul className="ss-rd-list">
-              {rd.held.map(h => (
-                <li key={h.date} data-testid="rest-day-held"><span className="ss-rd-ic"><Moon size={14} /></span>{h.text}</li>
+              {rd.rows.map(r => (
+                <li key={r.kind + r.date} className={r.kind} data-testid={r.kind === 'held' ? 'rest-day-held' : 'rest-day-used'}>
+                  <span className="ss-rd-ic">{r.kind === 'held' ? <Moon size={14} /> : <Ticket size={14} />}</span>{r.text}
+                </li>
               ))}
             </ul>
           )}
-          {rd.keep && <p className="ss-sub">{rd.keep}</p>}
-          <Gauge value={e.tickets.progress} max={e.tickets.every} tone="rest" label="التقدم ليوم الراحة الجاي" />
-          <p className="ss-sub">{rd.next} · {rd.every}</p>
-          {rd.used.length > 0 && (
-            <>
-              <h4 className="ss-rd-h4">آخر ما استخدمت</h4>
-              <ul className="ss-rd-list used">
-                {rd.used.map(u => (
-                  <li key={u.date} data-testid="rest-day-used"><span className="ss-rd-ic"><Ticket size={14} /></span>{u.text}</li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
-        {e.sentence && <p className="ss-lead">{e.sentence}</p>}
-        <p className="ss-sub">{e.startLine}</p>
-
-        {e.equation && (
-          <div className="ss-eq" aria-label={`${e.equation.trained} تمرين و${e.equation.plannedRest} راحة مجدولة يساوي ${e.equation.total}`}>
-            <i className="ss-dot" /><span><b className="o"><Num>{e.equation.trained}</Num></b> تمرين</span>
-            <span className="ss-op">+</span>
-            <span className="ss-rest"><Moon size={14} /></span><span><b className="b"><Num>{e.equation.plannedRest}</Num></b> راحة مجدولة</span>
-            <span className="ss-op">=</span>
-            <b className="o"><Num>{e.equation.total}</Num></b>
-          </div>
-        )}
-        {e.notCounted && <p className="ss-note">{e.notCounted}</p>}
-        {e.whyNot && <p className="ss-sub">{e.whyNot}</p>}
-
-        <section className="ss-sec">
-          <h3>اليوم</h3>
-          <p className="ss-today">{v.status}</p>
-          {v.countdown && !v.lateTail && <p className="ss-sub">لين 3 الفجر · باقي <b>{v.countdown}</b>{v.cost ? <> — {v.cost}</> : null}</p>}
-          {v.countdown && v.lateTail && <p className="ss-sub">باقي <b>{v.countdown}</b> على 3 الفجر · {v.lateTail}</p>}
-          {!v.countdown && v.detail && <p className="ss-sub">{v.detail}</p>}
         </section>
 
-        <section className="ss-sec">
-          <h3>يوم بيوم</h3>
-          {e.months.map(g => (
-            <div key={g.label} className="ss-month">
+        <section className="ss-cal" aria-label="يوم بيوم">
+          <div className="ss-month">
+            <div className="ss-month-h">
+              <IconButton icon={CaretRight} label="الشهر اللي قبله" iconSize={18}
+                disabled={month <= 0} onClick={() => { setMonth(m => m - 1); setPicked(null) }} />
               <span className="ss-month-label">{g.label}</span>
-              <div className="ss-grid" role="grid">
-                {WEEK.map(w => <span key={w} className="ss-wd">{w}</span>)}
-                {g.cells.map((c, i) => c ? (
-                  <button key={c.iso} type="button"
-                    className={`ss-cell k-${c.kind}${picked === c.iso ? ' picked' : ''}`}
-                    disabled={c.kind === 'future'}
-                    onClick={() => setPicked(c.iso)}
-                    aria-label={c.row ? dayLine(c.row, e.today) : c.iso}>
-                    <span className="ss-cell-n"><Num>{c.day}</Num></span>
-                    <span className="ss-cell-g"><Glyph kind={c.kind} /></span>
-                  </button>
-                ) : <span key={`b${i}`} />)}
-              </div>
+              <IconButton icon={CaretLeft} label="الشهر اللي بعده" iconSize={18}
+                disabled={month >= last} onClick={() => { setMonth(m => m + 1); setPicked(null) }} />
             </div>
-          ))}
-          <p className="ss-picked" aria-live="polite">{pickedRow ? dayLine(pickedRow, e.today) : 'اضغط على يوم تشوف وش صار فيه.'}</p>
-          <p className="ss-key">
-            <i className="ss-dot" /> تمرين +1 · <span className="ss-rest"><Moon size={12} /></span> راحة مجدولة +1 · <span className="ss-rest"><Ticket size={12} /></span> راحة اختيارية 0 · <span className="ss-miss"><Cross size={10} /></span> انكسر
-          </p>
-        </section>
-
-
-        <section className="ss-sec">
-          <h3>الأرقام</h3>
-          <div className="ss-rows">
-            <div><span>أفضل ستريك</span><b><Num>{e.records.best}</Num>{e.records.bestIsCurrent ? ' (الحالي)' : ''}</b></div>
-            {e.records.previous && (
-              <div><span>اللي قبله</span><b><Num>{e.records.previous.length}</Num> · {e.records.previous.endedBy === 'settings' ? 'انتهى بتغيير الخطة' : <>انكسر {fmt(e.records.previous.breakDay)}</>}</b></div>
-            )}
-            {v.next && <div><span>المحطة الجاية</span><b><Num>{v.next}</Num> · باقي <Num>{v.next - e.n}</Num></b></div>}
+            <div className="ss-grid" role="grid">
+              {WEEK.map(w => <span key={w} className="ss-wd">{w}</span>)}
+              {g.cells.map((c, i) => c ? (
+                <button key={c.iso} type="button"
+                  className={`ss-cell k-${c.kind}${picked === c.iso ? ' picked' : ''}`}
+                  disabled={c.kind === 'future'}
+                  onClick={() => setPicked(c.iso)}
+                  aria-label={c.row ? dayLine(c.row, e.today) : c.iso}>
+                  <span className="ss-cell-n"><Num>{c.day}</Num></span>
+                  <span className="ss-cell-g"><Glyph kind={c.kind} /></span>
+                </button>
+              ) : <span key={`b${i}`} />)}
+            </div>
           </div>
-        </section>
-
-        <section className="ss-sec">
-          <h3>كيف ينحسب</h3>
-          <ul className="ss-rules">{e.rules.map(r => <li key={r}>{r}</li>)}</ul>
+          <p className="ss-picked" aria-live="polite">{pickedRow ? dayLine(pickedRow, e.today) : ''}</p>
+          <p className="ss-key">
+            <span><i className="ss-dot" /> تمرين</span>
+            <span><span className="ss-rest"><Moon size={12} /></span> راحة مجدولة</span>
+            <span><span className="ss-rest"><Ticket size={12} /></span> راحة اختيارية</span>
+            <span><span className="ss-miss"><Cross size={10} /></span> انكسر</span>
+          </p>
+          {e.bestLine && <p className="ss-best">أفضل ستريك لك: <b><Num>{e.bestLine}</Num></b></p>}
         </section>
       </div>
     </Sheet>
   )
-}
-
-function fmt(iso) {
-  const [y, m, d] = iso.split('-').map(Number)
-  const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
-  return `${d} ${MONTHS[m - 1]}${y !== new Date().getFullYear() ? ` ${y}` : ''}`
 }

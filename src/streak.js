@@ -112,6 +112,9 @@ export const COUNTED = new Set(['counted-trained', 'counted-rest', 'override', '
  * said in words at the top of «ليش N؟». { done, text }
  */
 export function todayMark(kind) {
+  if (kind === 'counted-rest' || kind === 'override') return { done: true, text: 'اليوم راحة مجدولة وانحسب' }
+  // only an old backup can pay for today: it holds the streak, adds nothing
+  if (kind === 'held') return { done: true, text: 'اليوم مغطّى بيوم راحة اختياري' }
   if (COUNTED.has(kind)) return { done: true, text: 'اليوم انحسب' }
   if (kind === 'reset') return { done: false, text: 'اليوم ما ينحسب — العدّ يبدأ بكرة' }
   if (kind === 'running') return { done: false, text: 'اليوم ينحسب لما تنهي الجلسة' }
@@ -387,14 +390,15 @@ export function spendToast(days, recovery) {
 // ── «ليش 60؟» — the number, explained ─────────────────────────
 //
 // Everything here is read from the same ledger the number came from, so
-// the sheet can only ever agree with the scoreboard. It answers, in
-// order: what the number is, where the run began and why, the sum that
-// makes it, what did not count, why it is not the calendar-day count,
-// the tickets, the records, and the rules.
-
-/** The flame's stage, by milestone band. */
-export const flameStage = (n) =>
-  n >= 100 ? 'مشعل' : n >= 30 ? 'لهب' : n >= 7 ? 'شعلة' : n >= 1 ? 'جمرة' : ''
+// the sheet can only ever agree with the scoreboard.
+//
+// حمزة: «النصوص في صفحة الستريك مبالغ فيها وكثير ابا نقلل النص بحيث
+// يكون ما قل ودل». So each fact is said once, in a short line, and the
+// engine is not explained: the number and its sum (since when, how many
+// workouts and scheduled rest days), today, the optional rest days, and
+// the days on a calendar. «ليش مو 58؟» — the calendar days the number is
+// not — is one line he opens himself. The optional rest days are called
+// that everywhere here, never «تذاكر».
 
 const cellKind = (r, today) => {
   if (!r) return 'out'
@@ -416,17 +420,14 @@ export function dayLine(r, today) {
   const k = cellKind(r, today)
   const trainedOnRest = r.completed && r.scheduled === 'rest'
   switch (k) {
-    case 'trained':
-      return trainedOnRest
-        ? `${d} · كان راحة مجدولة وتمرّنت · +1 والراحة انتقلت لبكرة`
-        : `${d} · تمرّنت · +1 صار ${r.streak}`
-    case 'rest': return `${d} · راحة مجدولة · +1 صار ${r.streak}`
-    case 'credit': return `${d} · يوم تمرين ما تمرّنت فيه · انصرفت تذكرة · وقف على ${r.streak ?? 0}`
-    case 'missed': return `${d} · يوم تمرين بدون تمرين ولا تذكرة · انكسر ستريك ${r.broke}`
-    case 'idle': return `${d} · يوم تمرين ما تمرّنت فيه · ما كان فيه ستريك`
-    case 'today-pending': return `${d} · اليوم · باقي تمرين لين 3 الفجر`
-    case 'today-done': return `${d} · اليوم · تمرّنت · +1`
-    case 'today-rest': return `${d} · اليوم · راحة مجدولة · +1`
+    case 'trained': return `${d} · ${trainedOnRest ? 'تمرّنت بيوم راحة' : 'تمرّنت'} · صار ${r.streak}`
+    case 'rest': return `${d} · راحة مجدولة · صار ${r.streak}`
+    case 'credit': return `${d} · يوم راحة اختياري · وقف على ${r.streak ?? 0}`
+    case 'missed': return `${d} · فاتك التمرين · انكسر ستريك ${r.broke}`
+    case 'idle': return `${d} · فاتك التمرين`
+    case 'today-pending': return `${d} · اليوم · لسا يبي تمرين`
+    case 'today-done': return `${d} · اليوم · تمرّنت · صار ${r.streak}`
+    case 'today-rest': return `${d} · اليوم · راحة مجدولة · صار ${r.streak}`
     default: return `${d} · قبل هالستريك`
   }
 }
@@ -451,13 +452,23 @@ function monthGrids(recovery, today, startIso) {
       const row = byDate.get(iso) || null
       cells.push({ iso, day: d, kind: cellKind(row, today), row })
     }
-    grids.push({ label: `${MONTHS[m - 1]} ${y}`, cells })
+    grids.push({ label: y === ty ? MONTHS[m - 1] : `${MONTHS[m - 1]} ${y}`, cells })
     if (y === ty && m === tm) break
     m++; if (m > 12) { m = 1; y++ }
   }
   return grids
 }
 
+/**
+ * Everything «ليش N؟» says, as data and short lines:
+ *   sum      { from, trained, plannedRest } — the number as a sum, n > 0
+ *   line     at 0, what happened instead: the break, the plan change, or
+ *            that the first session starts it
+ *   whyNot   { days, text } — the calendar days since the start, when
+ *            optional rest days sit between them and the number
+ *   day      { mark, countdown, stake, deload } — counted or still needed,
+ *            the time left, and what a miss costs when it is the streak
+ */
 export function explainerView({ recovery, config = {}, active = null, deload = null, now = new Date(), today: todayIn = null, storedBest = null } = {}) {
   const v = streakView({ recovery, config, active, deload, now, today: todayIn })
   const today = v.today
@@ -466,76 +477,58 @@ export function explainerView({ recovery, config = {}, active = null, deload = n
   const inRun = ledger.filter(r => r.inRun)
   const trained = inRun.filter(r => r.streakDelta === 1 && r.completed).length
   const plannedRest = inRun.filter(r => r.streakDelta === 1 && !r.completed).length
-  const paidRows = inRun.filter(r => r.kind === 'paid' && r.date !== today)
+  const paid = inRun.filter(r => r.kind === 'paid').length
   const start = recovery?.streakStart || null
   const calendarDays = start ? dayDiffIso(start, today) + 1 : 0
-  const todayCounts = v.counted
   const runs = recovery?.runs || []
   const prev = [...runs].reverse().find(r => r.length > 0 && r.endedBy !== 'windowEdge') || null
+  const from = start === today ? 'اليوم' : fmtDayAr(start, { weekday: false })
 
-  let startLine = ''
-  if (n > 0 && start) {
-    const why = prev?.endedBy === 'miss' ? ` — بعد غياب ${fmtDayAr(prev.breakDay)} بدون تذكرة`
-      : prev?.endedBy === 'settings' ? ' — بعد تغيير الخطة'
-      : ' — من أول جلسة سجّلتها'
-    startLine = `بدأ ${fmtDayAr(start)}${why}`
-  } else if (prev?.endedBy === 'miss') {
-    startLine = `انكسر ستريك ${prev.length} ${unitAr(prev.length, 'day')} — ${fmtDayAr(prev.breakDay)} كان يوم تمرين وما بقى تذاكر. يبدأ من أول يوم ينحسب لك.`
-  } else if (v.kind === 'reset') {
-    startLine = 'بدأ ستريك جديد بعد تغيير الخطة — العدّ يبدأ بكرة.'
-  } else {
-    startLine = 'أول جلسة تحفظها تبدأ ستريكك، وأيام الراحة المجدولة تنحسب لك بعدها.'
+  let line = ''
+  if (n === 0) {
+    if (prev?.endedBy === 'miss' && v.kind !== 'reset') line = `انكسر ستريك ${prev.length} ${unitAr(prev.length, 'day')} في ${fmtDayAr(prev.breakDay, { weekday: false })}`
+    else if (prev?.endedBy === 'settings') line = `انتهى ستريك ${prev.length} ${unitAr(prev.length, 'day')} بتغيير الخطة`
+    else if (!ledger.length) line = 'أول جلسة تحفظها تبدأ ستريكك'
   }
 
-  let notCounted = ''
-  if (paidRows.length) {
-    notCounted = `${countAr(paidRows.length, 'day')} غطّتها التذاكر — توقفه وما تزيده.`
+  // Only when optional rest days are what stands between the two numbers:
+  // today alone is already said by the line about today.
+  let whyNot = null
+  if (n > 0 && paid > 0 && calendarDays > n) {
+    // «16 راحة مجدولة» on the line above, «9 راحة اختيارية» here
+    // (today is in neither while it still waits for a workout)
+    const parts = [`${n} محسوبة`, `${paid} راحة اختيارية`]
+    const todayRow = ledger.find(r => r.date === today)
+    if (!(todayRow?.inRun && (todayRow.streakDelta === 1 || todayRow.kind === 'paid'))) parts.push('اليوم')
+    whyNot = { days: calendarDays, text: `${calendarDays} ${unitAr(calendarDays, 'day')} بالتقويم: ${parts.join(' + ')}` }
   }
 
-  let whyNot = ''
-  if (n > 0 && calendarDays > n) {
-    const parts = [`${n} محسوبة`]
-    if (paidRows.length) parts.push(`${paidRows.length} بتذاكر`)
-    if (!todayCounts) parts.push('اليوم')
-    whyNot = `من ${fmtDayAr(start, { weekday: false })} لين اليوم ${calendarDays} يوم: ${parts.join(' + ')}. عشان كذا الرقم ${n} مو ${calendarDays} — الأيام المغطّاة ما تنعد، والستريك مو أيام التقويم ولا عدد الجلسات.`
-  }
-
-  const lastPaid = paidRows.length ? paidRows[paidRows.length - 1].date : null
+  const owed = v.kind === 'owed'
   const bestLen = Math.max(recovery?.bestRun?.length || 0, storedBest?.value || 0)
-  const bestIsCurrent = n > 0 && n >= bestLen
 
   return {
     view: v,
-    n, unit: unitAr(n, 'day'), stage: flameStage(n),
-    sentence: n > 0 && start ? `${n} ${unitAr(n, 'day')} التزمت فيها بالخطة، من ${fmtDayAr(start)} لين اليوم.` : '',
-    startLine,
-    equation: n > 0 ? { trained, plannedRest, total: n } : null,
-    notCounted,
+    n, unit: unitAr(n, 'day'),
+    sum: n > 0 && start ? { from, trained, plannedRest, total: n } : null,
+    line,
     whyNot,
-    tickets: {
-      usable: v.tickets,
-      text: v.tickets > 0 ? countAr(v.tickets, 'ticket') : 'ما عندك تذاكر',
-      progress: recovery?.creditProgress ?? 0,
-      every: REST_CREDIT_EVERY,
-      toNext: recovery?.daysToNextCredit ?? REST_CREDIT_EVERY,
-      spentInRun: recovery?.spentInStreak ?? 0,
-      lastPaid,
+    day: {
+      mark: todayMark(v.kind),
+      countdown: owed ? v.countdown : null,
+      // A miss costs the streak only when no optional rest day is left;
+      // with one, it holds — that is what the rest days are.
+      stake: owed && n > 0 && missWouldCost(recovery) === 'break' ? 'لو فاتك يرجع صفر' : '',
+      deload: !!v.deload && (owed || v.kind === 'running'),
     },
     records: {
       best: bestLen,
-      bestIsCurrent,
+      bestIsCurrent: n > 0 && n >= bestLen,
       previous: prev ? { length: prev.length, breakDay: prev.breakDay, endedBy: prev.endedBy } : null,
     },
+    // «أفضل ستريك لك: 60» — only above the number, and not when the line
+    // above already named that run
+    bestLine: bestLen > n && !(line && prev?.length === bestLen) ? bestLen : null,
     months: monthGrids(recovery, today, start || (ledger[0]?.date ?? today)),
-    rules: [
-      'ينحسب اليوم إذا حفظت جلسة وحدة على الأقل، أو كان راحة مجدولة.',
-      'اليوم التدريبي من 3 الفجر لين 3 الفجر، والجلسة تنحسب لليوم اللي بدأتها فيه.',
-      'تمرّنت بيوم راحة؟ ينحسب، والراحة تنتقل لبكرة.',
-      'يوم تمرين بلا جلسة: تنصرف تذكرة لحالها الساعة 3 الفجر، وبلا تذاكر ينكسر.',
-      `كل ${REST_CREDIT_EVERY} أيام محسوبة تعطيك تذكرة. ما تختار متى تنصرف.`,
-      '«تخطي اليوم» ينقل الخطة بس — يوم التمرين لسا يبي تمرين أو تذكرة.',
-      'الديلود يخفّف الوزن، ما يحمي الستريك.',
-    ],
     today,
   }
 }

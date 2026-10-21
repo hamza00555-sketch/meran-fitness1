@@ -64,26 +64,50 @@ test('nothing yet: zero, and when the next one comes', () => {
   assert.equal(v.count, 0)
   const c = restDaysCopy(v, '2026-07-02')
   assert.equal(c.title, 'أيام الراحة الاختيارية: 0')
-  assert.match(c.lead, /ما عندك ولا يوم راحة اختياري/)
-  assert.equal(c.keep, '')
   assert.equal(c.next, 'الجاي بعد 3 أيام محسوبة')
+  // the five slots: two counted days of the five so far
+  assert.deepEqual([c.progress, c.every], [2, 5])
+  assert.deepEqual(c.rows, [])
   assert.deepEqual(restDaysView(computeRecovery([], CFG, '2026-07-02')).held, [])
 })
 
-test('the words: dates in Arabic, Arabic counting', () => {
+test('the words: short, dates in Arabic, Arabic counting', () => {
+  // «ما قل ودل»: the day only — no weekday, no streak, no «كان من»
   const c = restDaysCopy(restDaysView(rec([1, 3, 5, 7, 9], '2026-07-12')), '2026-07-12')
   assert.equal(c.title, 'أيام الراحة الاختيارية: 1')
-  assert.match(c.lead, /^عندك يوم راحة اختياري واحد\./)
-  assert.deepEqual(c.held.map(h => h.text), ['كسبته الجمعة 10 يوليو لما وصل ستريكك 10'])
-  assert.equal(c.keep, 'ما ينتهي — يبقى لك لين يفوتك يوم تمرين.')
-  assert.deepEqual(c.used.map(u => u.text), ['استخدمته السبت 11 يوليو — كان من 5 يوليو'])
+  assert.deepEqual(c.held.map(h => h.text), ['كسبته 10 يوليو'])
+  assert.deepEqual(c.used.map(u => u.text), ['استخدمته 11 يوليو'])
+  // one list, newest first
+  assert.deepEqual(c.rows.map(r => r.text), ['استخدمته 11 يوليو', 'كسبته 10 يوليو'])
   const today = restDaysCopy(restDaysView(rec([1, 3, 5, 7, 9], '2026-07-10')), '2026-07-10')
-  assert.equal(today.held[1].text, 'كسبته اليوم لما وصل ستريكك 10')
+  assert.equal(today.held[1].text, 'كسبته اليوم')
   assert.equal(restDaysAr(0), 'ولا يوم راحة اختياري')
   assert.equal(restDaysAr(1), 'يوم راحة اختياري واحد')
   assert.equal(restDaysAr(2), 'يومين راحة اختيارية')
   assert.equal(restDaysAr(3), '3 أيام راحة اختيارية')
   assert.equal(restDaysAr(11), '11 يوم راحة اختياري')
+})
+
+test('the list is three lines at most, and always shows the ones he holds', () => {
+  const held = (...d) => d.map(n => ({ earnedOn: `2026-07-${String(n).padStart(2, '0')}`, streak: n }))
+  const used = (...d) => d.map(n => ({ earnedOn: null, usedOn: `2026-07-${String(n).padStart(2, '0')}` }))
+  // four held: the three newest
+  const many = restDaysCopy({ count: 4, held: held(5, 10, 15, 20), used: used(12, 8, 3), toNext: 5, every: 5 }, '2026-07-21')
+  assert.deepEqual(many.rows.map(r => r.text), ['كسبته 20 يوليو', 'كسبته 15 يوليو', 'كسبته 10 يوليو'])
+  // one held after three uses: it is not pushed out by them
+  const one = restDaysCopy({ count: 1, held: held(20), used: used(24, 23, 22), toNext: 2, every: 5 }, '2026-07-25')
+  assert.deepEqual(one.rows.map(r => r.text), ['استخدمته 24 يوليو', 'استخدمته 23 يوليو', 'كسبته 20 يوليو'])
+  // none held: the last three used
+  const none = restDaysCopy({ count: 0, held: [], used: used(24, 23, 22, 21), toNext: 2, every: 5 }, '2026-07-25')
+  assert.deepEqual(none.rows.map(r => r.kind), ['used', 'used', 'used'])
+})
+
+test('the sheet says «يوم راحة اختياري», never «تذاكر»', () => {
+  for (const d of [2, 10, 12, 13]) {
+    const today = `2026-07-${String(d).padStart(2, '0')}`
+    const c = restDaysCopy(restDaysView(rec([1, 3, 5, 7, 9].filter(n => n <= d), today)), today)
+    assert.doesNotMatch(JSON.stringify(c), /تذكر|تذاكر/, today)
+  }
 })
 
 test('the announcement says what was earned and what he holds now', () => {
@@ -118,7 +142,10 @@ test('announced once: nothing the first time, then each new day once', () => {
 
 test('today counted or still needed, in words (it left the flame)', () => {
   assert.deepEqual(todayMark('counted-trained'), { done: true, text: 'اليوم انحسب' })
-  assert.deepEqual(todayMark('counted-rest'), { done: true, text: 'اليوم انحسب' })
+  assert.deepEqual(todayMark('counted-rest'), { done: true, text: 'اليوم راحة مجدولة وانحسب' })
+  assert.deepEqual(todayMark('override'), { done: true, text: 'اليوم راحة مجدولة وانحسب' })
+  // a paid day holds the streak and adds nothing: not «انحسب»
+  assert.deepEqual(todayMark('held'), { done: true, text: 'اليوم مغطّى بيوم راحة اختياري' })
   assert.equal(todayMark('owed').done, false)
   assert.equal(todayMark('owed').text, 'اليوم لسا يبي تمرين')
   assert.equal(todayMark('running').text, 'اليوم ينحسب لما تنهي الجلسة')
