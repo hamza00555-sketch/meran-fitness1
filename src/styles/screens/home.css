@@ -326,6 +326,14 @@
   .hm .hm-head { padding-top: var(--space-4); }
   .hm-rows { margin-top: var(--space-3); }
 }
+/* A tall phone (the app from the home screen: the whole 844pt): the
+   column ends well above the tab bar, so the head and the rows breathe. */
+@media (min-height: 760px) {
+  .hm .hm-head { padding-top: var(--space-6); }
+  .hm-rows { margin-top: var(--space-5); }
+  .hm-row { min-height: 60px; }
+  .hm-dock { margin-top: var(--space-4); }
+}
 @media (max-height: 620px) {
   .hm .h-top { padding-bottom: 8px; }
   .hm .hm-head { padding-top: var(--space-3); }
