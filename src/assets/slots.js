@@ -110,14 +110,18 @@ export { DELOADS_STYLE_NOTE }
 // A picture at the top of «انحفظت الجلسة», a different one each day
 // (src/summaryArt.js): the figure after training — the towel, the
 // shaker, the rack, the locker. Keyed out of white like the badges, a
-// 3:2 banner. The numbers are the ones Hamza approved (2026-10-22);
-// one he turns down is left out until its redraw is approved.
+// 3:2 banner. All ten approved by Hamza (2026-10-22; 4–7 on their
+// second drawing); one he turns down stays out until its redraw is.
 const SUMMARY = { w: 960, h: 640 }
 const SUMMARY_SCENES = {
   1: 'the black figure wiping its neck with a gym towel after training',
   2: 'the black figure sliding a weight plate back onto the rack',
   3: 'the black figure drinking from a protein shaker',
-  8: 'the black figure sitting on a bench, resting after the session',
+  4: 'the black figure sitting on the floor against a box, catching its breath',
+  5: 'the black figure walking out with its gym bag over the shoulder',
+  6: 'the black figure in a standing quad stretch after the session',
+  7: 'the black figure with one fist raised in quiet triumph',
+  8:'the black figure sitting on a bench, resting after the session',
   9: 'the black figure pushing its gym locker shut',
   10: 'the black figure standing confidently before a gym mirror',
 }

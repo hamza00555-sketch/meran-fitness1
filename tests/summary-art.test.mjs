@@ -77,7 +77,7 @@ test('the memory is per user, and the old design never reads it', async () => {
 })
 
 test('the pictures are pack slots, and Home\'s resting figure ships with the app', async () => {
-  assert.ok(SUMMARY_ART.length >= 6)
+  assert.equal(SUMMARY_ART.length, 10)
   const kinds = new Map(allSlots().map(s => [s.id, s]))
   for (const id of SUMMARY_ART) {
     assert.equal(kinds.get(id)?.kind, 'summary', id)
