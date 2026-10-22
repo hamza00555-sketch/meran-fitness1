@@ -18,14 +18,15 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.6'
+export const APP_VERSION = '3.8'
 
 export const WHATS_NEW = [
   {
-    version: '3.6', date: '2026-10-21',
+    version: '3.8', date: '2026-10-22',
     items: [
-      { icon: 'Sparkle', title: 'رئيسية أهدى', line: 'صورة صغيرة لعضلة اليوم بدل الصورة الكبيرة، وسطر واحد تحت اليوم.' },
-      { icon: 'Moon', tone: 'rest', title: 'التخفيف مرة وحدة', line: 'أسبوع التخفيف مكتوب فوق اليوم بس، بدون تكرار على كل تمرين.' },
+      { icon: 'Palette', title: 'الرئيسية رجعت زي قبل', line: 'رجّعنا شكل الرئيسية اللي تعودت عليه.' },
+      { icon: 'Image', title: 'صورة التخفيف داخل الشاشة', line: 'صورة أسبوع التخفيف صغرت وصارت داخل حدود الواجهة.' },
+      { icon: 'Moon', tone: 'rest', title: 'أيام الراحة زي قبل', line: 'يوم راحة اختياري كل 5 أيام محسوبة، مثل ما كان.' },
       { icon: 'Flame', tone: 'streak', title: '«ليش N؟» مختصرة', line: 'كل معلومة مرة وحدة بسطر قصير: يومك، أيام الراحة، ومن متى الستريك.' },
     ],
   },

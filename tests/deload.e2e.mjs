@@ -410,6 +410,19 @@ async function openDeloadSettings(page) {
     })))
   const bySlot = Object.fromEntries(arts.map(a => [a.slot, a.ok]))
   ok('pack: the iced hero replaces the training art', bySlot.deload_hero === true, JSON.stringify(bySlot))
+  // Hamza: «صورة الديلود في الواجهة كبيرة جدا وخارجة عن الحدود» — the
+  // glacier art sits wholly inside the stage and the screen, clear of ⋯.
+  const fit = await page.evaluate(() => {
+    const img = document.querySelector('.hm-stage img[data-art="deload_hero"]')
+    const stage = document.querySelector('.hm-stage'), more = document.querySelector('.hm-stage .s-more, .hm-stage [aria-label*="خيارات"]')
+    if (!img || !stage) return null
+    const a = img.getBoundingClientRect(), s = stage.getBoundingClientRect(), m = more?.getBoundingClientRect()
+    const overlap = m ? !(m.right <= a.left || m.left >= a.right || m.bottom <= a.top || m.top >= a.bottom) : false
+    return { inStage: a.left >= s.left - 0.5 && a.right <= s.right + 0.5 && a.top >= s.top - 0.5 && a.bottom <= s.bottom + 0.5,
+      inScreen: a.left >= 0 && a.right <= innerWidth, w: Math.round(a.width), sw: Math.round(s.width), overlap }
+  })
+  ok('deload art: inside the stage and the screen, at most 45% of its width',
+    fit && fit.inStage && fit.inScreen && fit.w <= fit.sw * 0.45, JSON.stringify(fit))
   ok('pack: the droplet badge renders in the counter', bySlot.deload_badge === true, JSON.stringify(bySlot))
   // A blob: URL is same-origin, which is what keeps the poster's canvas
   // untainted — worth asserting rather than assuming.

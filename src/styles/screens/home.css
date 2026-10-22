@@ -58,6 +58,14 @@
   mask-image: linear-gradient(to right, #000 52%, transparent 96%);
 }
 .hm .hm-stage-body { max-width: 66%; gap: 2px; }
+/* The deload's glacier art is a whole object, not a figure to crop at the
+   waist: it sits inside the stage, clear of every edge and of ⋯ (Hamza:
+   «صورة الديلود في الواجهة كبيرة جدا وخارجة عن الحدود»). */
+.hm .hm-stage .k-stage-art.hm-art-deload {
+  top: auto; bottom: 10%; height: 62%; max-width: 40%;
+  inset-inline-end: 16px; object-fit: contain; object-position: 50% 100%;
+  -webkit-mask-image: none; mask-image: none;
+}
 
 .hm-eyebrow {
   display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px;
