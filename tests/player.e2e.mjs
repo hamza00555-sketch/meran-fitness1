@@ -2920,7 +2920,8 @@ const timeline = (page) => page.evaluate(() => {
 // opens on one of its pictures, kept for the day (src/summaryArt.js), and
 // «تم» goes back to a Home whose done stage holds the resting figure.
 {
-  const { ctx, page, errors } = await open({ blockRemote: false, viewport: { width: 390, height: 844 } })
+  const { ctx, page, errors } = await open({ blockRemote: false, viewport: { width: 390, height: 844 },
+    sessions: MEDAL_HISTORY, active: HEAVY, unlocked: ACHIEVEMENTS.map(a => a.id) })
   await page.waitForTimeout(1200)
   await finishNow(page)
   await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})

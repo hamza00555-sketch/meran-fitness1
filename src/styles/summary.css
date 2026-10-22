@@ -10,7 +10,7 @@
    the stage's own light, the summary's words under it. */
 .sum-art {
   display: grid; place-items: center; margin: -12px calc(-1 * var(--gutter)) 0;
-  height: clamp(160px, 28vh, 230px);
+  height: clamp(160px, 28vh, 230px); padding-bottom: 8px; box-sizing: border-box;
   background: radial-gradient(48% 62% at 50% 58%, var(--stage-light), transparent 75%);
 }
 .sum-art img { width: 100%; height: 100%; object-fit: contain; }
