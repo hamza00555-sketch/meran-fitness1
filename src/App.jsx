@@ -1190,7 +1190,7 @@ export default function App() {
 
   // ── The plan builder (src/pages/planner) ────────────────────
   // A page of its own over any screen, with five doors: Settings › الخطة,
-  // Home › «خطتي», Home › ⋯ › عدّل الخطة, Home with no plan, and
+  // Home › تقدّم البرنامج, Home › ⋯ › عدّل الخطة, Home with no plan, and
   // the first run's «أبني خطتي بنفسي». `planner` (its state is declared
   // with planView above) is the door it opened from, or null.
   const openPlanner = useCallback((door, day = null) => { setPlannerDay(Number.isInteger(day) ? day : null); setPlanner(door) }, [])
@@ -1310,7 +1310,7 @@ export default function App() {
   }, [planPrev, plan, planIndex, pushAlert, exerciseSubs, exerciseMapping])
 
   // ── «خطتي» (src/pages/planview) ─────────────────────────────
-  // Three doors: Home › «خطتي», Settings › الخطة › «شوف خطتي», and
+  // Three doors: Home › تقدّم البرنامج, Settings › الخطة › «شوف خطتي», and
   // the session's ⋯ › «شوف خطتي». `planView` (above) is { from } while open.
   const openPlanView = useCallback((from = 'home') => setPlanView({ from }), [])
   // An edit from «خطتي» (or the session's «دايماً بخطتي») goes in the way

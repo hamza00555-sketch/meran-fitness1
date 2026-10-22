@@ -385,7 +385,7 @@ if (await page.locator('[data-pack="install"]').count()) {
 ok('the art pack installs from the site\'s /pack/', phase === 'ready', `phase=${phase}`)
 await seed()
 
-// ── 1. Door 1: Home › «خطتي» ────────────────────────────────────
+// ── 1. Door 1: Home › تقدّم البرنامج ───────────────────────────
 {
   await openFromHome()
   ok('home: the plan\'s row opens «خطتي»', await view().count() === 1 && await view().getAttribute('data-from') === 'home')

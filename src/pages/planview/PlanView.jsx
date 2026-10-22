@@ -4,7 +4,7 @@
 // كروت واضحة بشكل جميل، وبعدين يكون سهل علي إن أنا في تمرين ما عجبني
 // أغيره وأبدله بواحد ثاني».
 //
-// A page of its own over any screen (Home › «خطتي», Settings ›
+// A page of its own over any screen (Home › تقدّم البرنامج, Settings ›
 // الخطة › «شوف خطتي», the session's ⋯ › «شوف خطتي»). Lazy (App.jsx): this
 // chunk carries the page, its styles and the body figure's paths.
 //

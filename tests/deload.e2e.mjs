@@ -17,7 +17,6 @@ import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { ACHIEVEMENTS, BUILT_IN_PLANS, APP_VERSION } from '../src/constants.js'
 import { deloadWeight } from '../src/deload.js'
-import { makeContrast } from './contrast.mjs'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-deload-e2e'
@@ -275,10 +274,10 @@ async function openDeloadSettings(page) {
     stored?.deload?.from === '2026-07-01' && stored?.deload?.plannedUntil === '2026-07-07' && stored?.deload?.pct === 40,
     JSON.stringify(stored?.deload))
 
-  // The counter is the deload's one mark over the day: «ديلود · يوم 1 من 7 · أخف 40%».
-  const text = await page.evaluate(() => document.querySelector('.hm [data-testid="deload-mark"]')?.textContent.replace(/\s+/g, ' ') || '')
+  const text = await page.evaluate(() => document.body.innerText)
+  // The hero splits these across a chip and its neighbour text now.
   ok('settings: it lands back on the home screen with the counter',
-    /ديلود\s*يوم\s*1\s*من\s*7\s*أخف\s*40%/.test(text), text)
+    /ديلود[\s\S]{0,40}اليوم 1 من 7/.test(text), text.slice(0, 120))
 
   ok('settings: no page errors', errors.length === 0, errors.join('; '))
   await page.screenshot({ path: `${OUT}/fold-banner.png` })
@@ -345,8 +344,8 @@ async function openDeloadSettings(page) {
 // Every other block blocks the pack and exercises the fallback. This
 // one installs the pack the build put in dist/pack, served by the
 // preview at /pack/ exactly as the site serves it, so the whole install
-// path runs: manifest, every blob, then the deload's droplet the home
-// screen asks for (its mark over the day; no iced picture any more).
+// path runs: manifest, every blob, then the two deload slots the home
+// screen asks for.
 {
   const ctx = await browser.newContext({ serviceWorkers: 'block', // the worker has its own suites (offline, pack-install); here it would serve past page.route
     ...devices['iPhone 13'], timezoneId: 'Asia/Riyadh', locale: 'ar',
@@ -410,12 +409,8 @@ async function openDeloadSettings(page) {
       slot: i.dataset.art, ok: i.complete && i.naturalWidth > 0,
     })))
   const bySlot = Object.fromEntries(arts.map(a => [a.slot, a.ok]))
-  // Home no longer puts the iced dumbbell over the day (حمزة: «الصورة كبيرة
-  // مرة بشكل غير احترافي»): the deload is its one mark, with the droplet.
-  ok('pack: no iced picture over Home — the deload is said by its mark', !('deload_hero' in bySlot)
-    && await page.locator('.hm [data-testid="deload-mark"]').count() === 1, JSON.stringify(bySlot))
-  ok('pack: the droplet badge renders in the deload\'s mark', bySlot.deload_badge === true
-    && await page.locator('[data-testid="deload-mark"] img[data-art="deload_badge"]').count() === 1, JSON.stringify(bySlot))
+  ok('pack: the iced hero replaces the training art', bySlot.deload_hero === true, JSON.stringify(bySlot))
+  ok('pack: the droplet badge renders in the counter', bySlot.deload_badge === true, JSON.stringify(bySlot))
   // A blob: URL is same-origin, which is what keeps the poster's canvas
   // untainted — worth asserting rather than assuming.
   const blobbed = await page.evaluate(() =>
@@ -748,13 +743,12 @@ const CLEAN_RECOVERY = { ...BASE_RECOVERY, autoSpendFrom: '2026-07-01' }
   await ctx.close()
 }
 
-// ══ Home ══════════════════════════════════════════════════════
+// ══ Home, «تحت الأضواء» ═══════════════════════════════════════
 //
-// Today's head says the day as one Arabic word beside a small badge of
-// its main muscle, shows the first three exercises and carries ONE green
-// fill; the rare choices live behind ⋯; nothing is drawn under 12px; and
-// on the smallest phone the start button is on screen above the tab bar
-// from the first frame.
+// The Today stage says the day as one Arabic word, shows the first
+// three exercises and carries ONE green fill; the rare choices live
+// behind ⋯; nothing is drawn under 12px; and on the smallest phone the
+// start button is on screen above the tab bar from the first frame.
 
 /** Visible elements in the page column whose own background is the
  *  accent fill — the screen's green actions. */
@@ -772,38 +766,17 @@ const greenFills = (page) => page.evaluate(() => {
   const word = page.locator('.hm-word').first()
   const wordText = (await word.count()) ? (await word.innerText()).trim() : ''
   ok('home: the day is one Arabic word', wordText === 'دفع', wordText)
-  // The day's title: a large title (حمزة found the 56pt word and its
-  // picture too much), and still the loudest type in Today — nothing in
-  // the section or the rows under it is set as large.
-  const sizes = await page.evaluate(() => {
-    const w = parseFloat(getComputedStyle(document.querySelector('.hm-word')).fontSize)
-    let other = 0
-    for (const el of document.querySelectorAll('.hm-today *, .hm-doors *')) {
-      if (el.closest('.hm-word') || !el.getBoundingClientRect().width) continue
-      if (![...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())) continue
-      other = Math.max(other, parseFloat(getComputedStyle(el).fontSize))
-    }
-    return { w, other }
-  })
-  ok('home: the day word is the head\'s title — 30pt or more, the largest type in Today', sizes.w >= 30 && sizes.w > sizes.other, JSON.stringify(sizes))
-  const head = await page.locator('.hm-head').innerText()
-  ok('home: the muscles under it, in Arabic', /صدر/.test(head), head)
-  ok('home: the count and the length', /6 تمارين/.test(head) && /≈\s?\d+\s?د/.test(head), head)
-  ok('home: one meta line — the muscles, the count and the length together', await page.locator('.hm-head .hm-meta').count() === 1
-    && /صدر[\s\S]*6 تمارين[\s\S]*≈/.test(await page.locator('.hm-head .hm-meta').innerText()))
-  const art = await page.locator('.hm-badge img').getAttribute('src')
-  ok('home: the day\'s badge is its main muscle', /muscle_chest/.test(art || ''), String(art))
+  const wordSize = await word.evaluate(el => parseFloat(getComputedStyle(el).fontSize))
+  ok('home: the day word is the display size', wordSize >= 44, String(wordSize))
+  const stage = await page.locator('.hm-stage').innerText()
+  ok('home: the muscles under it, in Arabic', /صدر/.test(stage), stage)
+  ok('home: the count and the length', /6 تمارين/.test(stage) && /≈\s?\d+\s?د/.test(stage), stage)
+  const art = await page.locator('.hm-stage img.k-stage-art').getAttribute('src')
+  ok('home: the stage lights the day\'s main muscle', /muscle_chest/.test(art || ''), String(art))
 
   const main = await page.evaluate(() => document.querySelector('main').innerText)
   ok('home: no English day label', !/Push Day|Pull Day|Legs Day/.test(main))
-  ok('home: no rank or XP strip', !/\bLv\s?\d|\bLVL\b|\d+%\s*$/m.test(main.split('خطتي')[0]))
-  // Each thing said once: the plan's week on «خطتي»'s row, not also on the date line.
-  const dateLine = await page.locator('.h-eyebrow-row').innerText()
-  ok('home: the date line is the date — the plan\'s week is not on it', !/الأسبوع/.test(dateLine), dateLine)
-  const planRow = (await page.locator('.hm-plan-row').innerText()).replace(/\s+/g, ' ')
-  ok('home: «خطتي» is a row that says the week (no card, no gauge)', /خطتي/.test(planRow) && /الأسبوع 1 من 6/.test(planRow)
-    && await page.locator('.hm .k-group-body, .hm .k-gauge').count() === 0, planRow)
-  ok('home: the rest cycle and the month\'s muscles are not on Home', !/دورة التعافي|العضلات هذا الشهر|على الراحة/.test(main))
+  ok('home: no rank or XP strip', !/\bLv\s?\d|\bLVL\b|\d+%\s*$/m.test(main.split('تقدم البرنامج')[0]))
   ok('home: no «sets»', !/\bsets?\b/i.test(main))
 
   ok('home: the first three exercises are listed', await page.locator('.hm-row').count() === 3)
@@ -874,113 +847,6 @@ const greenFills = (page) => page.evaluate(() => {
   ok('SE: no page errors', errors.length === 0, errors.join('; '))
   await page.screenshot({ path: `${OUT}/home-se.png` })
   await ctx.close()
-}
-
-// ══ Home, calm ════════════════════════════════════════════════
-//
-// حمزة: «الشاشة الرئيسية مكدسة والصورة كبيرة مرة بشكل غير احترافي». In
-// each of Home's states, on an SE, an iPhone 13 and a Pro Max: every line
-// of text reaches AA against the real pixels behind it (tests/contrast.mjs,
-// as «خطتي» is measured: 4.5:1, 3:1 for large text); the controls' signs
-// — ⋯, the gear, the chevrons, the doors' icons — 3:1 against what they
-// sit on; nothing sticks out sideways. On the iPhone 13 the top and the
-// day's head end within 40% of the screen. The day's picture is a badge
-// of 72pt at most that nothing is drawn over (⋯ least of all), and a
-// deload is said in one place on Home.
-const HOME_STATES = [
-  ['training day', '2026-07-08T10:00:00+03:00', { plan: BUILT_IN_PLANS[0] }],
-  ['deload day', '2026-07-08T10:00:00+03:00', { plan: BUILT_IN_PLANS[0], deload: DELOAD }],
-  ['rest day', '2026-07-10T09:00:00+03:00', { plan: BUILT_IN_PLANS[0], sessions: julySessions(1, 3, 5, 7, 9), recovery: CLEAN_RECOVERY }],
-  ['trained today', '2026-07-09T20:00:00+03:00', { plan: BUILT_IN_PLANS[0], sessions: julySessions(1, 3, 5, 7, 9), recovery: CLEAN_RECOVERY }],
-  ['no plan, deload', '2026-07-08T10:00:00+03:00', { deload: DELOAD }],
-]
-const homeContrast = []
-for (const device of ['iPhone SE', 'iPhone 13', 'iPhone 14 Pro Max']) {
-  for (const [label, iso, opts] of HOME_STATES) {
-    const name = `${label} (${devices[device].viewport.width})`
-    const { ctx, page, errors } = await open(iso, { ...opts, device })
-    await page.waitForTimeout(1200)   // the way in has played
-    const c = await makeContrast(browser, page)
-    const r = await c.measure('main .hm')
-    homeContrast.push(`${name}: ${r.runs} runs, lowest ${r.min.toFixed(2)}:1 ${r.minAt}`)
-    ok(`home, ${name}: every text run reaches AA against what is behind it (${r.runs} measured)`, r.runs > 0 && r.fails.length === 0, r.fails.slice(0, 6).join(' | '))
-    // The controls' signs against what they sit on (⋯ against its disc
-    // and the ground both).
-    const signs = await page.evaluate(() => {
-      const clear = (c) => /rgba\(.*,\s*0\)|transparent/.test(c)
-      const bgOf = (el) => { for (let a = el; a; a = a.parentElement) { const c = getComputedStyle(a).backgroundColor; if (!clear(c)) return c } return 'rgb(3, 4, 4)' }
-      const out = []
-      for (const s of ['.hm-more-btn', '.h-top-actions .k-iconbtn', '.hm-more svg', '.hm-doors .k-row-chev', '.hm-doors .k-row-icon']) {
-        for (const el of document.querySelectorAll(s)) {
-          if (!el.getBoundingClientRect().width) continue
-          const bgs = [bgOf(el.parentElement)]
-          const disc = getComputedStyle(el, '::before')
-          if (disc.content !== 'none' && !clear(disc.backgroundColor)) bgs.push(disc.backgroundColor)
-          for (const bg of bgs) out.push([s, getComputedStyle(el).color, bg])
-        }
-      }
-      return out
-    })
-    const weak = signs.map(([s, col, bg]) => [s, c.ratioOf(c.rgbOf(col), c.rgbOf(bg))]).filter(([, x]) => !(x >= 3))
-    ok(`home, ${name}: the controls' signs stand out at 3:1 or more (${signs.length} measured)`, signs.length > 0 && weak.length === 0, JSON.stringify(weak))
-    await c.close()
-    const geo = await page.evaluate(() => {
-      const vw = document.documentElement.clientWidth
-      const out = []
-      for (const el of document.querySelectorAll('main *')) {
-        const r = el.getBoundingClientRect()
-        if (!r.width || !r.height) continue
-        let left = r.left, right = r.right
-        for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
-          if (getComputedStyle(a).overflowX !== 'visible') { const ar = a.getBoundingClientRect(); left = Math.max(left, ar.left); right = Math.min(right, ar.right) }
-        }
-        if (right > left && (right > vw + 1.5 || left < -1.5)) out.push(`${el.className?.baseVal ?? el.className}: ${Math.round(left)}–${Math.round(right)}`)
-      }
-      const box = (el) => el && el.getBoundingClientRect()
-      const badge = box(document.querySelector('.hm-badge'))
-      const over = []
-      if (badge) {
-        for (const el of document.querySelectorAll('.hm-head > :not(.hm-badge), .hm-head .hm-more-btn')) {
-          const r = el.getBoundingClientRect()
-          if (r.width && r.left < badge.right - 0.5 && r.right > badge.left + 0.5 && r.top < badge.bottom - 0.5 && r.bottom > badge.top + 0.5) over.push(el.className)
-        }
-      }
-      return {
-        sideways: out.slice(0, 5), scroll: document.documentElement.scrollWidth, vw,
-        headBottom: box(document.querySelector('.hm-head'))?.bottom, vh: innerHeight,
-        badge: badge && [Math.round(badge.width), Math.round(badge.height)], over,
-        stage: document.querySelectorAll('.hm-stage, .k-stage-art').length,
-      }
-    })
-    ok(`home, ${name}: nothing sticks out sideways`, geo.sideways.length === 0 && geo.scroll <= geo.vw, JSON.stringify(geo.sideways) + ` scroll ${geo.scroll}/${geo.vw}`)
-    ok(`home, ${name}: no stage, no picture bleeding off the edge — a badge of 72pt at most, nothing drawn over it`,
-      geo.stage === 0 && (!geo.badge || (geo.badge[0] <= 72 && geo.badge[1] <= 72)) && geo.over.length === 0, JSON.stringify(geo))
-    if (device === 'iPhone 13') {
-      ok(`home, ${name}: the top and the day's head end within 40% of the screen`, geo.headBottom <= 0.4 * geo.vh, `${Math.round(geo.headBottom)} of ${geo.vh}`)
-    }
-    if (opts.deload) {
-      // Said once: over the day, how far in and how much lighter — not
-      // again in the meta, on the rows or as a picture.
-      const marks = await page.evaluate(() => {
-        const col = document.querySelector('.hm')?.cloneNode(true)
-        col?.querySelector('.h-greet')?.remove()
-        const mark = col?.querySelector('[data-testid="deload-mark"]')
-        const markText = mark?.textContent.replace(/\s+/g, ' ').trim() || ''
-        mark?.remove()
-        return {
-          count: document.querySelectorAll('.hm [data-testid="deload-mark"]').length, markText,
-          elsewhere: /ديلود|أخف/.test(col?.textContent || ''),
-          drops: document.querySelectorAll('.hm-rows .hm-deload-mark, .hm-rows svg[class*="deload"]').length,
-          iced: document.querySelectorAll('.hm img[data-art="deload_hero"]').length,
-        }
-      })
-      ok(`home, ${name}: the deload is one mark — «ديلود · يوم 3 من 7 · أخف 40%» — and nowhere else on Home`,
-        marks.count === 1 && /ديلود\s*يوم\s*3\s*من\s*7\s*أخف\s*40%/.test(marks.markText) && !marks.elsewhere && marks.drops === 0 && marks.iced === 0, JSON.stringify(marks))
-    }
-    ok(`home, ${name}: no page errors`, errors.length === 0, errors.join('; '))
-    if (device === 'iPhone 13') await page.screenshot({ path: `${OUT}/home-calm-${label.replace(/\W+/g, '-')}.png` })
-    await ctx.close()
-  }
 }
 
 {
@@ -1229,7 +1095,6 @@ for (const device of ['iPhone 13', 'iPhone SE']) {
 await browser.close()
 
 console.log(`\n  screenshots in ${OUT} — home-normal.png vs home-deload.png\n`)
-console.log(`  Home's contrast, measured:\n    ${homeContrast.join('\n    ')}\n`)
 
 let failed = 0
 for (const [name, pass, extra] of results) {

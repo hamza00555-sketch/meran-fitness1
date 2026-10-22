@@ -397,7 +397,7 @@ const topbar = (n, extra = '') => `<div class="topbar"><button class="icon-btn" 
 
 
 /* ══ 1 · start ══ */
-const CRUMB = { settings: 'الإعدادات · الخطة', edit: 'الإعدادات · الخطة', home: 'الرئيسية', onb: 'أول مرة · خطتك', progress: 'الرئيسية · خطتي', more: 'الرئيسية · خيارات اليوم', view: 'خطتي' }
+const CRUMB = { settings: 'الإعدادات · الخطة', edit: 'الإعدادات · الخطة', home: 'الرئيسية', onb: 'أول مرة · خطتك', progress: 'الرئيسية · تقدم البرنامج', more: 'الرئيسية · خيارات اليوم', view: 'خطتي' }
 ENTER.start = function () {
   $('#s-start').innerHTML = `
   <div class="scroll">
@@ -1588,7 +1588,7 @@ async function autoBuild() {
   await runFill()
 }
 /* The five doors (حمزة: «صفحة لحالها بخمس أبواب»). Settings, the first run
-   and Home with no plan open on «البداية»; Home's «خطتي», «⋯ › عدّل الخطة»
+   and Home with no plan open on «البداية»; «تقدّم البرنامج», «⋯ › عدّل الخطة»
    and «عدّل» in Settings open his plan by days, on today's day; «خطتي»'s
    «عدّل الخطة كاملة» (door 'view') on the day he was looking at (ctx.day). */
 function open(v) {
