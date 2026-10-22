@@ -6,8 +6,7 @@
 // because a line that promises what the engine does not do is worse
 // than no line: the deload does not protect the streak, «تخطي اليوم»
 // only moves the plan, tickets are spent at 03:00 without a tap, and
-// the balance had no real ceiling until 21 Oct 2026 — from then it is 5
-// (recovery.js restRulesOn; the rules themselves: rest-rules.test.mjs).
+// the balance has no real ceiling.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -71,7 +70,7 @@ test('milestones', () => {
 
 // ══ the engine additions ═══════════════════════════════════════
 
-test('before 21 Oct the real balance had no ceiling; the old clamped one is kept for old readers', () => {
+test('the real balance has no ceiling; the old clamped one is kept for old readers', () => {
   // 40 days on a three-day plan, every workout done: 8 tickets earned.
   const days = []
   for (let d = 1; d <= 40; d += 2) days.push(S(new Date(Date.UTC(2026, 5, d)).toISOString().slice(0, 10)))
@@ -79,21 +78,6 @@ test('before 21 Oct the real balance had no ceiling; the old clamped one is kept
   assert.ok(r.creditsEarned > MAX_REST_CREDITS, String(r.creditsEarned))
   assert.equal(r.restCredits, MAX_REST_CREDITS)
   assert.equal(r.usableCredits, r.creditsEarned - r.creditsSpent)
-})
-
-test('from 21 Oct the ceiling is real: what is drawn and what a miss is charged against agree', () => {
-  // 1 Nov – 19 Dec on a three-day plan, every workout done: one every 3
-  // counted days, and never more than 5.
-  const days = []
-  for (let d = 0; d < 49; d += 2) days.push(S(new Date(Date.UTC(2026, 10, 1 + d)).toISOString().slice(0, 10)))
-  const r = computeRecovery(days, CFG, '2026-12-20')
-  assert.equal(r.creditsEarned, MAX_REST_CREDITS)
-  assert.equal(r.usableCredits, MAX_REST_CREDITS)
-  assert.equal(r.restCredits, r.usableCredits)
-  assert.equal(r.atCap, true)
-  // and the cost line counts from the real 5
-  const v = streakView({ recovery: computeRecovery(days, CFG, '2026-12-21'), config: CFG, now: at('2026-12-21T10:00:00') })
-  assert.equal(v.cost, 'لو فاتك تنصرف تذكرة (يبقى 4 تذاكر)')
 })
 
 test('tomorrow follows the cycle', () => {
@@ -456,17 +440,6 @@ test('the calendar marks every day from the ledger, and only real breaks', () =>
   const paid = computeRecovery(july(1, 3, 5, 7, 9), CFG, '2026-07-12')
   assert.equal(dayLine(paid.ledger.find(r => r.date === '2026-07-11'), '2026-07-12'), 'السبت 11 يوليو · يوم راحة اختياري · وقف على 10')
   assert.equal(dayLine(paid.ledger.find(r => r.date === '2026-07-09'), '2026-07-12'), 'الخميس 9 يوليو · تمرّنت · صار 9')
-})
-
-test('«ليش N؟» at the cap: a miss is covered, nothing at stake', () => {
-  const { explainerView } = streakModule
-  const nov = (...days) => days.map(n => S(`2026-11-${String(n).padStart(2, '0')}`))
-  // 1–20 Nov: 20 counted, 5 held (the cap); the 21st is owed
-  const rec = computeRecovery(nov(1, 3, 5, 7, 9, 11, 13, 15, 17, 19), CFG, '2026-11-21')
-  const e = explainerView({ recovery: rec, config: CFG, now: at('2026-11-21T10:00:00') })
-  assert.equal(e.n, 20)
-  assert.equal(e.day.stake, '')
-  assert.equal(rec.atCap, true)
 })
 
 test('the stored best outlives the replay', () => {

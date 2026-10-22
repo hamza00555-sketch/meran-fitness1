@@ -15,10 +15,8 @@ import '../../styles/streak-sheet.css'
 // حمزة: «ابا نقلل النص بحيث يكون ما قل ودل». Each fact once, in a short
 // line; no rules, no engine. At the top, under the number: whether today
 // is counted or still needed (Home's flame used to say it), and
-// «أيام الراحة الاختيارية: N من 5» with the day each was earned and the
-// last ones used. The rule (3 counted days per rest day, at most 5, from
-// 21 Oct 2026) comes from the engine for today (restDaysView), so the
-// slots and «من 5» are never a constant drawn here. The flame here means what it means on Home: filled while he
+// «أيام الراحة الاختيارية: N» with the day each was earned and the last
+// ones used. The flame here means what it means on Home: filled while he
 // holds one. «ليش مو 58؟» opens one line, only when optional rest days
 // sit between the calendar days and the number.
 
@@ -91,23 +89,18 @@ export default function StreakSheet({ open, onClose, recovery, config, active, d
           <h3 id="ss-rd-h" className="ss-rd-h">
             <span className={`ss-rd-flame${lit ? ' on' : ''}`}><Flame size={18} filled={lit} /></span>
             أيام الراحة الاختيارية: <b><Num>{rd.count}</Num></b>
-            {rd.cap != null && <span className="ss-rd-cap"> من <Num>{rd.cap}</Num></span>}
           </h3>
-          <div className={`ss-rd-next${rd.atCap ? ' full' : ''}`} data-testid="rest-days-next">
-            {/* the slots are the rule today (3 from 21 Oct); at the cap
-                nothing builds, so there are none — only the line */}
-            {!rd.atCap && (
-              <span className="ss-seg" role="progressbar" aria-label="التقدم ليوم الراحة الجاي"
-                aria-valuemin={0} aria-valuemax={rd.every} aria-valuenow={rd.progress}>
-                {Array.from({ length: rd.every }, (_, i) => <i key={i} className={i < rd.progress ? 'on' : ''} />)}
-              </span>
-            )}
+          <div className="ss-rd-next">
+            <span className="ss-seg" role="progressbar" aria-label="التقدم ليوم الراحة الجاي"
+              aria-valuemin={0} aria-valuemax={rd.every} aria-valuenow={rd.progress}>
+              {Array.from({ length: rd.every }, (_, i) => <i key={i} className={i < rd.progress ? 'on' : ''} />)}
+            </span>
             <span>{rd.next}</span>
           </div>
           {rd.rows.length > 0 && (
             <ul className="ss-rd-list">
-              {rd.rows.map((r, i) => (
-                <li key={r.kind + r.date + i} className={r.kind} data-testid={`rest-day-${r.kind}`}>
+              {rd.rows.map(r => (
+                <li key={r.kind + r.date} className={r.kind} data-testid={r.kind === 'held' ? 'rest-day-held' : 'rest-day-used'}>
                   <span className="ss-rd-ic">{r.kind === 'held' ? <Moon size={14} /> : <Ticket size={14} />}</span>{r.text}
                 </li>
               ))}

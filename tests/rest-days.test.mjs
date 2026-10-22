@@ -5,10 +5,7 @@
 //   node --test tests/rest-days.test.mjs
 //
 // The numbers come from the ledger computeRecovery writes, so the list
-// must always agree with the balance (usableCredits). The July histories
-// here are under the rules before 21 Oct 2026 (one every 5); the ones in
-// November under the rules since (one every 3, at most 5) — the words
-// read whichever the engine says for the day.
+// must always agree with the balance (usableCredits).
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -72,45 +69,6 @@ test('nothing yet: zero, and when the next one comes', () => {
   assert.deepEqual([c.progress, c.every], [2, 5])
   assert.deepEqual(c.rows, [])
   assert.deepEqual(restDaysView(computeRecovery([], CFG, '2026-07-02')).held, [])
-})
-
-// ══ from 21 Oct 2026: one every 3 counted days, at most 5 ══════
-const nov = (...days) => days.map(n => S(`2026-11-${String(n).padStart(2, '0')}`))
-const recN = (days, today) => computeRecovery(nov(...days), CFG, today)
-
-test('from 21 Oct: one every 3rd counted day, and the list still agrees with the balance', () => {
-  const r = recN([1, 3, 5, 7, 9], '2026-11-10')
-  const v = restDaysView(r)
-  assert.deepEqual(v.held.map(h => h.earnedOn), ['2026-11-03', '2026-11-06', '2026-11-09'])
-  assert.deepEqual([v.count, v.every, v.cap, v.atCap, v.toNext], [3, 3, 5, false, 2])
-  // day after day, from the old rules into the new
-  const days = [...[1, 3, 5, 7, 9, 13, 15, 17, 19, 21, 23, 25, 27, 29].map(n => `2026-10-${String(n).padStart(2, '0')}`),
-    ...[2, 4, 6, 8, 10, 12, 14, 18, 20, 22, 24, 26].map(n => `2026-11-${String(n).padStart(2, '0')}`)]
-  for (let d = '2026-10-01'; d <= '2026-11-30'; d = new Date(Date.parse(`${d}T12:00:00Z`) + 864e5).toISOString().slice(0, 10)) {
-    const rr = computeRecovery(days.filter(x => x <= d).map(S), CFG, d)
-    assert.equal(restDaysView(rr).count, rr.usableCredits, d)
-    if (d >= '2026-10-21') assert.ok(rr.usableCredits <= 5, d)
-  }
-})
-
-test('from 21 Oct: the block says «من 5», three slots, and at 5 one line instead', () => {
-  const c = restDaysCopy(restDaysView(recN([1, 3, 5, 7, 9], '2026-11-12')), '2026-11-12')
-  assert.equal(c.title, 'أيام الراحة الاختيارية: 2 من 5')
-  assert.deepEqual([c.progress, c.every], [1, 3])
-  assert.equal(c.next, 'الجاي بعد يومين محسوبة')
-  assert.deepEqual(c.rows.map(r => r.text), ['استخدمته 11 نوفمبر', 'كسبته 9 نوفمبر', 'كسبته 6 نوفمبر'])
-  const full = restDaysCopy(restDaysView(recN([1, 3, 5, 7, 9, 11, 13, 15, 17, 19], '2026-11-20')), '2026-11-20')
-  assert.equal(full.title, 'أيام الراحة الاختيارية: 5 من 5')
-  assert.equal(full.next, 'وصلت الحد — تكسب بعد ما تستخدم واحد')
-  assert.equal(full.progress, 0)
-  assert.doesNotMatch(JSON.stringify([c, full]), /تذكر|تذاكر/)
-  // before the cap existed the title has no «من»
-  assert.equal(restDaysCopy(restDaysView(rec([1, 3, 5, 7, 9], '2026-07-12')), '2026-07-12').title, 'أيام الراحة الاختيارية: 1')
-})
-
-test('from 21 Oct: the announcement says 3 counted days', () => {
-  assert.equal(earnedCopy([{ earnedOn: '2026-11-06', streak: 6 }], 2).line, '3 أيام محسوبة جديدة — وصل ستريكك 6')
-  assert.equal(earnedCopy([{ earnedOn: '2026-07-10', streak: 10 }], 2).line, '5 أيام محسوبة جديدة — وصل ستريكك 10')
 })
 
 test('the words: short, dates in Arabic, Arabic counting', () => {

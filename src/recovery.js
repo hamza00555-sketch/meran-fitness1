@@ -56,79 +56,14 @@ export const changeCooldownLeft = (config = {}, today = todayKey()) => {
   return Math.max(0, SETTINGS_CHANGE_COOLDOWN - dayDiff(last, today))
 }
 
-// ── Optional rest days: the rules, by the day they apply to ──────
-//
-// حمزة: «ابا نظام الراحة الاختيارية يكون اسهل بس يلتزم بالحد الاقصى».
-// Until 20 October 2026 one optional rest day came every 5 counted days
-// and the balance had no real ceiling (MAX_REST_CREDITS only capped the
-// number drawn). From 21 October one comes every 3 counted days, and he
-// can never hold more than 5.
-//
-// The rules are DATED, not switched in place. Everything here is
-// replayed from the history on every render, so changing 5 to 3 (or
-// making the cap real) for all days would re-judge every day he ever
-// trained: rest days earned in August, misses they covered, streaks that
-// broke — all of it would move. Each day is judged by the rules in force
-// on that day instead, exactly as patternForDay does for the plan.
-//
-// Why a date in the code and not a field written to hf_recovery the
-// first time the new rules run (like autoSpendFrom): a constant keeps
-// the engine a pure function of the history. Nothing has to be written
-// before the numbers are right (no first frame on the old rules and a
-// flip a moment later, no second announcement), the old design — which
-// also writes hf_recovery — cannot lose it, a backup restored on another
-// phone replays the same, and tests can pin it. 21 October is the day
-// this ships, so no day he has already seen is judged by the new rules.
-//
-// At the switch (the first day of a run on or after the date):
-//   · a balance above the cap is trimmed to it — written on that day's
-//     ledger row as `trimmed`, and the oldest ones held go first;
-//   · counted days already made toward the next one carry over, now
-//     toward 3: with 3 or 4 of 5 done, one is earned that morning and
-//     the rest carry (4 of 5 → earned + 1 of 3);
-//   · at the cap, counted days still count for the streak but build no
-//     progress — the bar is empty and earning starts again after one is
-//     used. (Filling the bar and waiting would hand the next rest day
-//     back the moment one was used: a sixth in all but name.)
-export const REST_RULES_V2_FROM = '2026-10-21'
-export const REST_RULES_V1 = Object.freeze({ every: 5, cap: null })
-export const REST_RULES_V2 = Object.freeze({ every: 3, cap: 5 })
-/** The rules in force on a day: { every, cap } (cap null = no ceiling). */
-export const restRulesOn = (day) => (day && day >= REST_RULES_V2_FROM ? REST_RULES_V2 : REST_RULES_V1)
+export const REST_CREDIT_EVERY = 5
+export const MAX_REST_CREDITS  = 5
 
-export const REST_CREDIT_EVERY = REST_RULES_V2.every   // the rule today
-export const MAX_REST_CREDITS  = 5                     // the cap from 21 Oct; before it, only a display clamp
-
-// You start on zero and earn one rest day for every `every` *eligible*
-// days. There is deliberately no `creditsEarnedFor(streak)` shortcut: the
-// streak and the eligible-day count are not the same number once a paid
-// rest day is in play, and the rule changed on a date, so the reward is
-// replayed day by day in computeRecovery instead of divided out of the
-// streak.
-//
-// One run's balance, stepped a day at a time. Both walks in
-// computeRecovery use these, so the walk that decides whether a miss is
-// covered and the ledger that shows it can never disagree.
-const freshCredits = () => ({ earned: 0, spent: 0, trimmed: 0, progress: 0, v2: false })
-const balanceOf = (c) => c.earned - c.spent - c.trimmed
-
-// The morning the v2 rules take over this run: { earned, trimmed } that day.
-function switchRules(c, rules) {
-  c.v2 = true
-  let bal = balanceOf(c), earned = 0, trimmed = 0
-  if (bal > rules.cap) { trimmed = bal - rules.cap; c.trimmed += trimmed; bal = rules.cap }
-  while (c.progress >= rules.every && bal < rules.cap) { c.earned++; earned++; c.progress -= rules.every; bal++ }
-  if (bal >= rules.cap) c.progress = 0
-  return { earned, trimmed }
-}
-
-// A counted day: 1 when it completes a rest day, else 0.
-function countDay(c, rules) {
-  if (rules.cap != null && balanceOf(c) >= rules.cap) { c.progress = 0; return 0 }
-  c.progress++
-  if (c.progress >= rules.every) { c.earned++; c.progress = 0; return 1 }
-  return 0
-}
+// You start on zero and earn one rest day for every REST_CREDIT_EVERY
+// *eligible* days. There is deliberately no `creditsEarnedFor(streak)`
+// shortcut: the streak and the eligible-day count are not the same number
+// once a paid rest day is in play, so the reward is replayed day by day in
+// computeRecovery instead of divided out of the streak.
 
 export const patternFor = (config = {}) => {
   const { daysPerWeek, customPattern } = config
@@ -177,14 +112,6 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const sortedDates = [...workoutDates].sort()
   const didWorkoutToday = workoutDates.has(today)
 
-  // The rest-day rules today. creditCap, atCap and creditsTrimmed exist
-  // only from the day the v2 rules apply, so on any day before it this
-  // returns exactly what the engine returned before them
-  // (tests/rest-rules.test.mjs compares the two).
-  const rulesToday = restRulesOn(today)
-  const capFields = (atCap, creditsTrimmed) => (rulesToday.cap != null
-    ? { creditCap: rulesToday.cap, atCap, creditsTrimmed } : {})
-
   // No history yet — start training today, cycle begins fresh.
   if (!sortedDates.length) {
     return {
@@ -195,8 +122,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       eligibleDays: 0, streakStart: null, ledger: [],
       tomorrowExpected: DAY_STATUS.WORKOUT, workoutsBeforeRest: pattern[0],
       runs: [], bestRun: null, lastBreak: null,
-      creditProgress: 0, creditTarget: rulesToday.every, daysToNextCredit: rulesToday.every,
-      ...capFields(false, 0),
+      creditProgress: 0, creditTarget: REST_CREDIT_EVERY, daysToNextCredit: REST_CREDIT_EVERY,
       missedDays: [], brokenBy: null, loggedRestToday: false,
       daysSinceLastWorkout: null, daysSinceLastRest: null,
       recoveryDayHistory: [], restTakenHistory: [], dayLog: [],
@@ -325,7 +251,7 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   const capped = sortedDates.length && dayDiff(sortedDates[0], today) > 400
   let startIdx = 0
   {
-    let c = freshCredits(), runLen = 0, runStart = null
+    let earned = 0, spent = 0, progress = 0, runLen = 0, runStart = null
     const endRun = (i, endedBy) => {
       if (runLen > 0) {
         runs.push({
@@ -339,28 +265,25 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     // paid for out of a balance that really existed at the time. Wiping
     // them here would reclassify a settled day as a miss the moment a
     // later, unrelated break came along.
-    const restart = (i) => { startIdx = i + 1; c = freshCredits(); runLen = 0; runStart = null }
+    const restart = (i) => { startIdx = i + 1; earned = 0; spent = 0; progress = 0; runLen = 0; runStart = null }
     for (let i = 0; i < dayLog.length; i++) {
       const e = dayLog[i]
       // A settings change made over quota deliberately ends the streak;
       // the reset day itself does not count, so the streak reads 0
       // straight away and builds again from the next day.
       if (resetAt && e.date <= resetAt) { restart(i); continue }
-      const rules = restRulesOn(e.date)
-      // The new rules take over this run in the morning, before the day
-      // itself is judged: a rest day the carry-over earns can cover it.
-      if (rules.cap != null && !c.v2) switchRules(c, rules)
       const kind = kindOf(e)
       // Today can never be a miss — it is still unfolding.
       if (kind === 'miss' && e.date !== today) {
-        if (balanceOf(c) >= 1) { c.spent++; autoPaid.add(e.date) }
+        if (earned - spent >= 1) { spent++; autoPaid.add(e.date) }
         else { if (runLen > 0) brokeOn.set(e.date, runLen); endRun(i, 'miss'); restart(i) }
       } else if (kind === 'paid') {
-        c.spent++
+        spent++
       } else {
+        progress++
         if (runLen === 0) runStart = e.date
         runLen++
-        countDay(c, rules)
+        if (progress === REST_CREDIT_EVERY) { earned++; progress = 0 }
       }
     }
   }
@@ -377,16 +300,16 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
   // separate facts come out of this walk and the UI shows them apart:
   //
   //   consistencyStreak — how many eligible days are in the current run
-  //   creditProgress    — eligible days since the *last reward*, 0…every−1
-  //                       (0 while at the cap)
+  //   creditProgress    — eligible days since the *last reward*, 0…4
   //   restCredits       — rewards earned in this run minus rewards spent
-  //                       (minus any the cap trimmed at the switch)
   //
   // Derived, never accumulated: nothing is stored, so a deploy, a code
   // change or a reinstall cannot move any of these numbers. The same
   // history always replays to the same ledger.
   let consistencyStreak = 0   // eligible days in the run
-  const credits = freshCredits()  // earned, spent, trimmed and progress in the run
+  let creditProgress    = 0   // eligible days since the last reward
+  let creditsEarned     = 0   // rewards this run has produced
+  let spentInStreak     = 0   // rewards this run has consumed
   let streakStart       = null
 
   // A transcript of the walk, so the numbers on screen can be audited
@@ -412,48 +335,37 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
       streak: null, progress: null, balance: null,
     }
 
-    const rules = restRulesOn(e.date)
-    if (inRun && rules.cap != null && !credits.v2) {
-      // The morning the new rules took over this run (see switchRules).
-      const sw = switchRules(credits, rules)
-      row.earned += sw.earned
-      if (sw.trimmed) row.trimmed = sw.trimmed   // written down, never silent
-    }
-
     if (inRun && kind !== 'miss') {
       if (streakStart === null) streakStart = e.date
       if (kind === 'paid') {
-        credits.spent++
+        spentInStreak++
         row.spent = 1
       } else {
         consistencyStreak++
+        creditProgress++
         row.streakDelta = 1
-        row.earned += countDay(credits, rules)
+        if (creditProgress === REST_CREDIT_EVERY) { creditsEarned++; creditProgress = 0; row.earned = 1 }
       }
     }
 
     if (inRun) {
       row.streak   = consistencyStreak
-      row.progress = credits.progress
+      row.progress = creditProgress
       // The real balance on that day — the one a miss was charged against.
-      row.balance  = Math.max(0, balanceOf(credits))
+      row.balance  = Math.max(0, creditsEarned - spentInStreak)
     }
     ledger.push(row)
   }
 
-  const creditProgress = credits.progress
-  const creditsEarned  = credits.earned
-  const spentInStreak  = credits.spent
-  const daysToNextCredit = rulesToday.every - creditProgress
-  const restCredits = Math.max(0, Math.min(MAX_REST_CREDITS, balanceOf(credits)))
-  // What a miss is actually charged against. Before 21 October the walk
-  // above spent from earned − spent with no ceiling, so MAX_REST_CREDITS
-  // only ever capped the number on screen: someone holding 8 saw 5, and
-  // the 5 stayed put through three spends. From 21 October the cap is
-  // real (restRulesOn), so the two agree. Every surface that tells the
-  // user what a miss costs reads this one.
-  const usableCredits = Math.max(0, balanceOf(credits))
-  const atCap = rulesToday.cap != null && balanceOf(credits) >= rulesToday.cap
+  const daysToNextCredit = REST_CREDIT_EVERY - creditProgress
+  const restCredits = Math.max(0, Math.min(MAX_REST_CREDITS, creditsEarned - spentInStreak))
+  // What a miss is actually charged against. The walk above spends from
+  // earned − spent with no ceiling, so MAX_REST_CREDITS only ever capped
+  // the number on screen: someone holding 8 saw 5, and the 5 stayed put
+  // through three spends. Every surface that tells the user what a miss
+  // costs reads this one. (A real cap would have to start from a dated
+  // capFrom, like autoSpendFrom, or it would rewrite past streaks.)
+  const usableCredits = Math.max(0, creditsEarned - spentInStreak)
 
   const past = dayLog.filter(e => e.date !== today)
   const recoveryDayHistory = past.filter(e => !e.trained && e.expected === DAY_STATUS.RECOVERY).map(e => e.date)
@@ -497,11 +409,8 @@ export function computeRecovery(sessions = [], config = {}, today = todayKey()) 
     workoutsBeforeRest,
     spentInStreak,
     creditProgress,
-    creditTarget: rulesToday.every,    // counted days per rest day, by today's rules
-    daysToNextCredit,                  // meaningless while atCap: nothing builds then
-    // From 21 Oct: the cap (5), whether he is at it, and how many the
-    // switch trimmed off this run's balance. Absent before.
-    ...capFields(atCap, credits.trimmed),
+    creditTarget: REST_CREDIT_EVERY,
+    daysToNextCredit,
     creditsEarned,
     creditsSpent: spentInStreak,       // same number, named to match creditsEarned
     eligibleDays: consistencyStreak,   // the same number, named for what it is

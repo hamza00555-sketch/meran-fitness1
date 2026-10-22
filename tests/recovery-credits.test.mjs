@@ -4,15 +4,14 @@
 //
 // The rules under test:
 //   an eligible day is a workout you completed OR a rest day the plan
-//   scheduled; five of them earned one optional rest day (until 20 Oct
-//   2026 — three from 21 Oct, see rest-rules.test.mjs); an optional
+//   scheduled; five of them earn one optional rest day; an optional
 //   rest day holds the streak but is frozen out of the count; and a
 //   scheduled rest never spends a credit.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-const { computeRecovery, restRulesOn } = await import('../src/recovery.js')
+const { computeRecovery, REST_CREDIT_EVERY } = await import('../src/recovery.js')
 
 // 3 days a week is pattern [1]: train, rest, train, rest…  Every day is
 // then either a workout or a scheduled recovery, which makes the
@@ -20,10 +19,6 @@ const { computeRecovery, restRulesOn } = await import('../src/recovery.js')
 const CFG = { daysPerWeek: 3, overrides: [], restDays: [] }
 
 const day = (n) => `2026-03-${String(n).padStart(2, '0')}`
-// Every history here is in March 2026, under the rules before 21 October:
-// one rest day every 5 counted days, no real ceiling. The rules from 21
-// October (every 3, at most 5) are pinned in tests/rest-rules.test.mjs.
-const REST_CREDIT_EVERY = restRulesOn(day(1)).every
 const workoutsOn = (...days) => days.map(n => ({
   id: n, date: `${day(n)}T10:00:00.000Z`, duration: 45,
   exercises: [{ name: 'Squat', sets: [{ weight: '60', reps: '12', done: true }] }],

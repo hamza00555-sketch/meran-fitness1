@@ -3,7 +3,7 @@
 // This module only presents rows; it never decides anything, so what it
 // shows cannot drift from what the ticket balance shows.
 
-import { restRulesOn } from './recovery.js'
+import { REST_CREDIT_EVERY } from './recovery.js'
 
 export const LEDGER_COLUMNS = [
   'التاريخ', 'المجدول', 'تمرّن', 'يوم راحة',
@@ -24,11 +24,9 @@ export const ledgerRow = (r) => [
   r.inRestDays ? 'نعم' : 'لا',
   r.pending ? 'اليوم — ما خلص' : !r.inRun ? `${KIND_AR[r.kind]} (خارج الستريك)` : KIND_AR[r.kind],
   r.inRun ? `+${r.streakDelta} → ${r.streak}` : '—',
-  // out of the rule on that day: /5 until 20 Oct 2026, /3 from 21 Oct
-  r.inRun ? `${r.progress}/${restRulesOn(r.date).every}` : '—',
-  r.earned ? `+${r.earned}` : '—',
-  // the morning the cap of 5 came in and trimmed a balance above it
-  [r.spent ? '−1' : '', r.trimmed ? `−${r.trimmed} (الحد)` : ''].filter(Boolean).join(' ') || '—',
+  r.inRun ? `${r.progress}/${REST_CREDIT_EVERY}` : '—',
+  r.earned ? '+1' : '—',
+  r.spent ? '−1' : '—',
   r.inRun ? String(r.balance) : '—',
 ]
 
@@ -40,9 +38,7 @@ export const ledgerTotals = (recovery) => [
   ['daysToNextCredit',  recovery.daysToNextCredit,  'الباقي على التذكرة الجاية'],
   ['creditsEarned',     recovery.creditsEarned,     'تذاكر كسبتها بهذا الستريك'],
   ['creditsSpent',      recovery.creditsSpent,      'تذاكر انصرفت بهذا الستريك'],
-  ['usableCredits',     recovery.usableCredits ?? recovery.restCredits,
-    recovery.creditCap != null ? `التذاكر المتاحة الحين (الحد ${recovery.creditCap})` : 'التذاكر المتاحة الحين، بلا حد'],
-  ...(recovery.creditsTrimmed ? [['creditsTrimmed', recovery.creditsTrimmed, 'انشالت يوم بدأ الحد']] : []),
+  ['usableCredits',     recovery.usableCredits ?? recovery.restCredits, 'التذاكر المتاحة الحين، بلا حد'],
 ]
 
 /** The whole audit as monospaced text — what the copy button puts on the clipboard. */

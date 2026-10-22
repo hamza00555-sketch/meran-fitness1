@@ -18,7 +18,6 @@
 import { chromium, devices } from '/opt/node22/lib/node_modules/playwright/index.mjs'
 import { mkdirSync } from 'node:fs'
 import { APP_VERSION, ACHIEVEMENTS, BUILT_IN_PLANS } from '../src/constants.js'
-import { restRulesOn } from '../src/recovery.js'
 
 const APP = process.env.APP || 'http://localhost:4173/'
 const OUT = process.env.OUT || '/tmp/meran-player-e2e'
@@ -2917,18 +2916,16 @@ const timeline = (page) => page.evaluate(() => {
 }
 
 // ══ «كسبت يوم راحة»: earned by the session, announced after it ══
-// From 21 Oct 2026 one comes every 3 counted days (recovery.js
-// restRulesOn): two workouts the days before, and the session finished
-// today is the third — an optional rest day. (Before 21 Oct this was
-// three workouts and the plan's rest day, then the fifth.) The moment
-// waits for the summary (and a level-up screen, if one comes) and plays
-// once: the flame filled, the count, the medal's library sound and its
-// light buzz.
+// Three workouts, then the plan's own rest day yesterday: four counted
+// days. The session finished today is the fifth — an optional rest day.
+// The moment waits for the summary (and a level-up screen, if one comes)
+// and plays once: the flame filled, the count, the medal's library sound
+// and its light buzz.
 {
   // The training day in Riyadh (it turns at 03:00, UTC+3): the UTC date of now.
   const rday = new Date().toISOString().slice(0, 10)
   const back = (k) => new Date(Date.parse(`${rday}T12:00:00Z`) - k * 86400000).toISOString().slice(0, 10)
-  const EARN_HISTORY = (restRulesOn(rday).every === 3 ? [2, 1] : [4, 3, 2]).map((k, i) => ({
+  const EARN_HISTORY = [4, 3, 2].map((k, i) => ({
     id: 900 + i, date: new Date(`${back(k)}T18:00:00+03:00`).toISOString(), duration: 45,
     exercises: [{ id: 'r' + i, muscle: 'Chest', name: 'Bench Press',
       sets: [{ weight: '80', reps: '10', done: true }, { weight: '80', reps: '10', done: true }] }],

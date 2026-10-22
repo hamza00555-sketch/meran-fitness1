@@ -40,15 +40,11 @@
 .ss-rd { display: grid; gap: 8px; }
 .ss-rd-h { margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--t-headline); font-weight: 700; color: var(--ink); }
 .ss-rd-h b { color: var(--rest); font-weight: 800; }
-/* «من 5»: the cap, quieter than the count (from 21 Oct 2026) */
-.ss-rd-cap { color: var(--ink-2); font-weight: 600; }
 .ss-rd-flame { color: var(--ink-3); display: inline-grid; }
 .ss-rd-flame.on { color: var(--streak); }
 .ss-rd-next { display: flex; align-items: center; gap: 10px; font-size: var(--t-label); font-weight: 600; color: var(--ink-2); line-height: 1.5; }
-/* one slot per counted day the rule asks for (3 from 21 Oct 2026, the
-   engine's creditTarget): the filled ones rest blue, the empty ones an
-   outline in ink-3 — both 3:1 or more on the sheet. At the cap there are
-   no slots, only the line. */
+/* one slot per counted day of the five: the filled ones rest blue, the
+   empty ones an outline in ink-3 — both 3:1 or more on the sheet */
 .ss-seg { display: inline-flex; gap: 3px; flex: none; }
 .ss-seg i { width: 14px; height: 8px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
 .ss-seg i.on { background: var(--rest); box-shadow: none; }
