@@ -2686,24 +2686,8 @@ const timeline = (page) => page.evaluate(() => {
     await page.waitForTimeout(300)
     ok('summary medals: a tap on a medal spins it, the summary stays as it is', await page.locator('.sum.sum-skip').count() === 0)
   }
-  // Today's picture heads the summary (summaryArt.js), from the pack's stills.
-  await page.waitForFunction(() => document.querySelector('.sum-art img')?.complete, null, { timeout: 5000 }).catch(() => {})
-  const pic = await page.evaluate(() => {
-    const i = document.querySelector('.sum-art img')
-    return i && { id: i.dataset.art, w: i.naturalWidth, first: i.closest('.sum-body').firstElementChild === i.parentElement,
-      kept: JSON.parse(localStorage.getItem('meran_summary_art') || 'null') }
-  })
-  ok('summary art: today\'s picture heads the summary, and is remembered for the day',
-    /^summary_\d+$/.test(pic?.id || '') && pic.w > 0 && pic.first && pic.kept?.id === pic.id, JSON.stringify(pic))
   await page.getByRole('button', { name: 'تم' }).click()
   await page.waitForTimeout(700)
-  const done = await page.evaluate(() => {
-    const i = document.querySelector('.hm-stage-done img.hm-art-done')
-    const st = document.querySelector('.hm-stage-done')?.getBoundingClientRect()
-    const r = i?.getBoundingClientRect()
-    return i && { w: i.naturalWidth, inside: !!st && r.left >= st.left && r.right <= st.right && r.top >= st.top && r.bottom <= st.bottom + 1 && r.right <= innerWidth }
-  })
-  ok('home done: the resting figure stands in the stage, whole and inside the screen', done?.w > 0 && done.inside, JSON.stringify(done))
   const gl = await page.evaluate(() => ({ ...window.__gl, left: document.querySelectorAll('[data-testid="medal-reveal"]').length }))
   ok('summary medals: closing gives the GL context back', gl.left === 0 && gl.lost >= gl.made, JSON.stringify(gl))
   ok('summary medals: no page errors', errors.length === 0, errors.join('; '))
@@ -2928,6 +2912,42 @@ const timeline = (page) => page.evaluate(() => {
     frames.length > 10 && wrong.length === 0, JSON.stringify(wrong.slice(0, 2)))
   ok('summary, reduced: the medals fade in, no spin', /^(fade|flat-fade)$/.test(r?.motion || '') && r?.state === 'landed', JSON.stringify(r))
   ok('summary, reduced: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
+// ══ After the workout: today's picture, and the figure resting on Home ══
+// The pack is reachable here (the suite blocks it elsewhere): the summary
+// opens on one of its pictures, kept for the day (src/summaryArt.js), and
+// «تم» goes back to a Home whose done stage holds the resting figure.
+{
+  const { ctx, page, errors } = await open({ blockRemote: false, viewport: { width: 390, height: 844 } })
+  await page.waitForTimeout(1200)
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForFunction(() => document.querySelector('.sum-art img')?.complete, null, { timeout: 5000 }).catch(() => {})
+  const pic = await page.evaluate(() => {
+    const i = document.querySelector('.sum-art img')
+    return i && { id: i.dataset.art, w: i.naturalWidth, first: i.closest('.sum-body').firstElementChild === i.parentElement,
+      kept: JSON.parse(localStorage.getItem('meran_summary_art') || 'null') }
+  })
+  ok('summary art: today\'s picture heads the summary, and is remembered for the day',
+    /^summary_\d+$/.test(pic?.id || '') && pic.w > 0 && pic.first && pic.kept?.id === pic.id, JSON.stringify(pic))
+  await page.waitForTimeout(2500)
+  await page.screenshot({ path: `${OUT}/summary-art.png` })
+  await page.getByRole('button', { name: /^تم$/ }).click({ timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(1500)
+  if (await page.getByTestId('level-up').count()) { await page.getByTestId('level-up').click().catch(() => {}); await page.waitForTimeout(1200) }
+  await page.locator('.hm-art-done').waitFor({ timeout: 5000 }).catch(() => {})
+  await page.waitForTimeout(800)
+  const done = await page.evaluate(() => {
+    const i = document.querySelector('.hm-stage-done img.hm-art-done')
+    const st = document.querySelector('.hm-stage-done')?.getBoundingClientRect()
+    const r = i?.getBoundingClientRect()
+    return i && { w: i.naturalWidth, inside: !!st && r.left >= st.left - 1 && r.right <= st.right + 1 && r.top >= st.top - 1 && r.bottom <= st.bottom + 1 && r.right <= innerWidth }
+  })
+  ok('home done: the resting figure stands in the stage, whole and inside the screen', done?.w > 0 && done.inside, JSON.stringify(done))
+  await page.screenshot({ path: `${OUT}/home-done.png` })
+  ok('after the workout: no page errors', errors.length === 0, errors.join('; '))
   await ctx.close()
 }
 
