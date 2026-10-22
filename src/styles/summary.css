@@ -6,6 +6,14 @@
   padding: calc(var(--safe-top) + 32px) var(--gutter) 0;
 }
 .sum-body { flex: 1; display: grid; align-content: start; gap: var(--space-4); max-width: 520px; width: 100%; margin: 0 auto; }
+/* Today's picture (summaryArt.js): the figure after training, standing in
+   the stage's own light, the summary's words under it. */
+.sum-art {
+  display: grid; place-items: center; margin: -12px calc(-1 * var(--gutter)) 0;
+  height: clamp(160px, 28vh, 230px);
+  background: radial-gradient(48% 62% at 50% 58%, var(--stage-light), transparent 75%);
+}
+.sum-art img { width: 100%; height: 100%; object-fit: contain; }
 .sum-beat { animation: sum-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--b) * 320ms); }
 .sum-skip .sum-beat { animation: none; }
 .sum-title { margin: 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; }

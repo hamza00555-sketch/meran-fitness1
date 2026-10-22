@@ -3,12 +3,13 @@
 // bin, the pencil, the arrows — stay exactly as they are; turning
 // those into downloaded rasters costs bandwidth and buys nothing.
 //
-// Seven families, 182 slots:
+// Eight families:
 //   ach_<id>   one image per achievement, 40 of them
 //   scene_*    the two full-screen celebration moments
 //   empty_*    the large illustration on an empty page
 //   cover_MM   the monthly report's cover, one per calendar month
 //   deload_*   the three pictures the deload mode uses
+//   summary_*  the session summary's picture, one a day
 //   ex_*       one still per catalogue exercise (97)
 //   exa_*      a 5s loop animation for the trained ones (22)
 //
@@ -105,6 +106,25 @@ export const DELOADS = {
 
 export { DELOADS_STYLE_NOTE }
 
+// ── The session summary ───────────────────────────────────────
+// A picture at the top of «انحفظت الجلسة», a different one each day
+// (src/summaryArt.js): the figure after training — the towel, the
+// shaker, the rack, the locker. Keyed out of white like the badges, a
+// 3:2 banner. The numbers are the ones Hamza approved (2026-10-22);
+// one he turns down is left out until its redraw is approved.
+const SUMMARY = { w: 960, h: 640 }
+const SUMMARY_SCENES = {
+  1: 'the black figure wiping its neck with a gym towel after training',
+  2: 'the black figure sliding a weight plate back onto the rack',
+  3: 'the black figure drinking from a protein shaker',
+  8: 'the black figure sitting on a bench, resting after the session',
+  9: 'the black figure pushing its gym locker shut',
+  10: 'the black figure standing confidently before a gym mirror',
+}
+export const SUMMARIES = Object.fromEntries(Object.entries(SUMMARY_SCENES)
+  .map(([n, en]) => [`summary_${n}`, { ...SUMMARY, en }]))
+export const SUMMARY_ART = Object.keys(SUMMARIES)
+
 // ── Exercise media ────────────────────────────────────────────
 // Stills for every exercise the catalogue knows, animations for the
 // ones actually trained. Both derive from the explicit media map, so
@@ -162,6 +182,7 @@ export function allSlots() {
   for (const [id, s] of Object.entries(EMPTIES)) out.push({ id, kind: 'empty', ...s })
   for (const [id, s] of Object.entries(COVERS)) out.push({ id, kind: 'cover', ...s })
   for (const [id, s] of Object.entries(DELOADS)) out.push({ id, kind: 'deload', ...s })
+  for (const [id, s] of Object.entries(SUMMARIES)) out.push({ id, kind: 'summary', ...s })
   for (const [id, s] of Object.entries(EXERCISE_STILLS)) out.push({ id, kind: 'exercise', ...s })
   for (const [id, s] of Object.entries(EXERCISE_ANIMS)) out.push({ id, kind: 'exanim', ...s })
   return out

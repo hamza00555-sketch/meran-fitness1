@@ -2686,8 +2686,24 @@ const timeline = (page) => page.evaluate(() => {
     await page.waitForTimeout(300)
     ok('summary medals: a tap on a medal spins it, the summary stays as it is', await page.locator('.sum.sum-skip').count() === 0)
   }
+  // Today's picture heads the summary (summaryArt.js), from the pack's stills.
+  await page.waitForFunction(() => document.querySelector('.sum-art img')?.complete, null, { timeout: 5000 }).catch(() => {})
+  const pic = await page.evaluate(() => {
+    const i = document.querySelector('.sum-art img')
+    return i && { id: i.dataset.art, w: i.naturalWidth, first: i.closest('.sum-body').firstElementChild === i.parentElement,
+      kept: JSON.parse(localStorage.getItem('meran_summary_art') || 'null') }
+  })
+  ok('summary art: today\'s picture heads the summary, and is remembered for the day',
+    /^summary_\d+$/.test(pic?.id || '') && pic.w > 0 && pic.first && pic.kept?.id === pic.id, JSON.stringify(pic))
   await page.getByRole('button', { name: 'تم' }).click()
   await page.waitForTimeout(700)
+  const done = await page.evaluate(() => {
+    const i = document.querySelector('.hm-stage-done img.hm-art-done')
+    const st = document.querySelector('.hm-stage-done')?.getBoundingClientRect()
+    const r = i?.getBoundingClientRect()
+    return i && { w: i.naturalWidth, inside: !!st && r.left >= st.left && r.right <= st.right && r.top >= st.top && r.bottom <= st.bottom + 1 && r.right <= innerWidth }
+  })
+  ok('home done: the resting figure stands in the stage, whole and inside the screen', done?.w > 0 && done.inside, JSON.stringify(done))
   const gl = await page.evaluate(() => ({ ...window.__gl, left: document.querySelectorAll('[data-testid="medal-reveal"]').length }))
   ok('summary medals: closing gives the GL context back', gl.left === 0 && gl.lost >= gl.made, JSON.stringify(gl))
   ok('summary medals: no page errors', errors.length === 0, errors.join('; '))

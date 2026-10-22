@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, Num, Gauge } from '../kit/index.jsx'
 import { Trophy, Medal as MedalIcon, ArrowUp } from '../kit/icons.js'
@@ -18,6 +18,9 @@ import { haptic } from '../../haptics.js'
 import '../../styles/summary.css'
 import { lockScroll } from '../../scrollLock.js'
 import { mark, resetMarks } from '../../perf.js'
+import { subscribe as artSubscribe, getVersion as artVersion, urlFor, remoteUrlFor } from '../../assets/registry.js'
+import { SUMMARY_ART } from '../../assets/slots.js'
+import { summaryArtToday } from '../../summaryArt.js'
 
 // ── The end of a workout ──────────────────────────────────────
 // Finishing used to fire up to five effects in different places and
@@ -241,6 +244,13 @@ export default function SessionSummary({ summary, xp, onDone }) {
   }, [gaugeHeld, xpAt])
   useEffect(() => { if (skipped) { try { gaugeAnim.current?.finish() } catch {} } }, [skipped])
 
+  // Today's picture (summaryArt.js): picked once, out of the ones the pack
+  // or its stills online can draw right now.
+  useSyncExternalStore(artSubscribe, artVersion, artVersion)
+  const artUrl = (id) => urlFor(id) || remoteUrlFor(id)
+  const [artId] = useState(() => summaryArtToday(SUMMARY_ART.filter(artUrl)))
+  const pic = artId ? artUrl(artId) : null
+
   if (!s) return null
   const { level, currentXP, neededXP } = xpProgress(xp)
   const dur = durationParts(s.duration)
@@ -257,6 +267,11 @@ export default function SessionSummary({ summary, xp, onDone }) {
     <div className={`sum${skipped ? ' sum-skip' : ''}`} role="dialog" aria-modal="true" aria-label="ملخص الجلسة"
       onClick={() => setSkipped(true)} data-testid="session-summary" ref={root}>
       <div className="sum-body">
+        {pic && (
+          <div className="sum-art sum-beat" style={b('eyebrow')} aria-hidden="true">
+            <img src={pic} alt="" data-art={artId} decoding="async" />
+          </div>
+        )}
         <span className="k-eyebrow sum-beat" style={b('eyebrow')}>انحفظت الجلسة</span>
         <h1 className="sum-title sum-beat" style={b('title')}>{s.title}</h1>
         <div className="sum-stats sum-beat" style={b('stats')}>

@@ -18,9 +18,16 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.8'
+export const APP_VERSION = '3.9'
 
 export const WHATS_NEW = [
+  {
+    version: '3.9', date: '2026-10-22',
+    items: [
+      { icon: 'Image', title: 'صورة بعد ما تخلص', line: 'الرئيسية تحط لك صورة استراحة بعد ما تخلص تمرين اليوم.' },
+      { icon: 'Sparkle', title: 'ملخص الجلسة بصورة', line: 'ملخص الجلسة صار يبدأ بصورة، وكل يوم صورة غير.' },
+    ],
+  },
   {
     version: '3.8', date: '2026-10-22',
     items: [

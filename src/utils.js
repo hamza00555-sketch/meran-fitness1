@@ -87,6 +87,9 @@ export const PER_USER_KEYS = [
   // The last version whose «جديد في مران» he saw (src/whatsNew.js), kept
   // apart from hf_seen_version, which the old design reads as '2.2'.
   'meran_seen_version',
+  // Which picture the session summary showed today, and which ones this
+  // round already showed (src/summaryArt.js). New in the redesign.
+  'meran_summary_art',
 ]
 
 export const deleteUserData = (id) => {

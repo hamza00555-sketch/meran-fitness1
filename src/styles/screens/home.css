@@ -110,13 +110,25 @@
 }
 .hm .hm-stage .hm-art-cool { filter: hue-rotate(95deg) saturate(0.8); }
 
-/* Today already counts: the streak's number is the lit moment, so the
-   block goes quiet — no light, no art. */
+/* Today already counts: the block goes quiet. */
 .hm .hm-stage.hm-stage-quiet {
   min-height: 0; background: none;
   padding-block: var(--space-2) 0;
 }
 .hm .hm-stage-quiet .hm-stage-body { max-width: 100%; }
+/* …with the figure resting on the bench at the art's side (Hamza: «لازم
+   في صورة تنحط هنا»), whole and inside the stage like the deload art. */
+.hm .hm-stage.hm-stage-done {
+  min-height: 196px; display: flex; align-items: center;
+  padding-block: var(--space-5) var(--space-4);
+  background: radial-gradient(60% 85% at 22% 55%, var(--stage-light), var(--ground) 72%);
+}
+.hm .hm-stage-done .hm-stage-body { max-width: 58%; }
+.hm .hm-stage .k-stage-art.hm-art-done {
+  top: auto; bottom: 6%; transform: none; height: 88%; max-width: 44%;
+  inset-inline-end: 12px; object-fit: contain; object-position: 50% 100%;
+  -webkit-mask-image: none; mask-image: none;
+}
 .hm .hm-stage.hm-stage-rest { min-height: 200px; }
 /* No art to stand in the light (no plan yet): the text takes the width. */
 .hm .hm-stage.hm-stage-noart:not(.hm-stage-quiet) { min-height: 176px; }

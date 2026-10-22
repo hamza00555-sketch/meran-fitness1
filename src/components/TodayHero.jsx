@@ -206,6 +206,11 @@ export default function TodayHero({
   } else if ((planned || active) && art) {
     stageArt = <img className="k-stage-art" src={art} alt="" />
     artShown = true
+  } else if (done) {
+    // Today's workout is done: the figure sits on the bench with its
+    // water, whole and inside the stage like the deload's art.
+    stageArt = <img className="k-stage-art hm-art-done" src="/assets/hero_done.webp" alt="" />
+    artShown = true
   }
 
   // How far into the deload, said where the day is.
@@ -221,7 +226,7 @@ export default function TodayHero({
 
   return (
     <section ref={section} className={`hm-today${done ? ' is-done' : ''}${resting ? ' is-rest' : ''}${enter ? ' hm-enter' : ''}${calm ? ' hm-calm' : ''}`} aria-label="تمرين اليوم">
-      <div className={`k-stage hm-stage${done ? ' hm-stage-quiet' : ''}${resting ? ' hm-stage-rest' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
+      <div className={`k-stage hm-stage${done ? ' hm-stage-quiet hm-stage-done' : ''}${resting ? ' hm-stage-rest' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
         {stageArt}
 
         {planned && (
