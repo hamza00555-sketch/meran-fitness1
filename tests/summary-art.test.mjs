@@ -83,7 +83,31 @@ test('the pictures are pack slots, and Home\'s resting figure ships with the app
     assert.equal(kinds.get(id)?.kind, 'summary', id)
     assert.deepEqual([kinds.get(id).w, kinds.get(id).h], [960, 640], id)
   }
-  const hero = await readFile(new URL('../public/assets/hero_done.webp', import.meta.url))
-  assert.equal(hero.subarray(8, 12).toString(), 'WEBP')
-  assert.ok(hero.length < 80_000, `${hero.length} bytes: it is precached for everyone`)
+  for (const f of ['hero_done.webp', 'hero_done_deload.webp']) {
+    const hero = await readFile(new URL(`../public/assets/${f}`, import.meta.url))
+    assert.equal(hero.subarray(8, 12).toString(), 'WEBP', f)
+    assert.ok(hero.length < 80_000, `${f}: ${hero.length} bytes — it is precached for everyone`)
+  }
+})
+
+test('under a deload every picture has its blue twin, with no lime left', async () => {
+  const { deloadTwin } = await import('../src/assets/slots.js')
+  const { default: sharp } = await import('sharp')
+  const slots = new Map(allSlots().map(s => [s.id, s]))
+  const lime = async (file) => {
+    const { data } = await sharp(new URL(`../${file}`, import.meta.url).pathname).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    let n = 0
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] > 40 && data[i + 1] > data[i] + 15 && data[i + 1] > data[i + 2] + 15) n++
+    }
+    return n
+  }
+  for (const id of SUMMARY_ART) {
+    const twin = slots.get(deloadTwin(id))
+    assert.ok(twin, `${id} has a deload twin`)
+    assert.equal(twin.deloadOf, id)
+    assert.ok(await lime(`assets-cut/${id}.png`) > 100, `${id}: the original is lime`)
+    assert.ok(await lime(`assets-cut/${deloadTwin(id)}.png`) < 60, `${deloadTwin(id)}: no lime left`)
+  }
+  assert.ok(await lime('public/assets/hero_done_deload.webp') < 60, 'Home\'s resting figure: no lime left')
 })

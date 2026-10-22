@@ -2952,6 +2952,41 @@ const timeline = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// …and under a deload, the same moments in the deload's blue: the summary
+// shows the day's picture's blue twin, and Home the blue resting figure.
+{
+  const day = (n) => new Date(Date.now() + n * 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' })
+  const { ctx, page, errors } = await open({ blockRemote: false, viewport: { width: 390, height: 844 },
+    sessions: MEDAL_HISTORY, unlocked: ACHIEVEMENTS.map(a => a.id),
+    active: { ...HEAVY, deload: { pct: 40, from: day(-1), until: day(5) } },
+    extra: { hf_recovery: { deload: { from: day(-1), plannedUntil: day(5), pct: 40 } } } })
+  await page.waitForTimeout(1200)
+  await finishNow(page)
+  await page.getByTestId('session-summary').waitFor({ timeout: 4000 }).catch(() => {})
+  await page.waitForFunction(() => document.querySelector('.sum-art img')?.complete, null, { timeout: 5000 }).catch(() => {})
+  const pic = await page.evaluate(() => {
+    const i = document.querySelector('.sum-art img')
+    return i && { id: i.dataset.art, w: i.naturalWidth, kept: JSON.parse(localStorage.getItem('meran_summary_art') || 'null')?.id }
+  })
+  ok('deload summary art: the day\'s picture in the deload\'s blue',
+    /^summary_\d+_deload$/.test(pic?.id || '') && pic.w > 0 && pic.id === `${pic.kept}_deload`, JSON.stringify(pic))
+  await page.waitForTimeout(2500)
+  await page.screenshot({ path: `${OUT}/summary-art-deload.png` })
+  await page.getByRole('button', { name: /^تم$/ }).click({ timeout: 8000 }).catch(() => {})
+  await page.waitForTimeout(1500)
+  if (await page.getByTestId('level-up').count()) { await page.getByTestId('level-up').click().catch(() => {}); await page.waitForTimeout(1200) }
+  await page.locator('.hm-art-done').waitFor({ timeout: 5000 }).catch(() => {})
+  await page.waitForTimeout(800)
+  const src = await page.evaluate(() => {
+    const i = document.querySelector('.hm-stage-done img.hm-art-done')
+    return i && { src: new URL(i.src).pathname, w: i.naturalWidth }
+  })
+  ok('deload home done: the resting figure in the deload\'s blue', src?.src === '/assets/hero_done_deload.webp' && src.w > 0, JSON.stringify(src))
+  await page.screenshot({ path: `${OUT}/home-done-deload.png` })
+  ok('after the workout (deload): no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ «كسبت يوم راحة»: earned by the session, announced after it ══
 // Three workouts, then the plan's own rest day yesterday: four counted
 // days. The session finished today is the fifth — an optional rest day.

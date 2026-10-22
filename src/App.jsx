@@ -757,6 +757,8 @@ export default function App() {
       xp: sessionXPRef.current,
       levelUp: pendingLevelRef.current,
       achievements: earned,
+      // under a deload, the picture of the day comes in the deload's blue
+      deload: isDeloadSession(finished),
     })
 
     setSessions(prev => {

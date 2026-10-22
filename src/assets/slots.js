@@ -125,9 +125,15 @@ const SUMMARY_SCENES = {
   9: 'the black figure pushing its gym locker shut',
   10: 'the black figure standing confidently before a gym mirror',
 }
-export const SUMMARIES = Object.fromEntries(Object.entries(SUMMARY_SCENES)
-  .map(([n, en]) => [`summary_${n}`, { ...SUMMARY, en }]))
-export const SUMMARY_ART = Object.keys(SUMMARIES)
+export const SUMMARY_ART = Object.keys(SUMMARY_SCENES).map(n => `summary_${n}`)
+// Each has a twin for a session under a deload, its lime turned to the
+// deload's glacier blue (scripts/recolor-deload.mjs): the same picture of
+// the day, cooled like the rest of the app.
+export const deloadTwin = (id) => `${id}_deload`
+export const SUMMARIES = Object.fromEntries(Object.entries(SUMMARY_SCENES).flatMap(([n, en]) => [
+  [`summary_${n}`, { ...SUMMARY, en }],
+  [deloadTwin(`summary_${n}`), { ...SUMMARY, en: `${en}, ${DELOADS_STYLE_NOTE}`, deloadOf: `summary_${n}` }],
+]))
 
 // ── Exercise media ────────────────────────────────────────────
 // Stills for every exercise the catalogue knows, animations for the

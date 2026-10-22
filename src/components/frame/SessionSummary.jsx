@@ -19,7 +19,7 @@ import '../../styles/summary.css'
 import { lockScroll } from '../../scrollLock.js'
 import { mark, resetMarks } from '../../perf.js'
 import { subscribe as artSubscribe, getVersion as artVersion, urlFor, remoteUrlFor } from '../../assets/registry.js'
-import { SUMMARY_ART } from '../../assets/slots.js'
+import { SUMMARY_ART, deloadTwin } from '../../assets/slots.js'
 import { summaryArtToday } from '../../summaryArt.js'
 
 // ── The end of a workout ──────────────────────────────────────
@@ -245,11 +245,14 @@ export default function SessionSummary({ summary, xp, onDone }) {
   useEffect(() => { if (skipped) { try { gaugeAnim.current?.finish() } catch {} } }, [skipped])
 
   // Today's picture (summaryArt.js): picked once, out of the ones the pack
-  // or its stills online can draw right now.
+  // or its stills online can draw right now. A session under a deload
+  // shows the same picture in the deload's blue (its twin in the pack).
   useSyncExternalStore(artSubscribe, artVersion, artVersion)
   const artUrl = (id) => urlFor(id) || remoteUrlFor(id)
   const [artId] = useState(() => summaryArtToday(SUMMARY_ART.filter(artUrl)))
-  const pic = artId ? artUrl(artId) : null
+  const cool = !!s?.deload && !!artId && !!artUrl(deloadTwin(artId))
+  const shownId = artId && (cool ? deloadTwin(artId) : artId)
+  const pic = shownId ? artUrl(shownId) : null
 
   if (!s) return null
   const { level, currentXP, neededXP } = xpProgress(xp)
@@ -269,7 +272,8 @@ export default function SessionSummary({ summary, xp, onDone }) {
       <div className="sum-body">
         {pic && (
           <div className="sum-art sum-beat" style={b('eyebrow')} aria-hidden="true">
-            <img src={pic} alt="" data-art={artId} decoding="async" />
+            <img src={pic} alt="" data-art={shownId} decoding="async"
+              className={s?.deload && !cool ? 'sum-art-cool' : undefined} />
           </div>
         )}
         <span className="k-eyebrow sum-beat" style={b('eyebrow')}>انحفظت الجلسة</span>

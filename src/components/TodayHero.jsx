@@ -208,8 +208,10 @@ export default function TodayHero({
     artShown = true
   } else if (done) {
     // Today's workout is done: the figure sits on the bench with its
-    // water, whole and inside the stage like the deload's art.
-    stageArt = <img className="k-stage-art hm-art-done" src="/assets/hero_done.webp" alt="" />
+    // water, whole and inside the stage like the deload's art — in the
+    // deload's blue while one runs (scripts/recolor-deload.mjs).
+    stageArt = <img className="k-stage-art hm-art-done" alt=""
+      src={onDeload ? '/assets/hero_done_deload.webp' : '/assets/hero_done.webp'} />
     artShown = true
   }
 

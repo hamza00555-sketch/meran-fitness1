@@ -14,6 +14,8 @@
   background: radial-gradient(48% 62% at 50% 58%, var(--stage-light), transparent 75%);
 }
 .sum-art img { width: 100%; height: 100%; object-fit: contain; }
+/* a deload session whose blue twin isn't in the pack yet: cooled in place */
+.sum-art img.sum-art-cool { filter: hue-rotate(95deg) saturate(0.8); }
 .sum-beat { animation: sum-in var(--dur-base) var(--ease-out) both; animation-delay: calc(var(--b) * 320ms); }
 .sum-skip .sum-beat { animation: none; }
 .sum-title { margin: 0; font-size: var(--t-screen); font-weight: 800; line-height: 1.25; }
