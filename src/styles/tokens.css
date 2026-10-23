@@ -207,7 +207,9 @@
 
 /* ══ Deload ═════════════════════════════════════════════════════
    One attribute on <html> and the room cools: the accent goes glacier,
-   rest steps aside to periwinkle, the surfaces drop a few degrees at the
+   rest steps aside to a clear moonlight blue (#5B9BFF, the moon's own rim —
+   Hamza turned down the periwinkle it had: «البنفسجي البيل مو عاجبني»),
+   bluer than the glacier so the two never read as one, the surfaces drop a few degrees at the
    same lightness (so contrast holds), and the idle tempo slows. The
    streak's orange and the raise gold do not change — a deload changes
    the load, not what counts. */
@@ -216,8 +218,8 @@
   --accent:       #5CC9EE;
   --accent-press: #46B6DC;
   --on-accent:    #04202E;
-  --rest-rgb:     136,148,196;
-  --rest:         #8894C4;
+  --rest-rgb:     91,155,255;
+  --rest:         #5B9BFF;
   --ground:    #020407;
   --surface-1: #11171E;
   --surface-2: #19212A;

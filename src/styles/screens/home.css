@@ -100,11 +100,14 @@
 .hm .hm-build { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--t-body); font-weight: 700; text-decoration: underline; text-decoration-color: var(--ink-4); text-underline-offset: 4px; cursor: pointer; }
 .hm .hm-meta { margin: 4px 0 0; font-size: var(--t-label); font-weight: 600; line-height: 1.4; color: var(--ink-2); }
 
-/* The art. Rest: the moon, small, its rim light moved from lime to the
-   rest blue. Deload: the muscle cooled to the deload's glacier. */
+/* The art. Rest: the moon, its rim light moved from lime to the rest blue —
+   big and whole (Hamza: «تملي المكان … لكن ما تكون مقطوعة … ولا قريبة من
+   النصوص»): the file is trimmed to the moon itself, it fills most of the
+   stage's height, and the words keep a clear gap from it. Deload: the
+   muscle cooled to the deload's glacier. */
 .hm .hm-stage .hm-art-rest {
   top: 50%; bottom: auto; transform: translateY(-50%);
-  height: 64%; max-width: 42%; inset-inline-end: 4px;
+  height: 86%; max-width: 41%; inset-inline-end: 16px; object-fit: contain;
   -webkit-mask-image: none; mask-image: none;
   filter: hue-rotate(105deg) saturate(0.85);
 }
@@ -133,7 +136,8 @@
 /* No art to stand in the light (no plan yet): the text takes the width. */
 .hm .hm-stage.hm-stage-noart:not(.hm-stage-quiet) { min-height: 176px; }
 .hm .hm-stage-noart .hm-stage-body { max-width: 100%; }
-.hm .hm-stage-rest .hm-stage-body { max-width: 64%; }
+.hm .hm-stage-rest .hm-stage-body { max-width: 52%; }
+@media (max-width: 360px) { .hm .hm-stage .hm-art-rest { max-width: 35%; } }
 
 /* ⋯ — top end corner of the stage, over the art's dark head room. */
 .hm .hm-more-btn {

@@ -18,9 +18,16 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.10'
+export const APP_VERSION = '3.11'
 
 export const WHATS_NEW = [
+  {
+    version: '3.11', date: '2026-10-23',
+    items: [
+      { icon: 'Moon', tone: 'rest', title: 'صورة الراحة أكبر', line: 'القمر والمخدة صاروا أكبر في يوم الراحة، وبعيد عن الكلام.' },
+      { icon: 'Palette', tone: 'rest', title: 'لون الراحة بالتخفيف', line: 'في أسبوع التخفيف صار لون الراحة أزرق بدل البنفسجي.' },
+    ],
+  },
   {
     version: '3.10', date: '2026-10-22',
     items: [
