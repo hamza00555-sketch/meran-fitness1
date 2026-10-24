@@ -18,9 +18,16 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.11'
+export const APP_VERSION = '3.12'
 
 export const WHATS_NEW = [
+  {
+    version: '3.12', date: '2026-10-24',
+    items: [
+      { icon: 'Image', title: 'صورة التخفيف أكبر', line: 'الدمبل المثلّج في أسبوع التخفيف صار أكبر وأوضح.' },
+      { icon: 'Palette', title: 'مرتّبة جنب الكلام', line: 'الكلام جنبها صار أضيق شوي عشان ما يزاحمها، وزر الخيارات فوقها.' },
+    ],
+  },
   {
     version: '3.11', date: '2026-10-23',
     items: [

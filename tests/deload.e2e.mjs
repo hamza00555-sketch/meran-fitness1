@@ -423,6 +423,10 @@ async function openDeloadSettings(page) {
   })
   ok('deload art: inside the stage and the screen, at most 45% of its width',
     fit && fit.inStage && fit.inScreen && fit.w <= fit.sw * 0.45, JSON.stringify(fit))
+  // …and not shrunk to a thumbnail («الصورة صارت صغيرة كبرها»): on a
+  // normal phone it takes at least 38% of the stage's width.
+  ok('deload art: big enough on a normal phone — at least 38% of the stage',
+    fit && (fit.sw <= 360 || fit.w >= fit.sw * 0.38), JSON.stringify(fit))
   ok('pack: the droplet badge renders in the counter', bySlot.deload_badge === true, JSON.stringify(bySlot))
   // A blob: URL is same-origin, which is what keeps the poster's canvas
   // untainted — worth asserting rather than assuming.

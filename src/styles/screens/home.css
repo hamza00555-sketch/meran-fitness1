@@ -66,6 +66,18 @@
   inset-inline-end: 16px; object-fit: contain; object-position: 50% 100%;
   -webkit-mask-image: none; mask-image: none;
 }
+/* …and big enough to read (Hamza: «الصورة صارت صغيرة كبرها بحيث تكون
+   انسب»): the stage grows a little and the words narrow a little, so the
+   glacier fills the corner between them — under ⋯, never behind it, and
+   never against a word. A phone narrower than 361px keeps the smaller art: there the words
+   would wrap into broken lines to make room. */
+@media (min-width: 361px) {
+  .hm .hm-stage.hm-stage-deload { min-height: 220px; }
+  .hm .hm-stage-deload .hm-stage-body { max-width: 56%; }
+  .hm .hm-stage-deload .k-stage-art.hm-art-deload {
+    bottom: 12px; width: min(42%, 164px); height: auto; max-width: none;
+  }
+}
 
 .hm-eyebrow {
   display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px;

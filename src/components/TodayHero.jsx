@@ -196,6 +196,7 @@ export default function TodayHero({
   const hasDeloadArt = useHasArt('deload_hero')
   let stageArt = null
   let artShown = false
+  let deloadArt = false
   if (resting) {
     artShown = true
     stageArt = <img className="k-stage-art hm-art-rest" src="/assets/hero_rest.webp" alt="" />
@@ -203,6 +204,7 @@ export default function TodayHero({
     const cooled = art ? <img className="k-stage-art hm-art-cool" src={art} alt="" /> : null
     stageArt = <Art id="deload_hero" className="k-stage-art hm-art-deload" alt="" fallback={cooled} />
     artShown = hasDeloadArt || !!cooled
+    deloadArt = hasDeloadArt
   } else if ((planned || active) && art) {
     stageArt = <img className="k-stage-art" src={art} alt="" />
     artShown = true
@@ -228,7 +230,7 @@ export default function TodayHero({
 
   return (
     <section ref={section} className={`hm-today${done ? ' is-done' : ''}${resting ? ' is-rest' : ''}${enter ? ' hm-enter' : ''}${calm ? ' hm-calm' : ''}`} aria-label="تمرين اليوم">
-      <div className={`k-stage hm-stage${done ? ' hm-stage-quiet hm-stage-done' : ''}${resting ? ' hm-stage-rest' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
+      <div className={`k-stage hm-stage${done ? ' hm-stage-quiet hm-stage-done' : ''}${resting ? ' hm-stage-rest' : ''}${deloadArt ? ' hm-stage-deload' : ''}${artShown ? '' : ' hm-stage-noart'}`}>
         {stageArt}
 
         {planned && (
