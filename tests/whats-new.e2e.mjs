@@ -98,7 +98,7 @@ for (const [w, h] of [[390, 844], [320, 568]]) {
   const vs = await versionsShown(page)
   ok(`old version @${w}: every entry since 2.2, newest first`, JSON.stringify(vs) === JSON.stringify(WHATS_NEW.map(e => e.version)), vs.join(','))
   const text = await sheet(page).innerText()
-  ok(`old version @${w}: «وش تغيّر من آخر مرة» with how many releases`, /وش تغيّر من آخر مرة/.test(text) && /تحديثات/.test(text), text.slice(0, 80))
+  ok(`old version @${w}: «وش تغيّر من آخر مرة» with how many releases`, /وش تغيّر من آخر مرة/.test(text) && new RegExp(`${WHATS_NEW.length}\\s*(تحديثات|تحديث)|تحديثين`).test(text), text.slice(0, 80))
   const items = await page.locator('[data-testid="whats-new"] .sys-wn-item').count()
   ok(`old version @${w}: every item listed, each with its icon`, items === WHATS_NEW.reduce((n, e) => n + e.items.length, 0)
     && await page.locator('[data-testid="whats-new"] .sys-wn-item .sys-wn-glyph svg').count() === items, String(items))
