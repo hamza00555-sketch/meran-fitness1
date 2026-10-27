@@ -1859,7 +1859,9 @@ const RAISE_SESSIONS = [
 {
   const EIGHT = {
     id: Date.now() - 5 * 60000, date: new Date().toISOString(), name: 'Legs',
-    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press', sets: Array.from({ length: 8 }, () => ({ weight: '40', reps: '12', done: false })) }],
+    // nine sets, eight done: a session left unfinished, so no «إنهاء الجلسة؟»
+    // comes up over ⋯ before he throws it away
+    exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press', sets: Array.from({ length: 9 }, () => ({ weight: '40', reps: '12', done: false })) }],
   }
   // (sessions: [] seeds every achievement as earned, so none adds XP here)
   const { ctx, page, errors } = await open({ active: EIGHT, xp: 4125, sessions: [] })
