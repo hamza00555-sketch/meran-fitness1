@@ -172,6 +172,12 @@ const MORPH_MS = 520
 // trophy has landed, a little sooner (the record already held the screen).
 const AUTO_NEXT_MS = 1500   // «بعد ثانية ونص» — what حمزة approved
 const AUTO_NEXT_AFTER_PR_MS = 1200
+// The last set of the whole session: no rest to count down — the
+// «إنهاء الجلسة؟» sheet comes instead (Hamza: «ما يحتاج أصلاً إنه يجيب لي
+// مؤقت الراحة، لأنه أنا أصلاً خلاص خلصت»), once the set's own moment has
+// played: a beat after the tap, or after a record's trophy has landed.
+const FINISH_ASK_MS = 900
+const FINISH_ASK_AFTER_PR_MS = 3000
 
 export default function WorkoutPlayer({
   sessionId, exercises, mapping = {},
@@ -363,6 +369,8 @@ export default function WorkoutPlayer({
   // (a set added) or the screen elsewhere also keep it where it is.
   const exercisesRef = useRef(exercises)
   exercisesRef.current = exercises
+  const finishAsk = useRef(0)
+  useEffect(() => () => clearTimeout(finishAsk.current), [])
   const prBusy = !!pr && pr.exId === celebrating?.exId
   const holdAuto = () => { if (celebrating) setStay(true) }
   useEffect(() => {
@@ -622,7 +630,19 @@ export default function WorkoutPlayer({
     quietDock(MORPH_MS)
     morph.current.token += 1
     setGhost(morph.current.token)
-    onDoneSet(ex.id, si, true)
+    // Nothing left in any exercise once this set is in: no rest, the
+    // finish sheet instead — unless by then a set was added or undone, a
+    // sheet is up, or the session is gone.
+    const allDone = (list) => list.some(e => e.sets.some(s => s.done)) && firstUnfinished(list) === -1
+    const last = allDone(exercises.map(e => (e.id === ex.id ? { ...e, sets: after } : e)))
+    onDoneSet(ex.id, si, true, { rest: !last })
+    clearTimeout(finishAsk.current)
+    if (last) {
+      finishAsk.current = setTimeout(() => {
+        const sheetUp = !!document.querySelector('.k-sheet:not(.k-leaving)')
+        if (allDone(exercisesRef.current) && !sheetUp) onRequestFinish()
+      }, isPR ? FINISH_ASK_AFTER_PR_MS : FINISH_ASK_MS)
+    }
   }
 
   const landPR = () => {

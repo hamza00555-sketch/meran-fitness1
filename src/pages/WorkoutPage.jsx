@@ -137,13 +137,15 @@ export default function WorkoutPage({
       }),
     }))
 
-  const handleDoneSet = (exId, si, done) => {
+  const handleDoneSet = (exId, si, done, { rest = true } = {}) => {
     if (done) {
       // XP still accrues per set, silently: no toast, no flying number.
       // The set's own row says it is done; a personal best is said on
       // that row in gold.
       if (addXP) addXP(10)
-      onShowRest()
+      // The session's very last set rests nowhere: the player asks to
+      // finish instead (WorkoutPlayer, FINISH_ASK_MS).
+      if (rest) onShowRest()
     }
     // Marking done also carries the numbers into the blank sets that
     // follow — see markSetDone for why and for what it refuses to touch.

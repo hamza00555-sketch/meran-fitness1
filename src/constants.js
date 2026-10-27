@@ -18,9 +18,16 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.12'
+export const APP_VERSION = '3.13'
 
 export const WHATS_NEW = [
+  {
+    version: '3.13', date: '2026-10-27',
+    items: [
+      { icon: 'Timer', title: 'آخر مجموعة بلا راحة', line: 'بعد آخر مجموعة في آخر تمرين ما يطلع مؤقت الراحة، يسألك تنهي الجلسة.' },
+      { icon: 'ListChecks', title: 'تقدر تكمّل', line: 'لو تبي تزيد شي اضغط «متابعة»، وزر «إنهاء الجلسة» يبقى تحت.' },
+    ],
+  },
   {
     version: '3.12', date: '2026-10-24',
     items: [

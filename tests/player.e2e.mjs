@@ -2987,6 +2987,46 @@ const timeline = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// ══ The session's last set: no rest, «إنهاء الجلسة؟» instead ══
+// Hamza: «ما يحتاج أصلاً إنه يجيب لي مؤقت الراحة، لأنه أنا أصلاً خلاص
+// خلصت». A set with more to come still rests; the very last one asks to
+// finish, and «متابعة» leaves him on «إنهاء الجلسة» to finish when he likes.
+{
+  const done = (w) => ({ weight: w, reps: '12', done: true })
+  const last = {
+    ...ACTIVE,
+    exercises: [
+      { ...ACTIVE.exercises[0], sets: [done('75'), done('75')] },
+      { ...ACTIVE.exercises[1], sets: [done('50'), done('50')] },
+      { ...ACTIVE.exercises[2], sets: [{ weight: '40', reps: '12', done: false }, { weight: '40', reps: '12', done: false }] },
+    ],
+  }
+  const { ctx, page, errors } = await open({ active: last, viewport: { width: 390, height: 844 } })
+  const resting = () => page.evaluate(() => document.querySelector('.s-dock')?.dataset.mode === 'rest')
+  const sheetUp = () => page.locator('.k-sheet').filter({ hasText: 'إنهاء الجلسة؟' }).count()
+  await completeBtn(page).click()
+  await page.waitForTimeout(900)
+  ok('last set: a set with more to come still rests', await resting())
+  await page.getByRole('button', { name: 'تخطي' }).click({ timeout: 3000 }).catch(() => {})
+  await page.waitForTimeout(700)
+  await completeBtn(page).click()
+  await page.waitForTimeout(300)
+  ok('last set: the session\'s last set starts no rest', !(await resting()) && !(await page.evaluate(() => localStorage.getItem('hf_rest_timer'))))
+  await page.locator('.k-sheet').filter({ hasText: 'إنهاء الجلسة؟' }).waitFor({ timeout: 4500 }).catch(() => {})
+  ok('last set: «إنهاء الجلسة؟» comes by itself, with «احفظ وأنهِ»', await sheetUp() === 1
+    && await page.locator('.k-sheet').last().getByRole('button', { name: 'احفظ وأنهِ' }).count() === 1)
+  await page.screenshot({ path: `${OUT}/last-set-finish.png` })
+  await page.locator('.k-sheet').last().getByRole('button', { name: /^متابعة$/ }).click()
+  await page.waitForTimeout(800)
+  ok('last set: «متابعة» keeps the session, with «إنهاء الجلسة» under the thumb',
+    await sheetUp() === 0 && await page.getByTestId('session').count() === 1
+      && await page.locator('.s-dock').getByRole('button', { name: 'إنهاء الجلسة' }).count() === 1 && !(await resting()))
+  await page.waitForTimeout(3500)
+  ok('last set: it asks once, not again by itself', await sheetUp() === 0)
+  ok('last set: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ «كسبت يوم راحة»: earned by the session, announced after it ══
 // Three workouts, then the plan's own rest day yesterday: four counted
 // days. The session finished today is the fifth — an optional rest day.
