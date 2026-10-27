@@ -1133,7 +1133,9 @@ async function dragHead(page, dx = 40) {
   const SIX = {
     id: Date.now() - 60000, date: new Date().toISOString(), name: 'Legs — اختبار',
     exercises: [{ id: 'p', muscle: 'Legs', name: 'Leg Press',
-      sets: Array.from({ length: 7 }, () => ({ weight: '40', reps: '12', done: false })) }],
+      // eight: the seventh, done after the six double taps, must still rest
+      // (the session's very last set asks to finish instead)
+      sets: Array.from({ length: 8 }, () => ({ weight: '40', reps: '12', done: false })) }],
   }
   const { ctx, page, errors } = await open({ active: SIX, viewport: { width: 390, height: 664 } })
   const b = await completeBtn(page).boundingBox()
