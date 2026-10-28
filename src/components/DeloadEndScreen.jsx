@@ -23,7 +23,10 @@ import { lockScroll } from '../scrollLock.js'
  * from the deload's ice back to the green (the room warming up again),
  * the returning weight is the one big number, then «يلا نكمل» and still.
  */
-export default function DeloadEndScreen({ entry, heaviest, onDismiss }) {
+export default function DeloadEndScreen({ entry, heaviest, ease = null, onDismiss }) {
+  // Its way back never trained (deload.js easeBack): the first session
+  // comes in eased, so this says so instead of «the full weights».
+  const back = ease ? 'ترجع بالتدريج' : 'رجعت للأوزان الكاملة'
   const days = entry ? dayDiff(entry.from, entry.until || entry.plannedUntil) + 1 : 0
   const pct = entry?.pct != null ? toWesternDigits(entry.pct) : null
   const hasArt = useHasArt('deload_end')
@@ -43,13 +46,15 @@ export default function DeloadEndScreen({ entry, heaviest, onDismiss }) {
       <div className="cel-body">
         {hasArt && <Art id="deload_end" size={120} className="cel-art cel-beat" style={{ '--b': 0 }} />}
         <span className="cel-eyebrow cel-thaw cel-beat" style={{ '--b': 0 }}>
-          <span className="cel-thaw-ice" aria-hidden="true">رجعت للأوزان الكاملة</span>
-          <span>رجعت للأوزان الكاملة</span>
+          <span className="cel-thaw-ice" aria-hidden="true">{back}</span>
+          <span>{back}</span>
         </span>
         <h1 className="cel-title cel-beat" style={{ '--b': 1 }} id="de-title">خلص الديلود</h1>
         <p className="cel-text cel-beat" style={{ '--b': 1 }}>
           {days > 0 && <><Num>{days}</Num> {days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}{pct != null && <> بأوزان أخف بـ<Num>{pct}%</Num></>}. </>}
-          أوزانك رجعت كما كانت بالضبط — ما ضاع منها شي.
+          {ease
+            ? <>أول جلسة أخف بـ<Num>{toWesternDigits(ease.pct)}%</Num> عشان ترجع بالتدريج، وبعدها أوزانك كاملة زي ما كانت — ما ضاع منها شي.</>
+            : 'أوزانك رجعت كما كانت بالضبط — ما ضاع منها شي.'}
         </p>
 
         {heaviest && (

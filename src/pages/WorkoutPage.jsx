@@ -408,6 +408,7 @@ export default function WorkoutPage({
           sessionId={active.id}
           exercises={exercises}
           deloadPct={active?.deload?.pct || 0}
+          deloadStep={active?.deload?.ret ? 'ret' : active?.deload?.ramp ? 'ramp' : null}
           isResting={isResting}
           getLastW={getLastW}
           progressionFor={progressionFor}

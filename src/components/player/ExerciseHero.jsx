@@ -160,7 +160,7 @@ function useSwipe(onSwipe, onDrag) {
 
 export default function ExerciseHero({
   ex, mapping = {}, expanded, animate = false, onToggleStage, collapsible = false,
-  maxWeight = null, deloadPct = 0, quietBest = false, ytUrl,
+  maxWeight = null, deloadPct = 0, deloadStep = null, quietBest = false, ytUrl,
   swap = null, onSwapTo, upcoming = [], position = null, lastFor,
   onRemove, onAddSet, onRemoveSet, onMoveSet, moveTargets = [],
   onAddExercise, onDiscard, onOpenPlan, onSheet, onSwipe, onDrag,
@@ -229,7 +229,7 @@ export default function ExerciseHero({
           </div>
           <div className="s-strap">
             <div className="s-strap-row">{names}{more}</div>
-            <ExerciseTags ex={ex} mapping={mapping} maxWeight={maxWeight} deloadPct={deloadPct} quietBest={quietBest} />
+            <ExerciseTags ex={ex} mapping={mapping} maxWeight={maxWeight} deloadPct={deloadPct} deloadStep={deloadStep} quietBest={quietBest} />
           </div>
         </section>
       ) : (

@@ -18,7 +18,7 @@ import { planReminders } from './notify.js'
 import { greetingToday, LEVEL_NEAR_XP } from './greetings.js'
 import { todayKey, dayKey, nextDayTurn } from './day.js'
 import { analyzeProgression, DEFAULT_REP_TARGET, planRepTarget, liftRepTarget, ownTarget } from './progression.js'
-import { deloadState, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
+import { deloadState, easeBack, sessionDeloadStamp, isDeloadSession, startDeload, endDeload, deloadWeight,
          suggestDeload, dismissSuggestion } from './deload.js'
 
 // ── The four tabs ──
@@ -554,7 +554,7 @@ export default function App() {
   // ── Session management ────────────────────────────────────────
   const startPlannedWorkout = useCallback((planDay) => {
     sessionXPRef.current = 0
-    const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey())
+    const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey(), sessions)
     const lighten = deloadStamp ? (w => deloadWeight(w, deloadStamp.pct)) : undefined
     // «بالتناوب» (src/plan/rotate.js): a row that takes turns starts on
     // the one due — read from his sessions of this plan day — and carries
@@ -622,7 +622,7 @@ export default function App() {
 
   const startWorkout = useCallback((exercises = []) => {
     sessionXPRef.current = 0
-    const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey())
+    const deloadStamp = sessionDeloadStamp(recoveryCfg, todayKey(), sessions)
     const session = {
       id:        Date.now(),
       date:      new Date().toISOString(),
@@ -632,7 +632,7 @@ export default function App() {
     }
     setActive(session)
     setSessionOpen(true)
-  }, [recoveryCfg])
+  }, [recoveryCfg, sessions])
 
   // ── The medals a session would earn if it were finished now ──
   // The same check, with the same numbers, finishSession hands the award:
@@ -934,7 +934,12 @@ export default function App() {
   const today = useMemo(() => todayKey(), [dayTick])
 
   // ── Deload ───────────────────────────────────────────────────
-  const deload = useMemo(() => deloadState(recoveryCfg, today), [recoveryCfg, today])
+  // `ease`: no deload running, but the first session after one comes in
+  // eased (deload.js easeBack) — Home shows its lighter weights.
+  const deload = useMemo(() => {
+    const d = deloadState(recoveryCfg, today)
+    return d.active ? d : { ...d, ease: easeBack(recoveryCfg, sessions, today) }
+  }, [recoveryCfg, today, sessions])
 
   // ── Reminders follow the streak (src/notify.js) ──
   // Re-planned whenever what today means for the streak changes; saving
@@ -1797,7 +1802,7 @@ export default function App() {
         }))
         return (
           <Guard label="نهاية الديلود" onClose={seen}>
-            <DeloadEndScreen entry={lastDeload} heaviest={heaviestLift} onDismiss={seen} />
+            <DeloadEndScreen entry={lastDeload} heaviest={heaviestLift} ease={deload.ease} onDismiss={seen} />
           </Guard>
         )
       })()}

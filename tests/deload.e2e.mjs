@@ -957,6 +957,63 @@ const greenFills = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// ══ The way back (Hamza: «الأوزان ترجع بشكل متدرج») ═══════════
+// The usual deload (7 days, 40%) steps back up on its last two days —
+// 27%, then 13% — and, its way back never trained, the first session
+// after it is eased to 13% rather than the full weight.
+{
+  const at = (d) => new Date(2026, 6, d, 18)
+  const sessions = [...SESSIONS, ...[1, 3, 5].map(d => ({
+    id: at(d).getTime(), date: at(d).toISOString(), duration: 40,
+    exercises: [{ id: 'w' + d, muscle: 'Chest', name: 'Hammer Strength Machine Bench Press',
+      sets: [1, 2, 3].map(() => ({ weight: '60', reps: '12', done: true })) }],
+  }))]
+  const look = async (iso) => {
+    const { ctx, page, errors } = await open(iso, { sessions, plan: BUILT_IN_PLANS[0], deload: DELOAD })
+    await page.waitForTimeout(600)
+    const v = await page.evaluate(() => ({
+      chip: document.querySelector('.hm-chip-deload')?.innerText.replace(/\s+/g, ' ') || null,
+      meta: document.querySelector('.hm-meta')?.innerText.replace(/\s+/g, ' ') || null,
+      w: [...document.querySelectorAll('.hm-row .hm-row-w')].map(e => e.innerText.replace(/\s+/g, ' ')),
+      rest: !!document.querySelector('.hm-stage-rest'),
+    }))
+    return { ctx, page, errors, v }
+  }
+  // The 10th is the last full day; the 11th and 12th step back up.
+  for (const [d, pct, word] of [[10, 40, /اليوم 5 من 7/], [11, 27, /رجوع تدريجي/], [12, 13, /رجوع تدريجي/]]) {
+    const { ctx, page, errors, v } = await look(`2026-07-${d}T10:00:00+03:00`)
+    if (v.rest) { ok(`way back (${d} Jul): a rest day — nothing to check`, true); await ctx.close(); continue }
+    ok(`way back (${d} Jul): ${pct}% off, said in the chip and the meta`,
+      word.test(v.chip || '') && new RegExp(`أخف بـ\\s*${pct}%`).test(v.meta || ''), JSON.stringify(v))
+    ok(`way back (${d} Jul): the row loads ${deloadWeight(60, pct)} kg`, v.w.some(x => x.includes(String(deloadWeight(60, pct)))), JSON.stringify(v.w))
+    if (d === 11) await page.screenshot({ path: `${OUT}/deload-way-back.png` })
+    ok(`way back (${d} Jul): no page errors`, errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+  // The day after, the way back never trained: eased to 13%, out of the
+  // deload's blue.
+  {
+    const { ctx, page, errors, v } = await look('2026-07-13T10:00:00+03:00')
+    // «خلص الديلود» says the first session is eased, not «the full weights»
+    const end = await page.getByTestId('deload-end').innerText().catch(() => '')
+    ok('eased after: «خلص الديلود» says the way back, not the full weights at once',
+      /ترجع بالتدريج/.test(end) && /أخف بـ\s*13%/.test(end) && !/رجعت للأوزان الكاملة/.test(end), end.replace(/\s+/g, ' ').slice(0, 160))
+    await page.screenshot({ path: `${OUT}/deload-end-eased.png` })
+    await page.getByRole('button', { name: 'يلا نكمل' }).click({ timeout: 3000 }).catch(() => {})
+    await page.waitForTimeout(500)
+    const blue = await page.evaluate(() => document.documentElement.getAttribute('data-deload'))
+    if (v.rest) ok('eased after: a rest day — nothing to check', true)
+    else {
+      ok('eased after: no deload any more, the meta says 13% off after it',
+        !v.chip && blue == null && /أخف بـ\s*13%\s*بعد الديلود/.test(v.meta || ''), JSON.stringify({ ...v, blue }))
+      ok(`eased after: the row loads ${deloadWeight(60, 13)} kg, not 60`, v.w.some(x => x.includes(String(deloadWeight(60, 13)))) && !v.w.some(x => /\b60\b/.test(x)), JSON.stringify(v.w))
+      await page.screenshot({ path: `${OUT}/deload-eased-after.png` })
+    }
+    ok('eased after: no page errors', errors.length === 0, errors.join('; '))
+    await ctx.close()
+  }
+}
+
 for (const device of ['iPhone 13', 'iPhone SE']) {
   // A session under way: the live bar at the foot is the way back; the
   // stage offers «أكمل التمرين» quietly, never under the live bar, and

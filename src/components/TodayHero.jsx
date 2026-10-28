@@ -107,9 +107,11 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, d
   const { ar, en } = exerciseNames(shownName, exerciseMapping)
   const { lastWeight } = getExerciseStats(sessions, shownName, exerciseMapping)
   const onDeload = !!deload?.active
-  // Silenced during a deload, exactly as the player silences it.
-  const raise = !onDeload && analyzeProgression(sessions, shownName, exerciseMapping, effectiveRepTarget(ex, repTarget)).hint === 'raise'
-  const today = lastWeight != null && onDeload ? deloadWeight(lastWeight, deload.pct) : lastWeight
+  // The first session after a deload comes in eased (deload.js easeBack).
+  const cut = onDeload ? deload.pct : deload?.ease?.pct || 0
+  // Silenced during a deload and on the way back, exactly as the player silences it.
+  const raise = !cut && analyzeProgression(sessions, shownName, exerciseMapping, effectiveRepTarget(ex, repTarget)).hint === 'raise'
+  const today = lastWeight != null && cut ? deloadWeight(lastWeight, cut) : lastWeight
   return (
     <li>
       <button type="button" className="hm-row" onClick={onOpen}>
@@ -120,9 +122,9 @@ function ExerciseRow({ ex, sessions, exerciseMapping, exerciseSubs, repTarget, d
         </span>
         {today != null && (
           <span className="hm-row-w"
-            title={onDeload ? `وزن الديلود — آخر مرة ${lastWeight} كجم` : undefined}>
+            title={cut ? `${onDeload ? 'وزن الديلود' : 'وزن الرجوع'} — آخر مرة ${lastWeight} كجم` : undefined}>
             {raise && <ArrowUp size={14} weight="bold" className="hm-raise" aria-label="ارفع الوزن" />}
-            {onDeload && <Drop size={14} weight="fill" className="hm-deload-mark" aria-label="وزن الديلود" />}
+            {cut > 0 && <Drop size={14} weight="fill" className="hm-deload-mark" aria-label={onDeload ? 'وزن الديلود' : 'وزن الرجوع'} />}
             <Weight kg={today} />
           </span>
         )}
@@ -217,11 +219,14 @@ export default function TodayHero({
     artShown = true
   }
 
-  // How far into the deload, said where the day is.
+  // How far into the deload, said where the day is — on its last days,
+  // that the weights are on their way back up.
   const deloadChip = onDeload && !resting && !done ? (
     <span className="hm-chip-deload">
       <Art id="deload_badge" size={14} fallback={<Drop size={14} weight="fill" aria-hidden="true" />} />
-      <span>ديلود · اليوم <Num>{deload.day}</Num> من <Num>{deload.totalDays}</Num></span>
+      {deload.ramp
+        ? <span>ديلود · رجوع تدريجي</span>
+        : <span>ديلود · اليوم <Num>{deload.day}</Num> من <Num>{deload.totalDays}</Num></span>}
     </span>
   ) : null
 
@@ -294,6 +299,7 @@ export default function TodayHero({
               {withNums(countAr(exCount, 'workout'))}
               {mins > 0 && <> · ≈<Num>{durationShort(mins)}</Num></>}
               {onDeload && <> · أخف بـ<Num>{deload.pct}%</Num></>}
+              {!onDeload && deload?.ease && <> · أخف بـ<Num>{deload.ease.pct}%</Num> بعد الديلود</>}
             </p>
           ) : null}
 

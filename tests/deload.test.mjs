@@ -23,7 +23,7 @@ globalThis.localStorage = {
 
 const {
   deloadState, deloadWeight, startDeload, endDeload,
-  sessionDeloadStamp, isDeloadSession, wasDeloadDay,
+  sessionDeloadStamp, isDeloadSession, wasDeloadDay, rampDays, rampPct, easeBack, EASE_WINDOW_DAYS,
   daysSinceLastDeload, weeksOfHistory, suggestDeload, dismissSuggestion,
   DELOAD_DAYS, DELOAD_PCT, MIN_PCT, MAX_PCT,
   SUGGEST_AFTER_WEEKS, SUGGEST_COOLDOWN_DAYS, SUGGEST_MIN_STALLED,
@@ -53,9 +53,11 @@ test('it never suggests nothing', () => {
   assert.equal(deloadWeight(1, 60), PLATE_STEP)
 })
 
-test('a percentage outside the sane band is clamped, not obeyed', () => {
+test('a percentage past the ceiling is clamped; the way back may ask for less than a deload', () => {
   assert.equal(deloadWeight(100, 99), 100 * (1 - MAX_PCT / 100))
-  assert.equal(deloadWeight(100, 1), 100 * (1 - MIN_PCT / 100))
+  // the last step back from a light deload: 13% off (87 → 87.5 on the plates)
+  assert.equal(deloadWeight(100, 13), 87.5)
+  assert.ok(MIN_PCT > 5 && deloadWeight(100, 5) === 95, 'below a deload\'s minimum, still obeyed')
 })
 
 test('a bodyweight exercise is left exactly as it was', () => {
@@ -334,7 +336,9 @@ test('a normal session still writes the baseline', () => {
 test('training heavy the day after it ends is recorded normally', () => {
   const cfg = endDeload(startDeload(CFG, day(10)), day(16))
   let store = { 'bench press': 100 }
-  const stamp = sessionDeloadStamp(cfg, day(17))
+  // he trained its last step back (day 16), so the next session is a normal one
+  const back = [sessionAt(day(16), 87.5, sessionDeloadStamp(startDeload(CFG, day(10)), day(16)))]
+  const stamp = sessionDeloadStamp(cfg, day(17), back)
   assert.equal(stamp, null, 'no stamp once it is over')
   store = finishInto(store, sessionAt(day(17), 102.5, stamp))
   assert.equal(store['bench press'], 102.5)
@@ -411,4 +415,70 @@ test('a late-night session lands on the evening it belongs to', () => {
   assert.equal(wasDeloadDay(cfg, lateNight), true)
   // and from 03:00 it is the 12th
   assert.equal(deloadState(cfg, new Date(2026, 2, 12, 3, 30, 0)).day, 3)
+})
+
+// ══ the way back ══════════════════════════════════════════════
+// Hamza: «فجأة يرجع لأوزان جدا ثقيلة، هذا ممكن يسبب مشاكل في الجسم». The
+// last day or two step back up; a way back never trained eases the
+// first session after instead.
+
+test('the way back: one day for a short or shallow deload, two for a longer, deeper one', () => {
+  assert.equal(rampDays(5, 25), 1, 'خفيف')
+  assert.equal(rampDays(7, 40), 2, 'المعتاد')
+  assert.equal(rampDays(10, 55), 2, 'عميق')
+  assert.equal(rampDays(3, 40), 1, 'three days: the last one only')
+  assert.equal(rampDays(4, 60), 1)
+  assert.equal(rampDays(14, 30), 1, '30% or less: one day')
+})
+
+test('the steps split what is left evenly — the numbers Hamza approved', () => {
+  assert.deepEqual([rampPct(40, 2, 1), rampPct(40, 2, 2)], [27, 13])
+  assert.deepEqual([rampPct(55, 2, 1), rampPct(55, 2, 2)], [37, 18])
+  assert.equal(rampPct(25, 1, 1), 13)
+  assert.equal(rampPct(40, 1, 1), 20, 'a three-day deload at 40%: its last day at 20%')
+  // 100 kg through the usual deload: 60 → 72.5 → 87.5 → 100
+  assert.deepEqual([40, 27, 13].map(p => deloadWeight(100, p)), [60, 72.5, 87.5])
+})
+
+test('deloadState: today\'s cut, the chosen one, and which step back today is', () => {
+  const cfg = startDeload(CFG, day(10))                      // 7 days, 40%: 10–16
+  const at = (n) => deloadState(cfg, day(n))
+  for (const n of [10, 12, 14]) assert.deepEqual([at(n).pct, at(n).basePct, at(n).ramp], [40, 40, null], `day ${n}`)
+  assert.deepEqual([at(15).pct, at(15).ramp], [27, { step: 1, of: 2 }])
+  assert.deepEqual([at(16).pct, at(16).ramp], [13, { step: 2, of: 2 }])
+  const three = startDeload(CFG, day(10), { days: 3, pct: 40 })
+  assert.deepEqual([10, 11, 12].map(n => deloadState(three, day(n)).pct), [40, 40, 20])
+  // a session started on a way-back day carries the step
+  assert.deepEqual(sessionDeloadStamp(cfg, day(15)), { pct: 27, from: day(10), until: day(16), ramp: { step: 1, of: 2 } })
+})
+
+test('a way back never trained: the first session after is the last step, stamped light', () => {
+  const cfg = endDeload(startDeload(CFG, day(10)), day(16))
+  // trained on day 12 only; days 15 and 16 were rest
+  const sessions = [sessionAt(day(12), 60, sessionDeloadStamp(startDeload(CFG, day(10)), day(12)))]
+  assert.deepEqual(easeBack(cfg, sessions, day(17)), { pct: 13, from: day(10), until: day(16) })
+  const stamp = sessionDeloadStamp(cfg, day(17), sessions)
+  assert.deepEqual(stamp, { pct: 13, from: day(10), until: day(16), ret: true })
+  assert.ok(isDeloadSession({ deload: stamp }), 'light: not the weights to return to, not a record')
+  // once that eased session is in, the next one is normal
+  const after = [...sessions, sessionAt(day(17), 87.5, stamp)]
+  assert.equal(sessionDeloadStamp(cfg, day(19), after), null)
+})
+
+test('the ease asks nothing once he is back, or long after', () => {
+  const cfg = endDeload(startDeload(CFG, day(10)), day(16))
+  assert.equal(easeBack(cfg, [sessionAt(day(17), 100)], day(19)), null, 'a normal session since: already back')
+  assert.equal(easeBack(cfg, [], day(16 + EASE_WINDOW_DAYS + 1)), null, 'past the window')
+  assert.ok(easeBack(cfg, [], day(16 + EASE_WINDOW_DAYS)), 'the window\'s last day still eases')
+  assert.equal(easeBack(startDeload(CFG, day(10)), [], day(12)), null, 'not while it runs')
+})
+
+test('ended early: the first session back is eased all the same', () => {
+  const cfg = endDeload(startDeload(CFG, day(10)), day(12))   // stopped on day 3 of 7
+  assert.deepEqual(easeBack(cfg, [], day(13)), { pct: 13, from: day(10), until: day(12) })
+})
+
+test('a deload left to lapse (not yet filed) eases the first session after it too', () => {
+  const cfg = startDeload(CFG, day(10))                      // until the 16th, never closed
+  assert.deepEqual(easeBack(cfg, [], day(18)), { pct: 13, from: day(10), until: day(16) })
 })

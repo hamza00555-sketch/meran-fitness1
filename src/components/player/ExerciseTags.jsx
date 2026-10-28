@@ -16,7 +16,7 @@ import { kg } from './sessionWords.js'
 // The coaching moved into the coach line under the counters; YouTube
 // became the monochrome pill in the stage's corner (ExerciseHero).
 
-export default function ExerciseTags({ ex, mapping = {}, maxWeight = null, deloadPct = 0, quietBest = false }) {
+export default function ExerciseTags({ ex, mapping = {}, maxWeight = null, deloadPct = 0, deloadStep = null, quietBest = false }) {
   const group = MUSCLE_GROUPS[ex.muscle]
   const equip = equipLabel(ex.name, mapping)
   const origin = ex.originalName && ex.originalName !== ex.name ? ex.originalName : null
@@ -34,7 +34,7 @@ export default function ExerciseTags({ ex, mapping = {}, maxWeight = null, deloa
       )}
       {deloadPct > 0 && (
         <span className="s-meta-part s-meta-deload">
-          <Drop size={14} weight="fill" aria-hidden="true" /> ديلود <Num>−{deloadPct}%</Num>
+          <Drop size={14} weight="fill" aria-hidden="true" /> {deloadStep ? 'رجوع' : 'ديلود'} <Num>−{deloadPct}%</Num>
         </span>
       )}
       {origin && (

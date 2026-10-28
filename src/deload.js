@@ -36,7 +36,9 @@ export const SUGGEST_MIN_STALLED   = 2
 export function deloadWeight(kg, pct = DELOAD_PCT) {
   const w = parseFloat(kg)
   if (!(w > 0)) return kg
-  const factor = 1 - clampPct(pct) / 100
+  // The way back can ask for less than a deload may (13% off on its last
+  // day), so only the ceiling is a deload's here.
+  const factor = 1 - Math.min(MAX_PCT, Math.max(1, Math.round(Number(pct) || DELOAD_PCT))) / 100
   // Never below one plate: a suggestion of zero is not a suggestion.
   return Math.max(PLATE_STEP, roundToPlate(w * factor))
 }
@@ -46,9 +48,31 @@ const clampDays = (d) => Math.min(MAX_DAYS, Math.max(MIN_DAYS, Math.round(Number
 
 const INACTIVE = Object.freeze({
   active: false, lapsed: false,
-  from: null, until: null, pct: 0,
+  from: null, until: null, pct: 0, basePct: 0, ramp: null,
   day: 0, totalDays: 0, daysLeft: 0,
 })
+
+// ── The way back ──────────────────────────────────────────────
+// Light weights for a week and then the full ones overnight is a jolt
+// (Hamza: «فجأة يرجع لأوزان جدا ثقيلة، هذا ممكن يسبب مشاكل في الجسم»), so
+// a deload's last day or two step back up. A short or shallow deload
+// (4 days or less, or 30% or less) takes one step, a longer and deeper
+// one two, and at least one day always keeps the full cut. The steps
+// split what is left evenly: 40% → 27% → 13% → the full weight.
+
+/** How many of a deload's last days step back up. */
+export function rampDays(totalDays, pct) {
+  const n = totalDays <= 4 || pct <= 30 ? 1 : 2
+  return Math.max(0, Math.min(n, totalDays - 1))
+}
+
+/** The cut on step `step` (1-based) of `of` on the way back from `pct`. */
+export const rampPct = (pct, of, step) => Math.round(pct * (of - step + 1) / (of + 1))
+
+// The first session after a deload whose way back he never trained (its
+// last days were rest days, or he ended it early) is the last step rather
+// than the full weight — within two weeks of its end.
+export const EASE_WINDOW_DAYS = 14
 
 /**
  * Where today sits in the stored deload.
@@ -67,13 +91,45 @@ export function deloadState(config = {}, today = todayKey()) {
 
   const totalDays = dayDiff(d.from, d.plannedUntil) + 1
   const dayNo = dayDiff(d.from, day) + 1
+  // `pct` is today's cut — on the way back, the step's — and `basePct`
+  // the one he chose; `ramp` says which step today is.
+  const of = rampDays(totalDays, d.pct)
+  const step = dayNo - (totalDays - of)
+  const ramp = of > 0 && step >= 1 ? { step, of } : null
   return {
     active: true, lapsed: false,
-    from: d.from, until: d.plannedUntil, pct: d.pct,
+    from: d.from, until: d.plannedUntil,
+    pct: ramp ? rampPct(d.pct, of, step) : d.pct, basePct: d.pct, ramp,
     day: dayNo,
     totalDays,
     daysLeft: totalDays - dayNo,
   }
+}
+
+/**
+ * The first session after a deload, eased: `{ pct, from, until }` when
+ * the last deload ended within EASE_WINDOW_DAYS, nothing ordinary has
+ * been trained since it began, and its way back was never trained (no
+ * session on its last step, no eased session yet). Null otherwise.
+ */
+export function easeBack(config = {}, sessions = [], today = todayKey()) {
+  const day = dayKey(today)
+  if (deloadState(config, day).active) return null
+  const runs = [...(config?.deloadHistory || [])]
+  const d = config?.deload
+  if (d?.from && d.plannedUntil && day > d.plannedUntil) runs.push({ ...d, until: d.plannedUntil })   // lapsed, not yet filed
+  if (!runs.length) return null
+  const last = runs.reduce((a, h) => ((h.until || h.plannedUntil) > (a.until || a.plannedUntil) ? h : a), runs[0])
+  const end = last.until || last.plannedUntil
+  if (!last.from || !end || dayDiff(end, day) > EASE_WINDOW_DAYS) return null
+  for (const s of sessions || []) {
+    if (!s?.date) continue
+    if (!isDeloadSession(s) && dayKey(s.date) >= last.from) return null   // already back
+    const st = s.deload
+    if (st?.from === last.from && (st.ret || (st.ramp && st.ramp.step >= st.ramp.of))) return null
+  }
+  const of = rampDays(dayDiff(last.from, last.plannedUntil || end) + 1, last.pct) || 1
+  return { pct: rampPct(last.pct, of, of), from: last.from, until: end }
 }
 
 /** Begin a deload today. */
@@ -130,10 +186,13 @@ export function endDeload(config = {}, today = todayKey()) {
  *
  * Null when no deload is running — the caller stores nothing.
  */
-export function sessionDeloadStamp(config = {}, today = todayKey()) {
+export function sessionDeloadStamp(config = {}, today = todayKey(), sessions = []) {
   const s = deloadState(config, today)
-  if (!s.active) return null
-  return { pct: s.pct, from: s.from, until: s.until }
+  if (s.active) return { pct: s.pct, from: s.from, until: s.until, ...(s.ramp ? { ramp: s.ramp } : null) }
+  // The eased first session after one is light too, and stamped so: it
+  // must not become the weights to return to, nor a record.
+  const e = easeBack(config, sessions, today)
+  return e ? { pct: e.pct, from: e.from, until: e.until, ret: true } : null
 }
 
 /**

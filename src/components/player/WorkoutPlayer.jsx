@@ -130,13 +130,18 @@ const firstUnfinished = (list, from = 0) => {
 // line after it and the advice («جرّب 77.5 كجم») starts its line whole.
 // Never less than he already lifted today: after 45, not «جرّب 42.5» but
 // «ثبّت على 45» (records.js).
-function coachFor({ prog, prevSet, lastWeight, raisedW, todayTop, deloadPct, unit }) {
+// On the way back from a deload (deload.js rampDays/easeBack) the cut is
+// smaller and says so: «رجوع تدريجي» on its last days, «رجوع بعد الديلود»
+// on the eased first session after it.
+const DELOAD_WORDS = { ramp: 'رجوع تدريجي', ret: 'رجوع بعد الديلود' }
+
+function coachFor({ prog, prevSet, lastWeight, raisedW, todayTop, deloadPct, deloadStep, unit }) {
   const t = prog?.target
   const lead = setParts(prevSet) ? <>آخر مرة <SetPhrase set={prevSet} unit={unit} /></>
     : lastWeight != null ? <>آخر مرة <span className="s-pair"><Num>{kg(lastWeight)}</Num> كجم</span></>
     : <>أول مرة</>
   const line = (advice) => <>{lead}&nbsp;— <span className="s-coach-adv">{advice}</span></>
-  if (deloadPct > 0) return line(<>ديلود، أخف بـ<Num>{deloadPct}%</Num></>)
+  if (deloadPct > 0) return line(<>{DELOAD_WORDS[deloadStep] || 'ديلود'}، أخف بـ<Num>{deloadPct}%</Num></>)
   switch (prog?.hint) {
     case 'raise': {
       const a = raiseAdvice(raisedW, todayTop)
@@ -181,7 +186,7 @@ const FINISH_ASK_AFTER_PR_MS = 3000
 
 export default function WorkoutPlayer({
   sessionId, exercises, mapping = {},
-  deloadPct = 0, isResting,
+  deloadPct = 0, deloadStep = null, isResting,
   getLastW, progressionFor, ytUrlFor, statsFor, previousFor = () => [], swapOptions,
   onUpdateSet, onStepSet, onDoneSet, onAddSet, onRemoveSet, onRemoveEx, onMoveSet, onSwapTo,
   onAddExercise, onRequestFinish, onDiscard, onCloseRest, onOpenPlan,
@@ -678,7 +683,7 @@ export default function WorkoutPlayer({
       coach={editing != null ? null : coachFor({
         prog, prevSet: prevSets[liveIndex] || prevSets[prevSets.length - 1] || null,
         lastWeight: stats.lastWeight ?? (deloadPct === 0 && Number.isFinite(snapW) && snapW > 0 ? snapW : null),
-        raisedW, todayTop, deloadPct, unit: ex.unit,
+        raisedW, todayTop, deloadPct, deloadStep, unit: ex.unit,
       })}
       raise={raiseOn && base != null && editing == null ? {
         base, raised: raisedW,
@@ -740,7 +745,7 @@ export default function WorkoutPlayer({
           onToggleStage={() => setPeek(p => (p === ex.id ? null : ex.id))}
           maxWeight={stats.maxWeight}
           quietBest={raiseOn}
-          deloadPct={deloadPct}
+          deloadPct={deloadPct} deloadStep={deloadStep}
           ytUrl={ytUrlFor(ex.name)}
           swap={swap}
           onSwapTo={(name, opts) => onSwapTo?.(ex.id, name, opts)}

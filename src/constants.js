@@ -18,9 +18,17 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.13'
+export const APP_VERSION = '3.14'
 
 export const WHATS_NEW = [
+  {
+    version: '3.14', date: '2026-10-28',
+    items: [
+      { icon: 'ArrowsClockwise', title: 'رجوع تدريجي من الديلود', line: 'آخر يوم أو يومين من الديلود ترجع أوزانك خطوة خطوة، مو مرة وحدة.' },
+      { icon: 'Barbell', title: 'مثال', line: 'الديلود المعتاد: 100 كجم تصير 60، ثم 72.5، ثم 87.5، وبعدها 100.' },
+      { icon: 'ShieldCheck', title: 'لو فاتتك أيام الرجوع', line: 'أول جلسة بعد الديلود تجي أخف شوي بدل الوزن الكامل على طول.' },
+    ],
+  },
   {
     version: '3.13', date: '2026-10-27',
     items: [

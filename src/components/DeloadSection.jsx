@@ -4,7 +4,7 @@ import { Drop } from './kit/icons.js'
 import { toWesternDigits } from '../day.js'
 import { countAr, fmtDayAr } from '../streak.js'
 import {
-  deloadState, daysSinceLastDeload, deloadWeight,
+  deloadState, daysSinceLastDeload, deloadWeight, rampDays, rampPct,
   MIN_PCT, MAX_PCT, MIN_DAYS, MAX_DAYS, DELOAD_DAYS, DELOAD_PCT,
 } from '../deload.js'
 import { CheckList, CheckRow, TextField, Ar } from '../pages/settings/parts.jsx'
@@ -20,6 +20,13 @@ const PRESETS = [
 
 const dayWord = (n) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : (n >= 3 && n <= 10) ? 'أيام' : 'يوم')
 const presetLine = (p) => `${p.days} ${dayWord(p.days)} · أخف ${p.pct}%`
+// What 100 kg becomes on each of the way-back days (deload.js rampDays).
+const wayBack = (days, pct) => {
+  const of = rampDays(days, pct)
+  if (!of) return ''
+  const ws = Array.from({ length: of }, (_, i) => toWesternDigits(deloadWeight(100, rampPct(pct, of, i + 1))))
+  return of === 1 ? ` وآخر يوم يرجع بالتدريج: ${ws[0]} كجم.` : ` وآخر يومين يرجع بالتدريج: ${ws[0]} ثم ${ws[1]} كجم.`
+}
 const range = (from, until) => {
   const a = fmtDayAr(from, { weekday: false })
   const b = fmtDayAr(until, { weekday: false })
@@ -67,10 +74,19 @@ export default function DeloadSection({ recoveryCfg = {}, today, onStart, onEnd 
           </p>
           <Gauge value={state.day} max={state.totalDays} tone="accent" label="أيام الديلود" />
           <p className="dl-line">
-            <Ar>{`أوزانك أخف ${state.pct}%. `}</Ar>
-            {state.daysLeft > 0
-              ? <Ar>{`باقي ${countAr(state.daysLeft, 'day')}، وينتهي ${fmtDayAr(state.until, { weekday: false })} وترجع أوزانك لحالها.`}</Ar>
-              : 'اليوم آخر يوم، وبكرة ترجع أوزانك زي ما كانت.'}
+            {state.ramp ? (
+              // On the way back: today's step, and what tomorrow brings.
+              <Ar>{`اليوم رجوع تدريجي: أوزانك أخف ${state.pct}% بس. `
+                + (state.daysLeft > 0
+                  ? `بكرة أخف ${rampPct(state.basePct, state.ramp.of, state.ramp.step + 1)}%، وبعده ترجع أوزانك لحالها.`
+                  : 'وبكرة ترجع أوزانك زي ما كانت.')}</Ar>
+            ) : (
+              <>
+                <Ar>{`أوزانك أخف ${state.pct}%. `}</Ar>
+                <Ar>{`باقي ${countAr(state.daysLeft, 'day')}، وينتهي ${fmtDayAr(state.until, { weekday: false })}. `
+                  + (rampDays(state.totalDays, state.basePct) === 1 ? 'آخر يوم ترجع أوزانك بالتدريج.' : 'آخر يومين ترجع أوزانك بالتدريج.')}</Ar>
+              </>
+            )}
           </p>
           <p className="dl-line" style={{ color: 'var(--ink-3)', fontSize: 'var(--t-label)' }}>
             التمارين والمجموعات والعدات ما تتغير، الوزن بس.
@@ -84,7 +100,7 @@ export default function DeloadSection({ recoveryCfg = {}, today, onStart, onEnd 
 
           <CheckList header="المدة والتخفيف"
             footer={valid
-              ? <p><Ar>{`يبدأ اليوم ولمدة ${chosen.days} ${dayWord(chosen.days)}. وزن 100 كجم يصير ${toWesternDigits(deloadWeight(100, chosen.pct))} كجم.`}</Ar></p>
+              ? <p><Ar>{`يبدأ اليوم ولمدة ${chosen.days} ${dayWord(chosen.days)}. وزن 100 كجم يصير ${toWesternDigits(deloadWeight(100, chosen.pct))} كجم.${wayBack(chosen.days, chosen.pct)}`}</Ar></p>
               : <p style={{ color: 'var(--danger)' }}><Ar>{`راجع الأرقام: المدة من ${MIN_DAYS} إلى ${MAX_DAYS} أيام، والتخفيف من ${MIN_PCT}% إلى ${MAX_PCT}%.`}</Ar></p>}>
             {PRESETS.map(p => (
               <CheckRow key={p.id} title={p.label} subtitle={<Ar>{presetLine(p)}</Ar>}
