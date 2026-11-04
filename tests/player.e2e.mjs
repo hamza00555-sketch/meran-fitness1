@@ -2937,6 +2937,10 @@ const timeline = (page) => page.evaluate(() => {
   })
   ok('summary art: today\'s picture heads the summary, and is remembered for the day',
     /^summary_\d+$/.test(pic?.id || '') && pic.w > 0 && pic.first && pic.kept?.id === pic.id, JSON.stringify(pic))
+  // a chest-and-shoulders session: a picture lighting the chest or the
+  // shoulders, never the legs or the back («الهايلايت على العضلة الخطأ»)
+  ok('summary art: it lights a muscle the session trained — chest or shoulders here',
+    ['summary_1', 'summary_3', 'summary_7'].includes(pic?.id), JSON.stringify(pic))
   await page.waitForTimeout(2500)
   await page.screenshot({ path: `${OUT}/summary-art.png` })
   await page.getByRole('button', { name: /^تم$/ }).click({ timeout: 8000 }).catch(() => {})

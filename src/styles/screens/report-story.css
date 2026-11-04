@@ -56,9 +56,10 @@
 .rs-segs {
   position: absolute; top: calc(var(--safe-top) + 4.6cqw); inset-inline: 5cqw;
   display: flex; gap: 1.2cqw; z-index: 8; pointer-events: none;
+  direction: ltr;   /* the first card's strip on the left, filling rightwards */
 }
 .rs-seg { flex: 1; height: .9cqw; min-height: 3px; background: var(--rs-seg-track); border-radius: 1cqw; overflow: hidden; }
-.rs-seg > i { display: block; height: 100%; background: var(--ink); transform-origin: right; transform: scaleX(0); }
+.rs-seg > i { display: block; height: 100%; background: var(--ink); transform-origin: left; transform: scaleX(0); }
 .rs-seg.done > i { transform: none; }
 .rs-seg.on > i { animation: rs-seg var(--dur, 6000ms) linear forwards; }
 .rs-seg.still > i { transform: none; opacity: .55; }
@@ -92,8 +93,8 @@
   border: 0; padding: 0; margin: 0; background: none;
 }
 .rs-sr-btn:focus-visible { width: 44px; height: 44px; clip-path: none; bottom: 16px; z-index: 9; color: var(--ink); background: var(--surface-2); border-radius: 50%; }
-.rs-sr-btn.next:focus-visible { left: 16px; }
-.rs-sr-btn.prev:focus-visible { right: 16px; }
+.rs-sr-btn.next:focus-visible { right: 16px; }
+.rs-sr-btn.prev:focus-visible { left: 16px; }
 
 /* One card on screen at a time; a new one comes in with the story's cut. */
 .rs-story .rs-card { position: absolute; inset: 0; padding: calc(var(--safe-top) + max(19cqw, 7.4cqw + 44px + 8px)) 7cqw calc(var(--safe-bottom) + 8cqw); }

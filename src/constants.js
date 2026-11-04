@@ -18,9 +18,16 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.14'
+export const APP_VERSION = '3.15'
 
 export const WHATS_NEW = [
+  {
+    version: '3.15', date: '2026-11-04',
+    items: [
+      { icon: 'Image', title: 'صورة الملخص على عضلات يومك', line: 'يوم الأرجل تطلع صورة تضيء الأرجل، ويوم السحب الظهر، ويوم الدفع الصدر والأكتاف.' },
+      { icon: 'ArrowsClockwise', title: 'قصة التقرير من اليسار', line: 'التقرير الشهري يبدأ من اليسار، واضغط يمين للبطاقة اللي بعدها.' },
+    ],
+  },
   {
     version: '3.14', date: '2026-10-28',
     items: [

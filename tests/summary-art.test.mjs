@@ -17,8 +17,8 @@ globalThis.localStorage = {
   get length() { return this._d.size },
 }
 
-const { pickSummaryArt, SUMMARY_ART_KEY } = await import('../src/summaryArt.js')
-const { SUMMARY_ART, allSlots } = await import('../src/assets/slots.js')
+const { pickSummaryArt, summaryCandidates, setsByMuscle, SUMMARY_ART_KEY } = await import('../src/summaryArt.js')
+const { SUMMARY_ART, SUMMARY_LIT, allSlots } = await import('../src/assets/slots.js')
 const { PER_USER_KEYS } = await import('../src/utils.js')
 
 const day = (n) => `2026-11-${String(n).padStart(2, '0')}`
@@ -110,4 +110,57 @@ test('under a deload every picture has its blue twin, with no lime left', async 
     assert.ok(await lime(`assets-cut/${deloadTwin(id)}.png`) < 60, `${deloadTwin(id)}: no lime left`)
   }
   assert.ok(await lime('public/assets/hero_done_deload.webp') < 60, 'Home\'s resting figure: no lime left')
+})
+
+// ══ The picture lights a muscle he trained ══
+// Hamza, on a leg day's summary that lit the back: «الهايلايت على العضلة الخطأ».
+
+const pick = (sets) => summaryCandidates(SUMMARY_ART, sets, SUMMARY_LIT).map(id => +id.split('_')[1]).sort((a, b) => a - b)
+
+test('a leg day picks only the leg pictures; push and pull their own', () => {
+  assert.deepEqual(pick({ Legs: 15, Core: 2 }), [4, 5, 6], 'legs (the core is too small a share to count)')
+  assert.deepEqual(pick({ Chest: 9, Shoulders: 6, Triceps: 6 }), [1, 3, 7], 'push')
+  assert.deepEqual(pick({ Back: 12, Biceps: 6 }), [2, 8, 9, 10], 'pull')
+  assert.deepEqual(pick({ Chest: 6, Back: 6, Shoulders: 6, Biceps: 3, Triceps: 3 }), [1, 2, 3, 7, 8, 9, 10], 'upper')
+})
+
+test('no picture leads with the muscle: one that lights it at all, else any', () => {
+  assert.deepEqual(pick({ Biceps: 6, Triceps: 6 }), [2, 3], 'arms: the pictures lighting the biceps')
+  assert.deepEqual(pick({ Cardio: 3 }), SUMMARY_ART.map(id => +id.split('_')[1]), 'cardio lights nothing: any')
+  assert.deepEqual(pick({}), SUMMARY_ART.map(id => +id.split('_')[1]), 'nothing known: any')
+})
+
+test('every picture is tagged with real muscle groups', async () => {
+  const { MUSCLE_GROUPS } = await import('../src/constants.js')
+  for (const id of SUMMARY_ART) {
+    assert.ok(SUMMARY_LIT[id]?.length, id)
+    for (const g of SUMMARY_LIT[id]) assert.ok(MUSCLE_GROUPS[g], `${id}: ${g}`)
+  }
+})
+
+test('done sets by muscle, from the session itself', () => {
+  assert.deepEqual(setsByMuscle({ exercises: [
+    { muscle: 'Legs', sets: [{ done: true }, { done: true }, { done: false }] },
+    { muscle: 'Legs', sets: [{ done: true }] },
+    { muscle: 'Core', sets: [{ done: false }] },
+  ] }), { Legs: 3 })
+})
+
+test('each group takes its own turns; a leg round does not spend the back pictures', () => {
+  const legs = summaryCandidates(SUMMARY_ART, { Legs: 9 }, SUMMARY_LIT)
+  const back = summaryCandidates(SUMMARY_ART, { Back: 9 }, SUMMARY_LIT)
+  let memory = null
+  const shown = { legs: [], back: [] }
+  for (let d = 1; d <= 14; d++) {
+    const group = d % 2 ? 'legs' : 'back'
+    const out = pickSummaryArt({ today: day(d), memory, ids: group === 'legs' ? legs : back, rand: () => 0.5 })
+    memory = out.memory
+    shown[group].push(out.id)
+  }
+  // seven leg days over 3 pictures: every one before any repeats, twice over
+  assert.deepEqual([...shown.legs.slice(0, 3)].sort(), [...legs].sort())
+  assert.deepEqual([...shown.legs.slice(3, 6)].sort(), [...legs].sort())
+  // seven back days over 4 pictures: the first four are all four
+  assert.deepEqual([...shown.back.slice(0, 4)].sort(), [...back].sort())
+  for (let i = 1; i < shown.legs.length; i++) assert.notEqual(shown.legs[i], shown.legs[i - 1], 'no leg picture twice in a row')
 })

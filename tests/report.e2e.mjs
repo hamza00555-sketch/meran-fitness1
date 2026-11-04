@@ -618,7 +618,8 @@ async function capturePoster(page, selector) {
 
 // ══ 8. The story ══════════════════════════════════════════════
 // The first time a month's report opens it plays as a story; it turns by
-// itself, a tap on the left is the next card and on the right the one
+// itself, it starts on the left (the first strip leftmost, filling to the
+// right), a tap on the right is the next card and on the left the one
 // before, holding pauses, «تخطّي» opens the summary, and the next time
 // the report opens on the summary.
 
@@ -645,12 +646,25 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   ok('story: the first open plays as a story, all nine cards', segs === 9 && await now(page) === 'cover', `${segs} cards, on ${await now(page)}`)
   await page.waitForTimeout(5600)
   ok('story: it turns by itself after about six seconds', await now(page) === 'cal', await now(page))
-  await page.mouse.click(60, 500)
-  await page.waitForTimeout(400)
-  ok('story: a tap on the left is the next card', await now(page) === 'jump', await now(page))
+  // the strips: the first card's on the left, the one playing fills rightwards
+  const strips = await page.evaluate(() => {
+    const segs = [...document.querySelectorAll('.rs-seg')].map(e => e.getBoundingClientRect().left)
+    const on = document.querySelector('.rs-seg.on > i, .rs-seg.still > i')
+    return { leftToRight: segs.every((x, k) => k === 0 || x > segs[k - 1]), origin: on ? getComputedStyle(on).transformOrigin : null }
+  })
+  ok('story: it starts on the left — the strips run left to right, filling rightwards',
+    strips.leftToRight && /^0px/.test(strips.origin || ''), JSON.stringify(strips))
   await page.mouse.click(350, 500)
   await page.waitForTimeout(400)
-  ok('story: a tap on the right is the card before', await now(page) === 'cal', await now(page))
+  ok('story: a tap on the right is the next card', await now(page) === 'jump', await now(page))
+  await page.mouse.click(40, 500)
+  await page.waitForTimeout(400)
+  ok('story: a tap on the left is the card before', await now(page) === 'cal', await now(page))
+  await page.keyboard.press('ArrowRight')
+  await page.waitForTimeout(400)
+  ok('story: → is the next card too', await now(page) === 'jump', await now(page))
+  await page.keyboard.press('ArrowLeft')
+  await page.waitForTimeout(400)
   await page.mouse.move(200, 500)
   await page.mouse.down()
   await page.waitForTimeout(900)
@@ -662,7 +676,7 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   const after = await page.evaluate(() => document.querySelector('.rs-story')?.classList.contains('paused'))
   ok('story: holding pauses it, and letting go carries on', held && still === 'cal' && !after && await now(page) === 'cal', JSON.stringify({ held, still, after }))
   // The gold moment: the new weight's line, its dot and the roll.
-  await page.mouse.click(60, 500)
+  await page.mouse.click(370, 500)
   await page.waitForTimeout(3200)
   const jump = await page.evaluate(() => ({
     gold: !!document.querySelector('.rs-story .lc .ln.gold'),
@@ -672,10 +686,10 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   }))
   ok('story: «أكبر قفزة» draws the gold line to its dot, and the confetti fires', jump.gold && jump.dot && /كجم/.test(jump.weight || '') && jump.confetti, JSON.stringify(jump))
   // Before and after: two photos four weeks apart make the card.
-  for (let i = 0; i < 4 && await now(page) !== 'ba'; i++) { await page.mouse.click(60, 500); await page.waitForTimeout(300) }
+  for (let i = 0; i < 4 && await now(page) !== 'ba'; i++) { await page.mouse.click(370, 500); await page.waitForTimeout(300) }
   const ba = await page.evaluate(() => ({ imgs: document.querySelectorAll('.rs-story .ba img').length, slider: !!document.querySelector('.rs-story .ba-h[role="slider"]') }))
   ok('story: «قبل وبعد» from the month\'s progress photos', await now(page) === 'ba' && ba.imgs === 2 && ba.slider, JSON.stringify(ba))
-  await page.mouse.click(60, 500)
+  await page.mouse.click(370, 500)
   await page.waitForTimeout(2200)
   const goal = await page.evaluate(() => document.querySelector('.rs-story .c-goal')?.innerText.replace(/\s+/g, ' ') || '')
   ok('story: «هدف الشهر» says it was reached', await now(page) === 'goal' && /حققته/.test(goal), goal)
@@ -733,7 +747,7 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
   })
   ok('story, reduced motion: it does not turn by itself', await now(page) === 'cover', await now(page))
   ok('story, reduced motion: nothing inside the card moves', anims === 0, `${anims} animated`)
-  await page.mouse.click(60, 500)
+  await page.mouse.click(350, 500)
   await page.waitForTimeout(400)
   ok('story, reduced motion: a tap still turns it', await now(page) === 'cal')
   ok('story, reduced motion: no page errors', errors.length === 0, errors.join('; '))
@@ -751,7 +765,7 @@ const now = (page) => page.locator('.rs-story').getAttribute('data-card-now', { 
     return { text: n?.textContent || '', color: n ? getComputedStyle(n).color : '', blue: document.querySelectorAll('.rs-story .ring .sg.dl').length }
   })
   ok('story, deload: the cover says the light week in blue', /أسبوع تخفيف/.test(cover.text) && cover.color === 'rgb(92, 201, 238)' && cover.blue >= 4, JSON.stringify(cover))
-  await page.mouse.click(60, 500)
+  await page.mouse.click(370, 500)
   await page.waitForTimeout(1500)
   const rim = await page.evaluate(() => document.querySelectorAll('.rs-story .hm .t.dl').length)
   ok('story, deload: the calendar rims the week', rim >= 4, String(rim))

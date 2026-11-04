@@ -113,24 +113,29 @@ export { DELOADS_STYLE_NOTE }
 // 3:2 banner. All ten approved by Hamza (2026-10-22; 4–7 on their
 // second drawing); one he turns down stays out until its redraw is.
 const SUMMARY = { w: 960, h: 640 }
+// `lit`: the muscle the picture lights, first the one that leads — the
+// summary only shows a picture whose lead muscle the session trained
+// (Hamza, on a leg day's summary lighting the back: «الهايلايت على العضلة
+// الخطأ»). Keys are MUSCLE_GROUPS'.
 const SUMMARY_SCENES = {
-  1: 'the black figure wiping its neck with a gym towel after training',
-  2: 'the black figure sliding a weight plate back onto the rack',
-  3: 'the black figure drinking from a protein shaker',
-  4: 'the black figure sitting on the floor against a box, catching its breath',
-  5: 'the black figure walking out with its gym bag over the shoulder',
-  6: 'the black figure in a standing quad stretch after the session',
-  7: 'the black figure with one fist raised in quiet triumph',
-  8:'the black figure sitting on a bench, resting after the session',
-  9: 'the black figure pushing its gym locker shut',
-  10: 'the black figure standing confidently before a gym mirror',
+  1: { lit: ['Shoulders'], en: 'the black figure wiping its neck with a gym towel after training' },
+  2: { lit: ['Back', 'Biceps'], en: 'the black figure sliding a weight plate back onto the rack' },
+  3: { lit: ['Chest', 'Biceps'], en: 'the black figure drinking from a protein shaker' },
+  4: { lit: ['Legs'], en: 'the black figure sitting on the floor against a box, catching its breath' },
+  5: { lit: ['Legs'], en: 'the black figure walking out with its gym bag over the shoulder' },
+  6: { lit: ['Legs'], en: 'the black figure in a standing quad stretch after the session' },
+  7: { lit: ['Shoulders'], en: 'the black figure with one fist raised in quiet triumph' },
+  8: { lit: ['Back', 'Shoulders'], en: 'the black figure sitting on a bench, resting after the session' },
+  9: { lit: ['Back'], en: 'the black figure pushing its gym locker shut' },
+  10: { lit: ['Back'], en: 'the black figure standing confidently before a gym mirror' },
 }
 export const SUMMARY_ART = Object.keys(SUMMARY_SCENES).map(n => `summary_${n}`)
 // Each has a twin for a session under a deload, its lime turned to the
 // deload's glacier blue (scripts/recolor-deload.mjs): the same picture of
 // the day, cooled like the rest of the app.
 export const deloadTwin = (id) => `${id}_deload`
-export const SUMMARIES = Object.fromEntries(Object.entries(SUMMARY_SCENES).flatMap(([n, en]) => [
+export const SUMMARY_LIT = Object.fromEntries(Object.entries(SUMMARY_SCENES).map(([n, { lit }]) => [`summary_${n}`, lit]))
+export const SUMMARIES = Object.fromEntries(Object.entries(SUMMARY_SCENES).flatMap(([n, { en }]) => [
   [`summary_${n}`, { ...SUMMARY, en }],
   [deloadTwin(`summary_${n}`), { ...SUMMARY, en: `${en}, ${DELOADS_STYLE_NOTE}`, deloadOf: `summary_${n}` }],
 ]))

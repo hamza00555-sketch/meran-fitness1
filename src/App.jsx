@@ -73,6 +73,7 @@ import { dayWord }       from './components/player/sessionWords.js'
 import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
+import { setsByMuscle } from './summaryArt.js'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import StreakChip       from './components/streak/StreakChip.jsx'
 import LiveBar          from './components/frame/LiveBar.jsx'
@@ -759,6 +760,8 @@ export default function App() {
       achievements: earned,
       // under a deload, the picture of the day comes in the deload's blue
       deload: isDeloadSession(finished),
+      // …and it lights a muscle he trained (summaryArt.js)
+      muscles: setsByMuscle(finished),
     })
 
     setSessions(prev => {

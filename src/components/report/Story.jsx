@@ -3,8 +3,11 @@
 // at a time, each turning by itself after about six seconds, with the
 // strips across the top showing where he is. حمزة chose «تتقلب لحالها».
 //
-//   tap the left of the screen  — the next card (time runs right to left)
-//   tap the right 30%           — the card before
+//   tap the right of the screen — the next card
+//   tap the left 30%            — the card before
+// It starts on the left, as stories do: the first strip is the leftmost
+// and fills to the right (Hamza: «يبدا الستوري من اليسار بحيث اني لما
+// اضغط يمين يروح للسلايد اللي بعده»).
 //   press and hold              — pause, for as long as the finger stays
 //   pull down                   — close the report
 //   «تخطّي»                     — straight to the summary
@@ -49,13 +52,13 @@ export default function Story({ report, cards, ctx, onDone, onClose }) {
   const next = useCallback(() => go(i + 1), [go, i])
   const prev = useCallback(() => go(i - 1), [go, i])
 
-  // Keys: ← is the next card in a right-to-left story, → the one before,
-  // space holds. Escape belongs to the report (it closes).
+  // Keys: → is the next card, ← the one before (as the taps), space
+  // holds. Escape belongs to the report (it closes).
   useEffect(() => {
     const onKey = (e) => {
       if (e.target?.closest?.('[role="slider"], input, textarea')) return
-      if (e.key === 'ArrowLeft') { e.preventDefault(); next() }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); prev() }
+      if (e.key === 'ArrowRight') { e.preventDefault(); next() }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); prev() }
       else if (e.key === ' ' && !e.target?.closest?.('button')) { e.preventDefault(); setHeld(h => !h) }
     }
     window.addEventListener('keydown', onKey)
@@ -102,7 +105,7 @@ export default function Story({ report, cards, ctx, onDone, onClose }) {
     if (cancelled) return
     if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > 12) return
     const r = stage.current.getBoundingClientRect()
-    if (e.clientX > r.left + r.width * 0.7) prev()
+    if (e.clientX < r.left + r.width * 0.3) prev()
     else next()
   }
 
