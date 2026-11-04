@@ -159,8 +159,10 @@ for (const [w, h] of [[390, 844], [320, 568]]) {
   const text = (await shown(page)) ? await sheet(page).innerText() : ''
   // one release behind: only the newest entry, with its number and date
   const top = WHATS_NEW[0], day = Number(top.date.slice(8, 10))
+  const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+  const month = MONTHS[Number(top.date.slice(5, 7)) - 1]
   ok(`one release behind — «الإصدار ${top.version}» and its date`, new RegExp(`الإصدار\\s*${top.version.replace('.', '\\.')}`).test(text)
-    && new RegExp(`${day} أكتوبر`).test(text) && !/وش تغيّر/.test(text), text.slice(0, 80))
+    && new RegExp(`${day} ${month}`).test(text) && !/وش تغيّر/.test(text), text.slice(0, 80))
   await ctx.close()
 }
 {
