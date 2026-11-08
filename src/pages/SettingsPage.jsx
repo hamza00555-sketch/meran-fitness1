@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { ListGroup, ListRow, Num } from '../components/kit/index.jsx'
-import { CalendarBlank, Repeat, Drop, Clock, Bell, Image, Export } from '../components/kit/icons.js'
+import { CalendarBlank, Repeat, Drop, Clock, Bell, Image, Export, Flame, Trophy, ChartBar, Medal } from '../components/kit/icons.js'
 import { Wrench } from '@phosphor-icons/react'
 import AssetPackSection, { PACK_LABELS } from '../components/AssetPackSection.jsx'
 import RestLedgerPanel from '../components/RestLedgerPanel.jsx'
@@ -13,7 +13,8 @@ import { todayKey } from '../day.js'
 import { DEFAULT_REP_TARGET, repTargetOf } from '../progression.js'
 import { deloadState } from '../deload.js'
 import { getUsers } from '../utils.js'
-import { SubPage, Saved, Ar } from './settings/parts.jsx'
+import { SubPage, Saved, Ar, CheckList, CheckRow } from './settings/parts.jsx'
+import { HOME_TOPS, homeTopOf } from '../homeTop.js'
 import AccountSection from './settings/AccountSection.jsx'
 import PlanSection from './settings/PlanSection.jsx'
 import RepsSection from './settings/RepsSection.jsx'
@@ -40,7 +41,9 @@ const TITLES = {
   notif:   'الإشعارات',
   data:    'البيانات والنسخ الاحتياطي',
   advanced: 'متقدم',
+  home:    'أعلى الرئيسية',
 }
+const HOME_TOP_ICON = { streak: Flame, weights: Trophy, month: ChartBar, level: Medal }
 // The back bar has room for a short name only.
 const BAR_TITLES = { ...TITLES, account: 'الحساب', plan: 'الخطة', prefs: 'الوقت والجيم', data: 'البيانات' }
 
@@ -49,7 +52,7 @@ export default function SettingsPage({
   onImport, plan, onImportPlan, onClearPlan, onOpenPlanner, onOpenPlanView, exerciseMapping = {}, onImportMapping,
   recoveryCfg = {}, onUpdateRecovery, recovery = {}, changeCooldownLeft = 0, currentStreak = 0,
   repTarget = DEFAULT_REP_TARGET, onUpdateRepTarget, today = todayKey(), onStartDeload, onEndDeload,
-  section: initialSection = null,
+  section: initialSection = null, homeTop = 'streak', onHomeTop,
 }) {
   const [section, setSection] = useState(TITLES[initialSection] ? initialSection : null)
   const [came, setCame] = useState(null)   // 'push' | 'pop', for the slide direction
@@ -94,6 +97,16 @@ export default function SettingsPage({
           exerciseMapping={exerciseMapping} onImport={onImport} onImportMapping={onImportMapping} />
       ),
       advanced: <RestLedgerPanel recovery={recovery} />,
+      // What sits at the top of Home instead of the streak (src/homeTop.js).
+      home: (
+        <CheckList header="وش يطلع فوق في الرئيسية؟" footer="الأوزان والشهر يتقلبون لحالهم كل كم ثانية، والضغط عليهم يفتح التقدم.">
+          {HOME_TOPS.map(t => (
+            <CheckRow key={t.id} leading={HOME_TOP_ICON[t.id]} title={t.label} subtitle={t.line}
+              checked={homeTopOf(homeTop) === t.id}
+              onClick={() => { onHomeTop?.(t.id); setSaved(true); clearTimeout(savedTimer.current); savedTimer.current = setTimeout(() => setSaved(false), 1500) }} />
+          ))}
+        </CheckList>
+      ),
     }[section]
     return (
       <div className="st" data-sub={section}>
@@ -138,6 +151,8 @@ export default function SettingsPage({
       </ListGroup>
 
       <ListGroup header="التطبيق">
+        <ListRow leading={HOME_TOP_ICON[homeTopOf(homeTop)]} title={TITLES.home} chevron onClick={() => open('home')}
+          trailing={<span className="st-row-value">{HOME_TOPS.find(t => t.id === homeTopOf(homeTop)).label}</span>} />
         <ListRow leading={Bell} title={TITLES.notif} chevron onClick={() => open('notif')}
           trailing={readNotifEnabled() ? 'شغّالة' : 'مطفّية'} />
         <ListRow leading={Image} title={TITLES.pack} chevron onClick={() => open('pack')}

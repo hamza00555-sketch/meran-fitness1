@@ -2,7 +2,10 @@ import '../styles/screens/home.css'
 import { useMemo } from 'react'
 import { DeloadSuggestion } from '../components/DeloadBanner.jsx'
 import TodayHero from '../components/TodayHero.jsx'
-import StreakNumber, { useFlameIgnition } from '../components/streak/StreakNumber.jsx'
+import { useFlameIgnition } from '../components/streak/StreakNumber.jsx'
+import HomeTop from '../components/home/HomeTop.jsx'
+import { ls } from '../utils.js'
+import { MONTH_GOAL_KEY } from '../monthReport.js'
 import { IconButton, ListGroup, ListRow, Gauge, Num } from '../components/kit/index.jsx'
 import { GearSix, ChartBar, CalendarBlank, Moon, Plus, ListChecks } from '../components/kit/icons.js'
 import { MUSCLE_GROUPS } from '../constants.js'
@@ -126,7 +129,8 @@ function MuscleGroup({ entries }) {
 // in the sheet behind the number.
 export default function HomePage({ sessions, profile, onStartWorkout, onStartPlannedWorkout, onSkipPlanDay, onGoToWorkout, active, plan, planIndex, exerciseMapping = {}, exerciseSubs = {}, onCycleSub, recovery, recoveryConfig = {}, streakToday = null, onOverrideRecovery, monthReport = null, onShowMonthReport, deload = null, deloadSuggestion = null,
   onStartDeload, onDismissDeloadSuggestion, greeting = '', onOpenProfile, onOpenSettings, onOpenStreak,
-  repTarget = DEFAULT_REP_TARGET, hold = false, onOpenPlanner, onOpenPlanView }) {
+  repTarget = DEFAULT_REP_TARGET, hold = false, onOpenPlanner, onOpenPlanView,
+  xp = 0, homeTop = 'streak', onOpenProgress }) {
   // Training vs recovery comes from the recovery engine — real completed
   // workouts and the chosen frequency — never from the weekday.
   const isRecoveryDay = recovery?.status === DAY_STATUS.RECOVERY
@@ -176,8 +180,12 @@ export default function HomePage({ sessions, profile, onStartWorkout, onStartPla
     <div className="hm">
       <div className="h-top">
         <div className="h-top-text">
-          <StreakNumber recovery={recovery} config={recoveryConfig} active={active} deload={deload}
-            today={streakToday} onOpen={onOpenStreak} ignite={ignite} />
+          {/* The streak, or what he chose instead in Settings (src/homeTop.js). */}
+          <HomeTop choice={homeTop} sessions={sessions} plan={plan} planIndex={planIndex}
+            mapping={exerciseMapping} subs={exerciseSubs} xp={xp} today={streakToday || todayKey()}
+            goals={homeTop === 'month' ? ls.get(MONTH_GOAL_KEY, {}) : null}
+            onOpenProgress={onOpenProgress} onOpenProfile={onOpenProfile}
+            streak={{ recovery, config: recoveryConfig, active, deload, today: streakToday, onOpen: onOpenStreak, ignite }} />
           <div className="h-eyebrow-row">
             <span className="k-eyebrow">{withNums(`${fmtDayAr(streakToday || todayKey())}${planWeek}`)}</span>
             {unnamed && (

@@ -18,9 +18,17 @@ import { setCounts, setVolume } from './sets.js'
 //
 // tone: '' (ink) · 'streak' · 'rest' · 'raise' — the colour that already
 // means that thing in the app, nothing else.
-export const APP_VERSION = '3.15'
+export const APP_VERSION = '3.16'
 
 export const WHATS_NEW = [
+  {
+    version: '3.16', date: '2026-11-08',
+    items: [
+      { icon: 'Trophy', title: 'غيّر اللي فوق في الرئيسية', line: 'من الإعدادات › أعلى الرئيسية: الستريك، أو أوزانك، أو هالشهر، أو المستوى.' },
+      { icon: 'Barbell', title: 'أوزانك تتقلب', line: 'أعلى وزن بكل تمرين من خطتك، واحد ورا الثاني كل كم ثانية.' },
+      { icon: 'ChartBar', title: 'هالشهر بلمحة', line: 'جلساتك قدام هدفك، والأطنان اللي شلتها، والأوزان الجديدة.' },
+    ],
+  },
   {
     version: '3.15', date: '2026-11-04',
     items: [

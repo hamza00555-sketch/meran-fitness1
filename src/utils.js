@@ -90,6 +90,9 @@ export const PER_USER_KEYS = [
   // Which picture the session summary showed today, and which ones this
   // round already showed (src/summaryArt.js). New in the redesign.
   'meran_summary_art',
+  // What sits at the top of Home instead of the streak, if anything
+  // (src/homeTop.js). New in the redesign.
+  'meran_home_top',
 ]
 
 export const deleteUserData = (id) => {

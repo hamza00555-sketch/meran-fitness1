@@ -3035,6 +3035,38 @@ const timeline = (page) => page.evaluate(() => {
   await ctx.close()
 }
 
+// ══ The top of Home: the streak, or what he chose in Settings ══
+// Hamza: «استبدل معلومة الكم يوم استريك عندي بمعلومة ثانية … سكرولينج
+// ما بين الاوزان». His best weights take the streak's place and turn
+// every few seconds; Settings › «أعلى الرئيسية» switches it.
+{
+  const two = [MEDAL_DAY(2, 90), { ...MEDAL_DAY(4, 95), exercises: [...MEDAL_DAY(4, 95).exercises,
+    { id: 'lp', muscle: 'Legs', name: 'Leg Press', sets: [{ weight: '120', reps: '12', done: true }] }] }]
+  const { ctx, page, errors } = await open({ active: null, sessions: two, viewport: { width: 390, height: 844 }, extra: { meran_home_top: 'weights' } })
+  await page.locator('nav.f-tabs > button').first().click().catch(() => {}); await page.waitForTimeout(800)
+  const top = () => page.evaluate(() => {
+    const el = document.querySelector('[data-testid="home-top"], [data-testid="streak-number"]')
+    return el && { kind: el.dataset.kind || 'streak', text: el.innerText.replace(/\s+/g, ' ') }
+  })
+  const a = await top()
+  ok('home top: his best weights take the streak\'s place', a?.kind === 'weights' && /(95|120)\s*كجم/.test(a.text)
+    && await page.getByTestId('streak-number').count() === 0, JSON.stringify(a))
+  await page.waitForTimeout(4400)
+  const b = await top()
+  ok('home top: a few seconds later, the next exercise\'s best', b?.kind === 'weights' && b.text !== a.text && /(95|120)\s*كجم/.test(b.text), JSON.stringify({ a, b }))
+  await page.screenshot({ path: `${OUT}/home-top-weights.png`, clip: { x: 0, y: 0, width: 390, height: 260 } })
+  // Settings › «أعلى الرئيسية» › «المستوى»
+  await page.getByRole('button', { name: 'الإعدادات' }).first().click(); await page.waitForTimeout(600)
+  await page.getByText('أعلى الرئيسية', { exact: true }).first().click(); await page.waitForTimeout(500)
+  await page.getByRole('radio', { name: /المستوى/ }).click(); await page.waitForTimeout(300)
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('meran_home_top')))
+  await page.locator('nav.f-tabs > button').first().click(); await page.waitForTimeout(800)
+  const c = await top()
+  ok('home top: Settings switches it — the level, kept for next time', kept === 'level' && c?.kind === 'level' && /المستوى/.test(c.text), JSON.stringify({ kept, c }))
+  ok('home top: no page errors', errors.length === 0, errors.join('; '))
+  await ctx.close()
+}
+
 // ══ «كسبت يوم راحة»: earned by the session, announced after it ══
 // Three workouts, then the plan's own rest day yesterday: four counted
 // days. The session finished today is the fifth — an optional rest day.

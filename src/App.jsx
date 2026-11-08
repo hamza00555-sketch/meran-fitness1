@@ -74,6 +74,7 @@ import SystemAlert      from './components/SystemAlert.jsx'
 import WhatsNewModal    from './components/WhatsNewModal.jsx'
 import DeloadEndScreen  from './components/DeloadEndScreen.jsx'
 import { setsByMuscle } from './summaryArt.js'
+import { HOME_TOP_KEY, homeTopOf } from './homeTop.js'
 import AssetPackPrompt  from './components/AssetPackPrompt.jsx'
 import StreakChip       from './components/streak/StreakChip.jsx'
 import LiveBar          from './components/frame/LiveBar.jsx'
@@ -221,6 +222,8 @@ export default function App() {
   // picker by reading how many days a week they had selected —
   // workout history and plan order are left completely untouched.
   const [repTarget, setRepTarget] = useState(() => ({ ...DEFAULT_REP_TARGET, ...ls.get('hf_rep_target', {}) }))
+  // What sits at the top of Home: the streak, or what he chose (src/homeTop.js).
+  const [homeTop, setHomeTop] = useState(() => homeTopOf(ls.get(HOME_TOP_KEY, 'streak')))
   // When each achievement was earned: { id: epochMs }. Stored separately
   // so the existing unlocked-id list needs no migration.
   const [unlockedAt, setUnlockedAt] = useState(() => ls.get('hf_unlocked_at', {}))
@@ -375,6 +378,7 @@ export default function App() {
   useEffect(() => { ls.set('hf_exercise_subs',    exerciseSubs)    }, [exerciseSubs])
   useEffect(() => { ls.set('hf_recovery',         recoveryCfg)     }, [recoveryCfg])
   useEffect(() => { ls.set('hf_rep_target',       repTarget)       }, [repTarget])
+  useEffect(() => { ls.set(HOME_TOP_KEY,            homeTop)         }, [homeTop])
   useEffect(() => { ls.set('hf_unlocked_at',      unlockedAt)      }, [unlockedAt])
 
 
@@ -1501,6 +1505,8 @@ export default function App() {
             onOpenDeload={() => { setSettingsSection('deload'); pushPage('settings') }}
             onOpenPlanner={openPlanner}
             onOpenPlanView={() => openPlanView('home')}
+            homeTop={homeTop}
+            onOpenProgress={() => goTab('progress')}
           />
         )}
         {!page && tab === 'history' && (
@@ -1562,6 +1568,8 @@ export default function App() {
             <NavBar title="الإعدادات" onBack={popPage} />
             <SettingsPage
               section={settingsSection}
+              homeTop={homeTop}
+              onHomeTop={setHomeTop}
               profile={profile}
               onUpdateProfile={handleUpdateProfile}
               sessions={sessions}
